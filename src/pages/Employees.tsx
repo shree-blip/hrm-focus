@@ -25,122 +25,149 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Plus, Filter, MoreHorizontal, Mail, Phone, MapPin } from "lucide-react";
+import { Search, Plus, Filter, MoreHorizontal, Mail, Phone, MapPin, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
 import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
 import { TimesheetDialog } from "@/components/employees/TimesheetDialog";
 import { DeactivateDialog } from "@/components/employees/DeactivateDialog";
-
-interface Employee {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  department: string;
-  location: string;
-  status: string;
-  initials: string;
-  phone: string;
-}
-
-const initialEmployees: Employee[] = [
-  // US Team
-  { id: 1, name: "Adish Dahal", email: "adish@focusyourfinance.com", role: "Vice President", department: "Executive", location: "US", status: "active", initials: "AD", phone: "" },
-  { id: 2, name: "Julie Moreno", email: "julie@focusyourfinance.com", role: "Executive Assistant", department: "Executive", location: "US", status: "active", initials: "JM", phone: "" },
-  { id: 3, name: "Sambridhi Regmi", email: "sambridhi@focusyourfinance.com", role: "Accountant", department: "Accounting", location: "US", status: "active", initials: "SR", phone: "" },
-  { id: 4, name: "Anjila Shrestha", email: "anjila@focusyourfinance.com", role: "Operations Associate", department: "Operations", location: "US", status: "active", initials: "AS", phone: "" },
-  { id: 5, name: "Rick Leonard", email: "rick@focusyourfinance.com", role: "Healthcare", department: "Healthcare", location: "US", status: "active", initials: "RL", phone: "" },
-  { id: 6, name: "Jamie Alcantar", email: "jamie@focusyourfinance.com", role: "Healthcare", department: "Healthcare", location: "US", status: "active", initials: "JA", phone: "" },
-  
-  // Nepal Team
-  { id: 7, name: "Ganesh Dahal", email: "ganesh.dahal@focusyourfinance.com", role: "VP - Nepal Operations", department: "Executive", location: "Nepal", status: "active", initials: "GD", phone: "" },
-  { id: 8, name: "Salmon Adhikari", email: "salmon@focusyourfinance.com", role: "Chief Operations Officer", department: "Operations", location: "Nepal", status: "active", initials: "SA", phone: "" },
-  { id: 9, name: "Guinness Lakhe", email: "guinness@focusyourfinance.com", role: "Sr. Accountant Officer", department: "Accounting", location: "Nepal", status: "active", initials: "GL", phone: "" },
-  { id: 10, name: "Hemant Rai", email: "operations@focusyourfinance.com", role: "Sr Operations Officer", department: "Operations", location: "Nepal", status: "active", initials: "HR", phone: "" },
-  { id: 11, name: "Resham Karki", email: "nepalfocus2@gmail.com", role: "Administration Officer", department: "Operations", location: "Nepal", status: "active", initials: "RK", phone: "" },
-  { id: 12, name: "Shree Gauli", email: "shree@focusyourfinance.com", role: "Sr Marketing Officer", department: "Marketing", location: "Nepal", status: "active", initials: "SG", phone: "" },
-  { id: 13, name: "Bikash Neupane", email: "hello@focusyourfinance.com", role: "Digitization/IT Officer", department: "IT", location: "Nepal", status: "active", initials: "BN", phone: "" },
-  { id: 14, name: "Kalash Shrestha", email: "kalash@focusyourfinance.com", role: "Tax Accountant", department: "Tax", location: "Nepal", status: "active", initials: "KS", phone: "" },
-  { id: 15, name: "Sandesh Rai", email: "sandesh.rai@focusyourfinance.com", role: "Sr. Accountant", department: "Accounting", location: "Nepal", status: "active", initials: "SR", phone: "" },
-  { id: 16, name: "Ishika Jha", email: "ishika@focusyourfinance.com", role: "Accounting Associate", department: "Accounting", location: "Nepal", status: "active", initials: "IJ", phone: "" },
-  { id: 17, name: "Sapana Regmi", email: "sapana@focusyourfinance.com", role: "Accounting Associate", department: "Accounting", location: "Nepal", status: "active", initials: "SR", phone: "" },
-  { id: 18, name: "Sajiya Banu", email: "sajiya@focusyourfinance.com", role: "Tax Associate", department: "Tax", location: "Nepal", status: "active", initials: "SB", phone: "" },
-  { id: 19, name: "Sushant Maskey", email: "sushant@focusyourfinance.com", role: "Staff Accountant", department: "Accounting", location: "Nepal", status: "active", initials: "SM", phone: "" },
-  { id: 20, name: "Bhaskar Rokka", email: "bhaskar@focusyourfinance.com", role: "Staff Accountant", department: "Accounting", location: "Nepal", status: "active", initials: "BR", phone: "" },
-  { id: 21, name: "Tika Rai", email: "tika.rai@focusyourfinance.com", role: "Staff Accountant", department: "Accounting", location: "Nepal", status: "active", initials: "TR", phone: "" },
-  { id: 22, name: "Sonu Sagar Dongol", email: "sonu@focusyourfinance.com", role: "Paid Ads Specialist", department: "Marketing", location: "Nepal", status: "active", initials: "SD", phone: "" },
-  { id: 23, name: "Bijesh Khadgi", email: "bijesh@focusyourfinance.com", role: "Social Media Manager", department: "Marketing", location: "Nepal", status: "active", initials: "BK", phone: "" },
-  { id: 24, name: "Sumit Sharma", email: "sumit@focusyourfinance.com", role: "SEO Manager", department: "Marketing", location: "Nepal", status: "active", initials: "SS", phone: "" },
-  { id: 25, name: "Rahul Roy", email: "rahul@focusyourfinance.com", role: "Content Writer", department: "Marketing", location: "Nepal", status: "active", initials: "RR", phone: "" },
-  { id: 26, name: "Puspa Gautam", email: "lifeatfocus6@gmail.com", role: "Accounting Intern", department: "Accounting", location: "Nepal", status: "probation", initials: "PG", phone: "" },
-  { id: 27, name: "Bidhitsha Khadka", email: "designerfocus08@gmail.com", role: "Graphics Designer Intern", department: "Marketing", location: "Nepal", status: "probation", initials: "BK", phone: "" },
-  { id: 28, name: "Swanim Rai", email: "lifeatfocus8@gmail.com", role: "Intern", department: "Operations", location: "Nepal", status: "probation", initials: "SR", phone: "" },
-  
-  // Focus Data Team
-  { id: 29, name: "Aavash Rimal", email: "aavash@focusdata.io", role: "Chief Operations Officer", department: "Focus Data", location: "Nepal", status: "active", initials: "AR", phone: "" },
-  { id: 30, name: "Sarju Maharjan", email: "hello@focusdata.io", role: "Operations Coordinator", department: "Focus Data", location: "Nepal", status: "active", initials: "SM", phone: "" },
-  { id: 31, name: "Asesh Khanal", email: "aseshkhanal999@gmail.com", role: "Sr. Project Associate", department: "Focus Data", location: "Nepal", status: "active", initials: "AK", phone: "" },
-  { id: 32, name: "Krisha Maharjan", email: "krishamaharjan110@gmail.com", role: "Jr. Project Associate", department: "Focus Data", location: "Nepal", status: "active", initials: "KM", phone: "" },
-  { id: 33, name: "Purnima Bogati", email: "Bogateepurnima17@gmail.com", role: "Project Associate", department: "Focus Data", location: "Nepal", status: "active", initials: "PB", phone: "" },
-];
+import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
+import { useEmployees } from "@/hooks/useEmployees";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Employees = () => {
+  const { employees, loading, createEmployee, updateEmployee, deactivateEmployee } = useEmployees();
+  const { isManager } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   
   // Dialog states
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [timesheetOpen, setTimesheetOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
 
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
+  };
+
   const filteredEmployees = employees.filter((emp) => {
+    const fullName = `${emp.first_name} ${emp.last_name}`.toLowerCase();
     const matchesSearch =
-      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      fullName.includes(searchQuery.toLowerCase()) ||
       emp.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.role.toLowerCase().includes(searchQuery.toLowerCase());
+      (emp.job_title || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDepartment = departmentFilter === "all" || emp.department === departmentFilter;
     const matchesLocation = locationFilter === "all" || emp.location === locationFilter;
     return matchesSearch && matchesDepartment && matchesLocation;
   });
 
-  const handleViewProfile = (employee: Employee) => {
-    setSelectedEmployee(employee);
+  const handleViewProfile = (employee: any) => {
+    setSelectedEmployee({
+      ...employee,
+      name: `${employee.first_name} ${employee.last_name}`,
+      initials: getInitials(employee.first_name, employee.last_name),
+      role: employee.job_title || "Employee",
+    });
     setProfileOpen(true);
   };
 
-  const handleEditDetails = (employee: Employee) => {
-    setSelectedEmployee(employee);
+  const handleEditDetails = (employee: any) => {
+    setSelectedEmployee({
+      id: employee.id,
+      name: `${employee.first_name} ${employee.last_name}`,
+      email: employee.email,
+      phone: employee.phone || "",
+      role: employee.job_title || "",
+      department: employee.department || "",
+      location: employee.location || "US",
+      status: employee.status || "active",
+      initials: getInitials(employee.first_name, employee.last_name),
+    });
     setEditOpen(true);
   };
 
-  const handleViewTimesheet = (employee: Employee) => {
-    setSelectedEmployee(employee);
+  const handleViewTimesheet = (employee: any) => {
+    setSelectedEmployee({
+      ...employee,
+      name: `${employee.first_name} ${employee.last_name}`,
+      initials: getInitials(employee.first_name, employee.last_name),
+    });
     setTimesheetOpen(true);
   };
 
-  const handleDeactivate = (employee: Employee) => {
-    setSelectedEmployee(employee);
+  const handleDeactivate = (employee: any) => {
+    setSelectedEmployee({
+      id: employee.id,
+      name: `${employee.first_name} ${employee.last_name}`,
+      initials: getInitials(employee.first_name, employee.last_name),
+    });
     setDeactivateOpen(true);
   };
 
-  const handleSaveEmployee = (updatedEmployee: Employee) => {
-    setEmployees(prev =>
-      prev.map(emp => (emp.id === updatedEmployee.id ? updatedEmployee : emp))
-    );
+  const handleAddEmployee = async (data: {
+    name: string;
+    email: string;
+    role: string;
+    department: string;
+    location: string;
+    status: string;
+    phone: string;
+  }) => {
+    const nameParts = data.name.split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+    
+    await createEmployee({
+      employee_id: null,
+      first_name: firstName,
+      last_name: lastName,
+      email: data.email,
+      phone: data.phone || null,
+      department: data.department || null,
+      job_title: data.role || null,
+      location: data.location || "US",
+      status: data.status || "active",
+      hire_date: new Date().toISOString().split("T")[0],
+      pay_type: "salary",
+      salary: null,
+      hourly_rate: null,
+    });
   };
 
-  const handleConfirmDeactivate = (employeeId: number) => {
-    setEmployees(prev =>
-      prev.map(emp =>
-        emp.id === employeeId ? { ...emp, status: "inactive" } : emp
-      )
-    );
+  const handleSaveEmployee = async (updatedEmployee: any) => {
+    const nameParts = updatedEmployee.name.split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+    
+    await updateEmployee(updatedEmployee.id, {
+      first_name: firstName,
+      last_name: lastName,
+      email: updatedEmployee.email,
+      phone: updatedEmployee.phone || null,
+      department: updatedEmployee.department || null,
+      job_title: updatedEmployee.role || null,
+      location: updatedEmployee.location || "US",
+      status: updatedEmployee.status || "active",
+    });
   };
+
+  const handleConfirmDeactivate = async (employeeId: number | string) => {
+    await deactivateEmployee(employeeId.toString());
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -152,10 +179,12 @@ const Employees = () => {
             Manage your team members and their roles
           </p>
         </div>
-        <Button className="gap-2 shadow-md">
-          <Plus className="h-4 w-4" />
-          Add Employee
-        </Button>
+        {isManager && (
+          <Button className="gap-2 shadow-md" onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Add Employee
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -214,95 +243,114 @@ const Employees = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredEmployees.map((employee, index) => (
-              <TableRow
-                key={employee.id}
-                className="group cursor-pointer animate-fade-in"
-                style={{ animationDelay: `${300 + index * 50}ms` }}
-              >
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src="" />
-                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                        {employee.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{employee.name}</p>
-                      <p className="text-sm text-muted-foreground">{employee.email}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>{employee.role}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className="font-normal">
-                    {employee.department}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">
-                      {employee.location === "US" ? "🇺🇸" : "🇳🇵"}
-                    </span>
-                    {employee.location}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      employee.status === "active" && "border-success/50 text-success bg-success/10",
-                      employee.status === "probation" && "border-warning/50 text-warning bg-warning/10",
-                      employee.status === "inactive" && "border-destructive/50 text-destructive bg-destructive/10"
-                    )}
-                  >
-                    {employee.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8"
-                      onClick={() => window.location.href = `mailto:${employee.email}`}
-                    >
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleViewProfile(employee)}>
-                        View Profile
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleEditDetails(employee)}>
-                        Edit Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleViewTimesheet(employee)}>
-                        View Timesheet
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="text-destructive"
-                        onClick={() => handleDeactivate(employee)}
-                      >
-                        Deactivate
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {filteredEmployees.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  No employees found
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredEmployees.map((employee, index) => (
+                <TableRow
+                  key={employee.id}
+                  className="group cursor-pointer animate-fade-in"
+                  style={{ animationDelay: `${300 + index * 50}ms` }}
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src="" />
+                        <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                          {getInitials(employee.first_name, employee.last_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{employee.first_name} {employee.last_name}</p>
+                        <p className="text-sm text-muted-foreground">{employee.email}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{employee.job_title || "-"}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="font-normal">
+                      {employee.department || "-"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">
+                        {employee.location === "US" ? "🇺🇸" : "🇳🇵"}
+                      </span>
+                      {employee.location || "US"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        employee.status === "active" && "border-success/50 text-success bg-success/10",
+                        employee.status === "probation" && "border-warning/50 text-warning bg-warning/10",
+                        employee.status === "inactive" && "border-destructive/50 text-destructive bg-destructive/10"
+                      )}
+                    >
+                      {employee.status || "active"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => window.location.href = `mailto:${employee.email}`}
+                      >
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                      {employee.phone && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => window.location.href = `tel:${employee.phone}`}
+                        >
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleViewProfile(employee)}>
+                          View Profile
+                        </DropdownMenuItem>
+                        {isManager && (
+                          <DropdownMenuItem onClick={() => handleEditDetails(employee)}>
+                            Edit Details
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => handleViewTimesheet(employee)}>
+                          View Timesheet
+                        </DropdownMenuItem>
+                        {isManager && (
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => handleDeactivate(employee)}
+                          >
+                            Deactivate
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
@@ -319,6 +367,11 @@ const Employees = () => {
       </div>
 
       {/* Dialogs */}
+      <AddEmployeeDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onAdd={handleAddEmployee}
+      />
       <EmployeeProfileDialog
         employee={selectedEmployee}
         open={profileOpen}

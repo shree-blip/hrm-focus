@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Filter, MoreHorizontal, Clock, AlertCircle, GripVertical, CheckCircle2, Circle, Timer } from "lucide-react";
+import { Plus, Search, Filter, MoreHorizontal, Clock, AlertCircle, GripVertical, CheckCircle2, Circle, Timer, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
-import { toast } from "@/hooks/use-toast";
+import { useTasks } from "@/hooks/useTasks";
+import { format } from "date-fns";
 
-interface Task {
+interface TaskUI {
   id: string;
   title: string;
   client: string;
@@ -23,15 +24,6 @@ interface Task {
   timeEstimate: string;
 }
 
-const initialTasks: Task[] = [
-  { id: "1", title: "Monthly Bank Reconciliation", client: "Tech Solutions Inc", assignee: { name: "Sarah Johnson", initials: "SJ" }, priority: "high", dueDate: "Today", status: "in-progress", timeEstimate: "4h" },
-  { id: "2", title: "Q4 Tax Return Preparation", client: "Retail Corp", assignee: { name: "Michael Chen", initials: "MC" }, priority: "high", dueDate: "Dec 28", status: "todo", timeEstimate: "8h" },
-  { id: "3", title: "Payroll Processing - December", client: "Internal", assignee: { name: "Emily Davis", initials: "ED" }, priority: "medium", dueDate: "Dec 30", status: "todo", timeEstimate: "3h" },
-  { id: "4", title: "Expense Report Audit", client: "StartUp Ltd", assignee: { name: "Lisa Park", initials: "LP" }, priority: "low", dueDate: "Dec 31", status: "review", timeEstimate: "2h" },
-  { id: "5", title: "Client Onboarding Documentation", client: "New Ventures", assignee: { name: "James Wilson", initials: "JW" }, priority: "medium", dueDate: "Jan 2", status: "done", timeEstimate: "1h" },
-  { id: "6", title: "Sales Tax Filing - Q4", client: "E-Commerce Plus", assignee: { name: "Sarah Johnson", initials: "SJ" }, priority: "high", dueDate: "Jan 15", status: "todo", timeEstimate: "6h" },
-];
-
 const columns = [
   { id: "todo", title: "To Do", icon: Circle },
   { id: "in-progress", title: "In Progress", icon: Timer },
@@ -40,29 +32,65 @@ const columns = [
 ];
 
 const Tasks = () => {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const { tasks, loading, createTask, updateTask, updateTaskStatus, deleteTask } = useTasks();
   const [searchQuery, setSearchQuery] = useState("");
   const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
-  const [newTaskDefaultStatus, setNewTaskDefaultStatus] = useState<Task["status"]>("todo");
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [newTaskDefaultStatus, setNewTaskDefaultStatus] = useState<TaskUI["status"]>("todo");
+  const [selectedTask, setSelectedTask] = useState<TaskUI | null>(null);
   const [taskDetailOpen, setTaskDetailOpen] = useState(false);
-  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const [draggedTask, setDraggedTask] = useState<TaskUI | null>(null);
 
-  const getTasksByStatus = (status: string) => tasks.filter((task) => task.status === status && (task.title.toLowerCase().includes(searchQuery.toLowerCase()) || task.client.toLowerCase().includes(searchQuery.toLowerCase())));
+  // Transform database tasks to UI format
+  const transformedTasks: TaskUI[] = tasks.map(task => ({
+    id: task.id,
+    title: task.title,
+    client: task.client_name || "Internal",
+    assignee: { name: "Assigned", initials: "??" },
+    priority: (task.priority as "high" | "medium" | "low") || "medium",
+    dueDate: task.due_date ? format(new Date(task.due_date), "MMM d") : "No date",
+    status: (task.status?.replace("_", "-") as TaskUI["status"]) || "todo",
+    timeEstimate: task.time_estimate || "-",
+  }));
 
-  const handleAddTask = (task: Omit<Task, "id">) => {
-    setTasks((prev) => [...prev, { ...task, id: Date.now().toString() }]);
+  const getTasksByStatus = (status: string) => transformedTasks.filter((task) => 
+    task.status === status && 
+    (task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+     task.client.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const handleAddTask = async (task: Omit<TaskUI, "id">) => {
+    const statusDbMap: Record<string, "todo" | "in-progress" | "review" | "done"> = { 
+      "in-progress": "in-progress", "todo": "todo", "review": "review", "done": "done" 
+    };
+    await createTask({
+      title: task.title,
+      client_name: task.client,
+      priority: task.priority,
+      due_date: undefined,
+      status: statusDbMap[task.status] || "todo",
+      time_estimate: task.timeEstimate,
+      description: undefined,
+      assignee_id: undefined,
+    });
   };
 
-  const handleUpdateTask = (updatedTask: Task) => {
-    setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+  const handleUpdateTask = async (updatedTask: TaskUI) => {
+    await updateTask(updatedTask.id, {
+      title: updatedTask.title,
+      client_name: updatedTask.client,
+      priority: updatedTask.priority,
+      status: updatedTask.status,
+      time_estimate: updatedTask.timeEstimate,
+    });
+    setTaskDetailOpen(false);
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  const handleDeleteTask = async (taskId: string) => {
+    await deleteTask(taskId);
+    setTaskDetailOpen(false);
   };
 
-  const handleDragStart = (e: React.DragEvent, task: Task) => {
+  const handleDragStart = (e: React.DragEvent, task: TaskUI) => {
     setDraggedTask(task);
     e.dataTransfer.effectAllowed = "move";
   };
@@ -72,14 +100,23 @@ const Tasks = () => {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: Task["status"]) => {
+  const handleDrop = async (e: React.DragEvent, newStatus: TaskUI["status"]) => {
     e.preventDefault();
     if (draggedTask && draggedTask.status !== newStatus) {
-      setTasks((prev) => prev.map((t) => (t.id === draggedTask.id ? { ...t, status: newStatus } : t)));
-      toast({ title: "Task Moved", description: `Task moved to ${newStatus.replace("-", " ")}.` });
+      await updateTaskStatus(draggedTask.id, newStatus);
     }
     setDraggedTask(null);
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -107,21 +144,28 @@ const Tasks = () => {
           const columnTasks = getTasksByStatus(column.id);
           const Icon = column.icon;
           return (
-            <div key={column.id} className="flex flex-col" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, column.id as Task["status"])}>
+            <div key={column.id} className="flex flex-col" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, column.id as TaskUI["status"])}>
               <div className="flex items-center justify-between mb-4 px-1">
                 <div className="flex items-center gap-2">
                   <Icon className={cn("h-4 w-4", column.id === "done" && "text-success", column.id === "in-progress" && "text-info", column.id === "review" && "text-warning")} />
                   <h3 className="font-display font-semibold">{column.title}</h3>
                   <Badge variant="secondary" className="text-xs">{columnTasks.length}</Badge>
                 </div>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setNewTaskDefaultStatus(column.id as Task["status"]); setNewTaskDialogOpen(true); }}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setNewTaskDefaultStatus(column.id as TaskUI["status"]); setNewTaskDialogOpen(true); }}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
 
               <div className="space-y-3 min-h-[400px]">
                 {columnTasks.map((task, index) => (
-                  <Card key={task.id} className="group cursor-pointer hover:shadow-md hover:border-primary/20 transition-all animate-scale-in relative" style={{ animationDelay: `${300 + index * 50}ms` }} draggable onDragStart={(e) => handleDragStart(e, task)} onClick={() => { setSelectedTask(task); setTaskDetailOpen(true); }}>
+                  <Card 
+                    key={task.id} 
+                    className="group cursor-pointer hover:shadow-md hover:border-primary/20 transition-all animate-scale-in relative" 
+                    style={{ animationDelay: `${300 + index * 50}ms` }} 
+                    draggable 
+                    onDragStart={(e) => handleDragStart(e, task)} 
+                    onClick={() => { setSelectedTask(task); setTaskDetailOpen(true); }}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
