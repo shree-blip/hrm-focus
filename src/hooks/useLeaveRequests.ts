@@ -14,7 +14,14 @@ interface LeaveRequest {
   status: "pending" | "approved" | "rejected" | "cancelled";
   approved_by: string | null;
   approved_at: string | null;
+  rejection_reason: string | null;
   created_at: string;
+  // Joined profile data
+  profile?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
 }
 
 interface LeaveBalance {
@@ -33,6 +40,7 @@ export function useLeaveRequests() {
   const fetchRequests = useCallback(async () => {
     if (!user) return;
 
+    // Fetch leave requests
     let query = supabase
       .from("leave_requests")
       .select("*")
@@ -43,11 +51,29 @@ export function useLeaveRequests() {
       query = query.eq("user_id", user.id);
     }
 
-    const { data, error } = await query;
+    const { data: leaveData, error: leaveError } = await query;
 
-    if (!error && data) {
-      setRequests(data as LeaveRequest[]);
+    if (leaveError || !leaveData) {
+      setLoading(false);
+      return;
     }
+
+    // Fetch profiles for all unique user_ids
+    const userIds = [...new Set(leaveData.map(r => r.user_id))];
+    const { data: profilesData } = await supabase
+      .from("profiles")
+      .select("user_id, first_name, last_name, email")
+      .in("user_id", userIds);
+
+    // Map profiles to requests
+    const profilesMap = new Map(profilesData?.map(p => [p.user_id, p]) || []);
+    
+    const requestsWithProfiles = leaveData.map(request => ({
+      ...request,
+      profile: profilesMap.get(request.user_id) || undefined,
+    })) as LeaveRequest[];
+
+    setRequests(requestsWithProfiles);
     setLoading(false);
   }, [user, isManager]);
 
