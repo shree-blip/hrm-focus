@@ -54,7 +54,7 @@ export default function Auth() {
     }
   }, [user, navigate]);
 
-  // Check if email is in allowed list when user types
+  // Check if email is in allowed list when user types (using secure RPC)
   useEffect(() => {
     const checkEmail = async () => {
       if (!signupEmail || !emailSchema.safeParse(signupEmail).success) {
@@ -65,45 +65,42 @@ export default function Auth() {
 
       setEmailChecking(true);
       
-      // Check allowed_signups table
-      const { data: allowedData, error: allowedError } = await supabase
-        .from("allowed_signups")
-        .select("email, is_used, employee_id")
-        .eq("email", signupEmail.toLowerCase())
-        .maybeSingle();
+      // Use secure RPC function to verify email without exposing the full list
+      const { data, error } = await supabase.rpc('verify_signup_email', {
+        check_email: signupEmail.toLowerCase()
+      });
 
-      if (allowedError) {
+      if (error) {
         setEmailValid(false);
         setEmailError("Error checking email. Please try again.");
         setEmailChecking(false);
         return;
       }
 
-      if (!allowedData) {
-        setEmailValid(false);
-        setEmailError("This email is not authorized to sign up. Please contact your VP or manager to be added to the system.");
-        setEmailChecking(false);
-        return;
-      }
+      const result = data as { allowed: boolean; reason?: string; employee_id?: string };
 
-      if (allowedData.is_used) {
+      if (!result.allowed) {
         setEmailValid(false);
-        setEmailError("This email has already been registered. Please login instead.");
+        if (result.reason === 'already_used') {
+          setEmailError("This email has already been registered. Please login instead.");
+        } else {
+          setEmailError("This email is not authorized to sign up. Please contact your VP or manager to be added to the system.");
+        }
         setEmailChecking(false);
         return;
       }
 
       // Email is valid - fetch employee details to auto-fill name
-      if (allowedData.employee_id) {
+      if (result.employee_id) {
         const { data: employeeData } = await supabase
-          .from("employees")
+          .from("employee_directory")
           .select("first_name, last_name")
-          .eq("id", allowedData.employee_id)
+          .eq("id", result.employee_id)
           .single();
 
         if (employeeData) {
-          setFirstName(employeeData.first_name);
-          setLastName(employeeData.last_name);
+          setFirstName(employeeData.first_name || '');
+          setLastName(employeeData.last_name || '');
         }
       }
 
@@ -211,11 +208,10 @@ export default function Auth() {
         variant: "destructive",
       });
     } else {
-      // Mark the signup as used
-      await supabase
-        .from("allowed_signups")
-        .update({ is_used: true, used_at: new Date().toISOString() })
-        .eq("email", signupEmail.toLowerCase());
+      // Mark the signup as used via secure RPC function
+      await supabase.rpc('mark_signup_used', {
+        check_email: signupEmail.toLowerCase()
+      });
 
       toast({
         title: "Account Created!",

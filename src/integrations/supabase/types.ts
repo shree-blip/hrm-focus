@@ -992,6 +992,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      mark_signup_used: { Args: { check_email: string }; Returns: boolean }
+      verify_signup_email: { Args: { check_email: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "vp" | "manager" | "employee"
