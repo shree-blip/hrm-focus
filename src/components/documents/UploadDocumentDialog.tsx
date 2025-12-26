@@ -29,6 +29,7 @@ interface UploadDocumentDialogProps {
     size: string;
     date: string;
     status: string;
+    file?: File;
   }) => void;
 }
 
@@ -84,6 +85,7 @@ export function UploadDocumentDialog({
       size: formatFileSize(file.size),
       date: dateStr,
       status: "active",
+      file: file,
     });
 
     // Reset form

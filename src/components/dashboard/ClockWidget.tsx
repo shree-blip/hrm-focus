@@ -1,17 +1,20 @@
 import { useState, useEffect } from "react";
-import { Clock, Play, Square, Coffee, Loader2 } from "lucide-react";
+import { Clock, Play, Square, Coffee, Loader2, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useAttendance } from "@/hooks/useAttendance";
-import { format, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
+import { format, startOfWeek, endOfWeek } from "date-fns";
 
 export function ClockWidget() {
   const { 
     currentLog, 
     weeklyLogs, 
-    loading, 
+    loading,
+    clockType,
+    setClockType,
     clockIn, 
     clockOut, 
     startBreak, 
@@ -61,7 +64,7 @@ export function ClockWidget() {
   }, [clockStatus, currentLog]);
 
   const handleClockIn = async () => {
-    await clockIn("payroll");
+    await clockIn(clockType);
   };
 
   const handleClockOut = async () => {
@@ -173,13 +176,29 @@ export function ClockWidget() {
               clockStatus === "break" && "border-warning text-warning bg-warning/10"
             )}
           >
-            {clockStatus === "in" && "Active"}
+            {clockStatus === "in" && (currentLog?.clock_type === "billable" ? "Billable" : "Active")}
             {clockStatus === "out" && "Not Clocked In"}
             {clockStatus === "break" && "On Break"}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Clock Type Selector */}
+        {clockStatus === "out" && (
+          <div className="flex items-center gap-2">
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
+            <Select value={clockType} onValueChange={(v) => setClockType(v as "payroll" | "billable")}>
+              <SelectTrigger className="flex-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="payroll">Payroll Time</SelectItem>
+                <SelectItem value="billable">Billable Time</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
         {/* Timer Display */}
         <div className="text-center py-6 rounded-lg bg-secondary/50">
           <p className="text-5xl font-display font-bold tracking-wider text-foreground">
@@ -188,6 +207,7 @@ export function ClockWidget() {
           {clockInTime && (
             <p className="text-sm text-muted-foreground mt-2">
               Clocked in at {clockInTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+              {currentLog?.clock_type === "billable" && " (Billable)"}
             </p>
           )}
         </div>

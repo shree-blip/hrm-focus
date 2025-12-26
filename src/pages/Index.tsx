@@ -7,6 +7,11 @@ import { TeamWidget } from "@/components/dashboard/TeamWidget";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { AnnouncementsWidget } from "@/components/dashboard/AnnouncementsWidget";
 import { CompanyCalendar } from "@/components/dashboard/CompanyCalendar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useEmployees } from "@/hooks/useEmployees";
+import { useTasks } from "@/hooks/useTasks";
+import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import {
   Users,
   Clock,
@@ -15,12 +20,27 @@ import {
 } from "lucide-react";
 
 const Index = () => {
+  const { profile, role } = useAuth();
+  const navigate = useNavigate();
+  const { employees } = useEmployees();
+  const { tasks } = useTasks();
+  const { requests } = useLeaveRequests();
+
+  const firstName = profile?.first_name || "User";
+  const pendingTasks = tasks.filter(t => t.status !== "done").length;
+  const dueTodayTasks = tasks.filter(t => {
+    if (!t.due_date) return false;
+    const today = new Date().toISOString().split("T")[0];
+    return t.due_date === today && t.status !== "done";
+  }).length;
+  const pendingLeaveRequests = requests.filter(r => r.status === "pending").length;
+
   return (
     <DashboardLayout>
       {/* Page Header */}
       <div className="mb-8 animate-fade-in">
         <h1 className="text-3xl font-display font-bold text-foreground">
-          Welcome back, Ganesh
+          Welcome back, {firstName}
         </h1>
         <p className="text-muted-foreground mt-1">
           Here's what's happening with your team today.
@@ -31,39 +51,43 @@ const Index = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="Total Employees"
-          value="48"
+          value={employees.length.toString()}
           change="+3 this month"
           changeType="positive"
           icon={Users}
           iconColor="bg-primary/10 text-primary"
           delay={100}
+          onClick={() => navigate("/employees")}
         />
         <StatCard
           title="Hours Tracked Today"
-          value="312h"
-          change="85% utilization"
-          changeType="positive"
+          value="--"
+          change="View attendance"
+          changeType="neutral"
           icon={Clock}
           iconColor="bg-success/10 text-success"
           delay={150}
+          onClick={() => navigate("/attendance")}
         />
         <StatCard
           title="Pending Tasks"
-          value="23"
-          change="5 due today"
-          changeType="neutral"
+          value={pendingTasks.toString()}
+          change={`${dueTodayTasks} due today`}
+          changeType={dueTodayTasks > 0 ? "negative" : "neutral"}
           icon={CheckCircle2}
           iconColor="bg-warning/10 text-warning"
           delay={200}
+          onClick={() => navigate("/tasks")}
         />
         <StatCard
           title="Leave Requests"
-          value="4"
-          change="2 pending approval"
-          changeType="neutral"
+          value={requests.length.toString()}
+          change={`${pendingLeaveRequests} pending approval`}
+          changeType={pendingLeaveRequests > 0 ? "neutral" : "positive"}
           icon={Calendar}
           iconColor="bg-info/10 text-info"
           delay={250}
+          onClick={() => navigate("/leave")}
         />
       </div>
 

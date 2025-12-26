@@ -62,11 +62,14 @@ const Tasks = () => {
     const statusDbMap: Record<string, "todo" | "in-progress" | "review" | "done"> = { 
       "in-progress": "in-progress", "todo": "todo", "review": "review", "done": "done" 
     };
+    // Parse due date from string (format: YYYY-MM-DD)
+    const dueDate = task.dueDate && task.dueDate !== "No date" ? new Date(task.dueDate) : undefined;
+    
     await createTask({
       title: task.title,
       client_name: task.client,
       priority: task.priority,
-      due_date: undefined,
+      due_date: dueDate,
       status: statusDbMap[task.status] || "todo",
       time_estimate: task.timeEstimate,
       description: undefined,

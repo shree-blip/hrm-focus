@@ -9,6 +9,7 @@ interface StatCardProps {
   icon: LucideIcon;
   iconColor?: string;
   delay?: number;
+  onClick?: () => void;
 }
 
 export function StatCard({
@@ -19,11 +20,16 @@ export function StatCard({
   icon: Icon,
   iconColor = "bg-primary/10 text-primary",
   delay = 0,
+  onClick,
 }: StatCardProps) {
   return (
     <div
-      className="group relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/20 animate-slide-up opacity-0"
+      className={cn(
+        "group relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/20 animate-slide-up opacity-0",
+        onClick && "cursor-pointer"
+      )}
       style={{ animationDelay: `${delay}ms`, animationFillMode: "forwards" }}
+      onClick={onClick}
     >
       {/* Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
