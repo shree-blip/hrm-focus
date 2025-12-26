@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Plus, Check, X, ChevronLeft, ChevronRight, Users, Loader2 } from "lucide-react";
+import { Calendar, Plus, Check, X, ChevronLeft, ChevronRight, Users, Loader2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
+import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
@@ -17,6 +18,8 @@ const Leave = () => {
   const { requests, balances, loading, createRequest, approveRequest, rejectRequest } = useLeaveRequests();
   const [activeTab, setActiveTab] = useState("all");
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<{ id: string; name: string } | null>(null);
 
   const filteredRequests = requests.filter((req) => {
     if (activeTab === "all") return true;
@@ -32,8 +35,16 @@ const Leave = () => {
     await approveRequest(id);
   };
 
-  const handleReject = async (id: string) => {
-    await rejectRequest(id, "Request denied");
+  const handleOpenRejectDialog = (id: string, name: string) => {
+    setSelectedRequest({ id, name });
+    setRejectDialogOpen(true);
+  };
+
+  const handleReject = async (reason: string) => {
+    if (selectedRequest) {
+      await rejectRequest(selectedRequest.id, reason || "Request denied by manager");
+      setSelectedRequest(null);
+    }
   };
 
   const handleSubmitRequest = async (request: { type: string; startDate: Date; endDate: Date; reason: string }) => {
@@ -130,8 +141,13 @@ const Leave = () => {
               </div>
             ) : (
               filteredRequests.map((request, index) => {
-                const initials = "??"; // Would need to join with profiles table
                 const isOwnRequest = request.user_id === user?.id;
+                const employeeName = request.profile 
+                  ? `${request.profile.first_name} ${request.profile.last_name}` 
+                  : "Unknown";
+                const initials = request.profile 
+                  ? `${request.profile.first_name[0]}${request.profile.last_name[0]}` 
+                  : "??";
                 
                 return (
                   <div 
@@ -147,13 +163,21 @@ const Leave = () => {
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="font-medium">
-                            {isOwnRequest ? "You" : "Team Member"}
+                            {isOwnRequest ? "You" : employeeName}
                           </p>
                           <p className="text-sm text-muted-foreground mt-0.5">
                             {request.leave_type} • {format(new Date(request.start_date), "MMM d, yyyy")} - {format(new Date(request.end_date), "MMM d, yyyy")}
                           </p>
                           {request.reason && (
                             <p className="text-sm text-muted-foreground mt-1">"{request.reason}"</p>
+                          )}
+                          {request.status === "rejected" && request.rejection_reason && (
+                            <div className="flex items-start gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                              <MessageSquare className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                              <p className="text-sm text-destructive">
+                                <span className="font-medium">Rejection reason:</span> {request.rejection_reason}
+                              </p>
+                            </div>
                           )}
                         </div>
                         <div className="flex flex-col items-end gap-2">
@@ -171,7 +195,7 @@ const Leave = () => {
                             <Check className="h-3 w-3" />
                             Approve
                           </Button>
-                          <Button size="sm" variant="outline" className="gap-1 text-destructive hover:bg-destructive/10" onClick={() => handleReject(request.id)}>
+                          <Button size="sm" variant="outline" className="gap-1 text-destructive hover:bg-destructive/10" onClick={() => handleOpenRejectDialog(request.id, employeeName)}>
                             <X className="h-3 w-3" />
                             Reject
                           </Button>
@@ -253,6 +277,12 @@ const Leave = () => {
       </div>
 
       <RequestLeaveDialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen} onSubmit={handleSubmitRequest} />
+      <RejectReasonDialog
+        open={rejectDialogOpen}
+        onOpenChange={setRejectDialogOpen}
+        onConfirm={handleReject}
+        employeeName={selectedRequest?.name || ""}
+      />
     </DashboardLayout>
   );
 };
