@@ -135,6 +135,8 @@ const Employees = () => {
       pay_type: "salary",
       salary: null,
       hourly_rate: null,
+      profile_id: null,
+      manager_id: null,
     });
   };
 

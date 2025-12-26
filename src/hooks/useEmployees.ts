@@ -18,6 +18,8 @@ interface Employee {
   pay_type: string | null;
   salary: number | null;
   hourly_rate: number | null;
+  profile_id: string | null;
+  manager_id: string | null;
 }
 
 // Directory view interface (no sensitive data)
@@ -61,12 +63,22 @@ export function useEmployees() {
       if (!error && data) {
         // Map directory data to Employee interface with null sensitive fields
         const mapped: Employee[] = (data as EmployeeDirectory[]).map(emp => ({
-          ...emp,
+          id: emp.id || '',
           employee_id: null,
+          first_name: emp.first_name || '',
+          last_name: emp.last_name || '',
+          email: emp.email || '',
           phone: null,
+          department: emp.department,
+          job_title: emp.job_title,
+          location: emp.location,
+          status: emp.status,
+          hire_date: emp.hire_date,
           pay_type: null,
           salary: null,
           hourly_rate: null,
+          profile_id: emp.profile_id,
+          manager_id: emp.manager_id,
         }));
         setEmployees(mapped);
       }
