@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,32 +30,43 @@ import {
   Download,
   MoreHorizontal,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDocuments, Document } from "@/hooks/useDocuments";
+import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
+import { DocumentViewDialog } from "@/components/documents/DocumentViewDialog";
+import { RenameDocumentDialog } from "@/components/documents/RenameDocumentDialog";
+import { DeleteDocumentDialog } from "@/components/documents/DeleteDocumentDialog";
+import { ShareDocumentDialog } from "@/components/documents/ShareDocumentDialog";
+import { format } from "date-fns";
 
-const documents = [
-  { id: 1, name: "Offer Letter - Michael Chen.pdf", type: "pdf", category: "Contracts", size: "245 KB", date: "Dec 20, 2025", status: "signed" },
-  { id: 2, name: "Employee Handbook 2025.pdf", type: "pdf", category: "Policies", size: "1.2 MB", date: "Jan 1, 2025", status: "active" },
-  { id: 3, name: "NDA Template.docx", type: "doc", category: "Templates", size: "89 KB", date: "Nov 15, 2025", status: "active" },
-  { id: 4, name: "Q4 Performance Reviews.xlsx", type: "xlsx", category: "Reviews", size: "456 KB", date: "Dec 18, 2025", status: "draft" },
-  { id: 5, name: "Tax Form W-4 - Sarah Johnson.pdf", type: "pdf", category: "Tax Forms", size: "178 KB", date: "Dec 10, 2025", status: "completed" },
-  { id: 6, name: "Background Check Results.pdf", type: "pdf", category: "Compliance", size: "312 KB", date: "Dec 5, 2025", status: "approved" },
+// Mock data for display when no real documents exist
+const mockDocuments = [
+  { id: "1", name: "Offer Letter - Michael Chen.pdf", file_path: "", file_type: "pdf", file_size: 245000, category: "Contracts", created_at: "2025-12-20", updated_at: "2025-12-20", status: "signed", uploaded_by: "", employee_id: null },
+  { id: "2", name: "Employee Handbook 2025.pdf", file_path: "", file_type: "pdf", file_size: 1200000, category: "Policies", created_at: "2025-01-01", updated_at: "2025-01-01", status: "active", uploaded_by: "", employee_id: null },
+  { id: "3", name: "NDA Template.docx", file_path: "", file_type: "docx", file_size: 89000, category: "Templates", created_at: "2025-11-15", updated_at: "2025-11-15", status: "active", uploaded_by: "", employee_id: null },
+  { id: "4", name: "Q4 Performance Reviews.xlsx", file_path: "", file_type: "xlsx", file_size: 456000, category: "Reviews", created_at: "2025-12-18", updated_at: "2025-12-18", status: "draft", uploaded_by: "", employee_id: null },
+  { id: "5", name: "Tax Form W-4 - Sarah Johnson.pdf", file_path: "", file_type: "pdf", file_size: 178000, category: "Tax Forms", created_at: "2025-12-10", updated_at: "2025-12-10", status: "completed", uploaded_by: "", employee_id: null },
+  { id: "6", name: "Background Check Results.pdf", file_path: "", file_type: "pdf", file_size: 312000, category: "Compliance", created_at: "2025-12-05", updated_at: "2025-12-05", status: "approved", uploaded_by: "", employee_id: null },
 ];
 
 const categories = [
-  { name: "All Documents", count: 156, icon: FolderOpen },
-  { name: "Contracts", count: 34, icon: FileText },
-  { name: "Tax Forms", count: 48, icon: FileSpreadsheet },
-  { name: "Policies", count: 12, icon: File },
-  { name: "Reviews", count: 28, icon: FileText },
-  { name: "Templates", count: 8, icon: FileImage },
+  { name: "All Documents", icon: FolderOpen },
+  { name: "Contracts", icon: FileText },
+  { name: "Tax Forms", icon: FileSpreadsheet },
+  { name: "Policies", icon: File },
+  { name: "Reviews", icon: FileText },
+  { name: "Templates", icon: FileImage },
+  { name: "Compliance", icon: File },
 ];
 
-const getFileIcon = (type: string) => {
+const getFileIcon = (type: string | null) => {
   switch (type) {
     case "pdf":
       return <FileText className="h-5 w-5 text-destructive" />;
     case "xlsx":
+    case "xls":
       return <FileSpreadsheet className="h-5 w-5 text-success" />;
     case "doc":
     case "docx":
@@ -64,7 +76,106 @@ const getFileIcon = (type: string) => {
   }
 };
 
+const formatFileSize = (bytes: number | null) => {
+  if (!bytes) return "N/A";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+interface DisplayDocument {
+  id: string;
+  name: string;
+  file_path: string;
+  file_type: string | null;
+  file_size: number | null;
+  category: string | null;
+  created_at: string;
+  updated_at: string;
+  status: string | null;
+  uploaded_by: string;
+  employee_id: string | null;
+}
+
 const Documents = () => {
+  const { documents: realDocuments, loading, uploadDocument, deleteDocument, renameDocument, downloadDocument, getDownloadUrl } = useDocuments();
+  const [selectedCategory, setSelectedCategory] = useState("All Documents");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [viewDocument, setViewDocument] = useState<DisplayDocument | null>(null);
+  const [renameDoc, setRenameDoc] = useState<DisplayDocument | null>(null);
+  const [deleteDoc, setDeleteDoc] = useState<DisplayDocument | null>(null);
+  const [shareDoc, setShareDoc] = useState<DisplayDocument | null>(null);
+  const [shareUrl, setShareUrl] = useState("");
+
+  // Use real documents if available, otherwise use mock data
+  const documents: DisplayDocument[] = realDocuments.length > 0 ? realDocuments : mockDocuments;
+
+  // Filter documents based on category and search
+  const filteredDocuments = useMemo(() => {
+    return documents.filter((doc) => {
+      const matchesCategory = selectedCategory === "All Documents" || doc.category === selectedCategory;
+      const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [documents, selectedCategory, searchQuery]);
+
+  // Get category counts
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { "All Documents": documents.length };
+    documents.forEach((doc) => {
+      if (doc.category) {
+        counts[doc.category] = (counts[doc.category] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [documents]);
+
+  const handleUpload = async (docData: { name: string; type: string; category: string; size: string; date: string; status: string; file?: File }) => {
+    if (docData.file) {
+      await uploadDocument(docData.file, docData.category);
+    }
+    setUploadDialogOpen(false);
+  };
+
+  const handleDownload = async (doc: DisplayDocument) => {
+    if (doc.file_path) {
+      await downloadDocument(doc as Document);
+    }
+  };
+
+  const handleView = (doc: DisplayDocument) => {
+    setViewDocument(doc);
+  };
+
+  const handleRename = async (doc: any, newName: string) => {
+    if (doc.file_path) {
+      await renameDocument(doc as Document, newName);
+    }
+    setRenameDoc(null);
+  };
+
+  const handleDelete = async (doc: any) => {
+    if (doc.file_path) {
+      await deleteDocument(doc as Document);
+    }
+    setDeleteDoc(null);
+  };
+
+  const handleShare = async (doc: DisplayDocument) => {
+    if (doc.file_path) {
+      const url = await getDownloadUrl(doc.file_path);
+      setShareUrl(url);
+    } else {
+      setShareUrl(`${window.location.origin}/documents/${doc.id}`);
+    }
+    setShareDoc(doc);
+  };
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Search happens automatically via filteredDocuments
+  };
+
   return (
     <DashboardLayout>
       {/* Page Header */}
@@ -75,7 +186,7 @@ const Documents = () => {
             Manage employee documents and templates
           </p>
         </div>
-        <Button className="gap-2 shadow-md">
+        <Button className="gap-2 shadow-md" onClick={() => setUploadDialogOpen(true)}>
           <Upload className="h-4 w-4" />
           Upload Document
         </Button>
@@ -88,14 +199,16 @@ const Documents = () => {
             <CardTitle className="font-display text-lg">Categories</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            {categories.map((category, index) => {
+            {categories.map((category) => {
               const Icon = category.icon;
+              const isSelected = selectedCategory === category.name;
               return (
                 <button
                   key={category.name}
+                  onClick={() => setSelectedCategory(category.name)}
                   className={cn(
                     "w-full flex items-center justify-between p-3 rounded-lg text-sm transition-all",
-                    index === 0
+                    isSelected
                       ? "bg-primary text-primary-foreground"
                       : "hover:bg-accent text-foreground"
                   )}
@@ -105,10 +218,10 @@ const Documents = () => {
                     <span>{category.name}</span>
                   </div>
                   <Badge
-                    variant={index === 0 ? "secondary" : "outline"}
+                    variant={isSelected ? "secondary" : "outline"}
                     className="text-xs"
                   >
-                    {category.count}
+                    {categoryCounts[category.name] || 0}
                   </Badge>
                 </button>
               );
@@ -120,11 +233,17 @@ const Documents = () => {
         <Card className="lg:col-span-3 animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <CardTitle className="font-display text-lg">All Documents</CardTitle>
+              <CardTitle className="font-display text-lg">{selectedCategory}</CardTitle>
               <div className="flex gap-3">
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input placeholder="Search documents..." className="pl-10" />
+                  <Input 
+                    placeholder="Search documents..." 
+                    className="pl-10" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleSearch}
+                  />
                 </div>
                 <Button variant="outline" size="icon">
                   <Filter className="h-4 w-4" />
@@ -133,83 +252,182 @@ const Documents = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Modified</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {documents.map((doc, index) => (
-                  <TableRow
-                    key={doc.id}
-                    className="group cursor-pointer animate-fade-in"
-                    style={{ animationDelay: `${300 + index * 50}ms` }}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        {getFileIcon(doc.type)}
-                        <span className="font-medium">{doc.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-normal">
-                        {doc.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{doc.size}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {doc.date}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          doc.status === "signed" && "border-success text-success bg-success/10",
-                          doc.status === "active" && "border-primary text-primary bg-primary/10",
-                          doc.status === "draft" && "border-warning text-warning bg-warning/10",
-                          doc.status === "completed" && "border-info text-info bg-info/10",
-                          doc.status === "approved" && "border-success text-success bg-success/10"
-                        )}
-                      >
-                        {doc.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>View</DropdownMenuItem>
-                            <DropdownMenuItem>Rename</DropdownMenuItem>
-                            <DropdownMenuItem>Share</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : filteredDocuments.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No documents found</p>
+                <Button variant="outline" className="mt-4" onClick={() => setUploadDialogOpen(true)}>
+                  Upload your first document
+                </Button>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Modified</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredDocuments.map((doc, index) => (
+                    <TableRow
+                      key={doc.id}
+                      className="group cursor-pointer animate-fade-in"
+                      style={{ animationDelay: `${300 + index * 50}ms` }}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {getFileIcon(doc.file_type)}
+                          <span className="font-medium">{doc.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal">
+                          {doc.category || "Uncategorized"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatFileSize(doc.file_size)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {format(new Date(doc.updated_at || doc.created_at), "MMM d, yyyy")}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            doc.status === "signed" && "border-success text-success bg-success/10",
+                            doc.status === "active" && "border-primary text-primary bg-primary/10",
+                            doc.status === "draft" && "border-warning text-warning bg-warning/10",
+                            doc.status === "completed" && "border-info text-info bg-info/10",
+                            doc.status === "approved" && "border-success text-success bg-success/10"
+                          )}
+                        >
+                          {doc.status || "active"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => handleDownload(doc)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleView(doc)}>
+                                View
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setRenameDoc(doc)}>
+                                Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleShare(doc)}>
+                                Share
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={() => setDeleteDoc(doc)}
+                              >
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialogs */}
+      <UploadDocumentDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        onUpload={handleUpload}
+      />
+
+      <DocumentViewDialog
+        document={viewDocument ? {
+          id: parseInt(viewDocument.id) || 0,
+          name: viewDocument.name,
+          type: viewDocument.file_type || "file",
+          category: viewDocument.category || "Uncategorized",
+          size: formatFileSize(viewDocument.file_size),
+          date: format(new Date(viewDocument.updated_at || viewDocument.created_at), "MMM d, yyyy"),
+          status: viewDocument.status || "active",
+        } : null}
+        open={!!viewDocument}
+        onOpenChange={(open) => !open && setViewDocument(null)}
+        onDownload={() => viewDocument && handleDownload(viewDocument)}
+      />
+
+      <RenameDocumentDialog
+        document={renameDoc ? {
+          id: parseInt(renameDoc.id) || 0,
+          name: renameDoc.name,
+          type: renameDoc.file_type || "file",
+          category: renameDoc.category || "Uncategorized",
+          size: formatFileSize(renameDoc.file_size),
+          date: format(new Date(renameDoc.updated_at || renameDoc.created_at), "MMM d, yyyy"),
+          status: renameDoc.status || "active",
+        } : null}
+        open={!!renameDoc}
+        onOpenChange={(open) => !open && setRenameDoc(null)}
+        onRename={(doc, newName) => handleRename(renameDoc, newName)}
+      />
+
+      <DeleteDocumentDialog
+        document={deleteDoc ? {
+          id: parseInt(deleteDoc.id) || 0,
+          name: deleteDoc.name,
+          type: deleteDoc.file_type || "file",
+          category: deleteDoc.category || "Uncategorized",
+          size: formatFileSize(deleteDoc.file_size),
+          date: format(new Date(deleteDoc.updated_at || deleteDoc.created_at), "MMM d, yyyy"),
+          status: deleteDoc.status || "active",
+        } : null}
+        open={!!deleteDoc}
+        onOpenChange={(open) => !open && setDeleteDoc(null)}
+        onConfirm={() => handleDelete(deleteDoc)}
+      />
+
+      <ShareDocumentDialog
+        document={shareDoc ? {
+          id: parseInt(shareDoc.id) || 0,
+          name: shareDoc.name,
+          type: shareDoc.file_type || "file",
+          category: shareDoc.category || "Uncategorized",
+          size: formatFileSize(shareDoc.file_size),
+          date: format(new Date(shareDoc.updated_at || shareDoc.created_at), "MMM d, yyyy"),
+          status: shareDoc.status || "active",
+        } : null}
+        open={!!shareDoc}
+        onOpenChange={(open) => !open && setShareDoc(null)}
+        shareUrl={shareUrl}
+      />
     </DashboardLayout>
   );
 };

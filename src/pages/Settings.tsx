@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,11 +9,174 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User, Bell, Shield, Palette, Globe, Building2 } from "lucide-react";
+import { User, Bell, Shield, Building2, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/hooks/useSettings";
+import { toast } from "@/hooks/use-toast";
 
 const Settings = () => {
+  const { profile } = useAuth();
+  const { preferences, updateProfile, updateAvatar, updatePreferences, updatePassword, loading } = useSettings();
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [saving, setSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState("");
+  
+  // Profile form state
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  
+  // Password form state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  
+  // Notification preferences state
+  const [leaveNotifications, setLeaveNotifications] = useState(true);
+  const [taskNotifications, setTaskNotifications] = useState(true);
+  const [payrollNotifications, setPayrollNotifications] = useState(true);
+  const [performanceNotifications, setPerformanceNotifications] = useState(false);
+  const [emailDigest, setEmailDigest] = useState(false);
+
+  // Company settings state
+  const [companyName, setCompanyName] = useState("Focus Your Finance");
+  const [timezone, setTimezone] = useState("America/New_York (EST)");
+  const [fiscalYear, setFiscalYear] = useState("January 1");
+  const [payFrequency, setPayFrequency] = useState("Semi-Monthly");
+
+  // Initialize form with profile data
+  useEffect(() => {
+    if (profile) {
+      setFirstName(profile.first_name || "");
+      setLastName(profile.last_name || "");
+      setPhone(profile.phone || "");
+      setAvatarUrl(profile.avatar_url || "");
+    }
+  }, [profile]);
+
+  // Initialize preferences
+  useEffect(() => {
+    if (preferences) {
+      setLeaveNotifications(preferences.leave_notifications ?? true);
+      setTaskNotifications(preferences.task_notifications ?? true);
+      setPayrollNotifications(preferences.payroll_notifications ?? true);
+      setPerformanceNotifications(preferences.performance_notifications ?? false);
+      setEmailDigest(preferences.email_digest ?? false);
+    }
+  }, [preferences]);
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    await updateProfile({
+      first_name: firstName,
+      last_name: lastName,
+      phone,
+    });
+    setSaving(false);
+  };
+
+  const handleChangePhoto = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please select an image under 2MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    const result = await updateAvatar(file);
+    if (result.url) {
+      setAvatarUrl(result.url);
+    }
+    setSaving(false);
+  };
+
+  const handleUpdatePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords Don't Match",
+        description: "New password and confirmation must match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    const result = await updatePassword(currentPassword, newPassword);
+    if (!result.error) {
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+    setSaving(false);
+  };
+
+  const handleNotificationChange = async (key: string, value: boolean) => {
+    // Update local state immediately
+    switch (key) {
+      case "leave_notifications":
+        setLeaveNotifications(value);
+        break;
+      case "task_notifications":
+        setTaskNotifications(value);
+        break;
+      case "payroll_notifications":
+        setPayrollNotifications(value);
+        break;
+      case "performance_notifications":
+        setPerformanceNotifications(value);
+        break;
+      case "email_digest":
+        setEmailDigest(value);
+        break;
+    }
+
+    // Save to database
+    await updatePreferences({ [key]: value });
+  };
+
+  const handleSaveCompanySettings = () => {
+    // In a real app, this would save to a company_settings table
+    toast({
+      title: "Company Settings Saved",
+      description: "Your company settings have been updated",
+    });
+  };
+
+  const getInitials = () => {
+    return `${firstName?.[0] || 'J'}${lastName?.[0] || 'D'}`.toUpperCase();
+  };
+
   return (
     <DashboardLayout>
+      {/* Hidden file input for avatar upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*"
+        onChange={handleFileChange}
+      />
+
       {/* Page Header */}
       <div className="mb-8 animate-fade-in">
         <h1 className="text-3xl font-display font-bold text-foreground">Settings</h1>
@@ -50,13 +214,16 @@ const Settings = () => {
             <CardContent className="space-y-6">
               <div className="flex items-center gap-6">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="" />
+                  <AvatarImage src={avatarUrl} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-semibold">
-                    JD
+                    {getInitials()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="space-y-2">
-                  <Button variant="outline">Change Photo</Button>
+                  <Button variant="outline" onClick={handleChangePhoto} disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Change Photo
+                  </Button>
                   <p className="text-xs text-muted-foreground">JPG, PNG or GIF. Max 2MB.</p>
                 </div>
               </div>
@@ -66,32 +233,64 @@ const Settings = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" defaultValue="John" />
+                  <Input 
+                    id="firstName" 
+                    value={firstName} 
+                    onChange={(e) => setFirstName(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" defaultValue="Doe" />
+                  <Input 
+                    id="lastName" 
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="john.doe@focusfinance.com" />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    value={profile?.email || ""} 
+                    disabled 
+                    className="bg-muted" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" type="tel" defaultValue="+1 (555) 123-4567" />
+                  <Input 
+                    id="phone" 
+                    type="tel" 
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Input id="role" defaultValue="VP - US Operations" disabled className="bg-muted" />
+                  <Input 
+                    id="role" 
+                    value={profile?.job_title || "Employee"} 
+                    disabled 
+                    className="bg-muted" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
-                  <Input id="department" defaultValue="Executive" disabled className="bg-muted" />
+                  <Input 
+                    id="department" 
+                    value={profile?.department || "General"} 
+                    disabled 
+                    className="bg-muted" 
+                  />
                 </div>
               </div>
 
               <div className="flex justify-end">
-                <Button>Save Changes</Button>
+                <Button onClick={handleSaveProfile} disabled={saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Save Changes
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -110,7 +309,10 @@ const Settings = () => {
                     <p className="font-medium">Leave Requests</p>
                     <p className="text-sm text-muted-foreground">Get notified when team members request leave</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch 
+                    checked={leaveNotifications}
+                    onCheckedChange={(checked) => handleNotificationChange("leave_notifications", checked)}
+                  />
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
@@ -118,7 +320,10 @@ const Settings = () => {
                     <p className="font-medium">Task Assignments</p>
                     <p className="text-sm text-muted-foreground">Receive alerts for new task assignments</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch 
+                    checked={taskNotifications}
+                    onCheckedChange={(checked) => handleNotificationChange("task_notifications", checked)}
+                  />
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
@@ -126,7 +331,10 @@ const Settings = () => {
                     <p className="font-medium">Payroll Reminders</p>
                     <p className="text-sm text-muted-foreground">Get reminded before payroll deadlines</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch 
+                    checked={payrollNotifications}
+                    onCheckedChange={(checked) => handleNotificationChange("payroll_notifications", checked)}
+                  />
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
@@ -134,7 +342,10 @@ const Settings = () => {
                     <p className="font-medium">Performance Reviews</p>
                     <p className="text-sm text-muted-foreground">Notifications for review cycles</p>
                   </div>
-                  <Switch />
+                  <Switch 
+                    checked={performanceNotifications}
+                    onCheckedChange={(checked) => handleNotificationChange("performance_notifications", checked)}
+                  />
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
@@ -142,7 +353,10 @@ const Settings = () => {
                     <p className="font-medium">Email Digest</p>
                     <p className="text-sm text-muted-foreground">Receive daily summary of activities</p>
                   </div>
-                  <Switch />
+                  <Switch 
+                    checked={emailDigest}
+                    onCheckedChange={(checked) => handleNotificationChange("email_digest", checked)}
+                  />
                 </div>
               </div>
             </CardContent>
@@ -167,20 +381,38 @@ const Settings = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="currentPassword">Current Password</Label>
-                  <Input id="currentPassword" type="password" />
+                  <Input 
+                    id="currentPassword" 
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="newPassword">New Password</Label>
-                  <Input id="newPassword" type="password" />
+                  <Input 
+                    id="newPassword" 
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Input id="confirmPassword" type="password" />
+                  <Input 
+                    id="confirmPassword" 
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
                 </div>
               </div>
 
               <div className="flex justify-end">
-                <Button>Update Password</Button>
+                <Button onClick={handleUpdatePassword} disabled={saving || !newPassword}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Update Password
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -196,19 +428,35 @@ const Settings = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="companyName">Company Name</Label>
-                  <Input id="companyName" defaultValue="Focus Your Finance" />
+                  <Input 
+                    id="companyName" 
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="timezone">Timezone</Label>
-                  <Input id="timezone" defaultValue="America/New_York (EST)" />
+                  <Input 
+                    id="timezone" 
+                    value={timezone}
+                    onChange={(e) => setTimezone(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fiscalYear">Fiscal Year Start</Label>
-                  <Input id="fiscalYear" defaultValue="January 1" />
+                  <Input 
+                    id="fiscalYear" 
+                    value={fiscalYear}
+                    onChange={(e) => setFiscalYear(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="payFrequency">Pay Frequency</Label>
-                  <Input id="payFrequency" defaultValue="Semi-Monthly" />
+                  <Input 
+                    id="payFrequency" 
+                    value={payFrequency}
+                    onChange={(e) => setPayFrequency(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -235,7 +483,7 @@ const Settings = () => {
               </div>
 
               <div className="flex justify-end">
-                <Button>Save Settings</Button>
+                <Button onClick={handleSaveCompanySettings}>Save Settings</Button>
               </div>
             </CardContent>
           </Card>
