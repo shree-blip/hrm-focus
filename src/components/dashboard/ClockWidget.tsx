@@ -1,73 +1,50 @@
 import { useState, useEffect } from "react";
-import { Clock, Play, Square, Coffee } from "lucide-react";
+import { Clock, Play, Square, Coffee, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-type ClockStatus = "clocked-out" | "clocked-in" | "on-break";
-
-interface ClockState {
-  status: ClockStatus;
-  clockInTime: string | null;
-  breakStartTime: string | null;
-  totalBreakTime: number;
-}
-
-const STORAGE_KEY = "hrms-clock-state";
+import { useAttendance } from "@/hooks/useAttendance";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 
 export function ClockWidget() {
-  const [status, setStatus] = useState<ClockStatus>("clocked-out");
-  const [clockInTime, setClockInTime] = useState<Date | null>(null);
-  const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
-  const [totalBreakTime, setTotalBreakTime] = useState(0);
+  const { 
+    currentLog, 
+    weeklyLogs, 
+    loading, 
+    clockIn, 
+    clockOut, 
+    startBreak, 
+    endBreak,
+    status: clockStatus 
+  } = useAttendance();
+  
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
-
-  // Load state from localStorage on mount
-  useEffect(() => {
-    const savedState = localStorage.getItem(STORAGE_KEY);
-    if (savedState) {
-      try {
-        const state: ClockState = JSON.parse(savedState);
-        setStatus(state.status);
-        setClockInTime(state.clockInTime ? new Date(state.clockInTime) : null);
-        setBreakStartTime(state.breakStartTime ? new Date(state.breakStartTime) : null);
-        setTotalBreakTime(state.totalBreakTime || 0);
-      } catch (e) {
-        console.error("Failed to parse clock state", e);
-      }
-    }
-  }, []);
-
-  // Save state to localStorage whenever it changes
-  useEffect(() => {
-    const state: ClockState = {
-      status,
-      clockInTime: clockInTime?.toISOString() || null,
-      breakStartTime: breakStartTime?.toISOString() || null,
-      totalBreakTime,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [status, clockInTime, breakStartTime, totalBreakTime]);
 
   // Update elapsed time every second
   useEffect(() => {
-    if (status === "clocked-out" || !clockInTime) {
+    if (clockStatus === "out" || !currentLog) {
       setElapsedTime("00:00:00");
       return;
     }
 
     const updateElapsed = () => {
       const now = new Date();
+      const clockInTime = new Date(currentLog.clock_in);
       let elapsed = now.getTime() - clockInTime.getTime();
       
       // Subtract total break time
-      elapsed -= totalBreakTime;
+      const totalBreakMs = (currentLog.total_break_minutes || 0) * 60 * 1000;
+      elapsed -= totalBreakMs;
       
       // If currently on break, subtract current break time
-      if (status === "on-break" && breakStartTime) {
-        elapsed -= (now.getTime() - breakStartTime.getTime());
+      if (clockStatus === "break" && currentLog.break_start) {
+        const breakStart = new Date(currentLog.break_start);
+        elapsed -= (now.getTime() - breakStart.getTime());
       }
+
+      // Ensure we don't show negative time
+      elapsed = Math.max(0, elapsed);
 
       const hours = Math.floor(elapsed / (1000 * 60 * 60));
       const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
@@ -81,39 +58,103 @@ export function ClockWidget() {
     updateElapsed();
     const interval = setInterval(updateElapsed, 1000);
     return () => clearInterval(interval);
-  }, [status, clockInTime, breakStartTime, totalBreakTime]);
+  }, [clockStatus, currentLog]);
 
-  const handleClockIn = () => {
-    const now = new Date();
-    setStatus("clocked-in");
-    setClockInTime(now);
-    setTotalBreakTime(0);
-    setBreakStartTime(null);
+  const handleClockIn = async () => {
+    await clockIn("payroll");
   };
 
-  const handleClockOut = () => {
-    setStatus("clocked-out");
-    setClockInTime(null);
-    setBreakStartTime(null);
-    setTotalBreakTime(0);
-    localStorage.removeItem(STORAGE_KEY);
+  const handleClockOut = async () => {
+    await clockOut();
   };
 
-  const handleBreak = () => {
-    if (status === "on-break") {
-      // Resuming from break
-      if (breakStartTime) {
-        const breakDuration = new Date().getTime() - breakStartTime.getTime();
-        setTotalBreakTime(prev => prev + breakDuration);
-      }
-      setBreakStartTime(null);
-      setStatus("clocked-in");
+  const handleBreak = async () => {
+    if (clockStatus === "break") {
+      await endBreak();
     } else {
-      // Starting break
-      setBreakStartTime(new Date());
-      setStatus("on-break");
+      await startBreak();
     }
   };
+
+  // Calculate today's hours from logs
+  const getTodayHours = () => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    const todayLogs = weeklyLogs.filter(log => {
+      const logDate = format(new Date(log.clock_in), "yyyy-MM-dd");
+      return logDate === today;
+    });
+    
+    let totalMinutes = 0;
+    todayLogs.forEach(log => {
+      const start = new Date(log.clock_in);
+      const end = log.clock_out ? new Date(log.clock_out) : new Date();
+      const breakMinutes = log.total_break_minutes || 0;
+      const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
+      totalMinutes += Math.max(0, diffMs / (1000 * 60));
+    });
+    
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = Math.round(totalMinutes % 60);
+    return `${hours}h ${mins}m`;
+  };
+
+  // Calculate weekly hours
+  const getWeeklyHours = () => {
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    
+    let totalMinutes = 0;
+    weeklyLogs.forEach(log => {
+      const logDate = new Date(log.clock_in);
+      if (logDate >= weekStart && logDate <= weekEnd) {
+        const start = new Date(log.clock_in);
+        const end = log.clock_out ? new Date(log.clock_out) : new Date();
+        const breakMinutes = log.total_break_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
+        totalMinutes += Math.max(0, diffMs / (1000 * 60));
+      }
+    });
+    
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = Math.round(totalMinutes % 60);
+    return `${hours}h ${mins}m`;
+  };
+
+  // Calculate utilization (assuming 8h target per day, 40h per week)
+  const getUtilization = () => {
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    
+    let totalMinutes = 0;
+    weeklyLogs.forEach(log => {
+      const logDate = new Date(log.clock_in);
+      if (logDate >= weekStart && logDate <= weekEnd) {
+        const start = new Date(log.clock_in);
+        const end = log.clock_out ? new Date(log.clock_out) : new Date();
+        const breakMinutes = log.total_break_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
+        totalMinutes += Math.max(0, diffMs / (1000 * 60));
+      }
+    });
+    
+    const targetMinutes = 40 * 60; // 40 hours per week
+    const utilization = Math.round((totalMinutes / targetMinutes) * 100);
+    return Math.min(utilization, 100);
+  };
+
+  if (loading) {
+    return (
+      <Card className="overflow-hidden animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+        <CardContent className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const clockInTime = currentLog ? new Date(currentLog.clock_in) : null;
 
   return (
     <Card className="overflow-hidden animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
@@ -127,14 +168,14 @@ export function ClockWidget() {
             variant="outline"
             className={cn(
               "font-medium",
-              status === "clocked-in" && "border-success text-success bg-success/10",
-              status === "clocked-out" && "border-muted-foreground text-muted-foreground",
-              status === "on-break" && "border-warning text-warning bg-warning/10"
+              clockStatus === "in" && "border-success text-success bg-success/10",
+              clockStatus === "out" && "border-muted-foreground text-muted-foreground",
+              clockStatus === "break" && "border-warning text-warning bg-warning/10"
             )}
           >
-            {status === "clocked-in" && "Active"}
-            {status === "clocked-out" && "Not Clocked In"}
-            {status === "on-break" && "On Break"}
+            {clockStatus === "in" && "Active"}
+            {clockStatus === "out" && "Not Clocked In"}
+            {clockStatus === "break" && "On Break"}
           </Badge>
         </div>
       </CardHeader>
@@ -153,7 +194,7 @@ export function ClockWidget() {
 
         {/* Action Buttons */}
         <div className="flex gap-3">
-          {status === "clocked-out" ? (
+          {clockStatus === "out" ? (
             <Button onClick={handleClockIn} className="flex-1 gap-2" size="lg">
               <Play className="h-4 w-4" />
               Clock In
@@ -162,12 +203,12 @@ export function ClockWidget() {
             <>
               <Button
                 onClick={handleBreak}
-                variant={status === "on-break" ? "default" : "secondary"}
+                variant={clockStatus === "break" ? "default" : "secondary"}
                 className="flex-1 gap-2"
                 size="lg"
               >
                 <Coffee className="h-4 w-4" />
-                {status === "on-break" ? "Resume" : "Break"}
+                {clockStatus === "break" ? "Resume" : "Break"}
               </Button>
               <Button onClick={handleClockOut} variant="destructive" className="flex-1 gap-2" size="lg">
                 <Square className="h-4 w-4" />
@@ -180,15 +221,18 @@ export function ClockWidget() {
         {/* Today's Summary */}
         <div className="grid grid-cols-3 gap-3 pt-2">
           <div className="text-center p-3 rounded-lg bg-accent/50">
-            <p className="text-lg font-semibold text-foreground">6h 45m</p>
+            <p className="text-lg font-semibold text-foreground">{getTodayHours()}</p>
             <p className="text-xs text-muted-foreground">Today</p>
           </div>
           <div className="text-center p-3 rounded-lg bg-accent/50">
-            <p className="text-lg font-semibold text-foreground">32h 15m</p>
+            <p className="text-lg font-semibold text-foreground">{getWeeklyHours()}</p>
             <p className="text-xs text-muted-foreground">This Week</p>
           </div>
           <div className="text-center p-3 rounded-lg bg-accent/50">
-            <p className="text-lg font-semibold text-success">85%</p>
+            <p className={cn(
+              "text-lg font-semibold",
+              getUtilization() >= 80 ? "text-success" : getUtilization() >= 50 ? "text-warning" : "text-foreground"
+            )}>{getUtilization()}%</p>
             <p className="text-xs text-muted-foreground">Utilization</p>
           </div>
         </div>
