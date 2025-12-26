@@ -20,22 +20,59 @@ interface Employee {
   hourly_rate: number | null;
 }
 
+// Directory view interface (no sensitive data)
+interface EmployeeDirectory {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  department: string | null;
+  job_title: string | null;
+  location: string | null;
+  status: string | null;
+  hire_date: string | null;
+  manager_id: string | null;
+  profile_id: string | null;
+}
+
 export function useEmployees() {
   const { user, isManager } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchEmployees = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("employees")
-      .select("*")
-      .order("first_name", { ascending: true });
+    if (isManager) {
+      // Managers can see full employee data including salaries
+      const { data, error } = await supabase
+        .from("employees")
+        .select("*")
+        .order("first_name", { ascending: true });
 
-    if (!error && data) {
-      setEmployees(data as Employee[]);
+      if (!error && data) {
+        setEmployees(data as Employee[]);
+      }
+    } else {
+      // Regular employees use the directory view (no sensitive data)
+      const { data, error } = await supabase
+        .from("employee_directory")
+        .select("*")
+        .order("first_name", { ascending: true });
+
+      if (!error && data) {
+        // Map directory data to Employee interface with null sensitive fields
+        const mapped: Employee[] = (data as EmployeeDirectory[]).map(emp => ({
+          ...emp,
+          employee_id: null,
+          phone: null,
+          pay_type: null,
+          salary: null,
+          hourly_rate: null,
+        }));
+        setEmployees(mapped);
+      }
     }
     setLoading(false);
-  }, []);
+  }, [isManager]);
 
   useEffect(() => {
     fetchEmployees();
