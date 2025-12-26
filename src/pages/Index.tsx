@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTasks } from "@/hooks/useTasks";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
+import { useAttendance } from "@/hooks/useAttendance";
 import {
   Users,
   Clock,
@@ -25,6 +26,7 @@ const Index = () => {
   const { employees } = useEmployees();
   const { tasks } = useTasks();
   const { requests } = useLeaveRequests();
+  const { monthlyHours } = useAttendance();
 
   const firstName = profile?.first_name || "User";
   const pendingTasks = tasks.filter(t => t.status !== "done").length;
@@ -90,8 +92,8 @@ const Index = () => {
           />
         )}
         <StatCard
-          title="Hours Tracked Today"
-          value="--"
+          title="Hours This Month"
+          value={`${monthlyHours}h`}
           change="View attendance"
           changeType="neutral"
           icon={Clock}
