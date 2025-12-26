@@ -149,12 +149,12 @@ const Tasks = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+      <div className="flex lg:grid lg:grid-cols-4 gap-6 overflow-x-auto pb-4 -mx-4 px-4 lg:mx-0 lg:px-0 animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
         {columns.map((column) => {
           const columnTasks = getTasksByStatus(column.id);
           const Icon = column.icon;
           return (
-            <div key={column.id} className="flex flex-col" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, column.id as TaskUI["status"])}>
+            <div key={column.id} className="flex flex-col min-w-[280px] lg:min-w-0" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, column.id as TaskUI["status"])}>
               <div className="flex items-center justify-between mb-4 px-1">
                 <div className="flex items-center gap-2">
                   <Icon className={cn("h-4 w-4", column.id === "done" && "text-success", column.id === "in-progress" && "text-info", column.id === "review" && "text-warning")} />

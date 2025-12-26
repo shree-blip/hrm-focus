@@ -233,8 +233,8 @@ const Employees = () => {
       </div>
 
       {/* Employee Table */}
-      <div className="rounded-xl border border-border bg-card shadow-sm animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
-        <Table>
+      <div className="rounded-xl border border-border bg-card shadow-sm animate-slide-up opacity-0 overflow-x-auto" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+        <Table className="min-w-[800px]">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="font-semibold">Employee</TableHead>

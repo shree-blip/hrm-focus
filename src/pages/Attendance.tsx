@@ -315,23 +315,23 @@ const Attendance = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {weekDays.map((day, index) => {
                 const hours = getHoursForDay(day);
                 const dayName = format(day, "EEE");
                 const isWeekend = index >= 5;
                 
                 return (
-                  <div key={day.toISOString()} className="text-center">
+                  <div key={day.toISOString()} className="text-center min-w-0">
                     <p className={cn(
-                      "text-sm font-medium mb-2",
+                      "text-xs sm:text-sm font-medium mb-1 sm:mb-2",
                       isToday(day) ? "text-primary" : "text-muted-foreground"
                     )}>
-                      {dayName}
+                      {format(day, "EEE").substring(0, 2)}
                     </p>
                     <div
                       className={cn(
-                        "relative h-24 rounded-lg bg-secondary/50 flex items-end justify-center pb-2 overflow-hidden",
+                        "relative h-16 sm:h-24 rounded-lg bg-secondary/50 flex items-end justify-center pb-1 sm:pb-2 overflow-hidden",
                         !isWeekend && hours === 0 && !isToday(day) && "border-2 border-dashed border-destructive/30",
                         isToday(day) && "ring-2 ring-primary"
                       )}
@@ -383,8 +383,8 @@ const Attendance = () => {
         <CardHeader>
           <CardTitle className="font-display text-lg">This Week's Logs</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
+        <CardContent className="overflow-x-auto">
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>Date</TableHead>
