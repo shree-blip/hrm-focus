@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -30,6 +30,8 @@ import {
   Clock,
   Loader2,
   Globe,
+  Edit,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -48,21 +50,31 @@ import { useTeamAttendance } from "@/hooks/useTeamAttendance";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
+import { PayslipsPreviewDialog } from "@/components/payroll/PayslipsPreviewDialog";
+import { EditEmployeeSalaryDialog } from "@/components/payroll/EditEmployeeSalaryDialog";
 
 const Payroll = () => {
   const { isVP, isManager } = useAuth();
-  const { payrollRuns, loading, region, setRegion, createPayrollRun, processPayroll, exportPayroll, getTaxRates } = usePayroll();
-  const { employees } = useEmployees();
+  const { payrollRuns, loading, region, setRegion, createPayrollRun, processPayroll, getTaxRates } = usePayroll();
+  const { employees, updateEmployee, refetch: refetchEmployees } = useEmployees();
   const { teamAttendance, loading: attendanceLoading } = useTeamAttendance();
-  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "contractor">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "employees" | "contractor">("overview");
+  const [showPayslipsPreview, setShowPayslipsPreview] = useState(false);
+  const [showEditSalary, setShowEditSalary] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<typeof employees[0] | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
 
-  // Filter employees by region
-  const regionEmployees = employees.filter(e => e.location === region);
+  // Filter employees by region (case-insensitive)
+  const regionEmployees = employees.filter(e => 
+    e.location?.toUpperCase() === region.toUpperCase() || 
+    e.location?.toLowerCase() === region.toLowerCase()
+  );
   
   // Calculate stats from real data
   const totalEmployees = regionEmployees.length;
-  const avgSalary = regionEmployees.length > 0 
-    ? regionEmployees.reduce((sum, e) => sum + (e.salary || 0), 0) / regionEmployees.length 
+  const employeesWithSalary = regionEmployees.filter(e => e.salary && e.salary > 0);
+  const avgSalary = employeesWithSalary.length > 0 
+    ? employeesWithSalary.reduce((sum, e) => sum + (e.salary || 0), 0) / employeesWithSalary.length 
     : 0;
 
   // Generate chart data from payroll runs
@@ -99,7 +111,152 @@ const Payroll = () => {
   };
 
   const handleExport = () => {
-    exportPayroll();
+    // Export with employee data
+    const currencySymbol = region === "US" ? "$" : "Rs.";
+    const taxRates = getTaxRates();
+    
+    const headers = [
+      "Employee Name",
+      "Email", 
+      "Department",
+      "Job Title",
+      "Pay Type",
+      "Annual Salary",
+      "Hourly Rate",
+      "Hours Worked",
+      "Gross Pay",
+      "Deductions",
+      "Net Pay"
+    ];
+
+    const rows = regionEmployees.map(emp => {
+      const attendance = teamAttendance.find(a => a.employee_id === emp.id);
+      const hoursWorked = attendance?.total_hours || 0;
+      
+      let grossPay = 0;
+      if (emp.pay_type === "hourly" && emp.hourly_rate) {
+        grossPay = hoursWorked * emp.hourly_rate;
+      } else if (emp.salary) {
+        grossPay = emp.salary / 12;
+      }
+
+      let totalDeductions = 0;
+      if (region === "US") {
+        totalDeductions = grossPay * (
+          (taxRates.federal || 0) + 
+          (taxRates.state || 0) + 
+          (taxRates.fica || 0) + 
+          (taxRates.medicare || 0)
+        );
+      } else {
+        const rates = taxRates as { incomeTax: number; socialSecurity: number; providentFund: number };
+        totalDeductions = grossPay * (
+          (rates.incomeTax || 0) + 
+          (rates.socialSecurity || 0) + 
+          (rates.providentFund || 0)
+        );
+      }
+
+      const netPay = grossPay - totalDeductions;
+
+      return [
+        `"${emp.first_name} ${emp.last_name}"`,
+        emp.email,
+        emp.department || "",
+        emp.job_title || "",
+        emp.pay_type || "salary",
+        emp.salary || 0,
+        emp.hourly_rate || 0,
+        hoursWorked.toFixed(1),
+        grossPay.toFixed(2),
+        totalDeductions.toFixed(2),
+        netPay.toFixed(2)
+      ].join(",");
+    });
+
+    if (rows.length === 0) {
+      toast({ title: "No Data", description: "No employees found for this region", variant: "destructive" });
+      return;
+    }
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `payroll-${region}-${format(new Date(), "yyyy-MM")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Export Complete", description: `Exported ${rows.length} employee records` });
+  };
+
+  const handleRunCalculations = async () => {
+    setIsCalculating(true);
+    
+    // Simulate calculation delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const taxRates = getTaxRates();
+    let totalGross = 0;
+    let totalDeductions = 0;
+    
+    regionEmployees.forEach(emp => {
+      const attendance = teamAttendance.find(a => a.employee_id === emp.id);
+      const hoursWorked = attendance?.total_hours || 0;
+      
+      let grossPay = 0;
+      if (emp.pay_type === "hourly" && emp.hourly_rate) {
+        grossPay = hoursWorked * emp.hourly_rate;
+      } else if (emp.salary) {
+        grossPay = emp.salary / 12;
+      }
+
+      let deductions = 0;
+      if (region === "US") {
+        deductions = grossPay * (
+          (taxRates.federal || 0) + 
+          (taxRates.state || 0) + 
+          (taxRates.fica || 0) + 
+          (taxRates.medicare || 0)
+        );
+      } else {
+        const rates = taxRates as { incomeTax: number; socialSecurity: number; providentFund: number };
+        deductions = grossPay * (
+          (rates.incomeTax || 0) + 
+          (rates.socialSecurity || 0) + 
+          (rates.providentFund || 0)
+        );
+      }
+
+      totalGross += grossPay;
+      totalDeductions += deductions;
+    });
+
+    const currencySymbol = region === "US" ? "$" : "₨";
+    
+    setIsCalculating(false);
+    toast({ 
+      title: "Calculations Complete", 
+      description: `Total Gross: ${currencySymbol}${totalGross.toLocaleString(undefined, { maximumFractionDigits: 0 })} | Net: ${currencySymbol}${(totalGross - totalDeductions).toLocaleString(undefined, { maximumFractionDigits: 0 })}` 
+    });
+  };
+
+  const handleEditEmployee = (employee: typeof employees[0]) => {
+    setSelectedEmployee(employee);
+    setShowEditSalary(true);
+  };
+
+  const handleSaveEmployee = async (employeeId: string, updates: Partial<typeof employees[0]>) => {
+    await updateEmployee(employeeId, updates);
+    refetchEmployees();
+  };
+
+  // Get manager name by ID
+  const getManagerName = (managerId: string | null) => {
+    if (!managerId) return "-";
+    const manager = employees.find(e => e.id === managerId);
+    return manager ? `${manager.first_name} ${manager.last_name}` : "-";
   };
 
   const taxRates = getTaxRates();
@@ -124,7 +281,7 @@ const Payroll = () => {
             Manage payroll processing and compensation
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Select value={region} onValueChange={(v) => setRegion(v as "US" | "Nepal")}>
             <SelectTrigger className="w-[140px]">
               <Globe className="h-4 w-4 mr-2" />
@@ -148,11 +305,12 @@ const Payroll = () => {
         </div>
       </div>
 
-      {/* Tabs for Employee vs Attendance vs Contractor */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "overview" | "attendance" | "contractor")} className="mb-6">
-        <TabsList>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "overview" | "attendance" | "employees" | "contractor")} className="mb-6">
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview">Payroll Overview</TabsTrigger>
           <TabsTrigger value="attendance">Employee Attendance</TabsTrigger>
+          {isVP && <TabsTrigger value="employees">Manage Salaries</TabsTrigger>}
           <TabsTrigger value="contractor">Contractor Portal</TabsTrigger>
         </TabsList>
       </Tabs>
@@ -201,7 +359,9 @@ const Payroll = () => {
                     <p className="text-2xl font-display font-bold mt-1">
                       {region === "US" ? "$" : "₨"}{avgSalary.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </p>
-                    <p className="text-xs text-success mt-1">+2.5% YoY growth</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {employeesWithSalary.length} with salary data
+                    </p>
                   </div>
                   <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
                     <TrendingUp className="h-6 w-6 text-success" />
@@ -282,19 +442,19 @@ const Payroll = () => {
                   <>
                     <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/50">
                       <span className="text-sm">Federal Tax</span>
-                      <span className="font-semibold">{(taxRates.federal * 100).toFixed(1)}%</span>
+                      <span className="font-semibold">{((taxRates as any).federal * 100).toFixed(1)}%</span>
                     </div>
                     <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/50">
                       <span className="text-sm">State Tax</span>
-                      <span className="font-semibold">{(taxRates.state * 100).toFixed(1)}%</span>
+                      <span className="font-semibold">{((taxRates as any).state * 100).toFixed(1)}%</span>
                     </div>
                     <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/50">
                       <span className="text-sm">FICA</span>
-                      <span className="font-semibold">{(taxRates.fica * 100).toFixed(2)}%</span>
+                      <span className="font-semibold">{((taxRates as any).fica * 100).toFixed(2)}%</span>
                     </div>
                     <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/50">
                       <span className="text-sm">Medicare</span>
-                      <span className="font-semibold">{(taxRates.medicare * 100).toFixed(2)}%</span>
+                      <span className="font-semibold">{((taxRates as any).medicare * 100).toFixed(2)}%</span>
                     </div>
                   </>
                 ) : (
@@ -316,13 +476,26 @@ const Payroll = () => {
 
                 <div className="pt-4 border-t border-border">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Quick Actions</p>
-                  <Button variant="outline" className="w-full justify-start gap-2 mb-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start gap-2 mb-2"
+                    onClick={() => setShowPayslipsPreview(true)}
+                  >
                     <FileText className="h-4 w-4" />
                     Preview Payslips
                   </Button>
-                  <Button variant="outline" className="w-full justify-start gap-2">
-                    <Calculator className="h-4 w-4" />
-                    Run Calculations
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start gap-2"
+                    onClick={handleRunCalculations}
+                    disabled={isCalculating}
+                  >
+                    {isCalculating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Calculator className="h-4 w-4" />
+                    )}
+                    {isCalculating ? "Calculating..." : "Run Calculations"}
                   </Button>
                 </div>
               </CardContent>
@@ -335,58 +508,60 @@ const Payroll = () => {
               <CardTitle className="font-display text-lg">Recent Payroll Runs</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>Pay Period</TableHead>
-                    <TableHead>Employees</TableHead>
-                    <TableHead>Gross Pay</TableHead>
-                    <TableHead>Net Pay</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Processed</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentPayrolls.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        No payroll runs found for {region}
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Pay Period</TableHead>
+                      <TableHead>Employees</TableHead>
+                      <TableHead>Gross Pay</TableHead>
+                      <TableHead>Net Pay</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Processed</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
-                  ) : (
-                    recentPayrolls.map((payroll, index) => (
-                      <TableRow key={payroll.id} className="animate-fade-in" style={{ animationDelay: `${500 + index * 50}ms` }}>
-                        <TableCell className="font-medium">
-                          {format(new Date(payroll.period_start), "MMM d")} - {format(new Date(payroll.period_end), "MMM d, yyyy")}
-                        </TableCell>
-                        <TableCell>{payroll.employee_count || "-"}</TableCell>
-                        <TableCell>{region === "US" ? "$" : "₨"}{(payroll.total_gross || 0).toLocaleString()}</TableCell>
-                        <TableCell>{region === "US" ? "$" : "₨"}{(payroll.total_net || 0).toLocaleString()}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn(
-                            payroll.status === "completed" && "border-success text-success bg-success/10",
-                            payroll.status === "processing" && "border-warning text-warning bg-warning/10",
-                            payroll.status === "draft" && "border-muted-foreground"
-                          )}>
-                            {payroll.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {payroll.processed_at ? format(new Date(payroll.processed_at), "MMM d") : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {isVP && payroll.status === "draft" && (
-                            <Button size="sm" onClick={() => processPayroll(payroll.id)}>
-                              Process
-                            </Button>
-                          )}
+                  </TableHeader>
+                  <TableBody>
+                    {recentPayrolls.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          No payroll runs found for {region}
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      recentPayrolls.map((payroll, index) => (
+                        <TableRow key={payroll.id} className="animate-fade-in" style={{ animationDelay: `${500 + index * 50}ms` }}>
+                          <TableCell className="font-medium">
+                            {format(new Date(payroll.period_start), "MMM d")} - {format(new Date(payroll.period_end), "MMM d, yyyy")}
+                          </TableCell>
+                          <TableCell>{payroll.employee_count || "-"}</TableCell>
+                          <TableCell>{region === "US" ? "$" : "₨"}{(payroll.total_gross || 0).toLocaleString()}</TableCell>
+                          <TableCell>{region === "US" ? "$" : "₨"}{(payroll.total_net || 0).toLocaleString()}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={cn(
+                              payroll.status === "completed" && "border-success text-success bg-success/10",
+                              payroll.status === "processing" && "border-warning text-warning bg-warning/10",
+                              payroll.status === "draft" && "border-muted-foreground"
+                            )}>
+                              {payroll.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {payroll.processed_at ? format(new Date(payroll.processed_at), "MMM d") : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {isVP && payroll.status === "draft" && (
+                              <Button size="sm" onClick={() => processPayroll(payroll.id)}>
+                                Process
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </>
@@ -411,32 +586,34 @@ const Payroll = () => {
                 <p className="text-sm">No attendance records found for this month.</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead className="text-right">Days Worked</TableHead>
-                    <TableHead className="text-right">Total Hours</TableHead>
-                    <TableHead className="text-right">Avg Hours/Day</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {teamAttendance.map((attendance, index) => (
-                    <TableRow key={attendance.user_id} className="animate-fade-in" style={{ animationDelay: `${200 + index * 50}ms` }}>
-                      <TableCell className="font-medium">{attendance.employee_name}</TableCell>
-                      <TableCell className="text-muted-foreground">{attendance.email}</TableCell>
-                      <TableCell className="text-right">{attendance.days_worked}</TableCell>
-                      <TableCell className="text-right font-semibold">{attendance.total_hours}h</TableCell>
-                      <TableCell className="text-right">
-                        {attendance.days_worked > 0 
-                          ? `${(attendance.total_hours / attendance.days_worked).toFixed(1)}h` 
-                          : "-"}
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead className="text-right">Days Worked</TableHead>
+                      <TableHead className="text-right">Total Hours</TableHead>
+                      <TableHead className="text-right">Avg Hours/Day</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {teamAttendance.map((attendance, index) => (
+                      <TableRow key={attendance.user_id} className="animate-fade-in" style={{ animationDelay: `${200 + index * 50}ms` }}>
+                        <TableCell className="font-medium">{attendance.employee_name}</TableCell>
+                        <TableCell className="text-muted-foreground">{attendance.email}</TableCell>
+                        <TableCell className="text-right">{attendance.days_worked}</TableCell>
+                        <TableCell className="text-right font-semibold">{attendance.total_hours}h</TableCell>
+                        <TableCell className="text-right">
+                          {attendance.days_worked > 0 
+                            ? `${(attendance.total_hours / attendance.days_worked).toFixed(1)}h` 
+                            : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
             
             {/* Summary */}
@@ -462,6 +639,82 @@ const Payroll = () => {
             )}
           </CardContent>
         </Card>
+      ) : activeTab === "employees" ? (
+        /* Manage Salaries Tab - VP only */
+        <Card className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
+          <CardHeader>
+            <CardTitle className="font-display text-lg flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Employee Salaries & Managers - {region}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Job Title</TableHead>
+                    <TableHead>Pay Type</TableHead>
+                    <TableHead className="text-right">Salary/Rate</TableHead>
+                    <TableHead>Line Manager</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {regionEmployees.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        No employees found for {region}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    regionEmployees.map((employee, index) => (
+                      <TableRow key={employee.id} className="animate-fade-in" style={{ animationDelay: `${100 + index * 30}ms` }}>
+                        <TableCell className="font-medium">
+                          {employee.first_name} {employee.last_name}
+                        </TableCell>
+                        <TableCell>{employee.department || "-"}</TableCell>
+                        <TableCell>{employee.job_title || "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {employee.pay_type === "hourly" ? "Hourly" : "Salary"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {employee.pay_type === "hourly" 
+                            ? (employee.hourly_rate 
+                                ? `${region === "US" ? "$" : "₨"}${employee.hourly_rate}/hr` 
+                                : "-")
+                            : (employee.salary 
+                                ? `${region === "US" ? "$" : "₨"}${employee.salary.toLocaleString()}/yr` 
+                                : "-")
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            {getManagerName(employee.manager_id)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleEditEmployee(employee)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         /* Contractor Portal */
         <Card className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
@@ -481,6 +734,24 @@ const Payroll = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialogs */}
+      <PayslipsPreviewDialog
+        open={showPayslipsPreview}
+        onOpenChange={setShowPayslipsPreview}
+        employees={regionEmployees}
+        region={region}
+        taxRates={taxRates}
+        teamAttendance={teamAttendance}
+      />
+
+      <EditEmployeeSalaryDialog
+        open={showEditSalary}
+        onOpenChange={setShowEditSalary}
+        employee={selectedEmployee}
+        employees={employees}
+        onSave={handleSaveEmployee}
+      />
     </DashboardLayout>
   );
 };
