@@ -44,13 +44,23 @@ const bottomMenuItems: MenuItem[] = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { isManager } = useAuth();
+  const { isManager, signOut } = useAuth();
 
   // Filter menu items based on role
   const visibleMenuItems = menuItems.filter(item => !item.managerOnly || isManager);
+
+  const handleNavClick = () => {
+    if (onNavigate) {
+      onNavigate();
+    }
+  };
 
   return (
     <aside
@@ -90,6 +100,7 @@ export function Sidebar() {
             const linkContent = (
               <Link
                 to={item.href}
+                onClick={handleNavClick}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   "hover:bg-sidebar-accent",
@@ -131,6 +142,7 @@ export function Sidebar() {
           const linkContent = (
             <Link
               to={item.href}
+              onClick={handleNavClick}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 "hover:bg-sidebar-accent",

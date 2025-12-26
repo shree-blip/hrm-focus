@@ -119,17 +119,17 @@ const Leave = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 animate-slide-up opacity-0" style={{ animationDelay: "300ms", animationFillMode: "forwards" }}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <CardTitle className="font-display text-lg flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
                 Leave Requests
               </CardTitle>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList>
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="pending">Pending</TabsTrigger>
-                  <TabsTrigger value="approved">Approved</TabsTrigger>
+                <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex">
+                  <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
+                  <TabsTrigger value="pending" className="text-xs sm:text-sm">Pending</TabsTrigger>
+                  <TabsTrigger value="approved" className="text-xs sm:text-sm">Approved</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>

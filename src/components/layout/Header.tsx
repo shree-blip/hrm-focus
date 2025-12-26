@@ -8,8 +8,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
-export function Header() {
+interface HeaderProps {
+  isMobile?: boolean;
+}
+
+export function Header({ isMobile }: HeaderProps = {}) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
@@ -64,12 +69,18 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-6">
-      <div className="flex items-center gap-4 flex-1 max-w-xl">
+    <header className={cn(
+      "sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-4 lg:px-6",
+      isMobile ? "h-14" : "h-16"
+    )}>
+      <div className={cn(
+        "flex items-center gap-4 flex-1",
+        isMobile ? "max-w-xs" : "max-w-xl"
+      )}>
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input 
-            placeholder="Search employees, tasks, documents..." 
+            placeholder={isMobile ? "Search..." : "Search employees, tasks, documents..."} 
             className="pl-10 bg-secondary/50 border-transparent focus:border-primary focus:bg-card transition-all" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

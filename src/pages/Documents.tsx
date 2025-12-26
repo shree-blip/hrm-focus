@@ -265,7 +265,8 @@ const Documents = () => {
                 </Button>
               </div>
             ) : (
-              <Table>
+              <div className="overflow-x-auto">
+              <Table className="min-w-[700px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead>Name</TableHead>
@@ -357,6 +358,7 @@ const Documents = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
