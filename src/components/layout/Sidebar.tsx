@@ -1,0 +1,169 @@
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  Users,
+  Clock,
+  Calendar,
+  CheckSquare,
+  Wallet,
+  FileText,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  TrendingUp,
+  UserPlus,
+  LogOut,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+const menuItems = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
+  { icon: Users, label: "Employees", href: "/employees" },
+  { icon: Clock, label: "Attendance", href: "/attendance" },
+  { icon: Calendar, label: "Leave Management", href: "/leave" },
+  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
+  { icon: Wallet, label: "Payroll", href: "/payroll" },
+  { icon: TrendingUp, label: "Performance", href: "/performance" },
+  { icon: FileText, label: "Documents", href: "/documents" },
+  { icon: UserPlus, label: "Onboarding", href: "/onboarding" },
+];
+
+const bottomMenuItems = [
+  { icon: Settings, label: "Settings", href: "/settings" },
+];
+
+export function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false);
+  const location = useLocation();
+
+  return (
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 h-screen transition-all duration-300 ease-in-out",
+        "bg-sidebar text-sidebar-foreground flex flex-col",
+        collapsed ? "w-[72px]" : "w-64"
+      )}
+    >
+      {/* Logo */}
+      <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
+        {!collapsed && (
+          <div className="flex items-center gap-3 animate-fade-in">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
+              <Building2 className="h-5 w-5 text-sidebar-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="font-display font-bold text-sm leading-tight">Focus Your</h1>
+              <p className="text-xs opacity-80">Finance HRMS</p>
+            </div>
+          </div>
+        )}
+        {collapsed && (
+          <div className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg bg-sidebar-primary">
+            <Building2 className="h-5 w-5 text-sidebar-primary-foreground" />
+          </div>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3">
+        <ul className="space-y-1">
+          {menuItems.map((item, index) => {
+            const isActive = location.pathname === item.href;
+            const Icon = item.icon;
+
+            const linkContent = (
+              <Link
+                to={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  "hover:bg-sidebar-accent",
+                  isActive
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md"
+                    : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+                )}
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <Icon className={cn("h-5 w-5 shrink-0", collapsed && "mx-auto")} />
+                {!collapsed && <span className="truncate">{item.label}</span>}
+              </Link>
+            );
+
+            return (
+              <li key={item.href} className="animate-slide-in-left" style={{ animationDelay: `${index * 50}ms` }}>
+                {collapsed ? (
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+                    <TooltipContent side="right" className="font-medium">
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  linkContent
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* Bottom Menu */}
+      <div className="border-t border-sidebar-border p-3 space-y-1">
+        {bottomMenuItems.map((item) => {
+          const isActive = location.pathname === item.href;
+          const Icon = item.icon;
+
+          const linkContent = (
+            <Link
+              to={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                "hover:bg-sidebar-accent",
+                isActive
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+              )}
+            >
+              <Icon className={cn("h-5 w-5 shrink-0", collapsed && "mx-auto")} />
+              {!collapsed && <span>{item.label}</span>}
+            </Link>
+          );
+
+          return collapsed ? (
+            <Tooltip key={item.href} delayDuration={0}>
+              <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">
+                {item.label}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <div key={item.href}>{linkContent}</div>
+          );
+        })}
+
+        {/* Collapse Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setCollapsed(!collapsed)}
+          className={cn(
+            "w-full justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+            !collapsed && "justify-start px-3"
+          )}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-5 w-5" />
+          ) : (
+            <>
+              <ChevronLeft className="h-5 w-5 mr-2" />
+              <span>Collapse</span>
+            </>
+          )}
+        </Button>
+      </div>
+    </aside>
+  );
+}
