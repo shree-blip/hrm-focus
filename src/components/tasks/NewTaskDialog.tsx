@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -18,6 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { useEmployees } from "@/hooks/useEmployees";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface NewTaskDialogProps {
   open: boolean;
@@ -29,18 +30,10 @@ interface NewTaskDialogProps {
     dueDate: string;
     status: "todo" | "in-progress" | "review" | "done";
     timeEstimate: string;
-    assignee: { name: string; initials: string };
+    assigneeId: string | null;
   }) => void;
   defaultStatus?: "todo" | "in-progress" | "review" | "done";
 }
-
-const assignees = [
-  { name: "Sarah Johnson", initials: "SJ" },
-  { name: "Michael Chen", initials: "MC" },
-  { name: "Emily Davis", initials: "ED" },
-  { name: "Lisa Park", initials: "LP" },
-  { name: "James Wilson", initials: "JW" },
-];
 
 export function NewTaskDialog({
   open,
@@ -48,36 +41,42 @@ export function NewTaskDialog({
   onSubmit,
   defaultStatus = "todo",
 }: NewTaskDialogProps) {
+  const { employees, loading: employeesLoading } = useEmployees();
+  const { user, profile } = useAuth();
+  
   const [title, setTitle] = useState("");
   const [client, setClient] = useState("");
   const [priority, setPriority] = useState<"high" | "medium" | "low">("medium");
   const [dueDate, setDueDate] = useState("");
   const [timeEstimate, setTimeEstimate] = useState("");
-  const [assignee, setAssignee] = useState("");
+  const [assigneeId, setAssigneeId] = useState<string>("");
   const [status, setStatus] = useState<"todo" | "in-progress" | "review" | "done">(defaultStatus);
+
+  // Reset status when defaultStatus changes
+  useEffect(() => {
+    setStatus(defaultStatus);
+  }, [defaultStatus]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title || !client || !dueDate || !timeEstimate || !assignee) {
+    if (!title) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields.",
+        description: "Please enter a task title.",
         variant: "destructive",
       });
       return;
     }
 
-    const selectedAssignee = assignees.find((a) => a.name === assignee) || assignees[0];
-
     onSubmit({
       title,
-      client,
+      client: client || undefined,
       priority,
       dueDate,
       status,
-      timeEstimate,
-      assignee: selectedAssignee,
+      timeEstimate: timeEstimate || undefined,
+      assigneeId: assigneeId || null,
     });
 
     // Reset form
@@ -86,14 +85,9 @@ export function NewTaskDialog({
     setPriority("medium");
     setDueDate("");
     setTimeEstimate("");
-    setAssignee("");
+    setAssigneeId("");
     setStatus(defaultStatus);
     onOpenChange(false);
-
-    toast({
-      title: "Task Created",
-      description: "New task has been added successfully.",
-    });
   };
 
   return (
@@ -107,12 +101,13 @@ export function NewTaskDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Task Title</Label>
+            <Label htmlFor="title">Task Title <span className="text-destructive">*</span></Label>
             <Input
               id="title"
               placeholder="Enter task title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              required
             />
           </div>
 
@@ -181,16 +176,26 @@ export function NewTaskDialog({
 
           <div className="space-y-2">
             <Label>Assignee</Label>
-            <Select value={assignee} onValueChange={setAssignee}>
+            <Select value={assigneeId} onValueChange={setAssigneeId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select assignee" />
+                <SelectValue placeholder={employeesLoading ? "Loading..." : "Select assignee"} />
               </SelectTrigger>
               <SelectContent>
-                {assignees.map((a) => (
-                  <SelectItem key={a.name} value={a.name}>
-                    {a.name}
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {/* Show current user first if profile exists */}
+                {profile && user && (
+                  <SelectItem key={user.id} value={user.id}>
+                    {profile.first_name} {profile.last_name} (Me)
                   </SelectItem>
-                ))}
+                )}
+                {/* Show other employees */}
+                {employees
+                  .filter(emp => emp.profile_id !== profile?.id)
+                  .map((emp) => (
+                    <SelectItem key={emp.id} value={emp.profile_id || emp.id}>
+                      {emp.first_name} {emp.last_name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

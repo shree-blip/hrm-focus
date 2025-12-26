@@ -58,7 +58,15 @@ const Tasks = () => {
      task.client.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handleAddTask = async (task: Omit<TaskUI, "id">) => {
+  const handleAddTask = async (task: {
+    title: string;
+    client?: string;
+    priority: "high" | "medium" | "low";
+    dueDate: string;
+    status: "todo" | "in-progress" | "review" | "done";
+    timeEstimate?: string;
+    assigneeId: string | null;
+  }) => {
     const statusDbMap: Record<string, "todo" | "in-progress" | "review" | "done"> = { 
       "in-progress": "in-progress", "todo": "todo", "review": "review", "done": "done" 
     };
@@ -73,7 +81,7 @@ const Tasks = () => {
       status: statusDbMap[task.status] || "todo",
       time_estimate: task.timeEstimate,
       description: undefined,
-      assignee_id: undefined,
+      assignee_id: task.assigneeId === "unassigned" ? undefined : task.assigneeId || undefined,
     });
   };
 
