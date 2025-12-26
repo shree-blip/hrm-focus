@@ -162,7 +162,7 @@ export function NewTaskDialog({
               <Label htmlFor="dueDate">Due Date</Label>
               <Input
                 id="dueDate"
-                placeholder="e.g., Dec 28 or Today"
+                type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
               />

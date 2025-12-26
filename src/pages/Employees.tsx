@@ -361,8 +361,8 @@ const Employees = () => {
           Showing {filteredEmployees.length} of {employees.length} employees
         </p>
         <div className="flex items-center gap-4">
-          <span>🇺🇸 {employees.filter(e => e.location === "US").length} US</span>
-          <span>🇳🇵 {employees.filter(e => e.location === "Nepal").length} Nepal</span>
+          <span>🇺🇸 {filteredEmployees.filter(e => e.location === "US").length} US</span>
+          <span>🇳🇵 {filteredEmployees.filter(e => e.location === "Nepal").length} Nepal</span>
         </div>
       </div>
 

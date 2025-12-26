@@ -66,10 +66,16 @@ export function RequestLeaveDialog({
       return;
     }
 
+    // Create dates at noon to avoid timezone issues
+    const adjustedStartDate = new Date(startDate);
+    adjustedStartDate.setHours(12, 0, 0, 0);
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setHours(12, 0, 0, 0);
+
     onSubmit({
       type: leaveType,
-      startDate,
-      endDate,
+      startDate: adjustedStartDate,
+      endDate: adjustedEndDate,
       reason,
     });
 
