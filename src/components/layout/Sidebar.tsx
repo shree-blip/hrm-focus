@@ -19,26 +19,38 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
 
-const menuItems = [
+interface MenuItem {
+  icon: typeof LayoutDashboard;
+  label: string;
+  href: string;
+  managerOnly?: boolean;
+}
+
+const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Users, label: "Employees", href: "/employees" },
   { icon: Clock, label: "Attendance", href: "/attendance" },
   { icon: Calendar, label: "Leave Management", href: "/leave" },
   { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: Wallet, label: "Payroll", href: "/payroll" },
+  { icon: Wallet, label: "Payroll", href: "/payroll", managerOnly: true },
   { icon: TrendingUp, label: "Performance", href: "/performance" },
   { icon: FileText, label: "Documents", href: "/documents" },
-  { icon: UserPlus, label: "Onboarding", href: "/onboarding" },
+  { icon: UserPlus, label: "Onboarding", href: "/onboarding", managerOnly: true },
 ];
 
-const bottomMenuItems = [
+const bottomMenuItems: MenuItem[] = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { isManager } = useAuth();
+
+  // Filter menu items based on role
+  const visibleMenuItems = menuItems.filter(item => !item.managerOnly || isManager);
 
   return (
     <aside
@@ -71,7 +83,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         <ul className="space-y-1">
-          {menuItems.map((item, index) => {
+          {visibleMenuItems.map((item, index) => {
             const isActive = location.pathname === item.href;
             const Icon = item.icon;
 

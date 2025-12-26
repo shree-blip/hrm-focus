@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
 
 interface RejectReasonDialogProps {
   open: boolean;
@@ -26,15 +27,28 @@ export function RejectReasonDialog({
   employeeName,
 }: RejectReasonDialogProps) {
   const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
 
   const handleConfirm = () => {
+    if (!reason.trim()) {
+      setError("Please provide a reason for rejection");
+      toast({
+        title: "Reason Required",
+        description: "Please provide a reason for rejecting this request.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     onConfirm(reason);
     setReason("");
+    setError("");
     onOpenChange(false);
   };
 
   const handleCancel = () => {
     setReason("");
+    setError("");
     onOpenChange(false);
   };
 
@@ -49,15 +63,19 @@ export function RejectReasonDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="py-4">
-          <Label htmlFor="reject-reason">Reason for rejection</Label>
+          <Label htmlFor="reject-reason">Reason for rejection <span className="text-destructive">*</span></Label>
           <Textarea
             id="reject-reason"
             placeholder="Enter the reason for rejecting this request..."
             value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="mt-2"
+            onChange={(e) => {
+              setReason(e.target.value);
+              if (e.target.value.trim()) setError("");
+            }}
+            className={`mt-2 ${error ? "border-destructive" : ""}`}
             rows={3}
           />
+          {error && <p className="text-sm text-destructive mt-1">{error}</p>}
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={handleCancel}>Cancel</AlertDialogCancel>

@@ -176,9 +176,11 @@ const Employees = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Employees</h1>
+          <h1 className="text-3xl font-display font-bold text-foreground">
+            {isManager ? "Employees" : "Employee Directory"}
+          </h1>
           <p className="text-muted-foreground mt-1">
-            Manage your team members and their roles
+            {isManager ? "Manage your team members and their roles" : "View your colleagues"}
           </p>
         </div>
         {isManager && (
@@ -332,20 +334,20 @@ const Employees = () => {
                           View Profile
                         </DropdownMenuItem>
                         {isManager && (
-                          <DropdownMenuItem onClick={() => handleEditDetails(employee)}>
-                            Edit Details
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => handleViewTimesheet(employee)}>
-                          View Timesheet
-                        </DropdownMenuItem>
-                        {isManager && (
-                          <DropdownMenuItem 
-                            className="text-destructive"
-                            onClick={() => handleDeactivate(employee)}
-                          >
-                            Deactivate
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem onClick={() => handleEditDetails(employee)}>
+                              Edit Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewTimesheet(employee)}>
+                              View Timesheet
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => handleDeactivate(employee)}
+                            >
+                              Deactivate
+                            </DropdownMenuItem>
+                          </>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -358,15 +360,17 @@ const Employees = () => {
       </div>
 
       {/* Stats Footer */}
-      <div className="flex items-center justify-between mt-6 text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: "500ms" }}>
-        <p>
-          Showing {filteredEmployees.length} of {employees.length} employees
-        </p>
-        <div className="flex items-center gap-4">
-          <span>🇺🇸 {filteredEmployees.filter(e => e.location === "US").length} US</span>
-          <span>🇳🇵 {filteredEmployees.filter(e => e.location === "Nepal").length} Nepal</span>
+      {isManager && (
+        <div className="flex items-center justify-between mt-6 text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: "500ms" }}>
+          <p>
+            Showing {filteredEmployees.length} of {employees.length} employees
+          </p>
+          <div className="flex items-center gap-4">
+            <span>🇺🇸 {filteredEmployees.filter(e => e.location === "US").length} US</span>
+            <span>🇳🇵 {filteredEmployees.filter(e => e.location === "Nepal").length} Nepal</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Dialogs */}
       <AddEmployeeDialog

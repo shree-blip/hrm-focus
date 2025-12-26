@@ -119,10 +119,12 @@ const Notifications = () => {
             Stay updated with your team's activities
           </p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={markAllAsRead}>
-          <CheckCheck className="h-4 w-4" />
-          Mark all as read
-        </Button>
+        {unreadCount > 0 && (
+          <Button variant="outline" className="gap-2" onClick={markAllAsRead}>
+            <CheckCheck className="h-4 w-4" />
+            Mark all as read
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
