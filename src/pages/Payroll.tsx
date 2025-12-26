@@ -44,15 +44,17 @@ import {
 } from "recharts";
 import { usePayroll } from "@/hooks/usePayroll";
 import { useEmployees } from "@/hooks/useEmployees";
+import { useTeamAttendance } from "@/hooks/useTeamAttendance";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 
 const Payroll = () => {
-  const { isVP } = useAuth();
+  const { isVP, isManager } = useAuth();
   const { payrollRuns, loading, region, setRegion, createPayrollRun, processPayroll, exportPayroll, getTaxRates } = usePayroll();
   const { employees } = useEmployees();
-  const [activeTab, setActiveTab] = useState<"overview" | "contractor">("overview");
+  const { teamAttendance, loading: attendanceLoading } = useTeamAttendance();
+  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "contractor">("overview");
 
   // Filter employees by region
   const regionEmployees = employees.filter(e => e.location === region);
@@ -146,10 +148,11 @@ const Payroll = () => {
         </div>
       </div>
 
-      {/* Tabs for Employee vs Contractor */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "overview" | "contractor")} className="mb-6">
+      {/* Tabs for Employee vs Attendance vs Contractor */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "overview" | "attendance" | "contractor")} className="mb-6">
         <TabsList>
-          <TabsTrigger value="overview">Employee Payroll</TabsTrigger>
+          <TabsTrigger value="overview">Payroll Overview</TabsTrigger>
+          <TabsTrigger value="attendance">Employee Attendance</TabsTrigger>
           <TabsTrigger value="contractor">Contractor Portal</TabsTrigger>
         </TabsList>
       </Tabs>
@@ -387,6 +390,78 @@ const Payroll = () => {
             </CardContent>
           </Card>
         </>
+      ) : activeTab === "attendance" ? (
+        /* Employee Attendance Tab */
+        <Card className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
+          <CardHeader>
+            <CardTitle className="font-display text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              Employee Attendance - {format(new Date(), "MMMM yyyy")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {attendanceLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : teamAttendance.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium mb-2">No Attendance Data</p>
+                <p className="text-sm">No attendance records found for this month.</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead className="text-right">Days Worked</TableHead>
+                    <TableHead className="text-right">Total Hours</TableHead>
+                    <TableHead className="text-right">Avg Hours/Day</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {teamAttendance.map((attendance, index) => (
+                    <TableRow key={attendance.user_id} className="animate-fade-in" style={{ animationDelay: `${200 + index * 50}ms` }}>
+                      <TableCell className="font-medium">{attendance.employee_name}</TableCell>
+                      <TableCell className="text-muted-foreground">{attendance.email}</TableCell>
+                      <TableCell className="text-right">{attendance.days_worked}</TableCell>
+                      <TableCell className="text-right font-semibold">{attendance.total_hours}h</TableCell>
+                      <TableCell className="text-right">
+                        {attendance.days_worked > 0 
+                          ? `${(attendance.total_hours / attendance.days_worked).toFixed(1)}h` 
+                          : "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+            
+            {/* Summary */}
+            {teamAttendance.length > 0 && (
+              <div className="flex items-center justify-between mt-6 pt-6 border-t border-border">
+                <div className="text-center">
+                  <p className="text-2xl font-display font-bold">{teamAttendance.length}</p>
+                  <p className="text-sm text-muted-foreground">Employees</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-display font-bold">
+                    {teamAttendance.reduce((sum, a) => sum + a.days_worked, 0)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Total Days</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-display font-bold">
+                    {teamAttendance.reduce((sum, a) => sum + a.total_hours, 0).toFixed(1)}h
+                  </p>
+                  <p className="text-sm text-muted-foreground">Total Hours</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       ) : (
         /* Contractor Portal */
         <Card className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>

@@ -11,7 +11,8 @@ import { format, startOfWeek, endOfWeek } from "date-fns";
 export function ClockWidget() {
   const { 
     currentLog, 
-    weeklyLogs, 
+    weeklyLogs,
+    monthlyHours, 
     loading,
     clockType,
     setClockType,
@@ -249,11 +250,8 @@ export function ClockWidget() {
             <p className="text-xs text-muted-foreground">This Week</p>
           </div>
           <div className="text-center p-3 rounded-lg bg-accent/50">
-            <p className={cn(
-              "text-lg font-semibold",
-              getUtilization() >= 80 ? "text-success" : getUtilization() >= 50 ? "text-warning" : "text-foreground"
-            )}>{getUtilization()}%</p>
-            <p className="text-xs text-muted-foreground">Utilization</p>
+            <p className="text-lg font-semibold text-foreground">{monthlyHours}h</p>
+            <p className="text-xs text-muted-foreground">This Month</p>
           </div>
         </div>
       </CardContent>

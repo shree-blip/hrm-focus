@@ -41,20 +41,22 @@ import { toast } from "@/hooks/use-toast";
 
 const Attendance = () => {
   const { user, isManager } = useAuth();
+  const [clockType, setClockType] = useState<"payroll" | "billable">("payroll");
+  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const currentDate = new Date();
+
   const { 
     currentLog, 
     weeklyLogs, 
+    monthlyLogs,
     loading, 
     clockIn, 
     clockOut, 
     startBreak, 
     endBreak,
+    monthlyHours,
     refetch 
-  } = useAttendance();
-  
-  const [clockType, setClockType] = useState<"payroll" | "billable">("payroll");
-  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const currentDate = new Date();
+  } = useAttendance(currentWeekStart);
 
   // Calculate clock status
   const getClockStatus = () => {
@@ -288,7 +290,10 @@ const Attendance = () => {
                   variant="ghost" 
                   size="icon" 
                   className="h-8 w-8"
-                  onClick={() => setCurrentWeekStart(subWeeks(currentWeekStart, 1))}
+                  onClick={() => {
+                    const newWeek = subWeeks(currentWeekStart, 1);
+                    setCurrentWeekStart(newWeek);
+                  }}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -299,7 +304,10 @@ const Attendance = () => {
                   variant="ghost" 
                   size="icon" 
                   className="h-8 w-8"
-                  onClick={() => setCurrentWeekStart(addWeeks(currentWeekStart, 1))}
+                  onClick={() => {
+                    const newWeek = addWeeks(currentWeekStart, 1);
+                    setCurrentWeekStart(newWeek);
+                  }}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>

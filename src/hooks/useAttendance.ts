@@ -15,10 +15,11 @@ interface AttendanceLog {
   location_name?: string;
 }
 
-export function useAttendance() {
+export function useAttendance(weekStart?: Date) {
   const { user } = useAuth();
   const [currentLog, setCurrentLog] = useState<AttendanceLog | null>(null);
   const [weeklyLogs, setWeeklyLogs] = useState<AttendanceLog[]>([]);
+  const [monthlyLogs, setMonthlyLogs] = useState<AttendanceLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [clockType, setClockType] = useState<"payroll" | "billable">("payroll");
 
@@ -39,8 +40,6 @@ export function useAttendance() {
     if (!error && data) {
       const log = data as AttendanceLog;
       // Ensure status is correctly determined from actual break_start/break_end values
-      // If break_start exists and break_end is null, user is on break
-      // If break_end exists or no break_start, user is active
       if (log.break_start && !log.break_end) {
         log.status = "break";
       } else if (!log.clock_out) {
@@ -56,26 +55,58 @@ export function useAttendance() {
   const fetchWeeklyLogs = useCallback(async () => {
     if (!user) return;
 
-    const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
+    // Use provided weekStart or default to current week
+    const startDate = weekStart || (() => {
+      const today = new Date();
+      const start = new Date(today);
+      start.setDate(today.getDate() - today.getDay() + 1); // Monday
+      start.setHours(0, 0, 0, 0);
+      return start;
+    })();
+    
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6); // Sunday
+    endDate.setHours(23, 59, 59, 999);
     
     const { data, error } = await supabase
       .from("attendance_logs")
       .select("*")
       .eq("user_id", user.id)
-      .gte("clock_in", startOfWeek.toISOString())
+      .gte("clock_in", startDate.toISOString())
+      .lte("clock_in", endDate.toISOString())
       .order("clock_in", { ascending: false });
 
     if (!error && data) {
       setWeeklyLogs(data as AttendanceLog[]);
+    }
+  }, [user, weekStart]);
+
+  // Fetch current month's attendance for payroll
+  const fetchMonthlyLogs = useCallback(async () => {
+    if (!user) return;
+
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+    const { data, error } = await supabase
+      .from("attendance_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .gte("clock_in", startOfMonth.toISOString())
+      .lte("clock_in", endOfMonth.toISOString())
+      .order("clock_in", { ascending: false });
+
+    if (!error && data) {
+      setMonthlyLogs(data as AttendanceLog[]);
     }
   }, [user]);
 
   useEffect(() => {
     fetchCurrentLog();
     fetchWeeklyLogs();
-  }, [fetchCurrentLog, fetchWeeklyLogs]);
+    fetchMonthlyLogs();
+  }, [fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
 
   const clockIn = async (type: "payroll" | "billable" = "payroll") => {
     if (!user) return;
@@ -187,9 +218,25 @@ export function useAttendance() {
     return "in";
   };
 
+  // Calculate monthly hours
+  const getMonthlyHours = () => {
+    let totalMinutes = 0;
+    monthlyLogs.forEach(log => {
+      if (log.clock_in && log.clock_out) {
+        const start = new Date(log.clock_in);
+        const end = new Date(log.clock_out);
+        const breakMinutes = log.total_break_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
+        totalMinutes += diffMs / (1000 * 60);
+      }
+    });
+    return Math.round(totalMinutes / 60 * 10) / 10;
+  };
+
   return {
     currentLog,
     weeklyLogs,
+    monthlyLogs,
     loading,
     clockType,
     setClockType,
@@ -198,9 +245,11 @@ export function useAttendance() {
     startBreak,
     endBreak,
     status: getStatus(),
+    monthlyHours: getMonthlyHours(),
     refetch: () => {
       fetchCurrentLog();
       fetchWeeklyLogs();
+      fetchMonthlyLogs();
     },
   };
 }
