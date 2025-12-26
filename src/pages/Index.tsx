@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 const Index = () => {
-  const { profile, role } = useAuth();
+  const { profile, role, isManager } = useAuth();
   const navigate = useNavigate();
   const { employees } = useEmployees();
   const { tasks } = useTasks();
@@ -35,30 +35,60 @@ const Index = () => {
   }).length;
   const pendingLeaveRequests = requests.filter(r => r.status === "pending").length;
 
+  // Role-based greeting
+  const getRoleLabel = () => {
+    if (role === "vp") return "VP";
+    if (role === "admin") return "Admin";
+    if (role === "manager") return "Manager";
+    return "";
+  };
+
   return (
     <DashboardLayout>
       {/* Page Header */}
       <div className="mb-8 animate-fade-in">
-        <h1 className="text-3xl font-display font-bold text-foreground">
-          Welcome back, {firstName}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-display font-bold text-foreground">
+            Welcome back, {firstName}
+          </h1>
+          {role && role !== "employee" && (
+            <span className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary">
+              {getRoleLabel()}
+            </span>
+          )}
+        </div>
         <p className="text-muted-foreground mt-1">
-          Here's what's happening with your team today.
+          {isManager 
+            ? "Here's what's happening with your team today." 
+            : "Here's your personal dashboard overview."}
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          title="Total Employees"
-          value={employees.length.toString()}
-          change="+3 this month"
-          changeType="positive"
-          icon={Users}
-          iconColor="bg-primary/10 text-primary"
-          delay={100}
-          onClick={() => navigate("/employees")}
-        />
+        {isManager ? (
+          <StatCard
+            title="Total Employees"
+            value={employees.length.toString()}
+            change="View directory"
+            changeType="neutral"
+            icon={Users}
+            iconColor="bg-primary/10 text-primary"
+            delay={100}
+            onClick={() => navigate("/employees")}
+          />
+        ) : (
+          <StatCard
+            title="My Profile"
+            value={profile ? `${profile.first_name} ${profile.last_name}` : "Loading..."}
+            change={profile?.department || "View profile"}
+            changeType="neutral"
+            icon={Users}
+            iconColor="bg-primary/10 text-primary"
+            delay={100}
+            onClick={() => navigate("/employees")}
+          />
+        )}
         <StatCard
           title="Hours Tracked Today"
           value="--"
@@ -70,7 +100,7 @@ const Index = () => {
           onClick={() => navigate("/attendance")}
         />
         <StatCard
-          title="Pending Tasks"
+          title={isManager ? "Team Tasks" : "My Tasks"}
           value={pendingTasks.toString()}
           change={`${dueTodayTasks} due today`}
           changeType={dueTodayTasks > 0 ? "negative" : "neutral"}
@@ -80,10 +110,10 @@ const Index = () => {
           onClick={() => navigate("/tasks")}
         />
         <StatCard
-          title="Leave Requests"
+          title={isManager ? "Leave Requests" : "My Leave"}
           value={requests.length.toString()}
-          change={`${pendingLeaveRequests} pending approval`}
-          changeType={pendingLeaveRequests > 0 ? "neutral" : "positive"}
+          change={isManager ? `${pendingLeaveRequests} pending approval` : "View leave balance"}
+          changeType={isManager && pendingLeaveRequests > 0 ? "neutral" : "positive"}
           icon={Calendar}
           iconColor="bg-info/10 text-info"
           delay={250}

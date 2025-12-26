@@ -19,21 +19,30 @@ interface Task {
 }
 
 export function useTasks() {
-  const { user } = useAuth();
+  const { user, isManager } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTasks = useCallback(async () => {
-    const { data, error } = await supabase
+    if (!user) return;
+
+    let query = supabase
       .from("tasks")
       .select("*")
       .order("created_at", { ascending: false });
+
+    // Regular employees see only tasks assigned to them or created by them
+    if (!isManager) {
+      query = query.or(`assignee_id.eq.${user.id},created_by.eq.${user.id}`);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       setTasks(data as Task[]);
     }
     setLoading(false);
-  }, []);
+  }, [user, isManager]);
 
   useEffect(() => {
     fetchTasks();
