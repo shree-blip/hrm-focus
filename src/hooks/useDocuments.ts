@@ -98,6 +98,10 @@ export function useDocuments() {
   };
 
   const deleteDocument = async (doc: Document) => {
+    // Optimistically remove document from UI
+    const previousDocuments = documents;
+    setDocuments(prev => prev.filter(d => d.id !== doc.id));
+
     // Delete from storage
     const { error: storageError } = await supabase.storage
       .from("documents")
@@ -114,6 +118,8 @@ export function useDocuments() {
       .eq("id", doc.id);
 
     if (error) {
+      // Revert on error
+      setDocuments(previousDocuments);
       toast({
         title: "Error",
         description: "Failed to delete document",
@@ -127,7 +133,6 @@ export function useDocuments() {
       description: `${doc.name} has been deleted`,
     });
 
-    fetchDocuments();
     return { error: null };
   };
 

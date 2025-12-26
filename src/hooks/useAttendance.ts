@@ -37,7 +37,16 @@ export function useAttendance() {
       .single();
 
     if (!error && data) {
-      setCurrentLog(data as AttendanceLog);
+      const log = data as AttendanceLog;
+      // Ensure status is correctly determined from actual break_start/break_end values
+      // If break_start exists and break_end is null, user is on break
+      // If break_end exists or no break_start, user is active
+      if (log.break_start && !log.break_end) {
+        log.status = "break";
+      } else if (!log.clock_out) {
+        log.status = "active";
+      }
+      setCurrentLog(log);
     } else {
       setCurrentLog(null);
     }
@@ -127,18 +136,21 @@ export function useAttendance() {
   const startBreak = async () => {
     if (!user || !currentLog) return;
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("attendance_logs")
       .update({
         break_start: new Date().toISOString(),
+        break_end: null,
         status: "break",
       })
-      .eq("id", currentLog.id);
+      .eq("id", currentLog.id)
+      .select()
+      .single();
 
     if (error) {
       toast({ title: "Error", description: "Failed to start break", variant: "destructive" });
     } else {
-      fetchCurrentLog();
+      setCurrentLog({ ...data, status: "break" } as AttendanceLog);
       toast({ title: "Break Started", description: "Enjoy your break!" });
     }
   };
@@ -150,19 +162,21 @@ export function useAttendance() {
     const breakEnd = new Date();
     const breakMinutes = Math.round((breakEnd.getTime() - breakStart.getTime()) / 60000);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("attendance_logs")
       .update({
         break_end: breakEnd.toISOString(),
         total_break_minutes: (currentLog.total_break_minutes || 0) + breakMinutes,
         status: "active",
       })
-      .eq("id", currentLog.id);
+      .eq("id", currentLog.id)
+      .select()
+      .single();
 
     if (error) {
       toast({ title: "Error", description: "Failed to end break", variant: "destructive" });
     } else {
-      fetchCurrentLog();
+      setCurrentLog({ ...data, status: "active" } as AttendanceLog);
       toast({ title: "Back to Work", description: `Break time: ${breakMinutes} minutes` });
     }
   };

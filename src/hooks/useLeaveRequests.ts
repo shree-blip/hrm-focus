@@ -107,11 +107,19 @@ export function useLeaveRequests() {
       (request.end_date.getTime() - request.start_date.getTime()) / (1000 * 60 * 60 * 24)
     ) + 1;
 
+    // Format dates as YYYY-MM-DD using local date components to avoid timezone shifts
+    const formatLocalDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     const { error } = await supabase.from("leave_requests").insert({
       user_id: user.id,
       leave_type: request.leave_type,
-      start_date: request.start_date.toISOString().split("T")[0],
-      end_date: request.end_date.toISOString().split("T")[0],
+      start_date: formatLocalDate(request.start_date),
+      end_date: formatLocalDate(request.end_date),
       days,
       reason: request.reason,
       status: "pending",

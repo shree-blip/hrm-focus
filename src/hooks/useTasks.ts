@@ -82,27 +82,34 @@ export function useTasks() {
       toast({ title: "Error", description: "Failed to create task", variant: "destructive" });
       return null;
     } else {
+      // Optimistically add the new task to the list
+      setTasks(prev => [data as Task, ...prev]);
       toast({ title: "Task Created", description: "Your task has been added." });
-      fetchTasks();
       return data as Task;
     }
   };
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("tasks")
       .update(updates)
-      .eq("id", taskId);
+      .eq("id", taskId)
+      .select()
+      .single();
 
     if (error) {
       toast({ title: "Error", description: "Failed to update task", variant: "destructive" });
     } else {
+      // Optimistically update the task in the list
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...data } as Task : t));
       toast({ title: "Task Updated", description: "Changes saved successfully." });
-      fetchTasks();
     }
   };
 
   const updateTaskStatus = async (taskId: string, newStatus: Task["status"]) => {
+    // Optimistically update the status
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+    
     const { error } = await supabase
       .from("tasks")
       .update({ status: newStatus })
@@ -110,12 +117,16 @@ export function useTasks() {
 
     if (error) {
       toast({ title: "Error", description: "Failed to move task", variant: "destructive" });
-    } else {
+      // Revert on error
       fetchTasks();
     }
   };
 
   const deleteTask = async (taskId: string) => {
+    // Optimistically remove the task
+    const previousTasks = tasks;
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    
     const { error } = await supabase
       .from("tasks")
       .delete()
@@ -123,9 +134,10 @@ export function useTasks() {
 
     if (error) {
       toast({ title: "Error", description: "Failed to delete task", variant: "destructive" });
+      // Revert on error
+      setTasks(previousTasks);
     } else {
       toast({ title: "Task Deleted", description: "Task has been removed." });
-      fetchTasks();
     }
   };
 

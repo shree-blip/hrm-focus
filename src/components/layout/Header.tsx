@@ -127,7 +127,7 @@ export function Header() {
               </Avatar>
               <div className="hidden md:flex flex-col items-start text-sm">
                 <span className="font-medium">{getDisplayName()}</span>
-                <span className="text-xs text-muted-foreground">{profile?.job_title || "VP - Nepal Operations"}</span>
+                <span className="text-xs text-muted-foreground">{profile?.job_title || "Employee"}</span>
               </div>
             </Button>
           </DropdownMenuTrigger>

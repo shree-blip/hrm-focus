@@ -39,11 +39,14 @@ const Settings = () => {
   const [performanceNotifications, setPerformanceNotifications] = useState(false);
   const [emailDigest, setEmailDigest] = useState(false);
 
-  // Company settings state
+  // Company settings state - track initial values to detect changes
   const [companyName, setCompanyName] = useState("Focus Your Finance");
   const [timezone, setTimezone] = useState("America/New_York (EST)");
   const [fiscalYear, setFiscalYear] = useState("January 1");
   const [payFrequency, setPayFrequency] = useState("Semi-Monthly");
+  
+  // Track if company settings have been modified
+  const [companySettingsChanged, setCompanySettingsChanged] = useState(false);
 
   // Initialize form with profile data
   useEffect(() => {
@@ -155,11 +158,20 @@ const Settings = () => {
   };
 
   const handleSaveCompanySettings = () => {
+    if (!companySettingsChanged) {
+      return;
+    }
     // In a real app, this would save to a company_settings table
     toast({
       title: "Company Settings Saved",
       description: "Your company settings have been updated",
     });
+    setCompanySettingsChanged(false);
+  };
+
+  const handleCompanyFieldChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
+    setter(value);
+    setCompanySettingsChanged(true);
   };
 
   const getInitials = () => {
@@ -431,7 +443,7 @@ const Settings = () => {
                   <Input 
                     id="companyName" 
                     value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
+                    onChange={(e) => handleCompanyFieldChange(setCompanyName, e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -439,7 +451,7 @@ const Settings = () => {
                   <Input 
                     id="timezone" 
                     value={timezone}
-                    onChange={(e) => setTimezone(e.target.value)}
+                    onChange={(e) => handleCompanyFieldChange(setTimezone, e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -447,7 +459,7 @@ const Settings = () => {
                   <Input 
                     id="fiscalYear" 
                     value={fiscalYear}
-                    onChange={(e) => setFiscalYear(e.target.value)}
+                    onChange={(e) => handleCompanyFieldChange(setFiscalYear, e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -455,7 +467,7 @@ const Settings = () => {
                   <Input 
                     id="payFrequency" 
                     value={payFrequency}
-                    onChange={(e) => setPayFrequency(e.target.value)}
+                    onChange={(e) => handleCompanyFieldChange(setPayFrequency, e.target.value)}
                   />
                 </div>
               </div>
@@ -483,7 +495,9 @@ const Settings = () => {
               </div>
 
               <div className="flex justify-end">
-                <Button onClick={handleSaveCompanySettings}>Save Settings</Button>
+                <Button onClick={handleSaveCompanySettings} disabled={!companySettingsChanged}>
+                  Save Settings
+                </Button>
               </div>
             </CardContent>
           </Card>

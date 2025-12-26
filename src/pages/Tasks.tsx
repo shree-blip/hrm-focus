@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Filter, MoreHorizontal, Clock, AlertCircle, GripVertical, CheckCircle2, Circle, Timer, Loader2 } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Clock, AlertCircle, GripVertical, CheckCircle2, Circle, Timer, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
@@ -145,9 +145,8 @@ const Tasks = () => {
       <div className="flex flex-col sm:flex-row gap-4 mb-6 animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search tasks..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+          <Input placeholder="Search tasks by title or client..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
         </div>
-        <Button variant="outline" className="gap-2"><Filter className="h-4 w-4" />Filter</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
@@ -184,8 +183,8 @@ const Tasks = () => {
                         </div>
                         <Badge variant="outline" className={cn("text-xs", task.priority === "high" && "border-destructive/50 text-destructive", task.priority === "medium" && "border-warning/50 text-warning", task.priority === "low" && "border-muted-foreground/50")}>{task.priority}</Badge>
                       </div>
-                      <h4 className="font-medium text-sm mb-1 line-clamp-2">{task.title}</h4>
-                      <p className="text-xs text-muted-foreground mb-3">{task.client}</p>
+                      <h4 className="font-medium text-sm mb-1 line-clamp-2" title={task.title}>{task.title}</h4>
+                      <p className="text-xs text-muted-foreground mb-3" title={task.client}>{task.client}</p>
                       <div className="flex items-center justify-between">
                         <Avatar className="h-6 w-6"><AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">{task.assignee.initials}</AvatarFallback></Avatar>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
