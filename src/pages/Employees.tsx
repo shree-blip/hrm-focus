@@ -29,94 +29,44 @@ import { Search, Plus, Filter, MoreHorizontal, Mail, Phone, MapPin } from "lucid
 import { cn } from "@/lib/utils";
 
 const employees = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    email: "sarah.johnson@focusfinance.com",
-    role: "Staff Accountant",
-    department: "Bookkeeping",
-    location: "US",
-    status: "active",
-    initials: "SJ",
-    phone: "+1 (555) 123-4567",
-  },
-  {
-    id: 2,
-    name: "Michael Chen",
-    email: "michael.chen@focusfinance.com",
-    role: "Tax Associate",
-    department: "Tax",
-    location: "US",
-    status: "active",
-    initials: "MC",
-    phone: "+1 (555) 234-5678",
-  },
-  {
-    id: 3,
-    name: "Emily Davis",
-    email: "emily.davis@focusfinance.com",
-    role: "Lead Bookkeeper",
-    department: "Bookkeeping",
-    location: "US",
-    status: "active",
-    initials: "ED",
-    phone: "+1 (555) 345-6789",
-  },
-  {
-    id: 4,
-    name: "Ramesh Sharma",
-    email: "ramesh.sharma@focusfinance.com",
-    role: "Senior Accountant",
-    department: "FDA",
-    location: "Nepal",
-    status: "active",
-    initials: "RS",
-    phone: "+977 98XXXXXXXX",
-  },
-  {
-    id: 5,
-    name: "Lisa Park",
-    email: "lisa.park@focusfinance.com",
-    role: "Tax Lead",
-    department: "Tax",
-    location: "US",
-    status: "active",
-    initials: "LP",
-    phone: "+1 (555) 456-7890",
-  },
-  {
-    id: 6,
-    name: "James Wilson",
-    email: "james.wilson@focusfinance.com",
-    role: "Intern",
-    department: "Tax",
-    location: "US",
-    status: "probation",
-    initials: "JW",
-    phone: "+1 (555) 567-8901",
-  },
-  {
-    id: 7,
-    name: "Priya Patel",
-    email: "priya.patel@focusfinance.com",
-    role: "Associate",
-    department: "FDA",
-    location: "Nepal",
-    status: "active",
-    initials: "PP",
-    phone: "+977 98XXXXXXXX",
-  },
-  {
-    id: 8,
-    name: "David Kim",
-    email: "david.kim@focusfinance.com",
-    role: "Operations Coordinator",
-    department: "Operations",
-    location: "US",
-    status: "active",
-    initials: "DK",
-    phone: "+1 (555) 678-9012",
-  },
+  // US Team
+  { id: 1, name: "Adish Dahal", email: "adish@focusyourfinance.com", role: "Vice President", department: "Executive", location: "US", status: "active", initials: "AD", phone: "" },
+  { id: 2, name: "Julie Moreno", email: "julie@focusyourfinance.com", role: "Executive Assistant", department: "Executive", location: "US", status: "active", initials: "JM", phone: "" },
+  { id: 3, name: "Sambridhi Regmi", email: "sambridhi@focusyourfinance.com", role: "Accountant", department: "Accounting", location: "US", status: "active", initials: "SR", phone: "" },
+  { id: 4, name: "Anjila Shrestha", email: "anjila@focusyourfinance.com", role: "Operations Associate", department: "Operations", location: "US", status: "active", initials: "AS", phone: "" },
+  { id: 5, name: "Rick Leonard", email: "rick@focusyourfinance.com", role: "Healthcare", department: "Healthcare", location: "US", status: "active", initials: "RL", phone: "" },
+  { id: 6, name: "Jamie Alcantar", email: "jamie@focusyourfinance.com", role: "Healthcare", department: "Healthcare", location: "US", status: "active", initials: "JA", phone: "" },
+  
+  // Nepal Team
+  { id: 7, name: "Ganesh Dahal", email: "ganesh.dahal@focusyourfinance.com", role: "VP - Nepal Operations", department: "Executive", location: "Nepal", status: "active", initials: "GD", phone: "" },
+  { id: 8, name: "Salmon Adhikari", email: "salmon@focusyourfinance.com", role: "Chief Operations Officer", department: "Operations", location: "Nepal", status: "active", initials: "SA", phone: "" },
+  { id: 9, name: "Guinness Lakhe", email: "guinness@focusyourfinance.com", role: "Sr. Accountant Officer", department: "Accounting", location: "Nepal", status: "active", initials: "GL", phone: "" },
+  { id: 10, name: "Hemant Rai", email: "operations@focusyourfinance.com", role: "Sr Operations Officer", department: "Operations", location: "Nepal", status: "active", initials: "HR", phone: "" },
+  { id: 11, name: "Resham Karki", email: "nepalfocus2@gmail.com", role: "Administration Officer", department: "Operations", location: "Nepal", status: "active", initials: "RK", phone: "" },
+  { id: 12, name: "Shree Gauli", email: "shree@focusyourfinance.com", role: "Sr Marketing Officer", department: "Marketing", location: "Nepal", status: "active", initials: "SG", phone: "" },
+  { id: 13, name: "Bikash Neupane", email: "hello@focusyourfinance.com", role: "Digitization/IT Officer", department: "IT", location: "Nepal", status: "active", initials: "BN", phone: "" },
+  { id: 14, name: "Kalash Shrestha", email: "kalash@focusyourfinance.com", role: "Tax Accountant", department: "Tax", location: "Nepal", status: "active", initials: "KS", phone: "" },
+  { id: 15, name: "Sandesh Rai", email: "sandesh.rai@focusyourfinance.com", role: "Sr. Accountant", department: "Accounting", location: "Nepal", status: "active", initials: "SR", phone: "" },
+  { id: 16, name: "Ishika Jha", email: "ishika@focusyourfinance.com", role: "Accounting Associate", department: "Accounting", location: "Nepal", status: "active", initials: "IJ", phone: "" },
+  { id: 17, name: "Sapana Regmi", email: "sapana@focusyourfinance.com", role: "Accounting Associate", department: "Accounting", location: "Nepal", status: "active", initials: "SR", phone: "" },
+  { id: 18, name: "Sajiya Banu", email: "sajiya@focusyourfinance.com", role: "Tax Associate", department: "Tax", location: "Nepal", status: "active", initials: "SB", phone: "" },
+  { id: 19, name: "Sushant Maskey", email: "sushant@focusyourfinance.com", role: "Staff Accountant", department: "Accounting", location: "Nepal", status: "active", initials: "SM", phone: "" },
+  { id: 20, name: "Bhaskar Rokka", email: "bhaskar@focusyourfinance.com", role: "Staff Accountant", department: "Accounting", location: "Nepal", status: "active", initials: "BR", phone: "" },
+  { id: 21, name: "Tika Rai", email: "tika.rai@focusyourfinance.com", role: "Staff Accountant", department: "Accounting", location: "Nepal", status: "active", initials: "TR", phone: "" },
+  { id: 22, name: "Sonu Sagar Dongol", email: "sonu@focusyourfinance.com", role: "Paid Ads Specialist", department: "Marketing", location: "Nepal", status: "active", initials: "SD", phone: "" },
+  { id: 23, name: "Bijesh Khadgi", email: "bijesh@focusyourfinance.com", role: "Social Media Manager", department: "Marketing", location: "Nepal", status: "active", initials: "BK", phone: "" },
+  { id: 24, name: "Sumit Sharma", email: "sumit@focusyourfinance.com", role: "SEO Manager", department: "Marketing", location: "Nepal", status: "active", initials: "SS", phone: "" },
+  { id: 25, name: "Rahul Roy", email: "rahul@focusyourfinance.com", role: "Content Writer", department: "Marketing", location: "Nepal", status: "active", initials: "RR", phone: "" },
+  { id: 26, name: "Puspa Gautam", email: "lifeatfocus6@gmail.com", role: "Accounting Intern", department: "Accounting", location: "Nepal", status: "probation", initials: "PG", phone: "" },
+  { id: 27, name: "Bidhitsha Khadka", email: "designerfocus08@gmail.com", role: "Graphics Designer Intern", department: "Marketing", location: "Nepal", status: "probation", initials: "BK", phone: "" },
+  { id: 28, name: "Swanim Rai", email: "lifeatfocus8@gmail.com", role: "Intern", department: "Operations", location: "Nepal", status: "probation", initials: "SR", phone: "" },
+  
+  // Focus Data Team
+  { id: 29, name: "Aavash Rimal", email: "aavash@focusdata.io", role: "Chief Operations Officer", department: "Focus Data", location: "Nepal", status: "active", initials: "AR", phone: "" },
+  { id: 30, name: "Sarju Maharjan", email: "hello@focusdata.io", role: "Operations Coordinator", department: "Focus Data", location: "Nepal", status: "active", initials: "SM", phone: "" },
+  { id: 31, name: "Asesh Khanal", email: "aseshkhanal999@gmail.com", role: "Sr. Project Associate", department: "Focus Data", location: "Nepal", status: "active", initials: "AK", phone: "" },
+  { id: 32, name: "Krisha Maharjan", email: "krishamaharjan110@gmail.com", role: "Jr. Project Associate", department: "Focus Data", location: "Nepal", status: "active", initials: "KM", phone: "" },
+  { id: 33, name: "Purnima Bogati", email: "Bogateepurnima17@gmail.com", role: "Project Associate", department: "Focus Data", location: "Nepal", status: "active", initials: "PB", phone: "" },
 ];
 
 const Employees = () => {
@@ -168,10 +118,14 @@ const Employees = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Departments</SelectItem>
-            <SelectItem value="Bookkeeping">Bookkeeping</SelectItem>
+            <SelectItem value="Executive">Executive</SelectItem>
+            <SelectItem value="Accounting">Accounting</SelectItem>
             <SelectItem value="Tax">Tax</SelectItem>
-            <SelectItem value="FDA">FDA</SelectItem>
             <SelectItem value="Operations">Operations</SelectItem>
+            <SelectItem value="Marketing">Marketing</SelectItem>
+            <SelectItem value="IT">IT</SelectItem>
+            <SelectItem value="Healthcare">Healthcare</SelectItem>
+            <SelectItem value="Focus Data">Focus Data</SelectItem>
           </SelectContent>
         </Select>
         <Select value={locationFilter} onValueChange={setLocationFilter}>

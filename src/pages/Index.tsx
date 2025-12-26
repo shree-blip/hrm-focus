@@ -21,7 +21,7 @@ const Index = () => {
       {/* Page Header */}
       <div className="mb-8 animate-fade-in">
         <h1 className="text-3xl font-display font-bold text-foreground">
-          Welcome back, John
+          Welcome back, Ganesh
         </h1>
         <p className="text-muted-foreground mt-1">
           Here's what's happening with your team today.

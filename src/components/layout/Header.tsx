@@ -102,12 +102,12 @@ export function Header() {
               <Avatar className="h-8 w-8">
                 <AvatarImage src="" />
                 <AvatarFallback className="bg-primary text-primary-foreground font-medium">
-                  JD
+                  GD
                 </AvatarFallback>
               </Avatar>
               <div className="hidden md:flex flex-col items-start text-sm">
-                <span className="font-medium">John Doe</span>
-                <span className="text-xs text-muted-foreground">VP - US Operations</span>
+                <span className="font-medium">Ganesh Dahal</span>
+                <span className="text-xs text-muted-foreground">VP - Nepal Operations</span>
               </div>
             </Button>
           </DropdownMenuTrigger>
