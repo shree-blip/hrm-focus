@@ -6,11 +6,10 @@ import { LeaveWidget } from "@/components/dashboard/LeaveWidget";
 import { TeamWidget } from "@/components/dashboard/TeamWidget";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { AnnouncementsWidget } from "@/components/dashboard/AnnouncementsWidget";
+import { CompanyCalendar } from "@/components/dashboard/CompanyCalendar";
 import {
   Users,
   Clock,
-  DollarSign,
-  TrendingUp,
   Calendar,
   CheckCircle2,
 } from "lucide-react";
@@ -82,6 +81,7 @@ const Index = () => {
         {/* Right Column - 1/3 width */}
         <div className="space-y-6">
           <ClockWidget />
+          <CompanyCalendar />
           <TeamWidget />
           <AnnouncementsWidget />
         </div>

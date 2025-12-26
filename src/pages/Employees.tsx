@@ -27,8 +27,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Search, Plus, Filter, MoreHorizontal, Mail, Phone, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
+import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
+import { TimesheetDialog } from "@/components/employees/TimesheetDialog";
+import { DeactivateDialog } from "@/components/employees/DeactivateDialog";
 
-const employees = [
+interface Employee {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+  location: string;
+  status: string;
+  initials: string;
+  phone: string;
+}
+
+const initialEmployees: Employee[] = [
   // US Team
   { id: 1, name: "Adish Dahal", email: "adish@focusyourfinance.com", role: "Vice President", department: "Executive", location: "US", status: "active", initials: "AD", phone: "" },
   { id: 2, name: "Julie Moreno", email: "julie@focusyourfinance.com", role: "Executive Assistant", department: "Executive", location: "US", status: "active", initials: "JM", phone: "" },
@@ -73,6 +89,14 @@ const Employees = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
+  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  
+  // Dialog states
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [timesheetOpen, setTimesheetOpen] = useState(false);
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
@@ -83,6 +107,40 @@ const Employees = () => {
     const matchesLocation = locationFilter === "all" || emp.location === locationFilter;
     return matchesSearch && matchesDepartment && matchesLocation;
   });
+
+  const handleViewProfile = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setProfileOpen(true);
+  };
+
+  const handleEditDetails = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setEditOpen(true);
+  };
+
+  const handleViewTimesheet = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setTimesheetOpen(true);
+  };
+
+  const handleDeactivate = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setDeactivateOpen(true);
+  };
+
+  const handleSaveEmployee = (updatedEmployee: Employee) => {
+    setEmployees(prev =>
+      prev.map(emp => (emp.id === updatedEmployee.id ? updatedEmployee : emp))
+    );
+  };
+
+  const handleConfirmDeactivate = (employeeId: number) => {
+    setEmployees(prev =>
+      prev.map(emp =>
+        emp.id === employeeId ? { ...emp, status: "inactive" } : emp
+      )
+    );
+  };
 
   return (
     <DashboardLayout>
@@ -184,10 +242,7 @@ const Employees = () => {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-lg",
-                      employee.location === "US" ? "" : ""
-                    )}>
+                    <span className="text-lg">
                       {employee.location === "US" ? "🇺🇸" : "🇳🇵"}
                     </span>
                     {employee.location}
@@ -198,7 +253,8 @@ const Employees = () => {
                     variant="outline"
                     className={cn(
                       employee.status === "active" && "border-success/50 text-success bg-success/10",
-                      employee.status === "probation" && "border-warning/50 text-warning bg-warning/10"
+                      employee.status === "probation" && "border-warning/50 text-warning bg-warning/10",
+                      employee.status === "inactive" && "border-destructive/50 text-destructive bg-destructive/10"
                     )}
                   >
                     {employee.status}
@@ -206,7 +262,12 @@ const Employees = () => {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8"
+                      onClick={() => window.location.href = `mailto:${employee.email}`}
+                    >
                       <Mail className="h-4 w-4 text-muted-foreground" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -222,10 +283,21 @@ const Employees = () => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Profile</DropdownMenuItem>
-                      <DropdownMenuItem>Edit Details</DropdownMenuItem>
-                      <DropdownMenuItem>View Timesheet</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">Deactivate</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewProfile(employee)}>
+                        View Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEditDetails(employee)}>
+                        Edit Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewTimesheet(employee)}>
+                        View Timesheet
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-destructive"
+                        onClick={() => handleDeactivate(employee)}
+                      >
+                        Deactivate
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -245,6 +317,30 @@ const Employees = () => {
           <span>🇳🇵 {employees.filter(e => e.location === "Nepal").length} Nepal</span>
         </div>
       </div>
+
+      {/* Dialogs */}
+      <EmployeeProfileDialog
+        employee={selectedEmployee}
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+      />
+      <EditEmployeeDialog
+        employee={selectedEmployee}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSave={handleSaveEmployee}
+      />
+      <TimesheetDialog
+        employee={selectedEmployee}
+        open={timesheetOpen}
+        onOpenChange={setTimesheetOpen}
+      />
+      <DeactivateDialog
+        employee={selectedEmployee}
+        open={deactivateOpen}
+        onOpenChange={setDeactivateOpen}
+        onConfirm={handleConfirmDeactivate}
+      />
     </DashboardLayout>
   );
 };

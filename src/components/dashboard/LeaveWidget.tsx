@@ -1,11 +1,24 @@
-import { Calendar, Clock, Check, X, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { Calendar, Check, X, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
-const leaveRequests = [
+interface LeaveRequest {
+  id: number;
+  name: string;
+  avatar: string;
+  initials: string;
+  type: string;
+  dates: string;
+  days: number;
+  status: "pending" | "approved" | "rejected";
+}
+
+const initialLeaveRequests: LeaveRequest[] = [
   {
     id: 1,
     name: "Sarah Johnson",
@@ -29,6 +42,28 @@ const leaveRequests = [
 ];
 
 export function LeaveWidget() {
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(initialLeaveRequests);
+
+  const handleApprove = (id: number) => {
+    setLeaveRequests(prev => 
+      prev.map(req => 
+        req.id === id ? { ...req, status: "approved" as const } : req
+      )
+    );
+    const request = leaveRequests.find(r => r.id === id);
+    toast.success(`Leave request approved for ${request?.name}`);
+  };
+
+  const handleReject = (id: number) => {
+    setLeaveRequests(prev => 
+      prev.map(req => 
+        req.id === id ? { ...req, status: "rejected" as const } : req
+      )
+    );
+    const request = leaveRequests.find(r => r.id === id);
+    toast.error(`Leave request rejected for ${request?.name}`);
+  };
+
   return (
     <Card className="animate-slide-up opacity-0" style={{ animationDelay: "400ms", animationFillMode: "forwards" }}>
       <CardHeader className="pb-3">
@@ -64,17 +99,35 @@ export function LeaveWidget() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                {request.days} {request.days === 1 ? "day" : "days"}
+              <Badge 
+                variant={request.status === "approved" ? "default" : request.status === "rejected" ? "destructive" : "secondary"} 
+                className="text-xs"
+              >
+                {request.status === "pending" 
+                  ? `${request.days} ${request.days === 1 ? "day" : "days"}`
+                  : request.status
+                }
               </Badge>
-              <div className="flex gap-1">
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-success hover:text-success hover:bg-success/10">
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+              {request.status === "pending" && (
+                <div className="flex gap-1">
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
+                    onClick={() => handleApprove(request.id)}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleReject(request.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         ))}
