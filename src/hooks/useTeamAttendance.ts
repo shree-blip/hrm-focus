@@ -117,6 +117,20 @@ export function useTeamAttendance(month?: Date) {
 
   useEffect(() => {
     fetchTeamAttendance();
+
+    // Set up realtime subscription
+    const attendanceChannel = supabase
+      .channel('team-attendance-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'attendance_logs' },
+        () => fetchTeamAttendance()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(attendanceChannel);
+    };
   }, [fetchTeamAttendance]);
 
   return {

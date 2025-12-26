@@ -34,7 +34,7 @@ export function usePayroll() {
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [region, setRegion] = useState<"US" | "Nepal">("US");
+  const [region, setRegion] = useState<"US" | "Nepal">("Nepal");
 
   const fetchPayrollRuns = useCallback(async () => {
     if (!isManager) {
@@ -73,6 +73,25 @@ export function usePayroll() {
   useEffect(() => {
     fetchPayrollRuns();
     fetchPayslips();
+
+    // Set up realtime subscriptions
+    const payrollChannel = supabase
+      .channel('payroll-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payroll_runs' },
+        () => fetchPayrollRuns()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payslips' },
+        () => fetchPayslips()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(payrollChannel);
+    };
   }, [fetchPayrollRuns, fetchPayslips]);
 
   const createPayrollRun = async (periodStart: Date, periodEnd: Date) => {

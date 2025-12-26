@@ -88,6 +88,20 @@ export function useEmployees() {
 
   useEffect(() => {
     fetchEmployees();
+
+    // Set up realtime subscription
+    const employeesChannel = supabase
+      .channel('employees-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'employees' },
+        () => fetchEmployees()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(employeesChannel);
+    };
   }, [fetchEmployees]);
 
   const createEmployee = async (employee: Omit<Employee, "id">) => {
