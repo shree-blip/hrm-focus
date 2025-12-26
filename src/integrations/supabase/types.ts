@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      allowed_signups: {
+        Row: {
+          created_at: string
+          email: string
+          employee_id: string | null
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          is_used: boolean | null
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          employee_id?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          is_used?: boolean | null
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          employee_id?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          is_used?: boolean | null
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allowed_signups_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_logs: {
         Row: {
           break_end: string | null
