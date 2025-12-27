@@ -161,11 +161,17 @@ export function useDocuments() {
   };
 
   const getDownloadUrl = async (filePath: string) => {
-    const { data } = await supabase.storage
+    // Use signed URLs for private bucket - 1 hour expiry
+    const { data, error } = await supabase.storage
       .from("documents")
-      .getPublicUrl(filePath);
+      .createSignedUrl(filePath, 3600);
 
-    return data.publicUrl;
+    if (error) {
+      console.error("Error creating signed URL:", error);
+      throw error;
+    }
+
+    return data.signedUrl;
   };
 
   const downloadDocument = async (doc: Document) => {
