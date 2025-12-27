@@ -44,9 +44,9 @@ export function useEmployees() {
 
   const fetchEmployees = useCallback(async () => {
     if (isManager) {
-      // Managers can see full employee data including salaries
+      // Managers use the secure salary view - only shows salaries for direct reports, admins, and VPs
       const { data, error } = await supabase
-        .from("employees")
+        .from("employee_salary_view")
         .select("*")
         .order("first_name", { ascending: true });
 

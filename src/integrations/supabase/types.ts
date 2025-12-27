@@ -57,6 +57,13 @@ export type Database = {
             foreignKeyName: "allowed_signups_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allowed_signups_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -123,6 +130,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
             referencedColumns: ["id"]
           },
           {
@@ -222,6 +236,13 @@ export type Database = {
             foreignKeyName: "documents_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -297,6 +318,13 @@ export type Database = {
             columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
             referencedColumns: ["id"]
           },
           {
@@ -490,6 +518,13 @@ export type Database = {
             foreignKeyName: "offboarding_workflows_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offboarding_workflows_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -582,6 +617,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_workflows_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
             referencedColumns: ["id"]
           },
           {
@@ -681,6 +723,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
             referencedColumns: ["id"]
           },
           {
@@ -967,6 +1016,108 @@ export type Database = {
             foreignKeyName: "employees_manager_id_fkey"
             columns: ["manager_id"]
             isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_salary_view: {
+        Row: {
+          created_at: string | null
+          department: string | null
+          email: string | null
+          employee_id: string | null
+          first_name: string | null
+          hire_date: string | null
+          hourly_rate: number | null
+          id: string | null
+          job_title: string | null
+          last_name: string | null
+          location: string | null
+          manager_id: string | null
+          pay_type: string | null
+          phone: string | null
+          profile_id: string | null
+          salary: number | null
+          status: string | null
+          termination_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          employee_id?: string | null
+          first_name?: string | null
+          hire_date?: string | null
+          hourly_rate?: never
+          id?: string | null
+          job_title?: string | null
+          last_name?: string | null
+          location?: string | null
+          manager_id?: string | null
+          pay_type?: string | null
+          phone?: string | null
+          profile_id?: string | null
+          salary?: never
+          status?: string | null
+          termination_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          employee_id?: string | null
+          first_name?: string | null
+          hire_date?: string | null
+          hourly_rate?: never
+          id?: string | null
+          job_title?: string | null
+          last_name?: string | null
+          location?: string | null
+          manager_id?: string | null
+          pay_type?: string | null
+          phone?: string | null
+          profile_id?: string | null
+          salary?: never
+          status?: string | null
+          termination_date?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -981,6 +1132,10 @@ export type Database = {
       }
     }
     Functions: {
+      can_view_salary: {
+        Args: { _employee_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -990,6 +1145,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_direct_manager: {
+        Args: { _employee_id: string; _user_id: string }
         Returns: boolean
       }
       mark_signup_used: { Args: { check_email: string }; Returns: boolean }
