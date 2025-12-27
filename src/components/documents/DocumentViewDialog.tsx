@@ -11,13 +11,17 @@ import { FileText, FileSpreadsheet, File, Download, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Document {
-  id: number;
+  id: string;
   name: string;
-  type: string;
-  category: string;
-  size: string;
-  date: string;
-  status: string;
+  file_path: string;
+  file_type: string | null;
+  file_size: number | null;
+  category: string | null;
+  created_at: string;
+  updated_at: string;
+  status: string | null;
+  uploaded_by: string;
+  employee_id: string | null;
 }
 
 interface DocumentViewDialogProps {
@@ -27,7 +31,7 @@ interface DocumentViewDialogProps {
   onDownload: (document: Document) => void;
 }
 
-const getFileIcon = (type: string) => {
+const getFileIcon = (type: string | null) => {
   switch (type) {
     case "pdf":
       return <FileText className="h-16 w-16 text-destructive" />;
@@ -40,6 +44,13 @@ const getFileIcon = (type: string) => {
     default:
       return <File className="h-16 w-16 text-muted-foreground" />;
   }
+};
+
+const formatFileSize = (bytes: number | null) => {
+  if (!bytes) return "N/A";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 export function DocumentViewDialog({
@@ -63,10 +74,10 @@ export function DocumentViewDialog({
         <div className="space-y-6 mt-4">
           {/* File Preview */}
           <div className="flex flex-col items-center justify-center p-8 bg-secondary/50 rounded-lg">
-            {getFileIcon(document.type)}
+            {getFileIcon(document.file_type)}
             <p className="font-medium mt-4 text-center">{document.name}</p>
             <Badge variant="secondary" className="mt-2">
-              {document.type.toUpperCase()}
+              {(document.file_type || "FILE").toUpperCase()}
             </Badge>
           </div>
 
@@ -74,17 +85,17 @@ export function DocumentViewDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="p-3 rounded-lg bg-secondary/50">
               <p className="text-xs text-muted-foreground mb-1">Category</p>
-              <p className="text-sm font-medium">{document.category}</p>
+              <p className="text-sm font-medium">{document.category || "Uncategorized"}</p>
             </div>
             <div className="p-3 rounded-lg bg-secondary/50">
               <p className="text-xs text-muted-foreground mb-1">Size</p>
-              <p className="text-sm font-medium">{document.size}</p>
+              <p className="text-sm font-medium">{formatFileSize(document.file_size)}</p>
             </div>
             <div className="p-3 rounded-lg bg-secondary/50">
               <p className="text-xs text-muted-foreground mb-1">Modified</p>
               <div className="flex items-center gap-1 text-sm font-medium">
                 <Clock className="h-3 w-3" />
-                {document.date}
+                {new Date(document.updated_at || document.created_at).toLocaleDateString()}
               </div>
             </div>
             <div className="p-3 rounded-lg bg-secondary/50">
@@ -99,7 +110,7 @@ export function DocumentViewDialog({
                   document.status === "approved" && "border-success text-success bg-success/10"
                 )}
               >
-                {document.status}
+                {document.status || "active"}
               </Badge>
             </div>
           </div>
