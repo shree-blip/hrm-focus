@@ -799,6 +799,24 @@ export type Database = {
         }
         Relationships: []
       }
+      rpc_rate_limits: {
+        Row: {
+          call_count: number | null
+          identifier: string
+          window_start: string | null
+        }
+        Insert: {
+          call_count?: number | null
+          identifier: string
+          window_start?: string | null
+        }
+        Update: {
+          call_count?: number | null
+          identifier?: string
+          window_start?: string | null
+        }
+        Relationships: []
+      }
       task_checklists: {
         Row: {
           completed_at: string | null
@@ -1136,6 +1154,16 @@ export type Database = {
         Args: { _employee_id: string; _user_id: string }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: {
+          func_name: string
+          identifier: string
+          max_calls: number
+          window_seconds: number
+        }
+        Returns: boolean
+      }
+      cleanup_rate_limits: { Args: never; Returns: undefined }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
