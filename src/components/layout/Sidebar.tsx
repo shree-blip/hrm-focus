@@ -28,16 +28,33 @@ interface MenuItem {
   managerOnly?: boolean;
 }
 
-const menuItems: MenuItem[] = [
+const employeeMenuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: Users, label: "Employees", href: "/employees" },
   { icon: Clock, label: "Attendance", href: "/attendance" },
-  { icon: Calendar, label: "Leave Management", href: "/leave" },
+  { icon: Calendar, label: "Leave", href: "/leave" },
   { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: Wallet, label: "Payroll", href: "/payroll", managerOnly: true },
-  { icon: TrendingUp, label: "Performance", href: "/performance" },
   { icon: FileText, label: "Documents", href: "/documents" },
-  { icon: UserPlus, label: "Onboarding", href: "/onboarding", managerOnly: true },
+];
+
+const managerMenuItems: MenuItem[] = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
+  { icon: CheckSquare, label: "Approvals", href: "/approvals" },
+  { icon: Users, label: "Team", href: "/employees" },
+  { icon: Clock, label: "Attendance", href: "/attendance" },
+  { icon: Calendar, label: "Leave", href: "/leave" },
+  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
+  { icon: FileText, label: "Documents", href: "/documents" },
+];
+
+const vpMenuItems: MenuItem[] = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
+  { icon: CheckSquare, label: "Approvals", href: "/approvals" },
+  { icon: TrendingUp, label: "Reports", href: "/reports" },
+  { icon: Building2, label: "Announcements", href: "/announcements" },
+  { icon: FileText, label: "Documents", href: "/documents" },
+  { icon: Users, label: "People", href: "/employees" },
+  { icon: UserPlus, label: "Onboarding", href: "/onboarding" },
+  { icon: Wallet, label: "Payroll", href: "/payroll" },
 ];
 
 const bottomMenuItems: MenuItem[] = [
@@ -51,10 +68,10 @@ interface SidebarProps {
 export function Sidebar({ onNavigate }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { isManager, signOut } = useAuth();
+  const { isManager, isVP, role } = useAuth();
 
-  // Filter menu items based on role
-  const visibleMenuItems = menuItems.filter(item => !item.managerOnly || isManager);
+  // Select menu items based on role
+  const visibleMenuItems = isVP ? vpMenuItems : isManager ? managerMenuItems : employeeMenuItems;
 
   const handleNavClick = () => {
     if (onNavigate) {
@@ -78,8 +95,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
               <Building2 className="h-5 w-5 text-sidebar-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-display font-bold text-sm leading-tight">Focus Your</h1>
-              <p className="text-xs opacity-80">Finance HRMS</p>
+              <h1 className="font-display font-bold text-sm leading-tight">FOCUS</h1>
+              <p className="text-xs opacity-80">HRM System</p>
             </div>
           </div>
         )}
