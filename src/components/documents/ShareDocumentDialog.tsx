@@ -13,13 +13,17 @@ import { Copy, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Document {
-  id: number;
+  id: string;
   name: string;
-  type: string;
-  category: string;
-  size: string;
-  date: string;
-  status: string;
+  file_path: string;
+  file_type: string | null;
+  file_size: number | null;
+  category: string | null;
+  created_at: string;
+  updated_at: string;
+  status: string | null;
+  uploaded_by: string;
+  employee_id: string | null;
 }
 
 interface ShareDocumentDialogProps {

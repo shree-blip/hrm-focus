@@ -372,60 +372,28 @@ const Documents = () => {
       />
 
       <DocumentViewDialog
-        document={viewDocument ? {
-          id: parseInt(viewDocument.id) || 0,
-          name: viewDocument.name,
-          type: viewDocument.file_type || "file",
-          category: viewDocument.category || "Uncategorized",
-          size: formatFileSize(viewDocument.file_size),
-          date: format(new Date(viewDocument.updated_at || viewDocument.created_at), "MMM d, yyyy"),
-          status: viewDocument.status || "active",
-        } : null}
+        document={viewDocument}
         open={!!viewDocument}
         onOpenChange={(open) => !open && setViewDocument(null)}
         onDownload={() => viewDocument && handleDownload(viewDocument)}
       />
 
       <RenameDocumentDialog
-        document={renameDoc ? {
-          id: parseInt(renameDoc.id) || 0,
-          name: renameDoc.name,
-          type: renameDoc.file_type || "file",
-          category: renameDoc.category || "Uncategorized",
-          size: formatFileSize(renameDoc.file_size),
-          date: format(new Date(renameDoc.updated_at || renameDoc.created_at), "MMM d, yyyy"),
-          status: renameDoc.status || "active",
-        } : null}
+        document={renameDoc}
         open={!!renameDoc}
         onOpenChange={(open) => !open && setRenameDoc(null)}
         onRename={(doc, newName) => handleRename(renameDoc, newName)}
       />
 
       <DeleteDocumentDialog
-        document={deleteDoc ? {
-          id: parseInt(deleteDoc.id) || 0,
-          name: deleteDoc.name,
-          type: deleteDoc.file_type || "file",
-          category: deleteDoc.category || "Uncategorized",
-          size: formatFileSize(deleteDoc.file_size),
-          date: format(new Date(deleteDoc.updated_at || deleteDoc.created_at), "MMM d, yyyy"),
-          status: deleteDoc.status || "active",
-        } : null}
+        document={deleteDoc}
         open={!!deleteDoc}
         onOpenChange={(open) => !open && setDeleteDoc(null)}
         onConfirm={() => handleDelete(deleteDoc)}
       />
 
       <ShareDocumentDialog
-        document={shareDoc ? {
-          id: parseInt(shareDoc.id) || 0,
-          name: shareDoc.name,
-          type: shareDoc.file_type || "file",
-          category: shareDoc.category || "Uncategorized",
-          size: formatFileSize(shareDoc.file_size),
-          date: format(new Date(shareDoc.updated_at || shareDoc.created_at), "MMM d, yyyy"),
-          status: shareDoc.status || "active",
-        } : null}
+        document={shareDoc}
         open={!!shareDoc}
         onOpenChange={(open) => !open && setShareDoc(null)}
         shareUrl={shareUrl}
