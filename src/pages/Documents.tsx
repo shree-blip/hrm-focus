@@ -22,7 +22,6 @@ import {
   FileText,
   Upload,
   Search,
-  Filter,
   FolderOpen,
   File,
   FileImage,
@@ -245,9 +244,6 @@ const Documents = () => {
                     onKeyDown={handleSearch}
                   />
                 </div>
-                <Button variant="outline" size="icon">
-                  <Filter className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           </CardHeader>
