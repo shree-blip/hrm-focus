@@ -88,7 +88,7 @@ const Index = () => {
             icon={Users}
             iconColor="bg-primary/10 text-primary"
             delay={100}
-            onClick={() => navigate("/employees")}
+            onClick={() => navigate("/profile")}
           />
         )}
         <StatCard

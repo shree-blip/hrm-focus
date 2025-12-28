@@ -42,9 +42,24 @@ export function UploadDocumentDialog({
   const [category, setCategory] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const allowedTypes = ['.pdf', '.doc', '.docx', '.xls', '.xlsx'];
+  
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      const ext = '.' + selectedFile.name.split('.').pop()?.toLowerCase();
+      
+      if (!allowedTypes.includes(ext)) {
+        toast({
+          title: "Invalid File Type",
+          description: "Only PDF, DOC, DOCX, XLS, and XLSX files are allowed.",
+          variant: "destructive",
+        });
+        e.target.value = '';
+        return;
+      }
+      
+      setFile(selectedFile);
     }
   };
 
@@ -119,7 +134,7 @@ export function UploadDocumentDialog({
               type="file"
               onChange={handleFileChange}
               className="hidden"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+              accept=".pdf,.doc,.docx,.xls,.xlsx"
             />
             {file ? (
               <div className="flex items-center justify-center gap-3">

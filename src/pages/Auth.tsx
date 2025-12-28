@@ -115,22 +115,37 @@ export default function Auth() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      emailSchema.parse(loginEmail);
-      passwordSchema.parse(loginPassword);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        toast({
-          title: "Validation Error",
-          description: err.errors[0].message,
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
+    
+    // Client-side validation without browser defaults
+    if (!loginEmail.trim()) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
     }
+    
+    if (!loginPassword) {
+      toast({
+        title: "Password Required",
+        description: "Please enter your password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const emailResult = emailSchema.safeParse(loginEmail);
+    if (!emailResult.success) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
 
     const { error } = await signIn(loginEmail, loginPassword);
 
@@ -241,8 +256,8 @@ export default function Auth() {
             </div>
           </div>
           <div>
-            <CardTitle className="text-2xl font-display">Focus Your Finance</CardTitle>
-            <CardDescription>Clarity Care Suite - HR Management System</CardDescription>
+            <CardTitle className="text-2xl font-display">FOCUS HRM</CardTitle>
+            <CardDescription>Human Resource Management System</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -253,7 +268,7 @@ export default function Auth() {
             </TabsList>
 
             <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4" noValidate>
                 <div className="space-y-2">
                   <Label htmlFor="login-email">Email</Label>
                   <Input
@@ -262,7 +277,7 @@ export default function Auth() {
                     placeholder="you@focusyourfinance.com"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    required
+                    autoComplete="email"
                   />
                 </div>
                 <div className="space-y-2">
@@ -273,7 +288,7 @@ export default function Auth() {
                     placeholder="••••••••"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    required
+                    autoComplete="current-password"
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
@@ -286,6 +301,11 @@ export default function Auth() {
                     "Login"
                   )}
                 </Button>
+                <div className="text-center">
+                  <a href="/forgot-password" className="text-sm text-primary hover:underline">
+                    Forgot password?
+                  </a>
+                </div>
               </form>
             </TabsContent>
 
