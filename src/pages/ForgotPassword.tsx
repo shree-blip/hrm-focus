@@ -105,7 +105,7 @@ export default function ForgotPassword() {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input
@@ -114,10 +114,10 @@ export default function ForgotPassword() {
                   placeholder="you@focusyourfinance.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
+                  autoComplete="email"
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || !email.trim()}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

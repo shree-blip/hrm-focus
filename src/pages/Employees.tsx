@@ -306,7 +306,10 @@ const Employees = () => {
                         variant="ghost" 
                         size="icon" 
                         className="h-8 w-8"
-                        onClick={() => window.location.href = `mailto:${employee.email}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(`mailto:${employee.email}`, '_blank');
+                        }}
                       >
                         <Mail className="h-4 w-4 text-muted-foreground" />
                       </Button>
@@ -315,7 +318,10 @@ const Employees = () => {
                           variant="ghost" 
                           size="icon" 
                           className="h-8 w-8"
-                          onClick={() => window.location.href = `tel:${employee.phone}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`tel:${employee.phone}`, '_blank');
+                          }}
                         >
                           <Phone className="h-4 w-4 text-muted-foreground" />
                         </Button>

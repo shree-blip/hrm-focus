@@ -193,28 +193,30 @@ const Attendance = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Clock Type Selector */}
-            <div className="flex items-center gap-2">
-              <Select value={clockType} onValueChange={(v) => setClockType(v as "payroll" | "billable")}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="payroll">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Payroll Time
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="billable">
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4" />
-                      Billable Time
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Clock Type Selector - only show when not clocked in */}
+            {clockStatus === "out" && (
+              <div className="flex items-center gap-2">
+                <Select value={clockType} onValueChange={(v) => setClockType(v as "payroll" | "billable")}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="payroll">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Payroll Time
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="billable">
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4" />
+                        Billable Time
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="text-center py-8 rounded-xl bg-secondary/50 border border-border">
               <p className="text-5xl font-display font-bold tracking-wider">
