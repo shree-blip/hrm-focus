@@ -18,7 +18,7 @@ export function Header({ isMobile }: HeaderProps = {}) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, role } = useAuth();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -28,8 +28,26 @@ export function Header({ isMobile }: HeaderProps = {}) {
   const formatTime = (date: Date) => date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
   const formatDate = (date: Date) => date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
 
-  const handleProfileClick = () => navigate("/settings");
+  const handleProfileClick = () => navigate("/profile");
   const handleTimesheetClick = () => navigate("/attendance");
+  
+  const getRoleLabel = () => {
+    switch (role) {
+      case "admin": return "Admin";
+      case "vp": return "VP";
+      case "manager": return "Manager";
+      default: return "Employee";
+    }
+  };
+
+  const getRoleBadgeColor = () => {
+    switch (role) {
+      case "admin": return "bg-destructive text-destructive-foreground";
+      case "vp": return "bg-primary text-primary-foreground";
+      case "manager": return "bg-info text-info-foreground";
+      default: return "bg-secondary text-secondary-foreground";
+    }
+  };
   
   const handleSignOut = async () => {
     await signOut();
@@ -137,7 +155,10 @@ export function Header({ isMobile }: HeaderProps = {}) {
                 <AvatarFallback className="bg-primary text-primary-foreground font-medium">{getInitials()}</AvatarFallback>
               </Avatar>
               <div className="hidden md:flex flex-col items-start text-sm">
-                <span className="font-medium">{getDisplayName()}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{getDisplayName()}</span>
+                  <Badge className={cn("text-xs", getRoleBadgeColor())}>{getRoleLabel()}</Badge>
+                </div>
                 <span className="text-xs text-muted-foreground">{profile?.job_title || "Employee"}</span>
               </div>
             </Button>

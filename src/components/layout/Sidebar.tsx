@@ -34,6 +34,7 @@ const employeeMenuItems: MenuItem[] = [
   { icon: Calendar, label: "Leave", href: "/leave" },
   { icon: CheckSquare, label: "Tasks", href: "/tasks" },
   { icon: FileText, label: "Documents", href: "/documents" },
+  { icon: Users, label: "Profile", href: "/profile" },
 ];
 
 const managerMenuItems: MenuItem[] = [
