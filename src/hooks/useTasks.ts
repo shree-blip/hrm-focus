@@ -26,15 +26,13 @@ export function useTasks() {
   const fetchTasks = useCallback(async () => {
     if (!user) return;
 
-    let query = supabase
+    // RLS now enforces task visibility:
+    // - Managers/VPs/Admins can see all tasks (via RLS policy)
+    // - Regular employees can only see tasks they created or are assigned to (via RLS policy)
+    const query = supabase
       .from("tasks")
       .select("*")
       .order("created_at", { ascending: false });
-
-    // Regular employees see only tasks assigned to them or created by them
-    if (!isManager) {
-      query = query.or(`assignee_id.eq.${user.id},created_by.eq.${user.id}`);
-    }
 
     const { data, error } = await query;
 
@@ -42,7 +40,7 @@ export function useTasks() {
       setTasks(data as Task[]);
     }
     setLoading(false);
-  }, [user, isManager]);
+  }, [user]);
 
   useEffect(() => {
     fetchTasks();
