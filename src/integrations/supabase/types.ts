@@ -84,6 +84,7 @@ export type Database = {
           location_lng: number | null
           location_name: string | null
           notes: string | null
+          org_id: string | null
           status: string | null
           total_break_minutes: number | null
           user_id: string
@@ -102,6 +103,7 @@ export type Database = {
           location_lng?: number | null
           location_name?: string | null
           notes?: string | null
+          org_id?: string | null
           status?: string | null
           total_break_minutes?: number | null
           user_id: string
@@ -120,6 +122,7 @@ export type Database = {
           location_lng?: number | null
           location_name?: string | null
           notes?: string | null
+          org_id?: string | null
           status?: string | null
           total_break_minutes?: number | null
           user_id?: string
@@ -144,6 +147,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -185,6 +195,7 @@ export type Database = {
           file_type: string | null
           id: string
           name: string
+          org_id: string | null
           requires_signature: boolean | null
           signed_at: string | null
           signed_by: string | null
@@ -201,6 +212,7 @@ export type Database = {
           file_type?: string | null
           id?: string
           name: string
+          org_id?: string | null
           requires_signature?: boolean | null
           signed_at?: string | null
           signed_by?: string | null
@@ -217,6 +229,7 @@ export type Database = {
           file_type?: string | null
           id?: string
           name?: string
+          org_id?: string | null
           requires_signature?: boolean | null
           signed_at?: string | null
           signed_by?: string | null
@@ -246,6 +259,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "documents_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       employees: {
@@ -262,6 +282,7 @@ export type Database = {
           last_name: string
           location: string | null
           manager_id: string | null
+          org_id: string | null
           pay_type: string | null
           phone: string | null
           profile_id: string | null
@@ -283,6 +304,7 @@ export type Database = {
           last_name: string
           location?: string | null
           manager_id?: string | null
+          org_id?: string | null
           pay_type?: string | null
           phone?: string | null
           profile_id?: string | null
@@ -304,6 +326,7 @@ export type Database = {
           last_name?: string
           location?: string | null
           manager_id?: string | null
+          org_id?: string | null
           pay_type?: string | null
           phone?: string | null
           profile_id?: string | null
@@ -335,6 +358,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "employees_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "employees_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
@@ -348,6 +378,7 @@ export type Database = {
           created_at: string
           id: string
           leave_type: string
+          org_id: string | null
           total_days: number
           updated_at: string
           used_days: number
@@ -358,6 +389,7 @@ export type Database = {
           created_at?: string
           id?: string
           leave_type: string
+          org_id?: string | null
           total_days?: number
           updated_at?: string
           used_days?: number
@@ -368,13 +400,22 @@ export type Database = {
           created_at?: string
           id?: string
           leave_type?: string
+          org_id?: string | null
           total_days?: number
           updated_at?: string
           used_days?: number
           user_id?: string
           year?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leave_balances_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leave_requests: {
         Row: {
@@ -385,6 +426,7 @@ export type Database = {
           end_date: string
           id: string
           leave_type: string
+          org_id: string | null
           reason: string | null
           rejection_reason: string | null
           start_date: string
@@ -400,6 +442,7 @@ export type Database = {
           end_date: string
           id?: string
           leave_type: string
+          org_id?: string | null
           reason?: string | null
           rejection_reason?: string | null
           start_date: string
@@ -415,6 +458,7 @@ export type Database = {
           end_date?: string
           id?: string
           leave_type?: string
+          org_id?: string | null
           reason?: string | null
           rejection_reason?: string | null
           start_date?: string
@@ -422,7 +466,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -431,6 +483,7 @@ export type Database = {
           is_read: boolean | null
           link: string | null
           message: string
+          org_id: string | null
           read_at: string | null
           title: string
           type: string | null
@@ -442,6 +495,7 @@ export type Database = {
           is_read?: boolean | null
           link?: string | null
           message: string
+          org_id?: string | null
           read_at?: string | null
           title: string
           type?: string | null
@@ -453,12 +507,21 @@ export type Database = {
           is_read?: boolean | null
           link?: string | null
           message?: string
+          org_id?: string | null
           read_at?: string | null
           title?: string
           type?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       offboarding_workflows: {
         Row: {
@@ -635,11 +698,77 @@ export type Database = {
           },
         ]
       }
+      organization_members: {
+        Row: {
+          created_at: string
+          id: string
+          is_org_admin: boolean | null
+          org_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_org_admin?: boolean | null
+          org_id: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_org_admin?: boolean | null
+          org_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          allowed_email_domains: string[]
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_email_domains?: string[]
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_email_domains?: string[]
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payroll_runs: {
         Row: {
           created_at: string
           employee_count: number | null
           id: string
+          org_id: string | null
           period_end: string
           period_start: string
           processed_at: string | null
@@ -654,6 +783,7 @@ export type Database = {
           created_at?: string
           employee_count?: number | null
           id?: string
+          org_id?: string | null
           period_end: string
           period_start: string
           processed_at?: string | null
@@ -668,6 +798,7 @@ export type Database = {
           created_at?: string
           employee_count?: number | null
           id?: string
+          org_id?: string | null
           period_end?: string
           period_start?: string
           processed_at?: string | null
@@ -678,7 +809,15 @@ export type Database = {
           total_gross?: number | null
           total_net?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payroll_runs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payslip_files: {
         Row: {
@@ -688,6 +827,7 @@ export type Database = {
           file_path: string
           id: string
           month: number | null
+          org_id: string | null
           period_end: string
           period_start: string
           period_type: string
@@ -702,6 +842,7 @@ export type Database = {
           file_path: string
           id?: string
           month?: number | null
+          org_id?: string | null
           period_end: string
           period_start: string
           period_type: string
@@ -716,6 +857,7 @@ export type Database = {
           file_path?: string
           id?: string
           month?: number | null
+          org_id?: string | null
           period_end?: string
           period_start?: string
           period_type?: string
@@ -745,6 +887,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payslip_files_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payslips: {
@@ -756,6 +905,7 @@ export type Database = {
           hours_worked: number | null
           id: string
           net_pay: number
+          org_id: string | null
           overtime_hours: number | null
           payroll_run_id: string
           user_id: string | null
@@ -768,6 +918,7 @@ export type Database = {
           hours_worked?: number | null
           id?: string
           net_pay: number
+          org_id?: string | null
           overtime_hours?: number | null
           payroll_run_id: string
           user_id?: string | null
@@ -780,6 +931,7 @@ export type Database = {
           hours_worked?: number | null
           id?: string
           net_pay?: number
+          org_id?: string | null
           overtime_hours?: number | null
           payroll_run_id?: string
           user_id?: string | null
@@ -807,6 +959,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payslips_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payslips_payroll_run_id_fkey"
             columns: ["payroll_run_id"]
             isOneToOne: false
@@ -827,6 +986,7 @@ export type Database = {
           job_title: string | null
           last_name: string
           location: string | null
+          org_id: string | null
           phone: string | null
           status: string | null
           updated_at: string
@@ -843,6 +1003,7 @@ export type Database = {
           job_title?: string | null
           last_name: string
           location?: string | null
+          org_id?: string | null
           phone?: string | null
           status?: string | null
           updated_at?: string
@@ -859,12 +1020,21 @@ export type Database = {
           job_title?: string | null
           last_name?: string
           location?: string | null
+          org_id?: string | null
           phone?: string | null
           status?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rpc_rate_limits: {
         Row: {
@@ -935,6 +1105,7 @@ export type Database = {
           due_date: string | null
           id: string
           is_recurring: boolean | null
+          org_id: string | null
           parent_task_id: string | null
           priority: string | null
           recurrence_pattern: string | null
@@ -952,6 +1123,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_recurring?: boolean | null
+          org_id?: string | null
           parent_task_id?: string | null
           priority?: string | null
           recurrence_pattern?: string | null
@@ -969,6 +1141,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_recurring?: boolean | null
+          org_id?: string | null
           parent_task_id?: string | null
           priority?: string | null
           recurrence_pattern?: string | null
@@ -978,6 +1151,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tasks_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tasks_parent_task_id_fkey"
             columns: ["parent_task_id"]
@@ -1231,6 +1411,21 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      get_org_by_slug: {
+        Args: { _slug: string }
+        Returns: {
+          allowed_email_domains: string[]
+          id: string
+          logo_url: string
+          name: string
+          slug: string
+        }[]
+      }
+      get_user_org_id: { Args: { _user_id: string }; Returns: string }
+      get_user_org_role: {
+        Args: { _org_id: string; _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -1246,7 +1441,19 @@ export type Database = {
         Args: { _employee_id: string; _user_id: string }
         Returns: boolean
       }
+      is_org_vp: {
+        Args: { _org_id: string; _user_id: string }
+        Returns: boolean
+      }
       mark_signup_used: { Args: { check_email: string }; Returns: boolean }
+      user_belongs_to_org: {
+        Args: { _org_id: string; _user_id: string }
+        Returns: boolean
+      }
+      validate_email_domain: {
+        Args: { _email: string; _org_id: string }
+        Returns: boolean
+      }
       verify_signup_email: { Args: { check_email: string }; Returns: Json }
     }
     Enums: {
