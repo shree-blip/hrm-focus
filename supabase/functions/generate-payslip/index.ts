@@ -90,7 +90,8 @@ serve(async (req) => {
 
     const employeeName = `${employee.first_name} ${employee.last_name}`;
     const currencySymbol = employee.location === "US" ? "$" : "Rs.";
-    const totalDeductions = Object.values(deductions || {}).reduce((a: number, b: number) => a + (b as number), 0);
+    const deductionsRecord = (deductions || {}) as Record<string, number>;
+    const totalDeductions: number = Object.values(deductionsRecord).reduce((a, b) => a + b, 0);
 
     const pdfContent = `FOCUS YOUR FINANCE - PAYSLIP
 
