@@ -680,6 +680,73 @@ export type Database = {
         }
         Relationships: []
       }
+      payslip_files: {
+        Row: {
+          created_at: string
+          employee_id: string | null
+          file_name: string
+          file_path: string
+          id: string
+          month: number | null
+          period_end: string
+          period_start: string
+          period_type: string
+          quarter: number | null
+          user_id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          month?: number | null
+          period_end: string
+          period_start: string
+          period_type: string
+          quarter?: number | null
+          user_id: string
+          year?: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          month?: number | null
+          period_end?: string
+          period_start?: string
+          period_type?: string
+          quarter?: number | null
+          user_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payslip_files_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslip_files_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslip_files_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payslips: {
         Row: {
           created_at: string
