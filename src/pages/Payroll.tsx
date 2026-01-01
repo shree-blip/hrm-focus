@@ -66,8 +66,7 @@ const Payroll = () => {
 
   // Filter employees by region (case-insensitive)
   const regionEmployees = employees.filter(e => 
-    e.location?.toUpperCase() === region.toUpperCase() || 
-    e.location?.toLowerCase() === region.toLowerCase()
+    e.location?.toLowerCase().includes(region.toLowerCase())
   );
   
   // Calculate stats from real data
@@ -77,31 +76,44 @@ const Payroll = () => {
     ? employeesWithSalary.reduce((sum, e) => sum + (e.salary || 0), 0) / employeesWithSalary.length 
     : 0;
 
-  // Generate chart data from payroll runs
-  const payrollData = payrollRuns
-    .filter(r => r.region === region)
-    .slice(0, 6)
-    .reverse()
-    .map(run => ({
-      month: format(new Date(run.period_end), "MMM"),
-      amount: run.total_gross || 0,
-    }));
-
-  // Use mock data if no real data exists
-  const displayPayrollData = payrollData.length > 0 ? payrollData : [
-    { month: "Jul", amount: 125000 },
-    { month: "Aug", amount: 128000 },
-    { month: "Sep", amount: 132000 },
-    { month: "Oct", amount: 135000 },
-    { month: "Nov", amount: 138000 },
-    { month: "Dec", amount: 142000 },
-  ];
-
-  const recentPayrolls = payrollRuns.filter(r => r.region === region).slice(0, 4);
+  // Generate chart data from payroll runs - show all 12 months of 2025
+  const all2025Months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   
-  // Calculate upcoming payroll
+  const payrollData = all2025Months.map((monthName, index) => {
+    const monthStart = new Date(2025, index, 1);
+    const monthEnd = new Date(2025, index + 1, 0);
+    
+    // Find matching payroll run for this month
+    const run = payrollRuns.find(r => {
+      if (r.region !== region) return false;
+      const runStart = new Date(r.period_start);
+      return runStart.getFullYear() === 2025 && runStart.getMonth() === index;
+    });
+    
+    return {
+      month: monthName,
+      amount: run?.total_gross || 0,
+    };
+  });
+
+  // Filter to show only months with data, or all if we have full year
+  const displayPayrollData = payrollData.filter(d => d.amount > 0).length > 0 
+    ? payrollData 
+    : all2025Months.map((month, i) => ({ 
+        month, 
+        amount: region === "Nepal" 
+          ? 1250000 + (i * 35000) // NPR values
+          : 125000 + (i * 3000)   // USD values
+      }));
+
+  const recentPayrolls = payrollRuns
+    .filter(r => r.region === region)
+    .sort((a, b) => new Date(b.period_end).getTime() - new Date(a.period_end).getTime())
+    .slice(0, 6);
+  
+  // Next payroll is Feb 1, 2026
+  const nextPayrollDate = new Date(2026, 1, 1);
   const today = new Date();
-  const nextPayrollDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
   const daysLeft = Math.ceil((nextPayrollDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
   const handleRunPayroll = async () => {
@@ -325,7 +337,7 @@ const Payroll = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Monthly Payroll</p>
                     <p className="text-2xl font-display font-bold mt-1">
-                      {region === "US" ? "$" : "₨"}{(displayPayrollData[displayPayrollData.length - 1]?.amount || 0).toLocaleString()}
+                      {region === "US" ? "$" : "₨"}{(recentPayrolls[0]?.total_gross || displayPayrollData[displayPayrollData.length - 1]?.amount || 0).toLocaleString()}
                     </p>
                     <p className="text-xs text-success mt-1">+3.0% from last month</p>
                   </div>
@@ -375,8 +387,8 @@ const Payroll = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Next Payroll</p>
-                    <p className="text-2xl font-display font-bold mt-1">{daysLeft} days</p>
-                    <p className="text-xs text-muted-foreground mt-1">{format(nextPayrollDate, "MMM d, yyyy")}</p>
+                    <p className="text-2xl font-display font-bold mt-1">{daysLeft > 0 ? daysLeft : 0} days</p>
+                    <p className="text-xs text-muted-foreground mt-1">Feb 1, 2026</p>
                   </div>
                   <div className="h-12 w-12 rounded-xl bg-warning/10 flex items-center justify-center">
                     <Calendar className="h-6 w-6 text-warning" />
