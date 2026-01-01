@@ -69,6 +69,53 @@ export type Database = {
           },
         ]
       }
+      announcements: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          is_pinned: boolean | null
+          org_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_pinned?: boolean | null
+          org_id?: string | null
+          title: string
+          type?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_pinned?: boolean | null
+          org_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_logs: {
         Row: {
           break_end: string | null
