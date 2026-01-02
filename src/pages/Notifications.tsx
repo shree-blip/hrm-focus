@@ -42,6 +42,7 @@ const Notifications = () => {
     created_at: a.created_at,
     isAnnouncement: true,
     isPinned: a.is_pinned,
+    publisher_name: a.publisher_name,
   }));
 
   const allItems = [
@@ -176,6 +177,9 @@ const Notifications = () => {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+                        {'publisher_name' in notification && notification.publisher_name && (
+                          <span className="font-medium text-foreground/80">By {notification.publisher_name}: </span>
+                        )}
                         {notification.message}
                       </p>
                     </div>

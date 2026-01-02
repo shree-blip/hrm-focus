@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Megaphone, X, Pin, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Megaphone, Pin, CalendarDays, ChevronLeft, ChevronRight, User } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,11 +8,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, isToday } from "date-fns";
 import { useAnnouncements, Announcement } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
 
 const LAST_SEEN_KEY = "focus_announcements_last_seen";
+const SHOWN_TODAY_KEY = "focus_announcements_shown_today";
 
 export function NewAnnouncementPopup() {
   const { user } = useAuth();
@@ -20,21 +21,22 @@ export function NewAnnouncementPopup() {
   const [open, setOpen] = useState(false);
   const [newAnnouncements, setNewAnnouncements] = useState<Announcement[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const shownAnnouncementsRef = useRef<Set<string>>(new Set());
 
+  // Effect for initial load - show popup on first login of day
   useEffect(() => {
     if (loading || !user || announcements.length === 0) return;
 
-    // Get last seen date from localStorage (per user)
     const storageKey = `${LAST_SEEN_KEY}_${user.id}`;
+    const shownTodayKey = `${SHOWN_TODAY_KEY}_${user.id}`;
     const lastSeen = localStorage.getItem(storageKey);
     const lastSeenDate = lastSeen ? new Date(lastSeen) : null;
     
-    // Check if it's a new day
     const today = new Date().toDateString();
-    const lastSeenDay = lastSeenDate?.toDateString();
+    const shownToday = localStorage.getItem(shownTodayKey);
     
-    // Only show popup on first login of the day
-    if (lastSeenDay === today) return;
+    // If already shown today for initial load, don't show again
+    if (shownToday === today && lastSeenDate) return;
 
     // Filter announcements created after last seen OR if it's first time
     const unseen = announcements.filter(a => {
@@ -51,7 +53,27 @@ export function NewAnnouncementPopup() {
     const combined = [...new Map([...unseen, ...important].map(a => [a.id, a])).values()];
 
     if (combined.length > 0) {
+      combined.forEach(a => shownAnnouncementsRef.current.add(a.id));
       setNewAnnouncements(combined);
+      setCurrentIndex(0);
+      setOpen(true);
+      localStorage.setItem(shownTodayKey, today);
+    }
+  }, [loading, user?.id]); // Don't include announcements to avoid re-triggering
+
+  // Effect for realtime new announcements - show popup for same-day announcements
+  useEffect(() => {
+    if (loading || !user || announcements.length === 0) return;
+
+    // Find announcements created today that haven't been shown yet
+    const todayAnnouncements = announcements.filter(a => {
+      const createdDate = new Date(a.created_at);
+      return isToday(createdDate) && !shownAnnouncementsRef.current.has(a.id);
+    });
+
+    if (todayAnnouncements.length > 0) {
+      todayAnnouncements.forEach(a => shownAnnouncementsRef.current.add(a.id));
+      setNewAnnouncements(todayAnnouncements);
       setCurrentIndex(0);
       setOpen(true);
     }
@@ -60,7 +82,6 @@ export function NewAnnouncementPopup() {
   const handleClose = () => {
     if (!user) return;
     
-    // Mark as seen for today
     const storageKey = `${LAST_SEEN_KEY}_${user.id}`;
     localStorage.setItem(storageKey, new Date().toISOString());
     setOpen(false);
@@ -133,9 +154,15 @@ export function NewAnnouncementPopup() {
               {current.content}
             </p>
             
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <CalendarDays className="h-3 w-3" />
-              {format(new Date(current.created_at), "MMMM d, yyyy 'at' h:mm a")}
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <User className="h-3 w-3" />
+                <span>Posted by {current.publisher_name || 'System'}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <CalendarDays className="h-3 w-3" />
+                {format(new Date(current.created_at), "MMMM d, yyyy 'at' h:mm a")}
+              </div>
             </div>
           </div>
         </div>
