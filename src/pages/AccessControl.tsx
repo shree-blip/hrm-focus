@@ -26,7 +26,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Shield, Users, Lock, User, Loader2, Search, Check, X } from "lucide-react";
+import { Shield, Users, Lock, User, Loader2, Search, Check, X, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions, ALL_PERMISSIONS, PERMISSION_LABELS, Permission } from "@/hooks/usePermissions";
@@ -56,6 +56,7 @@ interface UserWithRole {
   job_title: string | null;
   department: string | null;
   has_account: boolean;
+  is_spam?: boolean;
 }
 
 interface UserPermissionOverride {
@@ -64,16 +65,25 @@ interface UserPermissionOverride {
   enabled: boolean;
 }
 
+interface SpamUser {
+  user_id: string;
+  email: string;
+  reason: string;
+  is_blocked: boolean;
+}
+
 export default function AccessControl() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { rolePermissions, hasPermission, updateRolePermission, loading: permLoading, refetch: refetchPermissions } = usePermissions();
   const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [spamUsers, setSpamUsers] = useState<SpamUser[]>([]);
   const [userOverrides, setUserOverrides] = useState<UserPermissionOverride[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
+  const [isSecurityMonitor, setIsSecurityMonitor] = useState(false);
 
   useEffect(() => {
     if (!permLoading && !hasPermission('manage_access')) {
@@ -85,6 +95,26 @@ export default function AccessControl() {
       navigate('/');
     }
   }, [permLoading, hasPermission, navigate]);
+
+  // Check if current user is a security monitor
+  useEffect(() => {
+    const checkSecurityMonitor = async () => {
+      if (!user) return;
+      const { data } = await supabase.rpc('is_security_monitor', { _user_id: user.id });
+      setIsSecurityMonitor(!!data);
+    };
+    checkSecurityMonitor();
+  }, [user]);
+
+  const fetchSpamUsers = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('spam_users')
+      .select('user_id, email, reason, is_blocked');
+    
+    if (!error && data) {
+      setSpamUsers(data);
+    }
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     // Fetch all employees
@@ -100,22 +130,41 @@ export default function AccessControl() {
       return;
     }
 
-    // Fetch all profiles to get user_ids
+    // Fetch all profiles to get user_ids (including non-employee profiles for spam detection)
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, user_id, email');
+      .select('id, user_id, email, first_name, last_name');
 
     // Fetch all user roles
     const { data: rolesData } = await supabase
       .from('user_roles')
       .select('user_id, role');
 
+    // Fetch spam users list
+    const { data: spamData } = await supabase
+      .from('spam_users')
+      .select('user_id, email');
+
+    const spamUserIds = new Set(spamData?.map(s => s.user_id) || []);
+    const spamEmails = new Set(spamData?.map(s => s.email.toLowerCase()) || []);
+    
     const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    const profileByUserId = new Map(profiles?.map(p => [p.user_id, p]) || []);
     const roleMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
+
+    // Get employee user IDs to identify non-employee profiles
+    const employeeUserIds = new Set<string>();
+    employees.forEach(emp => {
+      const profile = emp.profile_id ? profileMap.get(emp.profile_id) : null;
+      if (profile?.user_id) {
+        employeeUserIds.add(profile.user_id);
+      }
+    });
 
     const usersWithRoles: UserWithRole[] = employees.map(emp => {
       const profile = emp.profile_id ? profileMap.get(emp.profile_id) : null;
       const userId = profile?.user_id || null;
+      const isSpam = userId ? spamUserIds.has(userId) : spamEmails.has(emp.email.toLowerCase());
       
       return {
         id: emp.id,
@@ -127,8 +176,32 @@ export default function AccessControl() {
         department: emp.department,
         role: userId ? (roleMap.get(userId) || 'employee') : 'employee',
         has_account: !!userId,
+        is_spam: isSpam,
       };
     });
+
+    // Add non-employee profiles (like spam users who signed up without being in employees table)
+    if (spamData && spamData.length > 0) {
+      for (const spam of spamData) {
+        if (!employeeUserIds.has(spam.user_id)) {
+          const profile = profileByUserId.get(spam.user_id);
+          if (profile) {
+            usersWithRoles.push({
+              id: spam.user_id,
+              user_id: spam.user_id,
+              email: spam.email,
+              first_name: profile.first_name || 'Spam',
+              last_name: profile.last_name || 'User',
+              job_title: 'UNAUTHORIZED',
+              department: null,
+              role: roleMap.get(spam.user_id) || 'employee',
+              has_account: true,
+              is_spam: true,
+            });
+          }
+        }
+      }
+    }
 
     setUsers(usersWithRoles);
     setLoading(false);
@@ -340,6 +413,11 @@ export default function AccessControl() {
   };
 
   const filteredUsers = users.filter(u => {
+    // Hide spam users from non-security monitors
+    if (u.is_spam && !isSecurityMonitor) {
+      return false;
+    }
+    
     const searchLower = searchQuery.toLowerCase();
     return (
       u.first_name.toLowerCase().includes(searchLower) ||
@@ -391,6 +469,12 @@ export default function AccessControl() {
             <User className="h-4 w-4" />
             Individual Permissions
           </TabsTrigger>
+          {isSecurityMonitor && (
+            <TabsTrigger value="security" className="gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Security Monitor
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* User Roles Tab */}
@@ -425,30 +509,44 @@ export default function AccessControl() {
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.map((u) => (
-                      <TableRow key={u.id}>
+                      <TableRow key={u.id} className={cn(u.is_spam && "bg-destructive/5")}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                                {getInitials(u.first_name, u.last_name)}
+                            <Avatar className={cn("h-8 w-8", u.is_spam && "ring-2 ring-destructive")}>
+                              <AvatarFallback className={cn(
+                                "text-xs",
+                                u.is_spam ? "bg-destructive/20 text-destructive" : "bg-primary/10 text-primary"
+                              )}>
+                                {u.is_spam ? <AlertTriangle className="h-4 w-4" /> : getInitials(u.first_name, u.last_name)}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <span className="font-medium block">{u.first_name} {u.last_name}</span>
+                              <span className={cn("font-medium block", u.is_spam && "text-destructive")}>
+                                {u.is_spam ? "⚠️ SPAM USER" : `${u.first_name} ${u.last_name}`}
+                              </span>
                               <span className="text-xs text-muted-foreground">{u.email}</span>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <span className="block">{u.job_title || '-'}</span>
+                            <span className={cn("block", u.is_spam && "text-destructive font-bold")}>
+                              {u.is_spam ? "UNAUTHORIZED" : (u.job_title || '-')}
+                            </span>
                             <span className="text-xs text-muted-foreground">{u.department || '-'}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={u.has_account ? "default" : "secondary"}>
-                            {u.has_account ? "Active" : "No Account"}
-                          </Badge>
+                          {u.is_spam ? (
+                            <Badge variant="destructive">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              SPAM
+                            </Badge>
+                          ) : (
+                            <Badge variant={u.has_account ? "default" : "secondary"}>
+                              {u.has_account ? "Active" : "No Account"}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={cn(
@@ -669,6 +767,66 @@ export default function AccessControl() {
             </Card>
           </div>
         </TabsContent>
+
+        {/* Security Monitor Tab - Only for security monitors */}
+        {isSecurityMonitor && (
+          <TabsContent value="security">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  Security Monitor - Flagged Users
+                </CardTitle>
+                <CardDescription>
+                  Monitor and manage suspicious or unauthorized user accounts. Only visible to Shree Gauli, Bikash Neupane, and VPs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.filter(u => u.is_spam).map((u) => (
+                      <TableRow key={u.id} className="bg-destructive/5">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8 ring-2 ring-destructive">
+                              <AvatarFallback className="bg-destructive/20 text-destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-destructive">SPAM USER</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="destructive">Blocked</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">Unauthorized signup - not in employee list</span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {users.filter(u => u.is_spam).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                          <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          No flagged users found. System is secure.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </DashboardLayout>
   );
