@@ -29,6 +29,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
   isManager: boolean;
   isAdmin: boolean;
   isVP: boolean;
@@ -142,6 +143,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user.id);
+    }
+  };
+
   const fetchRole = async (userId: string) => {
     const { data, error } = await supabase
       .from("user_roles")
@@ -229,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signInWithGoogle,
         signOut,
+        refreshProfile,
         isManager,
         isAdmin,
         isVP,
