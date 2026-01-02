@@ -7,7 +7,7 @@ import { TeamWidget } from "@/components/dashboard/TeamWidget";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { AnnouncementsWidget } from "@/components/dashboard/AnnouncementsWidget";
 import { CompanyCalendar } from "@/components/dashboard/CompanyCalendar";
-import { NewAnnouncementPopup } from "@/components/dashboard/NewAnnouncementPopup";
+import { AnnouncementBanner } from "@/components/dashboard/AnnouncementBanner";
 import { PersonalReportsWidget } from "@/components/dashboard/PersonalReportsWidget";
 import { TeamReportsWidget } from "@/components/dashboard/TeamReportsWidget";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,8 +50,8 @@ const Index = () => {
 
   return (
     <DashboardLayout>
-      {/* New Announcement Popup - shows on first login of the day */}
-      <NewAnnouncementPopup />
+      {/* Announcement Banner - shows today's announcements */}
+      <AnnouncementBanner />
 
       {/* Page Header */}
       <div className="mb-8 animate-fade-in">
