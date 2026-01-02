@@ -93,6 +93,22 @@ export function useLeaveRequests() {
   useEffect(() => {
     fetchRequests();
     fetchBalances();
+
+    // Set up real-time subscription for leave requests
+    const channel = supabase
+      .channel('leave-requests-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'leave_requests' },
+        () => {
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchRequests, fetchBalances]);
 
   const createRequest = async (request: {

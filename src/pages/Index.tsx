@@ -7,6 +7,9 @@ import { TeamWidget } from "@/components/dashboard/TeamWidget";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { AnnouncementsWidget } from "@/components/dashboard/AnnouncementsWidget";
 import { CompanyCalendar } from "@/components/dashboard/CompanyCalendar";
+import { NewAnnouncementPopup } from "@/components/dashboard/NewAnnouncementPopup";
+import { PersonalReportsWidget } from "@/components/dashboard/PersonalReportsWidget";
+import { TeamReportsWidget } from "@/components/dashboard/TeamReportsWidget";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -47,6 +50,9 @@ const Index = () => {
 
   return (
     <DashboardLayout>
+      {/* New Announcement Popup - shows on first login of the day */}
+      <NewAnnouncementPopup />
+
       {/* Page Header */}
       <div className="mb-8 animate-fade-in">
         <div className="flex items-center gap-3">
@@ -127,6 +133,9 @@ const Index = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - 2/3 width */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Custom Reports based on role */}
+          {isManager ? <TeamReportsWidget /> : <PersonalReportsWidget />}
+          
           <PerformanceChart />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TasksWidget />
