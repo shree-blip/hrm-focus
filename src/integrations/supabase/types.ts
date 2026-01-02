@@ -327,6 +327,7 @@ export type Database = {
           id: string
           job_title: string | null
           last_name: string
+          line_manager_id: string | null
           location: string | null
           manager_id: string | null
           org_id: string | null
@@ -349,6 +350,7 @@ export type Database = {
           id?: string
           job_title?: string | null
           last_name: string
+          line_manager_id?: string | null
           location?: string | null
           manager_id?: string | null
           org_id?: string | null
@@ -371,6 +373,7 @@ export type Database = {
           id?: string
           job_title?: string | null
           last_name?: string
+          line_manager_id?: string | null
           location?: string | null
           manager_id?: string | null
           org_id?: string | null
@@ -383,6 +386,27 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "employees_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "employees_manager_id_fkey"
             columns: ["manager_id"]
@@ -1285,6 +1309,7 @@ export type Database = {
           id: string | null
           job_title: string | null
           last_name: string | null
+          line_manager_id: string | null
           location: string | null
           manager_id: string | null
           profile_id: string | null
@@ -1298,6 +1323,7 @@ export type Database = {
           id?: string | null
           job_title?: string | null
           last_name?: string | null
+          line_manager_id?: string | null
           location?: string | null
           manager_id?: string | null
           profile_id?: string | null
@@ -1311,12 +1337,34 @@ export type Database = {
           id?: string | null
           job_title?: string | null
           last_name?: string | null
+          line_manager_id?: string | null
           location?: string | null
           manager_id?: string | null
           profile_id?: string | null
           status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "employees_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "employees_manager_id_fkey"
             columns: ["manager_id"]
@@ -1359,6 +1407,7 @@ export type Database = {
           id: string | null
           job_title: string | null
           last_name: string | null
+          line_manager_id: string | null
           location: string | null
           manager_id: string | null
           pay_type: string | null
@@ -1380,6 +1429,7 @@ export type Database = {
           id?: string | null
           job_title?: string | null
           last_name?: string | null
+          line_manager_id?: string | null
           location?: string | null
           manager_id?: string | null
           pay_type?: string | null
@@ -1401,6 +1451,7 @@ export type Database = {
           id?: string | null
           job_title?: string | null
           last_name?: string | null
+          line_manager_id?: string | null
           location?: string | null
           manager_id?: string | null
           pay_type?: string | null
@@ -1412,6 +1463,27 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "employees_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "employees_manager_id_fkey"
             columns: ["manager_id"]

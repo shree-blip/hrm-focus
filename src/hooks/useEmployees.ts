@@ -20,6 +20,7 @@ interface Employee {
   hourly_rate: number | null;
   profile_id: string | null;
   manager_id: string | null;
+  line_manager_id: string | null;
 }
 
 // Directory view interface (no sensitive data)
@@ -34,6 +35,7 @@ interface EmployeeDirectory {
   status: string | null;
   hire_date: string | null;
   manager_id: string | null;
+  line_manager_id: string | null;
   profile_id: string | null;
 }
 
@@ -79,6 +81,7 @@ export function useEmployees() {
           hourly_rate: null,
           profile_id: emp.profile_id,
           manager_id: emp.manager_id,
+          line_manager_id: emp.line_manager_id,
         }));
         setEmployees(mapped);
       }

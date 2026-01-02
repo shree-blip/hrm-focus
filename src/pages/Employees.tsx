@@ -137,6 +137,7 @@ const Employees = () => {
       hourly_rate: null,
       profile_id: null,
       manager_id: null,
+      line_manager_id: null,
     });
   };
 
