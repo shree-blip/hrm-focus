@@ -56,6 +56,7 @@ const vpMenuItems: MenuItem[] = [
   { icon: Users, label: "People", href: "/employees" },
   { icon: UserPlus, label: "Onboarding", href: "/onboarding" },
   { icon: Wallet, label: "Payroll", href: "/payroll" },
+  { icon: Settings, label: "Access Control", href: "/access-control" },
 ];
 
 const bottomMenuItems: MenuItem[] = [
