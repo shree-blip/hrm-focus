@@ -12,14 +12,13 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Building2,
   TrendingUp,
   UserPlus,
-  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
+import focusLogo from "@/assets/focus-logo.png";
 
 interface MenuItem {
   icon: typeof LayoutDashboard;
@@ -51,7 +50,7 @@ const vpMenuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: CheckSquare, label: "Approvals", href: "/approvals" },
   { icon: TrendingUp, label: "Reports", href: "/reports" },
-  { icon: Building2, label: "Announcements", href: "/announcements" },
+  { icon: FileText, label: "Announcements", href: "/announcements" },
   { icon: FileText, label: "Documents", href: "/documents" },
   { icon: Users, label: "People", href: "/employees" },
   { icon: UserPlus, label: "Onboarding", href: "/onboarding" },
@@ -93,9 +92,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
         {!collapsed && (
           <div className="flex items-center gap-3 animate-fade-in">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
-              <Building2 className="h-5 w-5 text-sidebar-primary-foreground" />
-            </div>
+            <img src={focusLogo} alt="Focus Logo" className="h-10 w-10 object-contain" />
             <div>
               <h1 className="font-display font-bold text-sm leading-tight">FOCUS</h1>
               <p className="text-xs opacity-80">HRM System</p>
@@ -103,9 +100,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           </div>
         )}
         {collapsed && (
-          <div className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg bg-sidebar-primary">
-            <Building2 className="h-5 w-5 text-sidebar-primary-foreground" />
-          </div>
+          <img src={focusLogo} alt="Focus Logo" className="h-9 w-9 mx-auto object-contain" />
         )}
       </div>
 
