@@ -27,6 +27,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: Error | null }>;
+  signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   isManager: boolean;
   isAdmin: boolean;
@@ -46,21 +47,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLineManager, setIsLineManager] = useState(false);
   const [canCreateEmployee, setCanCreateEmployee] = useState(false);
 
+  // Check if email is in the allowlist (employees table)
+  const checkAllowlist = async (email: string): Promise<boolean> => {
+    const { data, error } = await supabase
+      .from("employees")
+      .select("id")
+      .ilike("email", email)
+      .eq("status", "active")
+      .single();
+    
+    return !error && !!data;
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer profile fetch with setTimeout to prevent deadlock
-        if (session?.user) {
-          setTimeout(() => {
-            fetchProfile(session.user.id);
-            fetchRole(session.user.id);
-            fetchLineManagerStatus(session.user.id);
-          }, 0);
-        } else {
+        // Check allowlist for any login event
+        if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          const email = session.user.email;
+          if (email) {
+            // Use setTimeout to prevent deadlock, then check allowlist
+            setTimeout(async () => {
+              const isAllowed = await checkAllowlist(email);
+              if (!isAllowed) {
+                // Sign out immediately if not on allowlist
+                console.warn(`Email ${email} not on allowlist, signing out`);
+                await supabase.auth.signOut();
+                setUser(null);
+                setSession(null);
+                setProfile(null);
+                setRole(null);
+                setIsLineManager(false);
+                setCanCreateEmployee(false);
+                // Store rejection reason for UI to display
+                sessionStorage.setItem('auth_rejected', 'not_allowed');
+                return;
+              }
+              
+              // Allowed - fetch profile and role
+              fetchProfile(session.user.id);
+              fetchRole(session.user.id);
+              fetchLineManagerStatus(session.user.id);
+            }, 0);
+          }
+        } else if (!session?.user) {
           setProfile(null);
           setRole(null);
           setIsLineManager(false);
@@ -70,13 +104,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
-        fetchRole(session.user.id);
-        fetchLineManagerStatus(session.user.id);
+        const email = session.user.email;
+        if (email) {
+          const isAllowed = await checkAllowlist(email);
+          if (!isAllowed) {
+            await supabase.auth.signOut();
+            setUser(null);
+            setSession(null);
+            sessionStorage.setItem('auth_rejected', 'not_allowed');
+          } else {
+            fetchProfile(session.user.id);
+            fetchRole(session.user.id);
+            fetchLineManagerStatus(session.user.id);
+          }
+        }
       }
       setLoading(false);
     });
@@ -147,7 +192,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth`,
+      },
+    });
+    return { error };
+  };
+
   const signOut = async () => {
+    sessionStorage.removeItem('auth_rejected');
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -169,6 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
         isManager,
         isAdmin,
