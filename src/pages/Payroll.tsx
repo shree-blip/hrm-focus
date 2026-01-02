@@ -331,22 +331,39 @@ const Payroll = () => {
         <>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Monthly Payroll</p>
-                    <p className="text-2xl font-display font-bold mt-1">
-                      {region === "US" ? "$" : "₨"}{(recentPayrolls[0]?.total_gross || displayPayrollData[displayPayrollData.length - 1]?.amount || 0).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-success mt-1">+3.0% from last month</p>
+            {isVP ? (
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Monthly Payroll</p>
+                      <p className="text-2xl font-display font-bold mt-1">
+                        {region === "US" ? "$" : "₨"}{(recentPayrolls[0]?.total_gross || displayPayrollData[displayPayrollData.length - 1]?.amount || 0).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-success mt-1">+3.0% from last month</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <DollarSign className="h-6 w-6 text-primary" />
+                    </div>
                   </div>
-                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <DollarSign className="h-6 w-6 text-primary" />
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Monthly Payroll</p>
+                      <p className="text-lg font-display font-medium mt-1 text-muted-foreground">Restricted</p>
+                      <p className="text-xs text-muted-foreground mt-1">VP access only</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
+                      <DollarSign className="h-6 w-6 text-muted-foreground" />
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
             <Card className="animate-slide-up opacity-0" style={{ animationDelay: "150ms", animationFillMode: "forwards" }}>
               <CardContent className="pt-6">
@@ -363,24 +380,41 @@ const Payroll = () => {
               </CardContent>
             </Card>
 
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Avg. Salary</p>
-                    <p className="text-2xl font-display font-bold mt-1">
-                      {region === "US" ? "$" : "₨"}{avgSalary.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {employeesWithSalary.length} with salary data
-                    </p>
+            {isVP ? (
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Avg. Salary</p>
+                      <p className="text-2xl font-display font-bold mt-1">
+                        {region === "US" ? "$" : "₨"}{avgSalary.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {employeesWithSalary.length} with salary data
+                      </p>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+                      <TrendingUp className="h-6 w-6 text-success" />
+                    </div>
                   </div>
-                  <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-success" />
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Avg. Salary</p>
+                      <p className="text-lg font-display font-medium mt-1 text-muted-foreground">Restricted</p>
+                      <p className="text-xs text-muted-foreground mt-1">VP access only</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
+                      <TrendingUp className="h-6 w-6 text-muted-foreground" />
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
             <Card className="animate-slide-up opacity-0" style={{ animationDelay: "250ms", animationFillMode: "forwards" }}>
               <CardContent className="pt-6">
@@ -668,8 +702,11 @@ const Payroll = () => {
                     <TableHead>Employee</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Job Title</TableHead>
-                    <TableHead>Pay Type</TableHead>
-                    <TableHead className="text-right">Salary/Rate</TableHead>
+                    <TableHead className="text-right">Base Salary</TableHead>
+                    <TableHead className="text-right">Income Tax</TableHead>
+                    <TableHead className="text-right">Social Security</TableHead>
+                    <TableHead className="text-right">Provident Fund</TableHead>
+                    <TableHead className="text-right">Net Salary</TableHead>
                     <TableHead>Line Manager</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -677,50 +714,59 @@ const Payroll = () => {
                 <TableBody>
                   {regionEmployees.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         No employees found for {region}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    regionEmployees.map((employee, index) => (
-                      <TableRow key={employee.id} className="animate-fade-in" style={{ animationDelay: `${100 + index * 30}ms` }}>
-                        <TableCell className="font-medium">
-                          {employee.first_name} {employee.last_name}
-                        </TableCell>
-                        <TableCell>{employee.department || "-"}</TableCell>
-                        <TableCell>{employee.job_title || "-"}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {employee.pay_type === "hourly" ? "Hourly" : "Salary"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {employee.pay_type === "hourly" 
-                            ? (employee.hourly_rate 
-                                ? `${region === "US" ? "$" : "₨"}${employee.hourly_rate}/hr` 
-                                : "-")
-                            : (employee.salary 
-                                ? `${region === "US" ? "$" : "₨"}${employee.salary.toLocaleString()}/yr` 
-                                : "-")
-                          }
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            {getManagerName(employee.manager_id)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleEditEmployee(employee)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    regionEmployees.map((employee, index) => {
+                      const baseSalary = employee.salary || 0;
+                      const incomeTax = employee.income_tax || 0;
+                      const socialSecurity = employee.social_security || 0;
+                      const providentFund = employee.provident_fund || 0;
+                      const netSalary = baseSalary - incomeTax - socialSecurity - providentFund;
+                      const currencySymbol = region === "US" ? "$" : "₨";
+
+                      return (
+                        <TableRow key={employee.id} className="animate-fade-in" style={{ animationDelay: `${100 + index * 30}ms` }}>
+                          <TableCell className="font-medium">
+                            {employee.first_name} {employee.last_name}
+                          </TableCell>
+                          <TableCell>{employee.department || "-"}</TableCell>
+                          <TableCell>{employee.job_title || "-"}</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {employee.salary ? `${currencySymbol}${employee.salary.toLocaleString()}` : "-"}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {incomeTax > 0 ? `${currencySymbol}${incomeTax.toLocaleString()}` : "-"}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {socialSecurity > 0 ? `${currencySymbol}${socialSecurity.toLocaleString()}` : "-"}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {providentFund > 0 ? `${currencySymbol}${providentFund.toLocaleString()}` : "-"}
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-success">
+                            {employee.salary ? `${currencySymbol}${netSalary.toLocaleString()}` : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              {getManagerName(employee.manager_id)}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleEditEmployee(employee)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

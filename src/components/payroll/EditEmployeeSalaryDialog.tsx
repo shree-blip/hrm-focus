@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, User } from "lucide-react";
+import { DollarSign, User, AlertCircle } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface Employee {
   id: string;
@@ -17,6 +18,9 @@ interface Employee {
   manager_id: string | null;
   department: string | null;
   job_title: string | null;
+  income_tax: number | null;
+  social_security: number | null;
+  provident_fund: number | null;
 }
 
 interface EditEmployeeSalaryDialogProps {
@@ -38,6 +42,10 @@ export function EditEmployeeSalaryDialog({
   const [hourlyRate, setHourlyRate] = useState<string>("");
   const [payType, setPayType] = useState<string>("salary");
   const [managerId, setManagerId] = useState<string>("");
+  const [incomeTax, setIncomeTax] = useState<string>("");
+  const [socialSecurity, setSocialSecurity] = useState<string>("");
+  const [providentFund, setProvidentFund] = useState<string>("");
+  const [validationError, setValidationError] = useState<string>("");
 
   useEffect(() => {
     if (employee) {
@@ -45,31 +53,83 @@ export function EditEmployeeSalaryDialog({
       setHourlyRate(employee.hourly_rate?.toString() || "");
       setPayType(employee.pay_type || "salary");
       setManagerId(employee.manager_id || "none");
+      setIncomeTax(employee.income_tax?.toString() || "0");
+      setSocialSecurity(employee.social_security?.toString() || "0");
+      setProvidentFund(employee.provident_fund?.toString() || "0");
+      setValidationError("");
     }
   }, [employee]);
+
+  // Validate numeric input - must be number, 0 allowed, no negatives
+  const validateNumeric = (value: string): boolean => {
+    if (value === "" || value === "0") return true;
+    const num = parseFloat(value);
+    return !isNaN(num) && num >= 0;
+  };
+
+  // Calculate net salary
+  const calculateNetSalary = (): number => {
+    const baseSalary = parseFloat(salary) || 0;
+    const tax = parseFloat(incomeTax) || 0;
+    const ss = parseFloat(socialSecurity) || 0;
+    const pf = parseFloat(providentFund) || 0;
+    return baseSalary - tax - ss - pf;
+  };
+
+  // Validate deductions don't exceed base salary
+  const validateDeductions = (): boolean => {
+    const baseSalary = parseFloat(salary) || 0;
+    const totalDeductions = (parseFloat(incomeTax) || 0) + 
+                           (parseFloat(socialSecurity) || 0) + 
+                           (parseFloat(providentFund) || 0);
+    return totalDeductions <= baseSalary;
+  };
 
   const handleSave = () => {
     if (!employee) return;
 
+    // Validate all numeric fields
+    if (!validateNumeric(salary) || !validateNumeric(hourlyRate) || 
+        !validateNumeric(incomeTax) || !validateNumeric(socialSecurity) || 
+        !validateNumeric(providentFund)) {
+      setValidationError("All values must be valid numbers (0 or positive)");
+      toast({ title: "Validation Error", description: "All values must be valid numbers (0 or positive)", variant: "destructive" });
+      return;
+    }
+
+    // Validate deductions don't exceed base salary
+    if (payType === "salary" && !validateDeductions()) {
+      setValidationError("Total deductions cannot exceed base salary");
+      toast({ title: "Validation Error", description: "Total deductions cannot exceed base salary", variant: "destructive" });
+      return;
+    }
+
     const updates: Partial<Employee> = {
       pay_type: payType,
-      salary: payType === "salary" ? parseFloat(salary) || null : null,
-      hourly_rate: payType === "hourly" ? parseFloat(hourlyRate) || null : null,
+      salary: payType === "salary" ? (parseFloat(salary) || null) : null,
+      hourly_rate: payType === "hourly" ? (parseFloat(hourlyRate) || null) : null,
       manager_id: managerId === "none" ? null : managerId,
+      income_tax: parseFloat(incomeTax) || 0,
+      social_security: parseFloat(socialSecurity) || 0,
+      provident_fund: parseFloat(providentFund) || 0,
     };
 
     onSave(employee.id, updates);
     onOpenChange(false);
+    setValidationError("");
   };
 
   // Filter out current employee from manager list
   const potentialManagers = employees.filter(e => e.id !== employee?.id);
 
+  const netSalary = calculateNetSalary();
+  const isDeductionsValid = validateDeductions();
+
   if (!employee) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
@@ -92,25 +152,96 @@ export function EditEmployeeSalaryDialog({
           </div>
 
           {payType === "salary" ? (
-            <div className="space-y-2">
-              <Label htmlFor="salary">Annual Salary</Label>
-              <Input
-                id="salary"
-                type="number"
-                placeholder="Enter annual salary"
-                value={salary}
-                onChange={(e) => setSalary(e.target.value)}
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="salary">Base Salary (Annual)</Label>
+                <Input
+                  id="salary"
+                  type="number"
+                  min="0"
+                  placeholder="Enter annual salary"
+                  value={salary}
+                  onChange={(e) => {
+                    setSalary(e.target.value);
+                    setValidationError("");
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="incomeTax">Income Tax</Label>
+                  <Input
+                    id="incomeTax"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={incomeTax}
+                    onChange={(e) => {
+                      setIncomeTax(e.target.value);
+                      setValidationError("");
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="socialSecurity">Social Security</Label>
+                  <Input
+                    id="socialSecurity"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={socialSecurity}
+                    onChange={(e) => {
+                      setSocialSecurity(e.target.value);
+                      setValidationError("");
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="providentFund">Provident Fund</Label>
+                  <Input
+                    id="providentFund"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={providentFund}
+                    onChange={(e) => {
+                      setProvidentFund(e.target.value);
+                      setValidationError("");
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Net Salary Display */}
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Net Salary (Annual)</span>
+                  <span className={`text-lg font-bold ${!isDeductionsValid ? 'text-destructive' : 'text-foreground'}`}>
+                    {netSalary.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                {!isDeductionsValid && (
+                  <div className="flex items-center gap-1 text-destructive text-xs mt-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Deductions exceed base salary
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <div className="space-y-2">
               <Label htmlFor="hourlyRate">Hourly Rate</Label>
               <Input
                 id="hourlyRate"
                 type="number"
+                min="0"
                 placeholder="Enter hourly rate"
                 value={hourlyRate}
-                onChange={(e) => setHourlyRate(e.target.value)}
+                onChange={(e) => {
+                  setHourlyRate(e.target.value);
+                  setValidationError("");
+                }}
               />
             </div>
           )}
@@ -134,13 +265,20 @@ export function EditEmployeeSalaryDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {validationError && (
+            <div className="flex items-center gap-2 text-destructive text-sm">
+              <AlertCircle className="h-4 w-4" />
+              {validationError}
+            </div>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} disabled={!isDeductionsValid}>
             Save Changes
           </Button>
         </DialogFooter>

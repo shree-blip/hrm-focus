@@ -18,6 +18,9 @@ interface Employee {
   pay_type: string | null;
   salary: number | null;
   hourly_rate: number | null;
+  income_tax: number | null;
+  social_security: number | null;
+  provident_fund: number | null;
   profile_id: string | null;
   manager_id: string | null;
   line_manager_id: string | null;
@@ -79,6 +82,9 @@ export function useEmployees() {
           pay_type: null,
           salary: null,
           hourly_rate: null,
+          income_tax: null,
+          social_security: null,
+          provident_fund: null,
           profile_id: emp.profile_id,
           manager_id: emp.manager_id,
           line_manager_id: emp.line_manager_id,
