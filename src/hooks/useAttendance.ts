@@ -11,7 +11,7 @@ interface AttendanceLog {
   break_end: string | null;
   total_break_minutes: number;
   clock_type: "payroll" | "billable";
-  status: "active" | "break" | "completed";
+  status: "active" | "break" | "completed" | "auto_clocked_out";
   location_name?: string;
 }
 
@@ -107,6 +107,45 @@ export function useAttendance(weekStart?: Date) {
     fetchWeeklyLogs();
     fetchMonthlyLogs();
   }, [fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
+
+  // Listen for real-time updates on attendance_logs (for auto clock-out)
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('attendance-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'attendance_logs',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          const updated = payload.new as AttendanceLog;
+          // Check if this was an auto clock-out
+          if (updated.status === 'auto_clocked_out') {
+            toast({
+              title: "Auto Clock Out",
+              description: "You were automatically clocked out after 8 hours. Please clock in again if still working.",
+              variant: "destructive",
+            });
+            setCurrentLog(null);
+            fetchWeeklyLogs();
+            fetchMonthlyLogs();
+          } else {
+            // Normal update
+            fetchCurrentLog();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
 
   const clockIn = async (type: "payroll" | "billable" = "payroll") => {
     if (!user) return;

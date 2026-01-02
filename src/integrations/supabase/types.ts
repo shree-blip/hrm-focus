@@ -1621,6 +1621,7 @@ export type Database = {
       }
     }
     Functions: {
+      auto_clock_out_after_8_hours: { Args: never; Returns: number }
       can_create_employee: { Args: { _user_id: string }; Returns: boolean }
       can_view_salary: {
         Args: { _employee_id: string; _user_id: string }
