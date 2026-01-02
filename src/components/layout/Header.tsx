@@ -182,9 +182,14 @@ export function Header({ isMobile }: HeaderProps = {}) {
                     <span className="text-xs text-muted-foreground line-clamp-2 pl-6">
                       {announcement.content}
                     </span>
-                    <span className="text-xs text-muted-foreground pl-6">
-                      {formatNotificationTime(announcement.created_at)}
-                    </span>
+                    <div className="flex items-center justify-between pl-6 w-full">
+                      <span className="text-xs text-muted-foreground">
+                        By {announcement.publisher_name || 'System'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatNotificationTime(announcement.created_at)}
+                      </span>
+                    </div>
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
