@@ -34,10 +34,11 @@ import { DeactivateDialog } from "@/components/employees/DeactivateDialog";
 import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useAuth } from "@/contexts/AuthContext";
+import { MyTeamSection } from "@/components/employees/MyTeamSection";
 
 const Employees = () => {
   const { employees, loading, createEmployee, updateEmployee, deactivateEmployee } = useEmployees();
-  const { isManager } = useAuth();
+  const { isManager, isVP, isLineManager, canCreateEmployee } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
@@ -116,6 +117,8 @@ const Employees = () => {
     location: string;
     status: string;
     phone: string;
+    managerId: string | null;
+    lineManagerId: string | null;
   }) => {
     const nameParts = data.name.split(" ");
     const firstName = nameParts[0] || "";
@@ -139,8 +142,8 @@ const Employees = () => {
       social_security: null,
       provident_fund: null,
       profile_id: null,
-      manager_id: null,
-      line_manager_id: null,
+      manager_id: data.managerId,
+      line_manager_id: data.lineManagerId,
     });
   };
 
@@ -187,13 +190,16 @@ const Employees = () => {
             {isManager ? "Manage your team members and their roles" : "View your colleagues"}
           </p>
         </div>
-        {isManager && (
+        {canCreateEmployee && (
           <Button className="gap-2 shadow-md" onClick={() => setAddDialogOpen(true)}>
             <Plus className="h-4 w-4" />
             Add Employee
           </Button>
         )}
       </div>
+
+      {/* My Team Section - for Line Managers */}
+      {isLineManager && !isVP && <MyTeamSection />}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6 animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
