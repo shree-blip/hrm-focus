@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -26,7 +26,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Shield, Users, Lock, Loader2 } from "lucide-react";
+import { Shield, Users, Lock, User, Loader2, Search, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions, ALL_PERMISSIONS, PERMISSION_LABELS, Permission } from "@/hooks/usePermissions";
@@ -35,6 +35,7 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const ROLES = ['vp', 'admin', 'supervisor', 'line_manager', 'manager', 'employee'] as const;
+type AppRole = typeof ROLES[number];
 
 const ROLE_LABELS: Record<string, string> = {
   vp: 'Vice President',
@@ -47,22 +48,34 @@ const ROLE_LABELS: Record<string, string> = {
 
 interface UserWithRole {
   id: string;
+  user_id: string | null;
   email: string;
   first_name: string;
   last_name: string;
   role: string;
+  job_title: string | null;
+  department: string | null;
+  has_account: boolean;
+}
+
+interface UserPermissionOverride {
+  user_id: string;
+  permission: string;
+  enabled: boolean;
 }
 
 export default function AccessControl() {
   const navigate = useNavigate();
-  const { user, isVP } = useAuth();
-  const { rolePermissions, hasPermission, updateRolePermission, loading: permLoading } = usePermissions();
+  const { user } = useAuth();
+  const { rolePermissions, hasPermission, updateRolePermission, loading: permLoading, refetch: refetchPermissions } = usePermissions();
   const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [userOverrides, setUserOverrides] = useState<UserPermissionOverride[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
 
   useEffect(() => {
-    // Redirect if not VP
     if (!permLoading && !hasPermission('manage_access')) {
       toast({
         title: "Access Denied",
@@ -73,91 +86,146 @@ export default function AccessControl() {
     }
   }, [permLoading, hasPermission, navigate]);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const fetchUsers = useCallback(async () => {
+    // Fetch all employees
+    const { data: employees, error: empError } = await supabase
+      .from('employees')
+      .select('id, email, first_name, last_name, job_title, department, profile_id, status')
+      .eq('status', 'active')
+      .order('first_name');
 
-  const fetchUsers = async () => {
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('user_id, email, first_name, last_name');
-
-    if (profilesError) {
+    if (empError) {
+      console.error('Error fetching employees:', empError);
       setLoading(false);
       return;
     }
 
+    // Fetch all profiles to get user_ids
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, user_id, email');
+
+    // Fetch all user roles
     const { data: rolesData } = await supabase
       .from('user_roles')
       .select('user_id, role');
 
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
     const roleMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
 
-    const usersWithRoles: UserWithRole[] = profilesData.map(p => ({
-      id: p.user_id,
-      email: p.email,
-      first_name: p.first_name,
-      last_name: p.last_name,
-      role: roleMap.get(p.user_id) || 'employee',
-    }));
+    const usersWithRoles: UserWithRole[] = employees.map(emp => {
+      const profile = emp.profile_id ? profileMap.get(emp.profile_id) : null;
+      const userId = profile?.user_id || null;
+      
+      return {
+        id: emp.id,
+        user_id: userId,
+        email: emp.email,
+        first_name: emp.first_name,
+        last_name: emp.last_name,
+        job_title: emp.job_title,
+        department: emp.department,
+        role: userId ? (roleMap.get(userId) || 'employee') : 'employee',
+        has_account: !!userId,
+      };
+    });
 
     setUsers(usersWithRoles);
     setLoading(false);
-  };
+  }, []);
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
-    setSaving(userId);
+  const fetchUserOverrides = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('user_permission_overrides')
+      .select('user_id, permission, enabled');
     
-    // First try to update
+    if (!error && data) {
+      setUserOverrides(data);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+    fetchUserOverrides();
+
+    // Set up realtime subscriptions
+    const userRolesChannel = supabase
+      .channel('user-roles-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, () => {
+        fetchUsers();
+      })
+      .subscribe();
+
+    const permissionsChannel = supabase
+      .channel('permissions-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'role_permissions' }, () => {
+        refetchPermissions();
+      })
+      .subscribe();
+
+    const overridesChannel = supabase
+      .channel('overrides-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_permission_overrides' }, () => {
+        fetchUserOverrides();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(userRolesChannel);
+      supabase.removeChannel(permissionsChannel);
+      supabase.removeChannel(overridesChannel);
+    };
+  }, [fetchUsers, fetchUserOverrides, refetchPermissions]);
+
+  const handleRoleChange = async (userId: string | null, employeeId: string, newRole: string) => {
+    if (!userId) {
+      toast({
+        title: "No Account",
+        description: "This employee hasn't created an account yet. Role will apply when they sign up.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(employeeId);
+    
     const { data: existingRole } = await supabase
       .from('user_roles')
       .select('id')
       .eq('user_id', userId)
       .single();
 
+    let error;
     if (existingRole) {
-      const { error } = await supabase
+      const result = await supabase
         .from('user_roles')
-        .update({ role: newRole as any })
+        .update({ role: newRole as AppRole })
         .eq('user_id', userId);
-      
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update role.",
-          variant: "destructive",
-        });
-        setSaving(null);
-        return;
-      }
+      error = result.error;
     } else {
-      // Insert new role
-      const { error: insertError } = await supabase
+      const result = await supabase
         .from('user_roles')
-        .insert({ user_id: userId, role: newRole as any });
-      
-      if (insertError) {
-        toast({
-          title: "Error",
-          description: "Failed to assign role.",
-          variant: "destructive",
-        });
-        setSaving(null);
-        return;
-      }
+        .insert({ user_id: userId, role: newRole as AppRole });
+      error = result.error;
     }
 
-    toast({
-      title: "Role Updated",
-      description: `User role changed to ${ROLE_LABELS[newRole]}.`,
-    });
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update role: " + error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Role Updated",
+        description: `Role changed to ${ROLE_LABELS[newRole]}.`,
+      });
+    }
 
-    await fetchUsers();
     setSaving(null);
   };
 
   const handlePermissionToggle = async (role: string, permission: string, currentEnabled: boolean) => {
-    // Prevent modifying VP/admin manage_access
     if ((role === 'vp' || role === 'admin') && permission === 'manage_access') {
       toast({
         title: "Protected Permission",
@@ -167,11 +235,10 @@ export default function AccessControl() {
       return;
     }
 
-    // Prevent giving manage_salaries_all to non-VP
     if (permission === 'manage_salaries_all' && role !== 'vp' && role !== 'admin' && !currentEnabled) {
       toast({
         title: "Restricted Permission",
-        description: "Only VP can have salary management permission.",
+        description: "Only VP/Admin can have salary management permission.",
         variant: "destructive",
       });
       return;
@@ -193,14 +260,94 @@ export default function AccessControl() {
     }
   };
 
+  const handleUserPermissionToggle = async (userId: string, permission: string, currentValue: boolean | null) => {
+    // If currently has override, we toggle or remove it
+    // null = no override (use role default), true = enabled, false = disabled
+    
+    let newValue: boolean | null;
+    if (currentValue === null) {
+      // No override -> set to opposite of role default
+      const roleDefault = getPermissionForRole(selectedUser?.role || 'employee', permission);
+      newValue = !roleDefault;
+    } else if (currentValue === true) {
+      // Override enabled -> disable
+      newValue = false;
+    } else {
+      // Override disabled -> remove override (null)
+      newValue = null;
+    }
+
+    if (newValue === null) {
+      // Remove override
+      const { error } = await supabase
+        .from('user_permission_overrides')
+        .delete()
+        .eq('user_id', userId)
+        .eq('permission', permission);
+
+      if (error) {
+        toast({ title: "Error", description: "Failed to remove override.", variant: "destructive" });
+      } else {
+        toast({ title: "Override Removed", description: "User will now use role default." });
+      }
+    } else {
+      // Upsert override
+      const { data: existing } = await supabase
+        .from('user_permission_overrides')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('permission', permission)
+        .single();
+
+      let error;
+      if (existing) {
+        const result = await supabase
+          .from('user_permission_overrides')
+          .update({ enabled: newValue })
+          .eq('user_id', userId)
+          .eq('permission', permission);
+        error = result.error;
+      } else {
+        const result = await supabase
+          .from('user_permission_overrides')
+          .insert({ user_id: userId, permission, enabled: newValue });
+        error = result.error;
+      }
+
+      if (error) {
+        toast({ title: "Error", description: "Failed to update override.", variant: "destructive" });
+      } else {
+        toast({ 
+          title: "Permission Override Set", 
+          description: `${PERMISSION_LABELS[permission as Permission]} ${newValue ? 'enabled' : 'disabled'} for this user.`
+        });
+      }
+    }
+  };
+
   const getPermissionForRole = (role: string, permission: string): boolean => {
     const found = rolePermissions.find(rp => rp.role === role && rp.permission === permission);
     return found?.enabled ?? false;
   };
 
+  const getUserPermissionOverride = (userId: string, permission: string): boolean | null => {
+    const found = userOverrides.find(o => o.user_id === userId && o.permission === permission);
+    return found ? found.enabled : null;
+  };
+
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
+
+  const filteredUsers = users.filter(u => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      u.first_name.toLowerCase().includes(searchLower) ||
+      u.last_name.toLowerCase().includes(searchLower) ||
+      u.email.toLowerCase().includes(searchLower) ||
+      (u.department?.toLowerCase().includes(searchLower) ?? false)
+    );
+  });
 
   if (loading || permLoading) {
     return (
@@ -218,7 +365,6 @@ export default function AccessControl() {
 
   return (
     <DashboardLayout>
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
@@ -241,83 +387,114 @@ export default function AccessControl() {
             <Lock className="h-4 w-4" />
             Role Permissions
           </TabsTrigger>
+          <TabsTrigger value="individual" className="gap-2">
+            <User className="h-4 w-4" />
+            Individual Permissions
+          </TabsTrigger>
         </TabsList>
 
+        {/* User Roles Tab */}
         <TabsContent value="users">
           <Card>
             <CardHeader>
               <CardTitle>User Role Assignments</CardTitle>
               <CardDescription>
-                Assign roles to users. Each user can have one role.
+                Assign roles to employees. Shows all {users.length} active employees.
               </CardDescription>
+              <div className="relative mt-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email, or department..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Current Role</TableHead>
-                    <TableHead>Change Role</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                              {getInitials(u.first_name, u.last_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{u.first_name} {u.last_name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn(
-                          u.role === 'vp' && "border-primary text-primary bg-primary/10",
-                          u.role === 'admin' && "border-destructive text-destructive bg-destructive/10",
-                          u.role === 'supervisor' && "border-warning text-warning bg-warning/10",
-                          u.role === 'line_manager' && "border-info text-info bg-info/10",
-                          u.role === 'manager' && "border-success text-success bg-success/10"
-                        )}>
-                          {ROLE_LABELS[u.role] || u.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={u.role}
-                          onValueChange={(value) => handleRoleChange(u.id, value)}
-                          disabled={saving === u.id}
-                        >
-                          <SelectTrigger className="w-[160px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ROLES.map((role) => (
-                              <SelectItem key={role} value={role}>
-                                {ROLE_LABELS[role]}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+              <div className="max-h-[600px] overflow-y-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Account Status</TableHead>
+                      <TableHead>Current Role</TableHead>
+                      <TableHead>Change Role</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                {getInitials(u.first_name, u.last_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <span className="font-medium block">{u.first_name} {u.last_name}</span>
+                              <span className="text-xs text-muted-foreground">{u.email}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <span className="block">{u.job_title || '-'}</span>
+                            <span className="text-xs text-muted-foreground">{u.department || '-'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={u.has_account ? "default" : "secondary"}>
+                            {u.has_account ? "Active" : "No Account"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn(
+                            u.role === 'vp' && "border-primary text-primary bg-primary/10",
+                            u.role === 'admin' && "border-destructive text-destructive bg-destructive/10",
+                            u.role === 'supervisor' && "border-orange-500 text-orange-600 bg-orange-50",
+                            u.role === 'line_manager' && "border-blue-500 text-blue-600 bg-blue-50",
+                            u.role === 'manager' && "border-green-500 text-green-600 bg-green-50"
+                          )}>
+                            {ROLE_LABELS[u.role] || u.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={u.role}
+                            onValueChange={(value) => handleRoleChange(u.user_id, u.id, value)}
+                            disabled={saving === u.id || !u.has_account}
+                          >
+                            <SelectTrigger className="w-[160px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ROLES.map((role) => (
+                                <SelectItem key={role} value={role}>
+                                  {ROLE_LABELS[role]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Role Permissions Tab */}
         <TabsContent value="permissions">
           <Card>
             <CardHeader>
               <CardTitle>Role Permissions Matrix</CardTitle>
               <CardDescription>
-                Configure which permissions each role has. VP permissions are protected.
+                Configure default permissions for each role. VP permissions are protected.
               </CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
@@ -361,6 +538,136 @@ export default function AccessControl() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Individual User Permissions Tab */}
+        <TabsContent value="individual">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* User Selection */}
+            <Card className="lg:col-span-1">
+              <CardHeader>
+                <CardTitle>Select User</CardTitle>
+                <CardDescription>
+                  Choose a user to manage their individual permissions
+                </CardDescription>
+                <div className="relative mt-4">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search users..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {filteredUsers.filter(u => u.has_account).map((u) => (
+                    <div
+                      key={u.id}
+                      onClick={() => setSelectedUser(u)}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors",
+                        selectedUser?.id === u.id 
+                          ? "bg-primary/10 border border-primary" 
+                          : "hover:bg-muted"
+                      )}
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          {getInitials(u.first_name, u.last_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium block truncate">{u.first_name} {u.last_name}</span>
+                        <span className="text-xs text-muted-foreground truncate block">{u.email}</span>
+                      </div>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {ROLE_LABELS[u.role]}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Permission Overrides */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>
+                  {selectedUser 
+                    ? `Permissions for ${selectedUser.first_name} ${selectedUser.last_name}`
+                    : 'Select a User'
+                  }
+                </CardTitle>
+                <CardDescription>
+                  {selectedUser 
+                    ? `Override role-based permissions for this user. Role: ${ROLE_LABELS[selectedUser.role]}`
+                    : 'Click on a user to manage their individual permission overrides'
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {selectedUser && selectedUser.user_id ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Permission</TableHead>
+                        <TableHead className="text-center">Role Default</TableHead>
+                        <TableHead className="text-center">Override</TableHead>
+                        <TableHead className="text-center">Effective</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {ALL_PERMISSIONS.map((permission) => {
+                        const roleDefault = getPermissionForRole(selectedUser.role, permission);
+                        const override = getUserPermissionOverride(selectedUser.user_id!, permission);
+                        const effective = override !== null ? override : roleDefault;
+                        
+                        return (
+                          <TableRow key={permission}>
+                            <TableCell className="font-medium">
+                              {PERMISSION_LABELS[permission]}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {roleDefault ? (
+                                <Check className="h-4 w-4 text-green-500 inline" />
+                              ) : (
+                                <X className="h-4 w-4 text-red-500 inline" />
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <Switch
+                                  checked={override === true}
+                                  onCheckedChange={() => handleUserPermissionToggle(selectedUser.user_id!, permission, override)}
+                                />
+                                {override !== null && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {override ? 'ON' : 'OFF'}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={effective ? "default" : "secondary"}>
+                                {effective ? 'Allowed' : 'Denied'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                    <User className="h-12 w-12 mb-4 opacity-50" />
+                    <p>Select a user from the list to manage their permissions</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </DashboardLayout>
