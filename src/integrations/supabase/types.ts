@@ -1116,6 +1116,33 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          permission?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rpc_rate_limits: {
         Row: {
           call_count: number | null
@@ -1246,6 +1273,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_permission_overrides: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          permission: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled: boolean
+          id?: string
+          permission: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          permission?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_preferences: {
         Row: {
@@ -1569,6 +1623,14 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_visible_employee_ids: {
+        Args: { _user_id: string }
+        Returns: string[]
+      }
+      has_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1597,7 +1659,13 @@ export type Database = {
       verify_signup_email: { Args: { check_email: string }; Returns: Json }
     }
     Enums: {
-      app_role: "admin" | "vp" | "manager" | "employee"
+      app_role:
+        | "admin"
+        | "vp"
+        | "manager"
+        | "employee"
+        | "supervisor"
+        | "line_manager"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1725,7 +1793,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "vp", "manager", "employee"],
+      app_role: [
+        "admin",
+        "vp",
+        "manager",
+        "employee",
+        "supervisor",
+        "line_manager",
+      ],
     },
   },
 } as const

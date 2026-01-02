@@ -3,7 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
-type AppRole = "admin" | "vp" | "manager" | "employee";
+type AppRole = "admin" | "vp" | "manager" | "employee" | "supervisor" | "line_manager";
 
 interface Profile {
   id: string;
@@ -33,6 +33,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isVP: boolean;
   isLineManager: boolean;
+  isSupervisor: boolean;
   canCreateEmployee: boolean;
 }
 
@@ -211,9 +212,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(null);
   };
 
-  const isManager = role === "manager" || role === "vp" || role === "admin";
+  const isManager = role === "manager" || role === "vp" || role === "admin" || role === "supervisor" || role === "line_manager";
   const isAdmin = role === "admin";
   const isVP = role === "vp" || role === "admin";
+  const isSupervisor = role === "supervisor";
 
   return (
     <AuthContext.Provider
@@ -231,6 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin,
         isVP,
         isLineManager,
+        isSupervisor,
         canCreateEmployee,
       }}
     >

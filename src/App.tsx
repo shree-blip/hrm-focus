@@ -22,6 +22,7 @@ import Settings from "./pages/Settings";
 import Notifications from "./pages/Notifications";
 import Reports from "./pages/Reports";
 import Announcements from "./pages/Announcements";
+import AccessControl from "./pages/AccessControl";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute requiredRole="manager"><Reports /></ProtectedRoute>} />
             <Route path="/announcements" element={<ProtectedRoute requiredRole="manager"><Announcements /></ProtectedRoute>} />
+            <Route path="/access-control" element={<ProtectedRoute requiredRole="vp"><AccessControl /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
