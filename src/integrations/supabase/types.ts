@@ -1534,6 +1534,7 @@ export type Database = {
       }
     }
     Functions: {
+      can_create_employee: { Args: { _user_id: string }; Returns: boolean }
       can_view_salary: {
         Args: { _employee_id: string; _user_id: string }
         Returns: boolean
@@ -1548,6 +1549,7 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      get_employee_id_for_user: { Args: { _user_id: string }; Returns: string }
       get_org_by_slug: {
         Args: { _slug: string }
         Returns: {
@@ -1578,6 +1580,7 @@ export type Database = {
         Args: { _employee_id: string; _user_id: string }
         Returns: boolean
       }
+      is_line_manager: { Args: { _user_id: string }; Returns: boolean }
       is_org_vp: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean

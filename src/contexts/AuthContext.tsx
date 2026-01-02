@@ -31,6 +31,8 @@ interface AuthContextType {
   isManager: boolean;
   isAdmin: boolean;
   isVP: boolean;
+  isLineManager: boolean;
+  canCreateEmployee: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLineManager, setIsLineManager] = useState(false);
+  const [canCreateEmployee, setCanCreateEmployee] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -54,10 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTimeout(() => {
             fetchProfile(session.user.id);
             fetchRole(session.user.id);
+            fetchLineManagerStatus(session.user.id);
           }, 0);
         } else {
           setProfile(null);
           setRole(null);
+          setIsLineManager(false);
+          setCanCreateEmployee(false);
         }
       }
     );
@@ -69,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         fetchProfile(session.user.id);
         fetchRole(session.user.id);
+        fetchLineManagerStatus(session.user.id);
       }
       setLoading(false);
     });
@@ -98,6 +106,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!error && data) {
       setRole(data.role as AppRole);
     }
+  };
+
+  const fetchLineManagerStatus = async (userId: string) => {
+    // Check if user is a line manager
+    const { data: lineManagerCheck } = await supabase.rpc('is_line_manager', {
+      _user_id: userId
+    });
+    setIsLineManager(!!lineManagerCheck);
+
+    // Check if user can create employees
+    const { data: createCheck } = await supabase.rpc('can_create_employee', {
+      _user_id: userId
+    });
+    setCanCreateEmployee(!!createCheck);
   };
 
   const signIn = async (email: string, password: string) => {
@@ -151,6 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isManager,
         isAdmin,
         isVP,
+        isLineManager,
+        canCreateEmployee,
       }}
     >
       {children}
