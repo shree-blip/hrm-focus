@@ -315,7 +315,7 @@ export default function Auth() {
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4">
+              <form onSubmit={handleSignup} className="space-y-4" noValidate>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Work Email</Label>
                   <div className="relative">
@@ -326,7 +326,6 @@ export default function Auth() {
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
                       className={emailValid === false ? "border-destructive" : emailValid === true ? "border-green-500" : ""}
-                      required
                     />
                     {emailChecking && (
                       <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
