@@ -9,6 +9,7 @@ import { Loader2, AlertCircle, CheckCircle2, Mail, Lock, User, ArrowRight, Quote
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import focusLogo from "@/assets/focus-logo.png";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string()
@@ -263,7 +264,267 @@ export default function Auth() {
     </svg>
   );
 
-  return (
+  // Mobile view - stacked layout
+  const MobileAuthView = () => (
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Header with logo */}
+      <div className="bg-gradient-to-r from-primary via-primary/90 to-primary/80 py-8 px-6">
+        <div className="flex flex-col items-center space-y-3">
+          <img src={focusLogo} alt="Focus Logo" className="w-16 h-16 object-contain" />
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-primary-foreground tracking-tight">FOCUS</h2>
+            <p className="text-primary-foreground/80 text-sm">Human Resource Management</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Toggle Tabs */}
+      <div className="bg-card mx-4 -mt-4 rounded-t-2xl shadow-lg">
+        <div className="flex border-b border-border">
+          <button
+            onClick={() => setIsRightPanelActive(false)}
+            className={cn(
+              "flex-1 py-4 text-sm font-medium transition-colors",
+              !isRightPanelActive 
+                ? "text-primary border-b-2 border-primary" 
+                : "text-muted-foreground"
+            )}
+          >
+            Sign In
+          </button>
+          <button
+            onClick={() => setIsRightPanelActive(true)}
+            className={cn(
+              "flex-1 py-4 text-sm font-medium transition-colors",
+              isRightPanelActive 
+                ? "text-primary border-b-2 border-primary" 
+                : "text-muted-foreground"
+            )}
+          >
+            Sign Up
+          </button>
+        </div>
+
+        <div className="p-6">
+          {!isRightPanelActive ? (
+            // Sign In Form
+            <div className="space-y-5">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-12 gap-3 text-base font-medium border-2 hover:bg-muted/50 transition-colors"
+                onClick={handleGoogleLogin}
+                disabled={isGoogleLoading || isLoading}
+              >
+                {isGoogleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
+                Continue with Google
+              </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-3 text-muted-foreground">or</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4" noValidate>
+                <div className="space-y-2">
+                  <Label htmlFor="mobile-login-email" className="text-sm font-medium">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="mobile-login-email"
+                      type="email"
+                      placeholder="you@company.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      className="pl-10 h-12"
+                      autoComplete="email"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mobile-login-password" className="text-sm font-medium">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="mobile-login-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="pl-10 h-12"
+                      autoComplete="current-password"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end">
+                  <a href="/forgot-password" className="text-sm text-primary hover:underline">
+                    Forgot password?
+                  </a>
+                </div>
+
+                <Button type="submit" className="w-full h-12 text-base font-medium" disabled={isLoading || isGoogleLoading}>
+                  {isLoading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</>
+                  ) : (
+                    <>Sign In <ArrowRight className="ml-2 h-4 w-4" /></>
+                  )}
+                </Button>
+              </form>
+            </div>
+          ) : (
+            // Sign Up Form
+            <div className="space-y-5">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-12 gap-3 text-base font-medium border-2 hover:bg-muted/50 transition-colors"
+                onClick={handleGoogleLogin}
+                disabled={isGoogleLoading || isLoading}
+              >
+                {isGoogleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
+                Continue with Google
+              </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-3 text-muted-foreground">or</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleSignup} className="space-y-3" noValidate>
+                <div className="space-y-1.5">
+                  <Label htmlFor="mobile-signup-email" className="text-sm font-medium">Work Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="mobile-signup-email"
+                      type="email"
+                      placeholder="you@company.com"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      className={cn(
+                        "pl-10 h-12",
+                        emailValid === false && "border-destructive focus-visible:ring-destructive",
+                        emailValid === true && "border-green-500 focus-visible:ring-green-500"
+                      )}
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {emailChecking && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                      {!emailChecking && emailValid === true && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                      {!emailChecking && emailValid === false && <AlertCircle className="h-4 w-4 text-destructive" />}
+                    </div>
+                  </div>
+                  {emailError && <p className="text-xs text-destructive">{emailError}</p>}
+                </div>
+
+                {emailValid && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="mobile-first-name" className="text-sm font-medium">First Name</Label>
+                        <Input
+                          id="mobile-first-name"
+                          placeholder="John"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          className="h-12"
+                          readOnly
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="mobile-last-name" className="text-sm font-medium">Last Name</Label>
+                        <Input
+                          id="mobile-last-name"
+                          placeholder="Doe"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          className="h-12"
+                          readOnly
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="mobile-signup-password" className="text-sm font-medium">Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="mobile-signup-password"
+                          type="password"
+                          placeholder="••••••••"
+                          value={signupPassword}
+                          onChange={(e) => setSignupPassword(e.target.value)}
+                          className="pl-10 h-12"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Min 8 chars, uppercase, lowercase, number & special char</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="mobile-confirm-password" className="text-sm font-medium">Confirm Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="mobile-confirm-password"
+                          type="password"
+                          placeholder="••••••••"
+                          value={signupConfirmPassword}
+                          onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                          className="pl-10 h-12"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 text-base font-medium" 
+                  disabled={isLoading || isGoogleLoading || !emailValid}
+                >
+                  {isLoading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</>
+                  ) : (
+                    <>Create Account <ArrowRight className="ml-2 h-4 w-4" /></>
+                  )}
+                </Button>
+              </form>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Quote Section */}
+      <div className="flex-1 px-6 py-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 space-y-3">
+          <Quote className="h-6 w-6 text-primary/60 mx-auto" />
+          {quoteLoading ? (
+            <div className="flex justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-white/60" />
+            </div>
+          ) : quote ? (
+            <>
+              <p className="text-sm text-white/90 font-medium leading-relaxed italic text-center">
+                "{quote.text}"
+              </p>
+              <p className="text-xs text-white/60 text-center">— {quote.author}</p>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Desktop view - sliding panels
+  const DesktopAuthView = () => (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 overflow-hidden">
       <div className="relative w-full max-w-5xl h-[650px] bg-card rounded-3xl shadow-2xl overflow-hidden">
         
@@ -498,9 +759,7 @@ export default function Auth() {
             <div className="relative z-10 text-center space-y-8 max-w-md">
               {/* Logo */}
               <div className="flex flex-col items-center space-y-3">
-                <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
-                  <span className="text-3xl font-bold">F</span>
-                </div>
+                <img src={focusLogo} alt="Focus Logo" className="w-20 h-20 object-contain" />
                 <h2 className="text-3xl font-bold tracking-tight">FOCUS</h2>
                 <p className="text-primary-foreground/80 text-sm">Human Resource Management</p>
               </div>
@@ -551,5 +810,18 @@ export default function Auth() {
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {/* Mobile View */}
+      <div className="md:hidden">
+        <MobileAuthView />
+      </div>
+      {/* Desktop View */}
+      <div className="hidden md:block">
+        <DesktopAuthView />
+      </div>
+    </>
   );
 }

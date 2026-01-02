@@ -12,7 +12,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-
+import focusLogo from "@/assets/focus-logo.png";
 interface HeaderProps {
   isMobile?: boolean;
 }
@@ -119,6 +119,10 @@ export function Header({ isMobile }: HeaderProps = {}) {
         "flex items-center gap-4 flex-1",
         isMobile ? "max-w-xs" : "max-w-xl"
       )}>
+        {/* Mobile logo */}
+        <div className="md:hidden flex items-center gap-2 shrink-0">
+          <img src={focusLogo} alt="Focus" className="h-8 w-8 object-contain" />
+        </div>
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input 
