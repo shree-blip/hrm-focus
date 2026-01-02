@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { AnnouncementBanner } from "@/components/dashboard/AnnouncementBanner";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -15,6 +16,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Announcement Banner - Above everything */}
+      <AnnouncementBanner />
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar />
