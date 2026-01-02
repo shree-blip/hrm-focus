@@ -1161,6 +1161,39 @@ export type Database = {
         }
         Relationships: []
       }
+      spam_users: {
+        Row: {
+          email: string
+          flagged_at: string | null
+          flagged_by: string | null
+          id: string
+          is_blocked: boolean | null
+          notes: string | null
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          email: string
+          flagged_at?: string | null
+          flagged_by?: string | null
+          id?: string
+          is_blocked?: boolean | null
+          notes?: string | null
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          email?: string
+          flagged_at?: string | null
+          flagged_by?: string | null
+          id?: string
+          is_blocked?: boolean | null
+          notes?: string | null
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       task_checklists: {
         Row: {
           completed_at: string | null
@@ -1647,6 +1680,7 @@ export type Database = {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      is_security_monitor: { Args: { _user_id: string }; Returns: boolean }
       mark_signup_used: { Args: { check_email: string }; Returns: boolean }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }
