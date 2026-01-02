@@ -325,6 +325,7 @@ export type Database = {
           hire_date: string | null
           hourly_rate: number | null
           id: string
+          income_tax: number | null
           job_title: string | null
           last_name: string
           line_manager_id: string | null
@@ -334,7 +335,9 @@ export type Database = {
           pay_type: string | null
           phone: string | null
           profile_id: string | null
+          provident_fund: number | null
           salary: number | null
+          social_security: number | null
           status: string | null
           termination_date: string | null
           updated_at: string
@@ -348,6 +351,7 @@ export type Database = {
           hire_date?: string | null
           hourly_rate?: number | null
           id?: string
+          income_tax?: number | null
           job_title?: string | null
           last_name: string
           line_manager_id?: string | null
@@ -357,7 +361,9 @@ export type Database = {
           pay_type?: string | null
           phone?: string | null
           profile_id?: string | null
+          provident_fund?: number | null
           salary?: number | null
+          social_security?: number | null
           status?: string | null
           termination_date?: string | null
           updated_at?: string
@@ -371,6 +377,7 @@ export type Database = {
           hire_date?: string | null
           hourly_rate?: number | null
           id?: string
+          income_tax?: number | null
           job_title?: string | null
           last_name?: string
           line_manager_id?: string | null
@@ -380,7 +387,9 @@ export type Database = {
           pay_type?: string | null
           phone?: string | null
           profile_id?: string | null
+          provident_fund?: number | null
           salary?: number | null
+          social_security?: number | null
           status?: string | null
           termination_date?: string | null
           updated_at?: string
@@ -1405,6 +1414,7 @@ export type Database = {
           hire_date: string | null
           hourly_rate: number | null
           id: string | null
+          income_tax: number | null
           job_title: string | null
           last_name: string | null
           line_manager_id: string | null
@@ -1413,7 +1423,9 @@ export type Database = {
           pay_type: string | null
           phone: string | null
           profile_id: string | null
+          provident_fund: number | null
           salary: number | null
+          social_security: number | null
           status: string | null
           termination_date: string | null
           updated_at: string | null
@@ -1427,6 +1439,7 @@ export type Database = {
           hire_date?: string | null
           hourly_rate?: never
           id?: string | null
+          income_tax?: never
           job_title?: string | null
           last_name?: string | null
           line_manager_id?: string | null
@@ -1435,7 +1448,9 @@ export type Database = {
           pay_type?: string | null
           phone?: string | null
           profile_id?: string | null
+          provident_fund?: never
           salary?: never
+          social_security?: never
           status?: string | null
           termination_date?: string | null
           updated_at?: string | null
@@ -1449,6 +1464,7 @@ export type Database = {
           hire_date?: string | null
           hourly_rate?: never
           id?: string | null
+          income_tax?: never
           job_title?: string | null
           last_name?: string | null
           line_manager_id?: string | null
@@ -1457,7 +1473,9 @@ export type Database = {
           pay_type?: string | null
           phone?: string | null
           profile_id?: string | null
+          provident_fund?: never
           salary?: never
+          social_security?: never
           status?: string | null
           termination_date?: string | null
           updated_at?: string | null
