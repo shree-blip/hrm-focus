@@ -26,12 +26,11 @@ export function useAttendance(weekStart?: Date) {
   const fetchCurrentLog = useCallback(async () => {
     if (!user) return;
 
-    const today = new Date().toISOString().split("T")[0];
+    // Fetch any active attendance log regardless of date (persists across sessions)
     const { data, error } = await supabase
       .from("attendance_logs")
       .select("*")
       .eq("user_id", user.id)
-      .gte("clock_in", `${today}T00:00:00`)
       .is("clock_out", null)
       .order("clock_in", { ascending: false })
       .limit(1)
