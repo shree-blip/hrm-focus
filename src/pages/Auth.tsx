@@ -271,7 +271,7 @@ export default function Auth() {
   );
 
   // Mobile view - stacked layout
-  const MobileAuthView = () => (
+  const mobileAuthView = (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header with logo */}
       <div className="bg-gradient-to-r from-primary via-primary/90 to-primary/80 py-8 px-6">
@@ -530,7 +530,7 @@ export default function Auth() {
   );
 
   // Desktop view - sliding panels
-  const DesktopAuthView = () => (
+  const desktopAuthView = (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 overflow-hidden">
       <div className="relative w-full max-w-5xl h-[650px] bg-card rounded-3xl shadow-2xl overflow-hidden">
         
@@ -822,11 +822,11 @@ export default function Auth() {
     <>
       {/* Mobile View */}
       <div className="md:hidden">
-        <MobileAuthView />
+        {mobileAuthView}
       </div>
       {/* Desktop View */}
       <div className="hidden md:block">
-        <DesktopAuthView />
+        {desktopAuthView}
       </div>
     </>
   );
