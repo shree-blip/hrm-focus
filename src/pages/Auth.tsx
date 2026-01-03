@@ -105,17 +105,21 @@ export default function Auth() {
     }
   }, [user, navigate]);
 
-  // Check if email is in allowed list when user types
+  // Check if email is in allowed list when user types - with proper debouncing
   useEffect(() => {
-    const checkEmail = async () => {
-      if (!signupEmail || !emailSchema.safeParse(signupEmail).success) {
-        setEmailValid(null);
-        setEmailError("");
-        return;
-      }
+    // Reset validation state immediately if email is empty or invalid format
+    if (!signupEmail || !emailSchema.safeParse(signupEmail).success) {
+      setEmailValid(null);
+      setEmailError("");
+      return;
+    }
 
+    // Set checking state before the debounce timeout
+    const checkingTimeout = setTimeout(() => {
       setEmailChecking(true);
-      
+    }, 400);
+
+    const debounce = setTimeout(async () => {
       const { data, error } = await supabase.rpc('verify_signup_email', {
         check_email: signupEmail.toLowerCase()
       });
@@ -156,10 +160,12 @@ export default function Auth() {
       setEmailValid(true);
       setEmailError("");
       setEmailChecking(false);
-    };
+    }, 800);
 
-    const debounce = setTimeout(checkEmail, 500);
-    return () => clearTimeout(debounce);
+    return () => {
+      clearTimeout(checkingTimeout);
+      clearTimeout(debounce);
+    };
   }, [signupEmail]);
 
   const handleLogin = async (e: React.FormEvent) => {
