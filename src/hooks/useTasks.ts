@@ -29,12 +29,13 @@ interface Task {
 }
 
 export function useTasks() {
-  const { user, isManager } = useAuth();
+  const { user } = useAuth();
+  const userId = user?.id;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTasks = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
 
     // Fetch tasks
     const { data: tasksData, error: tasksError } = await supabase
@@ -59,12 +60,12 @@ export function useTasks() {
       .select("user_id, first_name, last_name");
 
     const profileMap = new Map(
-      (profilesData || []).map(p => [p.user_id, `${p.first_name} ${p.last_name}`])
+      (profilesData || []).map((p) => [p.user_id, `${p.first_name} ${p.last_name}`]),
     );
 
     // Map assignees to tasks with names
     const assigneesByTask = new Map<string, TaskAssignee[]>();
-    (assigneesData || []).forEach(a => {
+    (assigneesData || []).forEach((a) => {
       const taskAssignees = assigneesByTask.get(a.task_id) || [];
       taskAssignees.push({
         user_id: a.user_id,
@@ -76,7 +77,7 @@ export function useTasks() {
       assigneesByTask.set(a.task_id, taskAssignees);
     });
 
-    const tasksWithAssignees = (tasksData || []).map(task => ({
+    const tasksWithAssignees = (tasksData || []).map((task) => ({
       ...task,
       created_by_name: profileMap.get(task.created_by) || "Unknown",
       assignees: assigneesByTask.get(task.id) || [],
@@ -84,23 +85,19 @@ export function useTasks() {
 
     setTasks(tasksWithAssignees);
     setLoading(false);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     fetchTasks();
 
     // Set up real-time subscription
     const channel = supabase
-      .channel('tasks-changes')
+      .channel("tasks-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchTasks())
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tasks' },
-        () => fetchTasks()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'task_assignees' },
-        () => fetchTasks()
+        "postgres_changes",
+        { event: "*", schema: "public", table: "task_assignees" },
+        () => fetchTasks(),
       )
       .subscribe();
 
@@ -120,10 +117,10 @@ export function useTasks() {
     time_estimate?: string;
     is_recurring?: boolean;
   }) => {
-    if (!user) return;
+    if (!userId) return;
 
     // Get org_id for the user
-    const { data: orgData } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
+    const { data: orgData } = await supabase.rpc("get_user_org_id", { _user_id: userId });
 
     const { data, error } = await supabase
       .from("tasks")
@@ -131,7 +128,7 @@ export function useTasks() {
         title: task.title,
         description: task.description,
         client_name: task.client_name,
-        created_by: user.id,
+        created_by: userId,
         priority: task.priority,
         status: task.status,
         due_date: task.due_date?.toISOString().split("T")[0],
@@ -144,16 +141,20 @@ export function useTasks() {
 
     if (error) {
       console.error("Task creation error:", error);
-      toast({ title: "Error", description: "Failed to create task: " + error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to create task: " + error.message,
+        variant: "destructive",
+      });
       return null;
     }
 
     // Add assignees if provided
     if (task.assignee_ids && task.assignee_ids.length > 0) {
-      const assigneeInserts = task.assignee_ids.map(userId => ({
+      const assigneeInserts = task.assignee_ids.map((assigneeUserId) => ({
         task_id: data.id,
-        user_id: userId,
-        assigned_by: user.id,
+        user_id: assigneeUserId,
+        assigned_by: userId,
       }));
 
       const { error: assigneeError } = await supabase.from("task_assignees").insert(assigneeInserts);
@@ -190,17 +191,17 @@ export function useTasks() {
   };
 
   const updateTaskAssignees = async (taskId: string, assigneeIds: string[]) => {
-    if (!user) return;
+    if (!userId) return;
 
     // Delete existing assignees
     await supabase.from("task_assignees").delete().eq("task_id", taskId);
 
     // Add new assignees
     if (assigneeIds.length > 0) {
-      const assigneeInserts = assigneeIds.map(userId => ({
+      const assigneeInserts = assigneeIds.map((assigneeUserId) => ({
         task_id: taskId,
-        user_id: userId,
-        assigned_by: user.id,
+        user_id: assigneeUserId,
+        assigned_by: userId,
       }));
 
       await supabase.from("task_assignees").insert(assigneeInserts);
