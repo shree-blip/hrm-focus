@@ -58,6 +58,12 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = "Chart";
 
+/**
+ * SECURITY: This component uses dangerouslySetInnerHTML for CSS injection.
+ * The CSS is generated from trusted ChartConfig objects, not user input.
+ * Ensure ChartConfig never contains user-supplied data without sanitization.
+ * The 'id' prop should be application-generated, not user input.
+ */
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
