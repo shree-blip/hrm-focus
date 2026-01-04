@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
+import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import focusLogo from "@/assets/focus-logo.png";
@@ -24,6 +25,7 @@ export function Header({ isMobile }: HeaderProps = {}) {
   const { signOut, profile, role } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const { announcements } = useAnnouncements();
+  const { signedUrl: avatarUrl } = useAvatarUrl(profile?.avatar_url);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -241,7 +243,7 @@ export function Header({ isMobile }: HeaderProps = {}) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-3 pl-2 pr-3">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={profile?.avatar_url || ""} />
+                <AvatarImage src={avatarUrl || ""} />
                 <AvatarFallback className="bg-primary text-primary-foreground font-medium">{getInitials()}</AvatarFallback>
               </Avatar>
               <div className="hidden md:flex flex-col items-start text-sm">
