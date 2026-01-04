@@ -72,11 +72,15 @@ export function TaskDetailDialog({
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [showAssigneeEditor, setShowAssigneeEditor] = useState(false);
 
+  // Reset state when dialog opens/closes or task changes
   useEffect(() => {
-    if (task?.assignees) {
-      setSelectedAssignees(task.assignees.map(a => a.user_id));
+    if (open && task) {
+      setSelectedAssignees(task.assignees?.map(a => a.user_id) || []);
+      setShowAssigneeEditor(false);
+      setIsEditing(false);
+      setEditedTask(null);
     }
-  }, [task]);
+  }, [open, task?.id]);
 
   if (!task) return null;
 
