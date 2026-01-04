@@ -7,6 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Secret token for cron job authentication (should be set in Supabase secrets)
+const CRON_SECRET = Deno.env.get("CRON_SECRET");
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -15,7 +18,58 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    
+    // SECURITY: Authenticate the request
+    const authHeader = req.headers.get("Authorization");
+    const cronToken = req.headers.get("X-Cron-Secret");
+    
+    // Allow access via cron secret token (for scheduled jobs)
+    if (CRON_SECRET && cronToken === CRON_SECRET) {
+      console.log("Authenticated via cron secret");
+    } 
+    // Or via authenticated user with admin/VP role
+    else if (authHeader) {
+      const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      
+      const { data: { user }, error: authError } = await userSupabase.auth.getUser();
+      if (authError || !user) {
+        console.error("Authentication failed:", authError?.message);
+        return new Response(
+          JSON.stringify({ error: "Unauthorized - Invalid token" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+        );
+      }
+      
+      // Check if user has admin or VP role
+      const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: hasAdminRole } = await serviceSupabase.rpc('has_role', { 
+        _user_id: user.id, 
+        _role: 'admin' 
+      });
+      const { data: hasVpRole } = await serviceSupabase.rpc('has_role', { 
+        _user_id: user.id, 
+        _role: 'vp' 
+      });
+      
+      if (!hasAdminRole && !hasVpRole) {
+        console.error(`User ${user.id} lacks required role`);
+        return new Response(
+          JSON.stringify({ error: "Forbidden - Admin or VP role required" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+        );
+      }
+      console.log(`Authenticated user ${user.id} with admin/VP role`);
+    } else {
+      console.error("No authentication provided");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - Authentication required" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = resendApiKey ? new Resend(resendApiKey) : null;
