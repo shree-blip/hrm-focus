@@ -59,25 +59,30 @@ export function AnnouncementBanner() {
   const marqueeText = activeAnnouncements.join("     •     ");
 
   return (
-    <div className="bg-primary text-primary-foreground py-2 px-4 relative overflow-hidden max-w-full">
-      <div className="flex items-center gap-3 max-w-full">
-        <Megaphone className="h-4 w-4 flex-shrink-0" />
-        
-        <div className="flex-1 min-w-0 overflow-hidden" ref={scrollRef}>
-          <div className="animate-marquee whitespace-nowrap">
-            <span className="text-sm font-medium">{marqueeText}</span>
-            <span className="text-sm font-medium ml-16">{marqueeText}</span>
+    <div className="bg-blue-600 text-white py-2 px-4 relative overflow-hidden w-full shadow-sm">
+        <div className="flex items-center gap-3 w-full">
+          <Megaphone className="h-4 w-4 flex-shrink-0 text-white/90" />
+          
+          <div className="flex-1 min-w-0 overflow-hidden relative" ref={scrollRef}>
+            {/* Wrapper to ensure smooth looping */}
+            <div className="animate-marquee whitespace-nowrap flex items-center">
+              <span className="text-sm font-medium px-4">{marqueeText}</span>
+              <span className="text-sm font-medium px-4">{marqueeText}</span>
+              {/* Added extra copies to ensure no gaps on very wide screens */}
+              <span className="text-sm font-medium px-4">{marqueeText}</span>
+              <span className="text-sm font-medium px-4">{marqueeText}</span>
+            </div>
           </div>
-        </div>
 
-        <button
-          onClick={handleDismiss}
-          className="p-1 hover:bg-primary-foreground/20 rounded transition-colors flex-shrink-0"
-          aria-label="Dismiss announcements"
-        >
-          <X className="h-4 w-4" />
-        </button>
+          <button
+            onClick={handleDismiss}
+            className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0 ml-2"
+            aria-label="Dismiss announcements"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
