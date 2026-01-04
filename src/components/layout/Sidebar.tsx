@@ -58,9 +58,7 @@ const vpMenuItems: MenuItem[] = [
   { icon: Settings, label: "Access Control", href: "/access-control" },
 ];
 
-const bottomMenuItems: MenuItem[] = [
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
+const bottomMenuItems: MenuItem[] = [{ icon: Settings, label: "Settings", href: "/settings" }];
 
 interface SidebarProps {
   onNavigate?: () => void;
@@ -85,11 +83,11 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       className={cn(
         "fixed left-0 top-0 z-40 h-screen transition-all duration-300 ease-in-out",
         "bg-sidebar text-sidebar-foreground flex flex-col",
-        collapsed ? "w-[72px]" : "w-64"
+        collapsed ? "w-[72px]" : "w-64",
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
+      <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border mt-2">
         {!collapsed && (
           <div className="flex items-center gap-3 animate-fade-in">
             <img src={focusLogo} alt="Focus Logo" className="h-10 w-10 object-contain" />
@@ -99,9 +97,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             </div>
           </div>
         )}
-        {collapsed && (
-          <img src={focusLogo} alt="Focus Logo" className="h-9 w-9 mx-auto object-contain" />
-        )}
+        {collapsed && <img src={focusLogo} alt="Focus Logo" className="h-9 w-9 mx-auto object-contain" />}
       </div>
 
       {/* Navigation */}
@@ -120,7 +116,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   "hover:bg-sidebar-accent",
                   isActive
                     ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md"
-                    : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+                    : "text-sidebar-foreground/80 hover:text-sidebar-foreground",
                 )}
                 style={{ animationDelay: `${index * 50}ms` }}
               >
@@ -162,7 +158,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 "hover:bg-sidebar-accent",
                 isActive
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+                  : "text-sidebar-foreground/80 hover:text-sidebar-foreground",
               )}
             >
               <Icon className={cn("h-5 w-5 shrink-0", collapsed && "mx-auto")} />
@@ -189,7 +185,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
             "w-full justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-            !collapsed && "justify-start px-3"
+            !collapsed && "justify-start px-3",
           )}
         >
           {collapsed ? (
