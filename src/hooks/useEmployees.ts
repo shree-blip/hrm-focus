@@ -47,8 +47,10 @@ export function useEmployees() {
   const { user, isManager } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
 
-  const fetchEmployees = useCallback(async () => {
+  const fetchEmployees = useCallback(async (force = false) => {
+    if (hasFetched && !force) return;
     // Fetch profiles to get user_id mapping
     const { data: profilesData } = await supabase
       .from("profiles")
@@ -108,25 +110,28 @@ export function useEmployees() {
       }
     }
     setLoading(false);
-  }, [isManager]);
+    setHasFetched(true);
+  }, [isManager, hasFetched]);
 
   useEffect(() => {
     fetchEmployees();
-
-    // Set up realtime subscription
+  }, [fetchEmployees]);
+  
+  // Set up realtime subscription separately to avoid triggering on every fetchEmployees change
+  useEffect(() => {
     const employeesChannel = supabase
       .channel('employees-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'employees' },
-        () => fetchEmployees()
+        () => fetchEmployees(true) // Force refetch on realtime changes
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(employeesChannel);
     };
-  }, [fetchEmployees]);
+  }, []);
 
   const createEmployee = async (employee: Omit<Employee, "id">) => {
     if (!isManager) {
@@ -145,7 +150,7 @@ export function useEmployees() {
       return null;
     } else {
       toast({ title: "Employee Added", description: `${employee.first_name} ${employee.last_name} has been added.` });
-      fetchEmployees();
+      fetchEmployees(true);
       return { ...data, user_id: null } as Employee;
     }
   };
@@ -165,7 +170,7 @@ export function useEmployees() {
       toast({ title: "Error", description: "Failed to update employee", variant: "destructive" });
     } else {
       toast({ title: "Employee Updated", description: "Changes saved successfully." });
-      fetchEmployees();
+      fetchEmployees(true);
     }
   };
 
@@ -184,7 +189,7 @@ export function useEmployees() {
       toast({ title: "Error", description: "Failed to deactivate employee", variant: "destructive" });
     } else {
       toast({ title: "Employee Deactivated", description: "Employee has been deactivated." });
-      fetchEmployees();
+      fetchEmployees(true);
     }
   };
 
@@ -194,6 +199,6 @@ export function useEmployees() {
     createEmployee,
     updateEmployee,
     deactivateEmployee,
-    refetch: fetchEmployees,
+    refetch: () => fetchEmployees(true),
   };
 }

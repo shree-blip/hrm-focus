@@ -72,11 +72,22 @@ export function useTasks() {
         assigneesByTask.set(a.task_id, taskAssignees);
       });
 
-      const tasksWithAssignees = (tasksData || []).map((task) => ({
-        ...task,
+      const tasksWithAssignees: Task[] = (tasksData || []).map((task) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        client_name: task.client_name,
+        assignee_id: task.assignee_id,
+        created_by: task.created_by,
         created_by_name: profileMap.get(task.created_by) || "Unknown",
+        priority: (task.priority as "low" | "medium" | "high") || "medium",
+        status: (task.status as "todo" | "in-progress" | "review" | "done") || "todo",
+        due_date: task.due_date,
+        time_estimate: task.time_estimate,
+        is_recurring: task.is_recurring ?? false,
+        created_at: task.created_at,
         assignees: assigneesByTask.get(task.id) || [],
-      })) as Task[];
+      }));
 
       setTasks(tasksWithAssignees);
     } catch (error) {
@@ -191,7 +202,18 @@ export function useTasks() {
 
       // Return the full task structure immediately so UI doesn't crash on .assignees.map
       const fullTask: Task = {
-        ...data,
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        client_name: data.client_name,
+        assignee_id: data.assignee_id,
+        created_by: data.created_by,
+        priority: (data.priority as "low" | "medium" | "high") || "medium",
+        status: (data.status as "todo" | "in-progress" | "review" | "done") || "todo",
+        due_date: data.due_date,
+        time_estimate: data.time_estimate,
+        is_recurring: data.is_recurring ?? false,
+        created_at: data.created_at,
         assignees: createdAssignees,
       };
 
