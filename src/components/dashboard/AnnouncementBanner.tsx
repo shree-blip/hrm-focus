@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Megaphone, X } from "lucide-react";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
-import { isToday } from "date-fns";
+import { isAfter, parseISO, startOfDay } from "date-fns";
 
 const DISMISSED_KEY = "focus_announcement_banner_dismissed";
 
@@ -10,7 +10,7 @@ export function AnnouncementBanner() {
   const { user } = useAuth();
   const { announcements, loading } = useAnnouncements();
   const [dismissed, setDismissed] = useState(false);
-  const [todayAnnouncements, setTodayAnnouncements] = useState<string[]>([]);
+  const [activeAnnouncements, setActiveAnnouncements] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -20,15 +20,31 @@ export function AnnouncementBanner() {
     const wasDismissed = localStorage.getItem(dismissedKey) === "true";
     setDismissed(wasDismissed);
 
-    // Filter only today's announcements
-    const today = announcements.filter(a => isToday(new Date(a.created_at)));
+    // Filter active announcements that haven't expired
+    const now = new Date();
+    const todayStart = startOfDay(now);
     
-    if (today.length > 0) {
-      const texts = today.map(a => {
+    const active = announcements.filter(a => {
+      // Must be active
+      if (!a.is_active) return false;
+      
+      // If expires_at is set, check if it's still valid
+      if (a.expires_at) {
+        const expiryDate = parseISO(a.expires_at);
+        if (!isAfter(expiryDate, now)) return false;
+      }
+      
+      return true;
+    });
+    
+    if (active.length > 0) {
+      const texts = active.map(a => {
         const publisher = a.publisher_name ? ` — ${a.publisher_name}` : "";
         return `📢 ${a.title}: ${a.content}${publisher}`;
       });
-      setTodayAnnouncements(texts);
+      setActiveAnnouncements(texts);
+    } else {
+      setActiveAnnouncements([]);
     }
   }, [loading, user, announcements]);
 
@@ -39,12 +55,12 @@ export function AnnouncementBanner() {
     setDismissed(true);
   };
 
-  if (loading || dismissed || todayAnnouncements.length === 0) return null;
+  if (loading || dismissed || activeAnnouncements.length === 0) return null;
 
-  const marqueeText = todayAnnouncements.join("     •     ");
+  const marqueeText = activeAnnouncements.join("     •     ");
 
   return (
-    <div className="bg-primary text-primary-foreground py-2 px-4 relative overflow-hidden">
+    <div className="bg-primary text-primary-foreground py-2 px-4 relative overflow-hidden z-[100]">
       <div className="flex items-center gap-3">
         <Megaphone className="h-4 w-4 flex-shrink-0" />
         
