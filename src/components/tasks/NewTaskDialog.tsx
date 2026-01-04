@@ -16,9 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface NewTaskDialogProps {
   open: boolean;
@@ -30,7 +33,7 @@ interface NewTaskDialogProps {
     dueDate: string;
     status: "todo" | "in-progress" | "review" | "done";
     timeEstimate: string;
-    assigneeId: string | null;
+    assigneeIds: string[];
   }) => void;
   defaultStatus?: "todo" | "in-progress" | "review" | "done";
 }
@@ -49,10 +52,9 @@ export function NewTaskDialog({
   const [priority, setPriority] = useState<"high" | "medium" | "low">("medium");
   const [dueDate, setDueDate] = useState("");
   const [timeEstimate, setTimeEstimate] = useState("");
-  const [assigneeId, setAssigneeId] = useState<string>("");
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [status, setStatus] = useState<"todo" | "in-progress" | "review" | "done">(defaultStatus);
 
-  // Reset status when defaultStatus changes
   useEffect(() => {
     setStatus(defaultStatus);
   }, [defaultStatus]);
@@ -76,7 +78,7 @@ export function NewTaskDialog({
       dueDate,
       status,
       timeEstimate: timeEstimate || undefined,
-      assigneeId: assigneeId || null,
+      assigneeIds: selectedAssignees,
     });
 
     // Reset form
@@ -85,10 +87,38 @@ export function NewTaskDialog({
     setPriority("medium");
     setDueDate("");
     setTimeEstimate("");
-    setAssigneeId("");
+    setSelectedAssignees([]);
     setStatus(defaultStatus);
     onOpenChange(false);
   };
+
+  const toggleAssignee = (userId: string) => {
+    setSelectedAssignees(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
+  };
+
+  // Build list of assignable users (current user + employees with profile_id)
+  const assignableUsers = [
+    ...(user && profile ? [{
+      id: user.id,
+      name: `${profile.first_name} ${profile.last_name} (Me)`,
+      initials: getInitials(profile.first_name, profile.last_name),
+    }] : []),
+    ...employees
+      .filter(emp => emp.profile_id && emp.profile_id !== profile?.id)
+      .map(emp => ({
+        id: emp.profile_id!,
+        name: `${emp.first_name} ${emp.last_name}`,
+        initials: getInitials(emp.first_name, emp.last_name),
+      }))
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -175,29 +205,35 @@ export function NewTaskDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Assignee</Label>
-            <Select value={assigneeId} onValueChange={setAssigneeId}>
-              <SelectTrigger>
-                <SelectValue placeholder={employeesLoading ? "Loading..." : "Select assignee"} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {/* Show current user first if profile exists */}
-                {profile && user && (
-                  <SelectItem key={user.id} value={user.id}>
-                    {profile.first_name} {profile.last_name} (Me)
-                  </SelectItem>
-                )}
-                {/* Show other employees */}
-                {employees
-                  .filter(emp => emp.profile_id !== profile?.id)
-                  .map((emp) => (
-                    <SelectItem key={emp.id} value={emp.profile_id || emp.id}>
-                      {emp.first_name} {emp.last_name}
-                    </SelectItem>
+            <Label>Assign To ({selectedAssignees.length} selected)</Label>
+            <ScrollArea className="h-[150px] border rounded-md p-2">
+              {employeesLoading ? (
+                <p className="text-sm text-muted-foreground p-2">Loading...</p>
+              ) : assignableUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-2">No users available</p>
+              ) : (
+                <div className="space-y-2">
+                  {assignableUsers.map((assignee) => (
+                    <div
+                      key={assignee.id}
+                      className="flex items-center gap-3 p-2 rounded-md hover:bg-accent cursor-pointer"
+                      onClick={() => toggleAssignee(assignee.id)}
+                    >
+                      <Checkbox
+                        checked={selectedAssignees.includes(assignee.id)}
+                        onCheckedChange={() => toggleAssignee(assignee.id)}
+                      />
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          {assignee.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">{assignee.name}</span>
+                    </div>
                   ))}
-              </SelectContent>
-            </Select>
+                </div>
+              )}
+            </ScrollArea>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
