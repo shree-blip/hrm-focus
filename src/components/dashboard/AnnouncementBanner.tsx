@@ -4,6 +4,23 @@ import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAfter, parseISO } from "date-fns";
 
+// You can add this to your tailwind.config.js or global CSS,
+// or keep it here for a self-contained component.
+const marqueeStyles = `
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+    display: flex;
+    min-width: 100%;
+  }
+  .animate-marquee:hover {
+    animation-play-state: paused;
+  }
+`;
+
 const DISMISSED_KEY = "focus_announcement_banner_dismissed";
 
 export function AnnouncementBanner() {
@@ -56,26 +73,23 @@ export function AnnouncementBanner() {
 
   if (loading || dismissed || activeAnnouncements.length === 0) return null;
 
-  const marqueeText = activeAnnouncements.join("     •     ");
+  const marqueeText = activeAnnouncements.join("      •      ");
 
   return (
     <>
       <style>{marqueeStyles}</style>
 
-      {/* Changes made:
-        1. Changed 'max-w-' (broken class) to 'w-full' to ensure full width.
-        2. Added 'bg-blue-600' and 'text-white' to simulate 'bg-primary' for this preview.
+      {/* Restored 'bg-primary' and 'text-primary-foreground'.
+        Kept 'w-full' to ensure it spans the full screen width.
       */}
-      <div className="bg-blue-600 text-white py-2 px-4 relative overflow-hidden w-full shadow-sm">
+      <div className="bg-primary text-primary-foreground py-2 px-4 relative overflow-hidden w-full">
         <div className="flex items-center gap-3 w-full">
-          <Megaphone className="h-4 w-4 flex-shrink-0 text-white/90" />
+          <Megaphone className="h-4 w-4 flex-shrink-0" />
 
           <div className="flex-1 min-w-0 overflow-hidden relative" ref={scrollRef}>
-            {/* Wrapper to ensure smooth looping */}
             <div className="animate-marquee whitespace-nowrap flex items-center">
               <span className="text-sm font-medium px-4">{marqueeText}</span>
               <span className="text-sm font-medium px-4">{marqueeText}</span>
-              {/* Added extra copies to ensure no gaps on very wide screens */}
               <span className="text-sm font-medium px-4">{marqueeText}</span>
               <span className="text-sm font-medium px-4">{marqueeText}</span>
             </div>
@@ -83,7 +97,7 @@ export function AnnouncementBanner() {
 
           <button
             onClick={handleDismiss}
-            className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0 ml-2"
+            className="p-1 hover:bg-primary-foreground/20 rounded transition-colors flex-shrink-0 ml-2"
             aria-label="Dismiss announcements"
           >
             <X className="h-4 w-4" />
