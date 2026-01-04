@@ -244,6 +244,7 @@ export function TaskDetailDialog({
                     >
                       <Checkbox
                         checked={selectedAssignees.includes(assignee.id)}
+                        onClick={(e) => e.stopPropagation()}
                         onCheckedChange={() => toggleAssignee(assignee.id)}
                       />
                       <Avatar className="h-6 w-6">
