@@ -6,10 +6,12 @@ import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTeamPresence } from "@/hooks/useTeamPresence";
 
 export function TeamWidget() {
   const { employees, loading } = useEmployees();
   const { isManager, profile } = useAuth();
+  const { getStatus, getOnlineCount } = useTeamPresence();
 
   // For regular employees, show their own info; for managers, show team
   const displayMembers = employees.slice(0, 5);
@@ -18,13 +20,7 @@ export function TeamWidget() {
     return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
   };
 
-  // Simulate online status based on current time (in real app, this would come from presence data)
-  const getStatus = (index: number) => {
-    const statuses = ["online", "online", "away", "offline", "online"];
-    return statuses[index % statuses.length];
-  };
-
-  const onlineCount = displayMembers.filter((_, i) => getStatus(i) === "online").length;
+  const onlineCount = getOnlineCount();
 
   return (
     <Card className="animate-slide-up opacity-0" style={{ animationDelay: "500ms", animationFillMode: "forwards" }}>
@@ -73,8 +69,8 @@ export function TeamWidget() {
         ) : (
           // Show team members for managers
           <div className="space-y-3">
-            {displayMembers.map((member, index) => {
-              const status = getStatus(index);
+            {displayMembers.map((member) => {
+              const status = getStatus(member.id);
               return (
                 <div
                   key={member.id}
@@ -91,7 +87,7 @@ export function TeamWidget() {
                       className={cn(
                         "absolute -bottom-0.5 -right-0.5 h-3 w-3 fill-current stroke-card stroke-2",
                         status === "online" && "text-success",
-                        status === "away" && "text-warning",
+                        status === "break" && "text-warning",
                         status === "offline" && "text-muted-foreground"
                       )}
                     />
@@ -100,7 +96,11 @@ export function TeamWidget() {
                     <p className="font-medium text-sm truncate">
                       {member.first_name} {member.last_name}
                     </p>
-                    <p className="text-xs text-muted-foreground">{member.job_title || "Employee"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {member.job_title || "Employee"}
+                      {status === "online" && <span className="ml-2 text-success">• Working</span>}
+                      {status === "break" && <span className="ml-2 text-warning">• On Break</span>}
+                    </p>
                   </div>
                 </div>
               );
