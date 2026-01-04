@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
-interface TaskAssignee {
+export interface TaskAssignee {
   user_id: string;
   assigned_by: string;
   assigned_at: string;
@@ -11,7 +11,7 @@ interface TaskAssignee {
   assigner_name?: string;
 }
 
-interface Task {
+export interface Task {
   id: string;
   title: string;
   description: string | null;
@@ -51,22 +51,12 @@ export function useTasks() {
       }
 
       // Fetch task assignees
-      const { data: assigneesData, error: assigneesError } = await supabase
-        .from("task_assignees")
-        .select("*");
-      
-      if (assigneesError) {
-        console.error("Error fetching assignees:", assigneesError);
-      }
+      const { data: assigneesData } = await supabase.from("task_assignees").select("*");
 
       // Fetch profiles for names
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("user_id, first_name, last_name");
+      const { data: profilesData } = await supabase.from("profiles").select("user_id, first_name, last_name");
 
-      const profileMap = new Map(
-        (profilesData || []).map((p) => [p.user_id, `${p.first_name} ${p.last_name}`]),
-      );
+      const profileMap = new Map((profilesData || []).map((p) => [p.user_id, `${p.first_name} ${p.last_name}`]));
 
       // Map assignees to tasks with names
       const assigneesByTask = new Map<string, TaskAssignee[]>();
@@ -103,11 +93,7 @@ export function useTasks() {
     const channel = supabase
       .channel("tasks-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchTasks())
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "task_assignees" },
-        () => fetchTasks(),
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "task_assignees" }, () => fetchTasks())
       .subscribe();
 
     return () => {
@@ -122,7 +108,7 @@ export function useTasks() {
     assignee_ids?: string[];
     priority: "low" | "medium" | "high";
     status: "todo" | "in-progress" | "review" | "done";
-    due_date?: Date | string; // Allow string to prevent crashes from form inputs
+    due_date?: Date;
     time_estimate?: string;
     is_recurring?: boolean;
   }) => {
@@ -130,24 +116,13 @@ export function useTasks() {
 
     try {
       // Get org_id for the user
-      // Wrapped in try/catch specifically for RPC call safety
-      let orgId = null;
+      // Wrapped in try/catch to prevent RPC failures from crashing the whole flow
+      let orgData = null;
       try {
-        const { data: orgData, error: orgError } = await supabase.rpc("get_user_org_id", { _user_id: userId });
-        if (!orgError) orgId = orgData;
-        else console.warn("Error fetching org ID:", orgError);
-      } catch (err) {
-        console.warn("RPC call failed:", err);
-      }
-
-      // Safe Date Handling: Ensure we don't crash if a string is passed
-      let formattedDate = null;
-      if (task.due_date) {
-        try {
-          formattedDate = new Date(task.due_date).toISOString().split("T")[0];
-        } catch (e) {
-          console.error("Date formatting error:", e);
-        }
+        const { data } = await supabase.rpc("get_user_org_id", { _user_id: userId });
+        orgData = data;
+      } catch (rpcError) {
+        console.warn("Error fetching org_id:", rpcError);
       }
 
       const { data, error } = await supabase
@@ -159,10 +134,10 @@ export function useTasks() {
           created_by: userId,
           priority: task.priority,
           status: task.status,
-          due_date: formattedDate,
+          due_date: task.due_date?.toISOString().split("T")[0],
           time_estimate: task.time_estimate,
           is_recurring: task.is_recurring || false,
-          org_id: orgId,
+          org_id: orgData || null,
         })
         .select()
         .single();
@@ -177,8 +152,9 @@ export function useTasks() {
         return null;
       }
 
+      let createdAssignees: TaskAssignee[] = [];
+
       // Add assignees if provided
-      let currentAssignees: any[] = [];
       if (task.assignee_ids && task.assignee_ids.length > 0) {
         const assigneeInserts = task.assignee_ids.map((assigneeUserId) => ({
           task_id: data.id,
@@ -187,39 +163,44 @@ export function useTasks() {
         }));
 
         const { error: assigneeError } = await supabase.from("task_assignees").insert(assigneeInserts);
-        
+
         if (assigneeError) {
           console.error("Assignee insertion error:", assigneeError);
           toast({
             title: "Warning",
-            description: "Task created, but failed to add some assignees.",
+            description: "Task created but failed to assign users.",
             variant: "destructive",
           });
         } else {
-            // Mock the structure needed for the return value
-            currentAssignees = assigneeInserts.map(ai => ({
-                ...ai,
-                assigned_at: new Date().toISOString()
-            }));
+          // Construct optimistically formatted assignees for immediate UI feedback
+          createdAssignees = task.assignee_ids.map((id) => ({
+            user_id: id,
+            assigned_by: userId,
+            assigned_at: new Date().toISOString(),
+            // Names will be populated on next fetch, preventing "undefined" crash
+            assignee_name: "Loading...",
+            assigner_name: "Me",
+          }));
         }
       }
 
       toast({ title: "Task Created", description: "Your task has been added." });
-      
-      // We explicitly call fetchTasks to sync state, but we also return the formatted object
-      // so the UI doesn't crash if it tries to use the return value immediately
-      fetchTasks();
-      
-      return {
-        ...data,
-        assignees: currentAssignees
-      } as Task;
 
-    } catch (error: any) {
+      // Trigger a refresh from server
+      fetchTasks();
+
+      // Return the full task structure immediately so UI doesn't crash on .assignees.map
+      const fullTask: Task = {
+        ...data,
+        assignees: createdAssignees,
+      };
+
+      return fullTask;
+    } catch (error) {
       console.error("Unexpected error in createTask:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred: " + (error.message || "Unknown error"),
+        description: "An unexpected error occurred.",
         variant: "destructive",
       });
       return null;
@@ -227,28 +208,24 @@ export function useTasks() {
   };
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
-    try {
-        const { error } = await supabase
-        .from("tasks")
-        .update({
-            title: updates.title,
-            description: updates.description,
-            client_name: updates.client_name,
-            priority: updates.priority,
-            status: updates.status,
-            due_date: updates.due_date,
-            time_estimate: updates.time_estimate,
-        })
-        .eq("id", taskId);
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        title: updates.title,
+        description: updates.description,
+        client_name: updates.client_name,
+        priority: updates.priority,
+        status: updates.status,
+        due_date: updates.due_date,
+        time_estimate: updates.time_estimate,
+      })
+      .eq("id", taskId);
 
-        if (error) {
-        toast({ title: "Error", description: "Failed to update task", variant: "destructive" });
-        } else {
-        toast({ title: "Task Updated", description: "Changes saved successfully." });
-        fetchTasks();
-        }
-    } catch (error) {
-        console.error("Update task error", error);
+    if (error) {
+      toast({ title: "Error", description: "Failed to update task", variant: "destructive" });
+    } else {
+      toast({ title: "Task Updated", description: "Changes saved successfully." });
+      fetchTasks();
     }
   };
 
@@ -256,50 +233,46 @@ export function useTasks() {
     if (!userId) return;
 
     try {
-        // Delete existing assignees
-        await supabase.from("task_assignees").delete().eq("task_id", taskId);
+      // Delete existing assignees
+      await supabase.from("task_assignees").delete().eq("task_id", taskId);
 
-        // Add new assignees
-        if (assigneeIds.length > 0) {
+      // Add new assignees
+      if (assigneeIds.length > 0) {
         const assigneeInserts = assigneeIds.map((assigneeUserId) => ({
-            task_id: taskId,
-            user_id: assigneeUserId,
-            assigned_by: userId,
+          task_id: taskId,
+          user_id: assigneeUserId,
+          assigned_by: userId,
         }));
 
-        await supabase.from("task_assignees").insert(assigneeInserts);
-        }
+        const { error } = await supabase.from("task_assignees").insert(assigneeInserts);
+        if (error) throw error;
+      }
 
-        toast({ title: "Assignees Updated", description: "Task assignees have been updated." });
-        fetchTasks();
+      toast({ title: "Assignees Updated", description: "Task assignees have been updated." });
+      fetchTasks();
     } catch (error) {
-        console.error("Error updating assignees:", error);
-        toast({ title: "Error", description: "Failed to update assignees", variant: "destructive" });
+      console.error("Error updating assignees:", error);
+      toast({ title: "Error", description: "Failed to update assignees", variant: "destructive" });
     }
   };
 
   const updateTaskStatus = async (taskId: string, newStatus: Task["status"]) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-    
-    const { error } = await supabase
-      .from("tasks")
-      .update({ status: newStatus })
-      .eq("id", taskId);
+    // Optimistic update
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
+
+    const { error } = await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
 
     if (error) {
       toast({ title: "Error", description: "Failed to move task", variant: "destructive" });
-      fetchTasks();
+      fetchTasks(); // Revert on error
     }
   };
 
   const deleteTask = async (taskId: string) => {
     const previousTasks = tasks;
-    setTasks(prev => prev.filter(t => t.id !== taskId));
-    
-    const { error } = await supabase
-      .from("tasks")
-      .delete()
-      .eq("id", taskId);
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+
+    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
 
     if (error) {
       toast({ title: "Error", description: "Failed to delete task", variant: "destructive" });
