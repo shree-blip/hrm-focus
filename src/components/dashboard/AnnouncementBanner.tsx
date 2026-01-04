@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Megaphone, X } from "lucide-react";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
-import { isAfter, parseISO, startOfDay } from "date-fns";
+import { isAfter, parseISO } from "date-fns";
 
 const DISMISSED_KEY = "focus_announcement_banner_dismissed";
 
@@ -22,7 +22,6 @@ export function AnnouncementBanner() {
 
     // Filter active announcements that haven't expired
     const now = new Date();
-    const todayStart = startOfDay(now);
     
     const active = announcements.filter(a => {
       // Must be active
