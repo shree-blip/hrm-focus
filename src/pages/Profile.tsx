@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { 
   User, Mail, Phone, MapPin, Building2, Briefcase, Calendar, Save, Loader2, 
   Camera, Upload, X 
@@ -16,6 +17,7 @@ import {
 
 const Profile = () => {
   const { user, profile, role, refreshProfile } = useAuth();
+  const { signedUrl: avatarSignedUrl } = useAvatarUrl(profile?.avatar_url);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -88,7 +90,9 @@ const Profile = () => {
     try {
       // Delete old avatar if exists
       if (profile?.avatar_url) {
-        const oldPath = profile.avatar_url.split('/avatars/')[1];
+        const oldPath = profile.avatar_url.includes('/avatars/') 
+          ? profile.avatar_url.split('/avatars/')[1] 
+          : profile.avatar_url;
         if (oldPath) {
           await supabase.storage.from('avatars').remove([oldPath]);
         }
@@ -104,16 +108,11 @@ const Profile = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
-
-      // Update profile with new avatar URL
+      // Store the file path (not public URL) since bucket is now private
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
-          avatar_url: urlData.publicUrl,
+          avatar_url: fileName,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id);
@@ -148,7 +147,9 @@ const Profile = () => {
     setIsUploadingAvatar(true);
     try {
       // Delete from storage
-      const oldPath = profile.avatar_url.split('/avatars/')[1];
+      const oldPath = profile.avatar_url.includes('/avatars/') 
+        ? profile.avatar_url.split('/avatars/')[1] 
+        : profile.avatar_url;
       if (oldPath) {
         await supabase.storage.from('avatars').remove([oldPath]);
       }
@@ -274,7 +275,7 @@ const Profile = () => {
     ? `${profile.first_name?.[0] || ""}${profile.last_name?.[0] || ""}`
     : "??";
 
-  const displayAvatarUrl = avatarPreview || profile?.avatar_url || "";
+  const displayAvatarUrl = avatarPreview || avatarSignedUrl || "";
 
   return (
     <DashboardLayout>
