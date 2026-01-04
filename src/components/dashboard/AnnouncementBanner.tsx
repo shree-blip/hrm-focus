@@ -59,12 +59,12 @@ export function AnnouncementBanner() {
   const marqueeText = activeAnnouncements.join("     •     ");
 
   return (
-    <div className="bg-primary text-primary-foreground py-2 px-4 relative overflow-hidden z-[100]">
-      <div className="flex items-center gap-3">
+    <div className="bg-primary text-primary-foreground py-2 px-4 relative overflow-hidden max-w-full">
+      <div className="flex items-center gap-3 max-w-full">
         <Megaphone className="h-4 w-4 flex-shrink-0" />
         
-        <div className="flex-1 overflow-hidden" ref={scrollRef}>
-          <div className="animate-marquee whitespace-nowrap inline-block">
+        <div className="flex-1 min-w-0 overflow-hidden" ref={scrollRef}>
+          <div className="animate-marquee whitespace-nowrap">
             <span className="text-sm font-medium">{marqueeText}</span>
             <span className="text-sm font-medium ml-16">{marqueeText}</span>
           </div>
