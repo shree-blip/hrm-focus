@@ -1655,6 +1655,10 @@ export type Database = {
     Functions: {
       auto_clock_out_after_8_hours: { Args: never; Returns: number }
       can_create_employee: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_task: {
+        Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_view_salary: {
         Args: { _employee_id: string; _user_id: string }
         Returns: boolean
@@ -1714,6 +1718,10 @@ export type Database = {
         Returns: boolean
       }
       is_security_monitor: { Args: { _user_id: string }; Returns: boolean }
+      is_task_assignee: {
+        Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
       mark_signup_used: { Args: { check_email: string }; Returns: boolean }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }
