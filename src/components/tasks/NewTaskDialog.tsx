@@ -104,7 +104,7 @@ export function NewTaskDialog({
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
 
-  // Build list of assignable users (current user + employees with profile_id)
+  // Build list of assignable users (current user + employees with user_id)
   const assignableUsers = [
     ...(user && profile ? [{
       id: user.id,
@@ -112,9 +112,9 @@ export function NewTaskDialog({
       initials: getInitials(profile.first_name, profile.last_name),
     }] : []),
     ...employees
-      .filter(emp => emp.profile_id && emp.profile_id !== profile?.id)
+      .filter(emp => emp.user_id && emp.user_id !== user?.id)
       .map(emp => ({
-        id: emp.profile_id!,
+        id: emp.user_id!,
         name: `${emp.first_name} ${emp.last_name}`,
         initials: getInitials(emp.first_name, emp.last_name),
       }))

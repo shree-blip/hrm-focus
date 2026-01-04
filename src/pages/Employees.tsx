@@ -142,6 +142,7 @@ const Employees = () => {
       social_security: null,
       provident_fund: null,
       profile_id: null,
+      user_id: null,
       manager_id: data.managerId,
       line_manager_id: data.lineManagerId,
     });

@@ -122,6 +122,9 @@ export function useTasks() {
   }) => {
     if (!user) return;
 
+    // Get org_id for the user
+    const { data: orgData } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
+
     const { data, error } = await supabase
       .from("tasks")
       .insert({
@@ -134,12 +137,14 @@ export function useTasks() {
         due_date: task.due_date?.toISOString().split("T")[0],
         time_estimate: task.time_estimate,
         is_recurring: task.is_recurring || false,
+        org_id: orgData || null,
       })
       .select()
       .single();
 
     if (error) {
-      toast({ title: "Error", description: "Failed to create task", variant: "destructive" });
+      console.error("Task creation error:", error);
+      toast({ title: "Error", description: "Failed to create task: " + error.message, variant: "destructive" });
       return null;
     }
 
@@ -151,7 +156,10 @@ export function useTasks() {
         assigned_by: user.id,
       }));
 
-      await supabase.from("task_assignees").insert(assigneeInserts);
+      const { error: assigneeError } = await supabase.from("task_assignees").insert(assigneeInserts);
+      if (assigneeError) {
+        console.error("Assignee insertion error:", assigneeError);
+      }
     }
 
     toast({ title: "Task Created", description: "Your task has been added." });

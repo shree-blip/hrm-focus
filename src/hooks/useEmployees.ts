@@ -22,6 +22,7 @@ interface Employee {
   social_security: number | null;
   provident_fund: number | null;
   profile_id: string | null;
+  user_id: string | null; // The actual auth user_id for task assignment
   manager_id: string | null;
   line_manager_id: string | null;
 }
@@ -48,6 +49,15 @@ export function useEmployees() {
   const [loading, setLoading] = useState(true);
 
   const fetchEmployees = useCallback(async () => {
+    // Fetch profiles to get user_id mapping
+    const { data: profilesData } = await supabase
+      .from("profiles")
+      .select("id, user_id");
+    
+    const profileToUserMap = new Map(
+      (profilesData || []).map(p => [p.id, p.user_id])
+    );
+
     if (isManager) {
       // Managers use the secure salary view - only shows salaries for direct reports, admins, and VPs
       const { data, error } = await supabase
@@ -56,7 +66,11 @@ export function useEmployees() {
         .order("first_name", { ascending: true });
 
       if (!error && data) {
-        setEmployees(data as Employee[]);
+        const employeesWithUserId = data.map(emp => ({
+          ...emp,
+          user_id: emp.profile_id ? profileToUserMap.get(emp.profile_id) || null : null,
+        }));
+        setEmployees(employeesWithUserId as Employee[]);
       }
     } else {
       // Regular employees use the directory view (no sensitive data)
@@ -86,6 +100,7 @@ export function useEmployees() {
           social_security: null,
           provident_fund: null,
           profile_id: emp.profile_id,
+          user_id: emp.profile_id ? profileToUserMap.get(emp.profile_id) || null : null,
           manager_id: emp.manager_id,
           line_manager_id: emp.line_manager_id,
         }));
@@ -131,7 +146,7 @@ export function useEmployees() {
     } else {
       toast({ title: "Employee Added", description: `${employee.first_name} ${employee.last_name} has been added.` });
       fetchEmployees();
-      return data as Employee;
+      return { ...data, user_id: null } as Employee;
     }
   };
 
