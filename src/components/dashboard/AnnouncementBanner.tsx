@@ -4,8 +4,36 @@ import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAfter, parseISO } from "date-fns";
 
-// You can add this to your tailwind.config.js or global CSS,
-// or keep it here for a self-contained component.
+const useAuth = () => ({
+  user: { id: "user_123" },
+});
+
+const useAnnouncements = () => ({
+  loading: false,
+  announcements: [
+    {
+      id: "1",
+      is_active: true,
+      title: "Maintenance",
+      content: "Scheduled maintenance at midnight EST",
+      publisher_name: "DevOps",
+      expires_at: "2099-01-01T00:00:00Z",
+    },
+    {
+      id: "2",
+      is_active: true,
+      title: "New Feature",
+      content: "Dark mode is now available in settings!",
+      publisher_name: "Product Team",
+      expires_at: "2099-01-01T00:00:00Z",
+    },
+  ],
+});
+
+const parseISO = (dateStr: string) => new Date(dateStr);
+const isAfter = (date: Date, now: Date) => date > now;
+// ---------------------------------------------------------
+
 const marqueeStyles = `
   @keyframes marquee {
     0% { transform: translateX(0); }
@@ -23,7 +51,7 @@ const marqueeStyles = `
 
 const DISMISSED_KEY = "focus_announcement_banner_dismissed";
 
-export function AnnouncementBanner() {
+export default function AnnouncementBanner() {
   const { user } = useAuth();
   const { announcements, loading } = useAnnouncements();
   const [dismissed, setDismissed] = useState(false);
@@ -79,8 +107,8 @@ export function AnnouncementBanner() {
     <>
       <style>{marqueeStyles}</style>
 
-      {/* Restored 'bg-primary' and 'text-primary-foreground'.
-        Kept 'w-full' to ensure it spans the full screen width.
+      {/* w-full ensures the banner spans the full width of the screen.
+         bg-primary/text-primary-foreground uses your theme variables.
       */}
       <div className="bg-primary text-primary-foreground py-2 px-4 relative overflow-hidden w-full">
         <div className="flex items-center gap-3 w-full">
