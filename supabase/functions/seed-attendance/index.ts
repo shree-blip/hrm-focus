@@ -27,22 +27,26 @@ function isWeekday(date: Date): boolean {
   return day !== 0 && day !== 6;
 }
 
-// Get all weekdays in a month
-function getWeekdaysInMonth(year: number, month: number): Date[] {
+// Get all weekdays between two dates
+function getWeekdaysBetween(startDate: Date, endDate: Date): Date[] {
   const weekdays: Date[] = [];
-  const date = new Date(year, month, 1);
+  const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0);
   
-  while (date.getMonth() === month) {
-    if (isWeekday(date)) {
-      weekdays.push(new Date(date));
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+  
+  while (current <= end) {
+    if (isWeekday(current)) {
+      weekdays.push(new Date(current));
     }
-    date.setDate(date.getDate() + 1);
+    current.setDate(current.getDate() + 1);
   }
   
   return weekdays;
 }
 
-// Format time to ISO string with timezone
+// Format time to ISO string
 function formatDateTime(date: Date, hours: number, minutes: number): string {
   const d = new Date(date);
   d.setHours(hours, minutes, 0, 0);
@@ -60,82 +64,117 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get all employees
+    // Get all active employees with their profile user_id
     const { data: employees, error: empError } = await supabase
       .from("employees")
-      .select("id, first_name, last_name, email")
+      .select(`
+        id, 
+        first_name, 
+        last_name, 
+        email,
+        profile_id,
+        profiles!employees_profile_id_fkey (
+          user_id
+        )
+      `)
       .eq("status", "active");
 
     if (empError) {
       throw new Error(`Failed to fetch employees: ${empError.message}`);
     }
 
-    console.log(`Found ${employees.length} employees`);
+    console.log(`Found ${employees?.length || 0} active employees`);
 
     // Fixed seed for reproducibility
     const SEED = 20250101;
-    const rng = mulberry32(SEED);
-
-    const attendanceRecords: any[] = [];
     
+    const attendanceRecords: {
+      employee_id: string;
+      user_id: string;
+      clock_in: string;
+      clock_out: string;
+      clock_type: string;
+      status: string;
+      total_break_minutes: number;
+      location_name: string;
+    }[] = [];
+    
+    // Date range: Jan 1, 2025 to today
+    const startDate = new Date(2025, 0, 1); // January 1, 2025
+    const endDate = new Date(); // Today
+    endDate.setDate(endDate.getDate() - 1); // Exclude today (so users can clock in today)
+    
+    const allWeekdays = getWeekdaysBetween(startDate, endDate);
+    console.log(`Processing ${allWeekdays.length} weekdays from ${startDate.toDateString()} to ${endDate.toDateString()}`);
+
     // Generate data for each employee
-    for (let empIndex = 0; empIndex < employees.length; empIndex++) {
-      const employee = employees[empIndex];
+    for (let empIndex = 0; empIndex < (employees?.length || 0); empIndex++) {
+      const employee = employees![empIndex];
+      
+      // Get user_id from profile, or use employee id as fallback for seed data
+      const profileData = employee.profiles as unknown;
+      let userId: string | null = null;
+      
+      if (Array.isArray(profileData) && profileData.length > 0) {
+        userId = (profileData[0] as { user_id: string }).user_id;
+      } else if (profileData && typeof profileData === 'object' && profileData !== null) {
+        const prof = profileData as { user_id?: string };
+        userId = prof.user_id || null;
+      }
+      
+      // Use employee id as fallback for employees without profiles
+      // This allows seeding attendance data for demo purposes
+      const finalUserId: string = userId || employee.id;
       
       // Use employee index as additional seed variation
       const empRng = mulberry32(SEED + empIndex * 1000);
       
-      // For each month in 2025 (0-11)
-      for (let month = 0; month < 12; month++) {
-        const weekdays = getWeekdaysInMonth(2025, month);
-        
-        // Randomly select 18-22 workdays per month
-        const numWorkdays = randomInRange(empRng, 18, Math.min(22, weekdays.length));
-        
-        // Shuffle weekdays and take first numWorkdays
-        const shuffled = [...weekdays].sort(() => empRng() - 0.5);
-        const selectedDays = shuffled.slice(0, numWorkdays).sort((a, b) => a.getTime() - b.getTime());
-        
-        for (const day of selectedDays) {
-          // Clock-in: 09:00 - 10:15 (540-615 minutes from midnight)
-          const clockInMinutes = randomInRange(empRng, 540, 615);
-          const clockInHour = Math.floor(clockInMinutes / 60);
-          const clockInMin = clockInMinutes % 60;
-          
-          // Clock-out: 17:30 - 19:15 (1050-1155 minutes from midnight)
-          const clockOutMinutes = randomInRange(empRng, 1050, 1155);
-          const clockOutHour = Math.floor(clockOutMinutes / 60);
-          const clockOutMin = clockOutMinutes % 60;
-          
-          // Random break: 0, 15, 30, 45, or 60 minutes
-          const breakOptions = [0, 15, 30, 45, 60];
-          const breakMinutes = breakOptions[randomInRange(empRng, 0, 4)];
-          
-          attendanceRecords.push({
-            employee_id: employee.id,
-            user_id: employee.id, // Use employee id as user_id placeholder
-            clock_in: formatDateTime(day, clockInHour, clockInMin),
-            clock_out: formatDateTime(day, clockOutHour, clockOutMin),
-            clock_type: "payroll",
-            status: "completed",
-            total_break_minutes: breakMinutes,
-            location_name: "Office",
-          });
+      // For each weekday, generate an 8-hour workday
+      for (const day of allWeekdays) {
+        // Skip some days randomly (attendance rate ~90-95%)
+        if (empRng() > 0.93) {
+          continue; // Skip this day (absence)
         }
+        
+        // Clock-in: between 8:00 AM and 9:30 AM (randomized)
+        const clockInMinutes = randomInRange(empRng, 480, 570); // 480 = 8:00 AM, 570 = 9:30 AM
+        const clockInHour = Math.floor(clockInMinutes / 60);
+        const clockInMin = clockInMinutes % 60;
+        
+        // Clock-out: exactly 8 hours after clock-in (no break deduction for simplicity)
+        // Clock-out time = clock-in + 8 hours
+        const clockOutMinutes = clockInMinutes + 480; // 480 minutes = 8 hours
+        const clockOutHour = Math.floor(clockOutMinutes / 60);
+        const clockOutMin = clockOutMinutes % 60;
+        
+        // No breaks for clean 8-hour days
+        const breakMinutes = 0;
+        
+        attendanceRecords.push({
+          employee_id: employee.id,
+          user_id: finalUserId,
+          clock_in: formatDateTime(day, clockInHour, clockInMin),
+          clock_out: formatDateTime(day, clockOutHour, clockOutMin),
+          clock_type: "payroll",
+          status: "completed",
+          total_break_minutes: breakMinutes,
+          location_name: "Office",
+        });
       }
     }
 
     console.log(`Generated ${attendanceRecords.length} attendance records`);
 
-    // Delete existing 2025 attendance data (to allow re-running)
+    // Delete all existing attendance data first
     const { error: deleteError } = await supabase
       .from("attendance_logs")
       .delete()
-      .gte("clock_in", "2025-01-01T00:00:00Z")
-      .lte("clock_in", "2025-12-31T23:59:59Z");
+      .gte("clock_in", "2020-01-01T00:00:00Z");
 
     if (deleteError) {
       console.warn("Delete warning:", deleteError.message);
+    } else {
+      console.log("Deleted existing attendance data");
     }
 
     // Insert in batches of 500
@@ -149,7 +188,7 @@ Deno.serve(async (req) => {
         .insert(batch);
       
       if (insertError) {
-        throw new Error(`Failed to insert batch ${i / batchSize}: ${insertError.message}`);
+        throw new Error(`Failed to insert batch ${Math.floor(i / batchSize)}: ${insertError.message}`);
       }
       
       insertedCount += batch.length;
@@ -159,9 +198,14 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Seeded ${attendanceRecords.length} attendance records for ${employees.length} employees`,
-        employeeCount: employees.length,
+        message: `Seeded ${attendanceRecords.length} attendance records for ${employees?.length || 0} employees`,
+        employeeCount: employees?.length || 0,
         recordCount: attendanceRecords.length,
+        dateRange: {
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          weekdays: allWeekdays.length
+        }
       }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },

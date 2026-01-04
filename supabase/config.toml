@@ -1,1 +1,13 @@
 project_id = "xjjrqafwxqkehlxudmoj"
+
+[functions.auto-clock-out]
+verify_jwt = false
+
+[functions.generate-payslip]
+verify_jwt = true
+
+[functions.bulk-payslip-download]
+verify_jwt = true
+
+[functions.seed-attendance]
+verify_jwt = false
