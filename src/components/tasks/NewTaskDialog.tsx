@@ -55,9 +55,18 @@ export function NewTaskDialog({
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [status, setStatus] = useState<"todo" | "in-progress" | "review" | "done">(defaultStatus);
 
+  // Reset form when dialog opens
   useEffect(() => {
-    setStatus(defaultStatus);
-  }, [defaultStatus]);
+    if (open) {
+      setStatus(defaultStatus);
+      setTitle("");
+      setClient("");
+      setPriority("medium");
+      setDueDate("");
+      setTimeEstimate("");
+      setSelectedAssignees([]);
+    }
+  }, [open, defaultStatus]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,14 +90,6 @@ export function NewTaskDialog({
       assigneeIds: selectedAssignees,
     });
 
-    // Reset form
-    setTitle("");
-    setClient("");
-    setPriority("medium");
-    setDueDate("");
-    setTimeEstimate("");
-    setSelectedAssignees([]);
-    setStatus(defaultStatus);
     onOpenChange(false);
   };
 
