@@ -3,6 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
+interface TaskAssignee {
+  user_id: string;
+  assigned_by: string;
+  assigned_at: string;
+  assignee_name?: string;
+  assigner_name?: string;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -10,12 +18,14 @@ interface Task {
   client_name: string | null;
   assignee_id: string | null;
   created_by: string;
+  created_by_name?: string;
   priority: "low" | "medium" | "high";
   status: "todo" | "in-progress" | "review" | "done";
   due_date: string | null;
   time_estimate: string | null;
   is_recurring: boolean;
   created_at: string;
+  assignees?: TaskAssignee[];
 }
 
 export function useTasks() {
@@ -26,19 +36,53 @@ export function useTasks() {
   const fetchTasks = useCallback(async () => {
     if (!user) return;
 
-    // RLS now enforces task visibility:
-    // - Managers/VPs/Admins can see all tasks (via RLS policy)
-    // - Regular employees can only see tasks they created or are assigned to (via RLS policy)
-    const query = supabase
+    // Fetch tasks
+    const { data: tasksData, error: tasksError } = await supabase
       .from("tasks")
       .select("*")
       .order("created_at", { ascending: false });
 
-    const { data, error } = await query;
-
-    if (!error && data) {
-      setTasks(data as Task[]);
+    if (tasksError) {
+      console.error("Error fetching tasks:", tasksError);
+      setLoading(false);
+      return;
     }
+
+    // Fetch task assignees
+    const { data: assigneesData } = await supabase
+      .from("task_assignees")
+      .select("*");
+
+    // Fetch profiles for names
+    const { data: profilesData } = await supabase
+      .from("profiles")
+      .select("user_id, first_name, last_name");
+
+    const profileMap = new Map(
+      (profilesData || []).map(p => [p.user_id, `${p.first_name} ${p.last_name}`])
+    );
+
+    // Map assignees to tasks with names
+    const assigneesByTask = new Map<string, TaskAssignee[]>();
+    (assigneesData || []).forEach(a => {
+      const taskAssignees = assigneesByTask.get(a.task_id) || [];
+      taskAssignees.push({
+        user_id: a.user_id,
+        assigned_by: a.assigned_by,
+        assigned_at: a.assigned_at,
+        assignee_name: profileMap.get(a.user_id) || "Unknown",
+        assigner_name: profileMap.get(a.assigned_by) || "Unknown",
+      });
+      assigneesByTask.set(a.task_id, taskAssignees);
+    });
+
+    const tasksWithAssignees = (tasksData || []).map(task => ({
+      ...task,
+      created_by_name: profileMap.get(task.created_by) || "Unknown",
+      assignees: assigneesByTask.get(task.id) || [],
+    })) as Task[];
+
+    setTasks(tasksWithAssignees);
     setLoading(false);
   }, [user]);
 
@@ -51,15 +95,12 @@ export function useTasks() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tasks' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setTasks(prev => [payload.new as Task, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            setTasks(prev => prev.map(t => t.id === (payload.new as Task).id ? payload.new as Task : t));
-          } else if (payload.eventType === 'DELETE') {
-            setTasks(prev => prev.filter(t => t.id !== (payload.old as { id: string }).id));
-          }
-        }
+        () => fetchTasks()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'task_assignees' },
+        () => fetchTasks()
       )
       .subscribe();
 
@@ -72,7 +113,7 @@ export function useTasks() {
     title: string;
     description?: string;
     client_name?: string;
-    assignee_id?: string;
+    assignee_ids?: string[];
     priority: "low" | "medium" | "high";
     status: "todo" | "in-progress" | "review" | "done";
     due_date?: Date;
@@ -87,7 +128,6 @@ export function useTasks() {
         title: task.title,
         description: task.description,
         client_name: task.client_name,
-        assignee_id: task.assignee_id,
         created_by: user.id,
         priority: task.priority,
         status: task.status,
@@ -101,33 +141,68 @@ export function useTasks() {
     if (error) {
       toast({ title: "Error", description: "Failed to create task", variant: "destructive" });
       return null;
-    } else {
-      // Optimistically add the new task to the list
-      setTasks(prev => [data as Task, ...prev]);
-      toast({ title: "Task Created", description: "Your task has been added." });
-      return data as Task;
     }
+
+    // Add assignees if provided
+    if (task.assignee_ids && task.assignee_ids.length > 0) {
+      const assigneeInserts = task.assignee_ids.map(userId => ({
+        task_id: data.id,
+        user_id: userId,
+        assigned_by: user.id,
+      }));
+
+      await supabase.from("task_assignees").insert(assigneeInserts);
+    }
+
+    toast({ title: "Task Created", description: "Your task has been added." });
+    fetchTasks();
+    return data as Task;
   };
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("tasks")
-      .update(updates)
-      .eq("id", taskId)
-      .select()
-      .single();
+      .update({
+        title: updates.title,
+        description: updates.description,
+        client_name: updates.client_name,
+        priority: updates.priority,
+        status: updates.status,
+        due_date: updates.due_date,
+        time_estimate: updates.time_estimate,
+      })
+      .eq("id", taskId);
 
     if (error) {
       toast({ title: "Error", description: "Failed to update task", variant: "destructive" });
     } else {
-      // Optimistically update the task in the list
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...data } as Task : t));
       toast({ title: "Task Updated", description: "Changes saved successfully." });
+      fetchTasks();
     }
   };
 
+  const updateTaskAssignees = async (taskId: string, assigneeIds: string[]) => {
+    if (!user) return;
+
+    // Delete existing assignees
+    await supabase.from("task_assignees").delete().eq("task_id", taskId);
+
+    // Add new assignees
+    if (assigneeIds.length > 0) {
+      const assigneeInserts = assigneeIds.map(userId => ({
+        task_id: taskId,
+        user_id: userId,
+        assigned_by: user.id,
+      }));
+
+      await supabase.from("task_assignees").insert(assigneeInserts);
+    }
+
+    toast({ title: "Assignees Updated", description: "Task assignees have been updated." });
+    fetchTasks();
+  };
+
   const updateTaskStatus = async (taskId: string, newStatus: Task["status"]) => {
-    // Optimistically update the status
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
     
     const { error } = await supabase
@@ -137,13 +212,11 @@ export function useTasks() {
 
     if (error) {
       toast({ title: "Error", description: "Failed to move task", variant: "destructive" });
-      // Revert on error
       fetchTasks();
     }
   };
 
   const deleteTask = async (taskId: string) => {
-    // Optimistically remove the task
     const previousTasks = tasks;
     setTasks(prev => prev.filter(t => t.id !== taskId));
     
@@ -154,7 +227,6 @@ export function useTasks() {
 
     if (error) {
       toast({ title: "Error", description: "Failed to delete task", variant: "destructive" });
-      // Revert on error
       setTasks(previousTasks);
     } else {
       toast({ title: "Task Deleted", description: "Task has been removed." });
@@ -166,6 +238,7 @@ export function useTasks() {
     loading,
     createTask,
     updateTask,
+    updateTaskAssignees,
     updateTaskStatus,
     deleteTask,
     refetch: fetchTasks,

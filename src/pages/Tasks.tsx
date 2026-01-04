@@ -6,22 +6,32 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, MoreHorizontal, Clock, AlertCircle, GripVertical, CheckCircle2, Circle, Timer, Loader2 } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Clock, AlertCircle, GripVertical, CheckCircle2, Circle, Timer, Loader2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 import { useTasks } from "@/hooks/useTasks";
 import { format } from "date-fns";
 
+interface TaskAssignee {
+  user_id: string;
+  assigned_by: string;
+  assigned_at: string;
+  assignee_name?: string;
+  assigner_name?: string;
+}
+
 interface TaskUI {
   id: string;
   title: string;
   client: string;
-  assignee: { name: string; initials: string };
   priority: "high" | "medium" | "low";
   dueDate: string;
   status: "todo" | "in-progress" | "review" | "done";
   timeEstimate: string;
+  created_by?: string;
+  created_by_name?: string;
+  assignees?: TaskAssignee[];
 }
 
 const columns = [
@@ -32,7 +42,7 @@ const columns = [
 ];
 
 const Tasks = () => {
-  const { tasks, loading, createTask, updateTask, updateTaskStatus, deleteTask } = useTasks();
+  const { tasks, loading, createTask, updateTask, updateTaskAssignees, updateTaskStatus, deleteTask } = useTasks();
   const [searchQuery, setSearchQuery] = useState("");
   const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
   const [newTaskDefaultStatus, setNewTaskDefaultStatus] = useState<TaskUI["status"]>("todo");
@@ -45,11 +55,13 @@ const Tasks = () => {
     id: task.id,
     title: task.title,
     client: task.client_name || "Internal",
-    assignee: { name: "Assigned", initials: "??" },
     priority: (task.priority as "high" | "medium" | "low") || "medium",
     dueDate: task.due_date ? format(new Date(task.due_date), "MMM d") : "No date",
     status: (task.status?.replace("_", "-") as TaskUI["status"]) || "todo",
     timeEstimate: task.time_estimate || "-",
+    created_by: task.created_by,
+    created_by_name: task.created_by_name,
+    assignees: task.assignees,
   }));
 
   const getTasksByStatus = (status: string) => transformedTasks.filter((task) => 
@@ -65,12 +77,11 @@ const Tasks = () => {
     dueDate: string;
     status: "todo" | "in-progress" | "review" | "done";
     timeEstimate?: string;
-    assigneeId: string | null;
+    assigneeIds: string[];
   }) => {
     const statusDbMap: Record<string, "todo" | "in-progress" | "review" | "done"> = { 
       "in-progress": "in-progress", "todo": "todo", "review": "review", "done": "done" 
     };
-    // Parse due date from string (format: YYYY-MM-DD)
     const dueDate = task.dueDate && task.dueDate !== "No date" ? new Date(task.dueDate) : undefined;
     
     await createTask({
@@ -81,7 +92,7 @@ const Tasks = () => {
       status: statusDbMap[task.status] || "todo",
       time_estimate: task.timeEstimate,
       description: undefined,
-      assignee_id: task.assigneeId === "unassigned" ? undefined : task.assigneeId || undefined,
+      assignee_ids: task.assigneeIds,
     });
   };
 
@@ -94,6 +105,10 @@ const Tasks = () => {
       time_estimate: updatedTask.timeEstimate,
     });
     setTaskDetailOpen(false);
+  };
+
+  const handleUpdateAssignees = async (taskId: string, assigneeIds: string[]) => {
+    await updateTaskAssignees(taskId, assigneeIds);
   };
 
   const handleDeleteTask = async (taskId: string) => {
@@ -117,6 +132,11 @@ const Tasks = () => {
       await updateTaskStatus(draggedTask.id, newStatus);
     }
     setDraggedTask(null);
+  };
+
+  const getInitials = (name: string) => {
+    const parts = name.split(" ");
+    return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`.toUpperCase();
   };
 
   if (loading) {
@@ -185,8 +205,35 @@ const Tasks = () => {
                       </div>
                       <h4 className="font-medium text-sm mb-1 line-clamp-2" title={task.title}>{task.title}</h4>
                       <p className="text-xs text-muted-foreground mb-3" title={task.client}>{task.client}</p>
+                      
+                      {/* Show who assigned the task */}
+                      {task.created_by_name && (
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-2">
+                          <User className="h-3 w-3" />
+                          <span>by {task.created_by_name}</span>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between">
-                        <Avatar className="h-6 w-6"><AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">{task.assignee.initials}</AvatarFallback></Avatar>
+                        {/* Show assignees */}
+                        <div className="flex -space-x-1">
+                          {task.assignees && task.assignees.length > 0 ? (
+                            task.assignees.slice(0, 3).map((assignee, idx) => (
+                              <Avatar key={idx} className="h-6 w-6 border-2 border-background">
+                                <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                                  {getInitials(assignee.assignee_name || "?")}
+                                </AvatarFallback>
+                              </Avatar>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Unassigned</span>
+                          )}
+                          {task.assignees && task.assignees.length > 3 && (
+                            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs border-2 border-background">
+                              +{task.assignees.length - 3}
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{task.timeEstimate}</span>
                           <span className={cn("flex items-center gap-1", task.dueDate === "Today" && "text-destructive font-medium")}>{task.dueDate === "Today" && <AlertCircle className="h-3 w-3" />}{task.dueDate}</span>
@@ -219,7 +266,14 @@ const Tasks = () => {
       </div>
 
       <NewTaskDialog open={newTaskDialogOpen} onOpenChange={setNewTaskDialogOpen} onSubmit={handleAddTask} defaultStatus={newTaskDefaultStatus} />
-      <TaskDetailDialog task={selectedTask} open={taskDetailOpen} onOpenChange={setTaskDetailOpen} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} />
+      <TaskDetailDialog 
+        task={selectedTask} 
+        open={taskDetailOpen} 
+        onOpenChange={setTaskDetailOpen} 
+        onUpdate={handleUpdateTask} 
+        onDelete={handleDeleteTask}
+        onUpdateAssignees={handleUpdateAssignees}
+      />
     </DashboardLayout>
   );
 };

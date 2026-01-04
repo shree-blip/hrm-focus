@@ -26,6 +26,11 @@ export function TasksWidget() {
   const isCompleted = (status: string) => status === "done";
   const isInProgress = (status: string) => status === "in-progress";
 
+  const getInitials = (name: string) => {
+    const parts = name.split(" ");
+    return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`.toUpperCase();
+  };
+
   return (
     <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms", animationFillMode: "forwards" }}>
       <CardHeader className="pb-3">
@@ -84,6 +89,11 @@ export function TasksWidget() {
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {task.client_name || "No client"}
                   </p>
+                  {task.created_by_name && (
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                      by {task.created_by_name}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <Badge
