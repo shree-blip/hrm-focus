@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 
 type AppRole = "admin" | "vp" | "manager" | "employee" | "supervisor" | "line_manager";
 
@@ -40,6 +39,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -49,22 +50,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLineManager, setIsLineManager] = useState(false);
   const [canCreateEmployee, setCanCreateEmployee] = useState(false);
 
-  // Check if email is in the allowlist (employees table)
+  // Check if email exists as an active employee (employees table OR employee_directory view)
   const checkAllowlist = async (email: string): Promise<boolean> => {
+    const safeEmail = normalizeEmail(email);
+
     try {
-      const { data, error } = await supabase
+      // Prefer employees table
+      const { data: employees, error: empError } = await supabase
         .from("employees")
         .select("id")
-        .ilike("email", email)
+        .ilike("email", safeEmail)
         .eq("status", "active")
-        .maybeSingle();
-      
-      if (error) {
-        console.error("Allowlist check error:", error);
+        .limit(1);
+
+      if (empError) {
+        console.error("Allowlist check (employees) error:", empError);
+      }
+
+      if (employees && employees.length > 0) return true;
+
+      // Fallback to the directory view (covers cases where signup is allowed but row is not in employees)
+      const { data: directory, error: dirError } = await supabase
+        .from("employee_directory")
+        .select("id")
+        .ilike("email", safeEmail)
+        .eq("status", "active")
+        .limit(1);
+
+      if (dirError) {
+        console.error("Allowlist check (employee_directory) error:", dirError);
         return false;
       }
-      
-      return !!data;
+
+      return !!(directory && directory.length > 0);
     } catch (err) {
       console.error("Allowlist check exception:", err);
       return false;
@@ -73,47 +91,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Check allowlist for any login event
-        if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-          const email = session.user.email;
-          if (email) {
-            // Use setTimeout to prevent deadlock, then check allowlist
-            setTimeout(async () => {
-              const isAllowed = await checkAllowlist(email);
-              if (!isAllowed) {
-                // Sign out immediately if not on allowlist
-                console.warn(`Email ${email} not on allowlist, signing out`);
-                await supabase.auth.signOut();
-                setUser(null);
-                setSession(null);
-                setProfile(null);
-                setRole(null);
-                setIsLineManager(false);
-                setCanCreateEmployee(false);
-                // Store rejection reason for UI to display
-                sessionStorage.setItem('auth_rejected', 'not_allowed');
-                return;
-              }
-              
-              // Allowed - fetch profile and role
-              fetchProfile(session.user.id);
-              fetchRole(session.user.id);
-              fetchLineManagerStatus(session.user.id);
-            }, 0);
-          }
-        } else if (!session?.user) {
-          setProfile(null);
-          setRole(null);
-          setIsLineManager(false);
-          setCanCreateEmployee(false);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      // Check allowlist for any login event
+      if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+        const email = session.user.email;
+        if (email) {
+          // Use setTimeout to prevent deadlock, then check allowlist
+          setTimeout(async () => {
+            const isAllowed = await checkAllowlist(email);
+            if (!isAllowed) {
+              // Sign out immediately if not on allowlist
+              console.warn(`Email ${email} not on allowlist, signing out`);
+              await supabase.auth.signOut();
+              setUser(null);
+              setSession(null);
+              setProfile(null);
+              setRole(null);
+              setIsLineManager(false);
+              setCanCreateEmployee(false);
+              // Store rejection reason for UI to display
+              sessionStorage.setItem("auth_rejected", "not_allowed");
+              return;
+            }
+
+            // Allowed - fetch profile and role
+            fetchProfile(session.user.id);
+            fetchRole(session.user.id);
+            fetchLineManagerStatus(session.user.id);
+          }, 0);
         }
+      } else if (!session?.user) {
+        setProfile(null);
+        setRole(null);
+        setIsLineManager(false);
+        setCanCreateEmployee(false);
       }
-    );
+    });
 
     // THEN check for existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -127,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await supabase.auth.signOut();
             setUser(null);
             setSession(null);
-            sessionStorage.setItem('auth_rejected', 'not_allowed');
+            sessionStorage.setItem("auth_rejected", "not_allowed");
           } else {
             fetchProfile(session.user.id);
             fetchRole(session.user.id);
@@ -140,7 +158,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
-
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
@@ -187,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizeEmail(email),
       password,
     });
     return { error };
@@ -195,9 +212,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signUp({
-      email,
+      email: normalizeEmail(email),
       password,
       options: {
         emailRedirectTo: redirectUrl,
