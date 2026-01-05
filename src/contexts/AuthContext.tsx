@@ -51,14 +51,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check if email is in the allowlist (employees table)
   const checkAllowlist = async (email: string): Promise<boolean> => {
-    const { data, error } = await supabase
-      .from("employees")
-      .select("id")
-      .ilike("email", email)
-      .eq("status", "active")
-      .single();
-    
-    return !error && !!data;
+    try {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id")
+        .ilike("email", email)
+        .eq("status", "active")
+        .maybeSingle();
+      
+      if (error) {
+        console.error("Allowlist check error:", error);
+        return false;
+      }
+      
+      return !!data;
+    } catch (err) {
+      console.error("Allowlist check exception:", err);
+      return false;
+    }
   };
 
   useEffect(() => {
