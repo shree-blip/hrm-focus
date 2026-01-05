@@ -1723,6 +1723,7 @@ export type Database = {
         Returns: boolean
       }
       mark_signup_used: { Args: { check_email: string }; Returns: boolean }
+      sync_profile_with_employee: { Args: never; Returns: undefined }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
