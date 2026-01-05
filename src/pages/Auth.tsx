@@ -31,6 +31,8 @@ export default function Auth() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isRightPanelActive, setIsRightPanelActive] = useState(false);
 
+  const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
   // Quote state
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(true);
@@ -45,7 +47,7 @@ export default function Auth() {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  
+
   // Email validation state
   const [emailValid, setEmailValid] = useState<boolean | null>(null);
   const [emailChecking, setEmailChecking] = useState(false);
@@ -67,9 +69,9 @@ export default function Auth() {
           if (fallbackResponse.ok) {
             const quotes = await fallbackResponse.json();
             const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-            setQuote({ 
-              text: randomQuote.text, 
-              author: randomQuote.author?.replace(', type.fit', '') || 'Unknown' 
+            setQuote({
+              text: randomQuote.text,
+              author: randomQuote.author?.replace(', type.fit', '') || 'Unknown'
             });
           }
         }
@@ -107,8 +109,10 @@ export default function Auth() {
 
   // Check if email is in allowed list when user types - with proper debouncing
   useEffect(() => {
+    const normalized = normalizeEmail(signupEmail);
+
     // Reset validation state immediately if email is empty or invalid format
-    if (!signupEmail || !emailSchema.safeParse(signupEmail).success) {
+    if (!normalized || !emailSchema.safeParse(normalized).success) {
       setEmailValid(null);
       setEmailError("");
       return;
@@ -121,7 +125,7 @@ export default function Auth() {
 
     const debounce = setTimeout(async () => {
       const { data, error } = await supabase.rpc('verify_signup_email', {
-        check_email: signupEmail.toLowerCase()
+        check_email: normalized
       });
 
       if (error) {
@@ -170,29 +174,31 @@ export default function Auth() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!loginEmail.trim()) {
+
+    const normalized = normalizeEmail(loginEmail);
+
+    if (!normalized) {
       toast({ title: "Email Required", description: "Please enter your email address.", variant: "destructive" });
       return;
     }
-    
+
     if (!loginPassword) {
       toast({ title: "Password Required", description: "Please enter your password.", variant: "destructive" });
       return;
     }
 
-    const emailResult = emailSchema.safeParse(loginEmail);
+    const emailResult = emailSchema.safeParse(normalized);
     if (!emailResult.success) {
       toast({ title: "Invalid Email", description: "Please enter a valid email address.", variant: "destructive" });
       return;
     }
-    
+
     setIsLoading(true);
-    const { error } = await signIn(loginEmail, loginPassword);
+    const { error } = await signIn(normalized, loginPassword);
 
     if (error) {
-      const message = error.message.includes("Invalid login credentials") 
-        ? "Invalid email or password. Please try again." 
+      const message = error.message.includes("Invalid login credentials")
+        ? "Invalid email or password. Please try again."
         : error.message;
       toast({ title: "Login Failed", description: message, variant: "destructive" });
     } else {
@@ -215,6 +221,8 @@ export default function Auth() {
     e.preventDefault();
     setIsLoading(true);
 
+    const normalized = normalizeEmail(signupEmail);
+
     if (!emailValid) {
       toast({ title: "Sign Up Not Allowed", description: emailError || "This email is not authorized.", variant: "destructive" });
       setIsLoading(false);
@@ -222,7 +230,7 @@ export default function Auth() {
     }
 
     try {
-      emailSchema.parse(signupEmail);
+      emailSchema.parse(normalized);
       passwordSchema.parse(signupPassword);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -238,15 +246,15 @@ export default function Auth() {
       return;
     }
 
-    const { error } = await signUp(signupEmail, signupPassword, firstName, lastName);
+    const { error } = await signUp(normalized, signupPassword, firstName, lastName);
 
     if (error) {
-      const message = error.message.includes("already registered") 
-        ? "This email is already registered. Please try logging in instead." 
+      const message = error.message.includes("already registered")
+        ? "This email is already registered. Please try logging in instead."
         : error.message;
       toast({ title: "Sign Up Failed", description: message, variant: "destructive" });
     } else {
-      await supabase.rpc('mark_signup_used', { check_email: signupEmail.toLowerCase() });
+      await supabase.rpc('mark_signup_used', { check_email: normalized });
       toast({ title: "Account Created!", description: "You have been registered successfully." });
       navigate("/");
     }
