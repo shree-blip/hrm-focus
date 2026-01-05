@@ -50,44 +50,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLineManager, setIsLineManager] = useState(false);
   const [canCreateEmployee, setCanCreateEmployee] = useState(false);
 
-  // Check if email exists as an active employee (employees table OR employee_directory view)
+
+  // Check if email exists as an allowed signup/login email (uses a backend RPC to avoid RLS issues)
   const checkAllowlist = async (email: string): Promise<boolean> => {
     const safeEmail = normalizeEmail(email);
 
     try {
-      // Prefer employees table
-      const { data: employees, error: empError } = await supabase
-        .from("employees")
-        .select("id")
-        .ilike("email", safeEmail)
-        .eq("status", "active")
-        .limit(1);
+      const { data, error } = await supabase.rpc("verify_signup_email", {
+        check_email: safeEmail,
+      });
 
-      if (empError) {
-        console.error("Allowlist check (employees) error:", empError);
-      }
-
-      if (employees && employees.length > 0) return true;
-
-      // Fallback to the directory view (covers cases where signup is allowed but row is not in employees)
-      const { data: directory, error: dirError } = await supabase
-        .from("employee_directory")
-        .select("id")
-        .ilike("email", safeEmail)
-        .eq("status", "active")
-        .limit(1);
-
-      if (dirError) {
-        console.error("Allowlist check (employee_directory) error:", dirError);
+      if (error) {
+        console.error("Allowlist check (verify_signup_email) error:", error);
         return false;
       }
 
-      return !!(directory && directory.length > 0);
+      // verify_signup_email is primarily for signup; for existing users it may return allowed=false with reason=already_used.
+      const result = data as { allowed?: boolean; reason?: string };
+      if (result?.allowed) return true;
+      if (result?.reason === "already_used") return true; // already registered => should be allowed to log in
+
+      return false;
     } catch (err) {
       console.error("Allowlist check exception:", err);
       return false;
     }
   };
+
 
   useEffect(() => {
     // Set up auth state listener FIRST
