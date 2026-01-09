@@ -48,7 +48,6 @@ export default function Auth() {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  dsnfdsmn;
 
   // Email validation state
   const [emailValid, setEmailValid] = useState<boolean | null>(null);
