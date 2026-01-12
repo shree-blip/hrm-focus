@@ -14,6 +14,7 @@ import {
   ChevronRight,
   TrendingUp,
   UserPlus,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -32,6 +33,7 @@ const employeeMenuItems: MenuItem[] = [
   { icon: Clock, label: "Attendance", href: "/attendance" },
   { icon: Calendar, label: "Leave", href: "/leave" },
   { icon: CheckSquare, label: "Tasks", href: "/tasks" },
+  { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet" },
   { icon: FileText, label: "Documents", href: "/documents" },
   { icon: Users, label: "Profile", href: "/profile" },
 ];
@@ -43,6 +45,7 @@ const managerMenuItems: MenuItem[] = [
   { icon: Clock, label: "Attendance", href: "/attendance" },
   { icon: Calendar, label: "Leave", href: "/leave" },
   { icon: CheckSquare, label: "Tasks", href: "/tasks" },
+  { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet" },
   { icon: FileText, label: "Documents", href: "/documents" },
 ];
 
@@ -50,6 +53,7 @@ const vpMenuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: CheckSquare, label: "Approvals", href: "/approvals" },
   { icon: TrendingUp, label: "Reports", href: "/reports" },
+  { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet" },
   { icon: FileText, label: "Announcements", href: "/announcements" },
   { icon: FileText, label: "Documents", href: "/documents" },
   { icon: Users, label: "People", href: "/employees" },
