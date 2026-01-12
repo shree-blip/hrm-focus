@@ -41,6 +41,7 @@ export default function Auth() {
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Signup form state
   const [signupEmail, setSignupEmail] = useState("");
@@ -382,17 +383,28 @@ export default function Auth() {
                   <Label htmlFor="mobile-login-password" className="text-sm font-medium">
                     Password
                   </Label>
+
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+
                     <Input
                       id="mobile-login-password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      className="pl-10 h-12"
+                      className="pl-10 pr-10 h-12"
                       autoComplete="current-password"
                     />
+
+                    {/* Eye Button */}
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -636,20 +648,31 @@ export default function Auth() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="login-password" className="text-sm font-medium">
+                <Label htmlFor="mobile-login-password" className="text-sm font-medium">
                   Password
                 </Label>
+
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+
                   <Input
-                    id="login-password"
-                    type="password"
+                    id="mobile-login-password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    className="pl-10 h-11"
+                    className="pl-10 pr-10 h-12"
                     autoComplete="current-password"
                   />
+
+                  {/* Eye Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
