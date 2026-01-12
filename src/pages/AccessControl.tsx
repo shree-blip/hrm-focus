@@ -5,27 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, Users, Lock, User, Loader2, Search, Check, X, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,16 +16,19 @@ import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
-const ROLES = ['vp', 'admin', 'supervisor', 'line_manager', 'manager', 'employee'] as const;
-type AppRole = typeof ROLES[number];
+const ROLES = ["vp", "admin", "supervisor", "line_manager", "manager", "employee"] as const;
+type AppRole = (typeof ROLES)[number];
+
+// ✅ Only used in Role Permissions matrix (removes "supervisor" column there)
+const PERMISSION_ROLES = ROLES.filter((r): r is Exclude<AppRole, "supervisor"> => r !== "supervisor");
 
 const ROLE_LABELS: Record<string, string> = {
-  vp: 'Vice President',
-  admin: 'Admin',
-  supervisor: 'Supervisor',
-  line_manager: 'Line Manager',
-  manager: 'Manager',
-  employee: 'Employee',
+  vp: "Vice President",
+  admin: "Admin",
+  supervisor: "Supervisor",
+  line_manager: "Line Manager",
+  manager: "Manager",
+  employee: "Employee",
 };
 
 interface UserWithRole {
@@ -75,7 +60,14 @@ interface SpamUser {
 export default function AccessControl() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { rolePermissions, hasPermission, updateRolePermission, loading: permLoading, refetch: refetchPermissions } = usePermissions();
+  const {
+    rolePermissions,
+    hasPermission,
+    updateRolePermission,
+    loading: permLoading,
+    refetch: refetchPermissions,
+  } = usePermissions();
+
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [spamUsers, setSpamUsers] = useState<SpamUser[]>([]);
   const [userOverrides, setUserOverrides] = useState<UserPermissionOverride[]>([]);
@@ -86,13 +78,13 @@ export default function AccessControl() {
   const [isSecurityMonitor, setIsSecurityMonitor] = useState(false);
 
   useEffect(() => {
-    if (!permLoading && !hasPermission('manage_access')) {
+    if (!permLoading && !hasPermission("manage_access")) {
       toast({
         title: "Access Denied",
         description: "You don't have permission to access this page.",
         variant: "destructive",
       });
-      navigate('/');
+      navigate("/");
     }
   }, [permLoading, hasPermission, navigate]);
 
@@ -100,17 +92,15 @@ export default function AccessControl() {
   useEffect(() => {
     const checkSecurityMonitor = async () => {
       if (!user) return;
-      const { data } = await supabase.rpc('is_security_monitor', { _user_id: user.id });
+      const { data } = await supabase.rpc("is_security_monitor", { _user_id: user.id });
       setIsSecurityMonitor(!!data);
     };
     checkSecurityMonitor();
   }, [user]);
 
   const fetchSpamUsers = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('spam_users')
-      .select('user_id, email, reason, is_blocked');
-    
+    const { data, error } = await supabase.from("spam_users").select("user_id, email, reason, is_blocked");
+
     if (!error && data) {
       setSpamUsers(data);
     }
@@ -119,53 +109,47 @@ export default function AccessControl() {
   const fetchUsers = useCallback(async () => {
     // Fetch all employees
     const { data: employees, error: empError } = await supabase
-      .from('employees')
-      .select('id, email, first_name, last_name, job_title, department, profile_id, status')
-      .eq('status', 'active')
-      .order('first_name');
+      .from("employees")
+      .select("id, email, first_name, last_name, job_title, department, profile_id, status")
+      .eq("status", "active")
+      .order("first_name");
 
     if (empError) {
-      console.error('Error fetching employees:', empError);
+      console.error("Error fetching employees:", empError);
       setLoading(false);
       return;
     }
 
     // Fetch all profiles to get user_ids (including non-employee profiles for spam detection)
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, user_id, email, first_name, last_name');
+    const { data: profiles } = await supabase.from("profiles").select("id, user_id, email, first_name, last_name");
 
     // Fetch all user roles
-    const { data: rolesData } = await supabase
-      .from('user_roles')
-      .select('user_id, role');
+    const { data: rolesData } = await supabase.from("user_roles").select("user_id, role");
 
     // Fetch spam users list
-    const { data: spamData } = await supabase
-      .from('spam_users')
-      .select('user_id, email');
+    const { data: spamData } = await supabase.from("spam_users").select("user_id, email");
 
-    const spamUserIds = new Set(spamData?.map(s => s.user_id) || []);
-    const spamEmails = new Set(spamData?.map(s => s.email.toLowerCase()) || []);
-    
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-    const profileByUserId = new Map(profiles?.map(p => [p.user_id, p]) || []);
-    const roleMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
+    const spamUserIds = new Set(spamData?.map((s) => s.user_id) || []);
+    const spamEmails = new Set(spamData?.map((s) => s.email.toLowerCase()) || []);
+
+    const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+    const profileByUserId = new Map(profiles?.map((p) => [p.user_id, p]) || []);
+    const roleMap = new Map(rolesData?.map((r) => [r.user_id, r.role]) || []);
 
     // Get employee user IDs to identify non-employee profiles
     const employeeUserIds = new Set<string>();
-    employees.forEach(emp => {
+    employees.forEach((emp) => {
       const profile = emp.profile_id ? profileMap.get(emp.profile_id) : null;
       if (profile?.user_id) {
         employeeUserIds.add(profile.user_id);
       }
     });
 
-    const usersWithRoles: UserWithRole[] = employees.map(emp => {
+    const usersWithRoles: UserWithRole[] = employees.map((emp) => {
       const profile = emp.profile_id ? profileMap.get(emp.profile_id) : null;
       const userId = profile?.user_id || null;
       const isSpam = userId ? spamUserIds.has(userId) : spamEmails.has(emp.email.toLowerCase());
-      
+
       return {
         id: emp.id,
         user_id: userId,
@@ -174,7 +158,7 @@ export default function AccessControl() {
         last_name: emp.last_name,
         job_title: emp.job_title,
         department: emp.department,
-        role: userId ? (roleMap.get(userId) || 'employee') : 'employee',
+        role: userId ? roleMap.get(userId) || "employee" : "employee",
         has_account: !!userId,
         is_spam: isSpam,
       };
@@ -190,11 +174,11 @@ export default function AccessControl() {
               id: spam.user_id,
               user_id: spam.user_id,
               email: spam.email,
-              first_name: profile.first_name || 'Spam',
-              last_name: profile.last_name || 'User',
-              job_title: 'UNAUTHORIZED',
+              first_name: profile.first_name || "Spam",
+              last_name: profile.last_name || "User",
+              job_title: "UNAUTHORIZED",
               department: null,
-              role: roleMap.get(spam.user_id) || 'employee',
+              role: roleMap.get(spam.user_id) || "employee",
               has_account: true,
               is_spam: true,
             });
@@ -208,10 +192,8 @@ export default function AccessControl() {
   }, []);
 
   const fetchUserOverrides = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('user_permission_overrides')
-      .select('user_id, permission, enabled');
-    
+    const { data, error } = await supabase.from("user_permission_overrides").select("user_id, permission, enabled");
+
     if (!error && data) {
       setUserOverrides(data);
     }
@@ -223,22 +205,22 @@ export default function AccessControl() {
 
     // Set up realtime subscriptions
     const userRolesChannel = supabase
-      .channel('user-roles-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, () => {
+      .channel("user-roles-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_roles" }, () => {
         fetchUsers();
       })
       .subscribe();
 
     const permissionsChannel = supabase
-      .channel('permissions-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'role_permissions' }, () => {
+      .channel("permissions-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "role_permissions" }, () => {
         refetchPermissions();
       })
       .subscribe();
 
     const overridesChannel = supabase
-      .channel('overrides-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_permission_overrides' }, () => {
+      .channel("overrides-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_permission_overrides" }, () => {
         fetchUserOverrides();
       })
       .subscribe();
@@ -261,24 +243,18 @@ export default function AccessControl() {
     }
 
     setSaving(employeeId);
-    
-    const { data: existingRole } = await supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
+
+    const { data: existingRole } = await supabase.from("user_roles").select("id").eq("user_id", userId).single();
 
     let error;
     if (existingRole) {
       const result = await supabase
-        .from('user_roles')
+        .from("user_roles")
         .update({ role: newRole as AppRole })
-        .eq('user_id', userId);
+        .eq("user_id", userId);
       error = result.error;
     } else {
-      const result = await supabase
-        .from('user_roles')
-        .insert({ user_id: userId, role: newRole as AppRole });
+      const result = await supabase.from("user_roles").insert({ user_id: userId, role: newRole as AppRole });
       error = result.error;
     }
 
@@ -299,7 +275,7 @@ export default function AccessControl() {
   };
 
   const handlePermissionToggle = async (role: string, permission: string, currentEnabled: boolean) => {
-    if ((role === 'vp' || role === 'admin') && permission === 'manage_access') {
+    if ((role === "vp" || role === "admin") && permission === "manage_access") {
       toast({
         title: "Protected Permission",
         description: "VP and Admin must always have access control permission.",
@@ -308,7 +284,7 @@ export default function AccessControl() {
       return;
     }
 
-    if (permission === 'manage_salaries_all' && role !== 'vp' && role !== 'admin' && !currentEnabled) {
+    if (permission === "manage_salaries_all" && role !== "vp" && role !== "admin" && !currentEnabled) {
       toast({
         title: "Restricted Permission",
         description: "Only VP/Admin can have salary management permission.",
@@ -318,11 +294,13 @@ export default function AccessControl() {
     }
 
     const success = await updateRolePermission(role, permission, !currentEnabled);
-    
+
     if (success) {
       toast({
         title: "Permission Updated",
-        description: `${PERMISSION_LABELS[permission as Permission]} ${!currentEnabled ? 'enabled' : 'disabled'} for ${ROLE_LABELS[role]}.`,
+        description: `${PERMISSION_LABELS[permission as Permission]} ${
+          !currentEnabled ? "enabled" : "disabled"
+        } for ${ROLE_LABELS[role]}.`,
       });
     } else {
       toast({
@@ -334,13 +312,12 @@ export default function AccessControl() {
   };
 
   const handleUserPermissionToggle = async (userId: string, permission: string, currentValue: boolean | null) => {
-    // If currently has override, we toggle or remove it
     // null = no override (use role default), true = enabled, false = disabled
-    
+
     let newValue: boolean | null;
     if (currentValue === null) {
       // No override -> set to opposite of role default
-      const roleDefault = getPermissionForRole(selectedUser?.role || 'employee', permission);
+      const roleDefault = getPermissionForRole(selectedUser?.role || "employee", permission);
       newValue = !roleDefault;
     } else if (currentValue === true) {
       // Override enabled -> disable
@@ -353,10 +330,10 @@ export default function AccessControl() {
     if (newValue === null) {
       // Remove override
       const { error } = await supabase
-        .from('user_permission_overrides')
+        .from("user_permission_overrides")
         .delete()
-        .eq('user_id', userId)
-        .eq('permission', permission);
+        .eq("user_id", userId)
+        .eq("permission", permission);
 
       if (error) {
         toast({ title: "Error", description: "Failed to remove override.", variant: "destructive" });
@@ -366,23 +343,23 @@ export default function AccessControl() {
     } else {
       // Upsert override
       const { data: existing } = await supabase
-        .from('user_permission_overrides')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('permission', permission)
+        .from("user_permission_overrides")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("permission", permission)
         .single();
 
       let error;
       if (existing) {
         const result = await supabase
-          .from('user_permission_overrides')
+          .from("user_permission_overrides")
           .update({ enabled: newValue })
-          .eq('user_id', userId)
-          .eq('permission', permission);
+          .eq("user_id", userId)
+          .eq("permission", permission);
         error = result.error;
       } else {
         const result = await supabase
-          .from('user_permission_overrides')
+          .from("user_permission_overrides")
           .insert({ user_id: userId, permission, enabled: newValue });
         error = result.error;
       }
@@ -390,21 +367,21 @@ export default function AccessControl() {
       if (error) {
         toast({ title: "Error", description: "Failed to update override.", variant: "destructive" });
       } else {
-        toast({ 
-          title: "Permission Override Set", 
-          description: `${PERMISSION_LABELS[permission as Permission]} ${newValue ? 'enabled' : 'disabled'} for this user.`
+        toast({
+          title: "Permission Override Set",
+          description: `${PERMISSION_LABELS[permission as Permission]} ${newValue ? "enabled" : "disabled"} for this user.`,
         });
       }
     }
   };
 
   const getPermissionForRole = (role: string, permission: string): boolean => {
-    const found = rolePermissions.find(rp => rp.role === role && rp.permission === permission);
+    const found = rolePermissions.find((rp) => rp.role === role && rp.permission === permission);
     return found?.enabled ?? false;
   };
 
   const getUserPermissionOverride = (userId: string, permission: string): boolean | null => {
-    const found = userOverrides.find(o => o.user_id === userId && o.permission === permission);
+    const found = userOverrides.find((o) => o.user_id === userId && o.permission === permission);
     return found ? found.enabled : null;
   };
 
@@ -412,12 +389,12 @@ export default function AccessControl() {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
 
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = users.filter((u) => {
     // Hide spam users from non-security monitors
     if (u.is_spam && !isSecurityMonitor) {
       return false;
     }
-    
+
     const searchLower = searchQuery.toLowerCase();
     return (
       u.first_name.toLowerCase().includes(searchLower) ||
@@ -437,7 +414,7 @@ export default function AccessControl() {
     );
   }
 
-  if (!hasPermission('manage_access')) {
+  if (!hasPermission("manage_access")) {
     return null;
   }
 
@@ -449,9 +426,7 @@ export default function AccessControl() {
             <Shield className="h-8 w-8 text-primary" />
             Access Control
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage user roles and permissions
-          </p>
+          <p className="text-muted-foreground mt-1">Manage user roles and permissions</p>
         </div>
       </div>
 
@@ -482,9 +457,7 @@ export default function AccessControl() {
           <Card>
             <CardHeader>
               <CardTitle>User Role Assignments</CardTitle>
-              <CardDescription>
-                Assign roles to employees. Shows all {users.length} active employees.
-              </CardDescription>
+              <CardDescription>Assign roles to employees. Shows all {users.length} active employees.</CardDescription>
               <div className="relative mt-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -513,11 +486,17 @@ export default function AccessControl() {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className={cn("h-8 w-8", u.is_spam && "ring-2 ring-destructive")}>
-                              <AvatarFallback className={cn(
-                                "text-xs",
-                                u.is_spam ? "bg-destructive/20 text-destructive" : "bg-primary/10 text-primary"
-                              )}>
-                                {u.is_spam ? <AlertTriangle className="h-4 w-4" /> : getInitials(u.first_name, u.last_name)}
+                              <AvatarFallback
+                                className={cn(
+                                  "text-xs",
+                                  u.is_spam ? "bg-destructive/20 text-destructive" : "bg-primary/10 text-primary",
+                                )}
+                              >
+                                {u.is_spam ? (
+                                  <AlertTriangle className="h-4 w-4" />
+                                ) : (
+                                  getInitials(u.first_name, u.last_name)
+                                )}
                               </AvatarFallback>
                             </Avatar>
                             <div>
@@ -531,9 +510,9 @@ export default function AccessControl() {
                         <TableCell>
                           <div>
                             <span className={cn("block", u.is_spam && "text-destructive font-bold")}>
-                              {u.is_spam ? "UNAUTHORIZED" : (u.job_title || '-')}
+                              {u.is_spam ? "UNAUTHORIZED" : u.job_title || "-"}
                             </span>
-                            <span className="text-xs text-muted-foreground">{u.department || '-'}</span>
+                            <span className="text-xs text-muted-foreground">{u.department || "-"}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -549,13 +528,16 @@ export default function AccessControl() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={cn(
-                            u.role === 'vp' && "border-primary text-primary bg-primary/10",
-                            u.role === 'admin' && "border-destructive text-destructive bg-destructive/10",
-                            u.role === 'supervisor' && "border-orange-500 text-orange-600 bg-orange-50",
-                            u.role === 'line_manager' && "border-blue-500 text-blue-600 bg-blue-50",
-                            u.role === 'manager' && "border-green-500 text-green-600 bg-green-50"
-                          )}>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              u.role === "vp" && "border-primary text-primary bg-primary/10",
+                              u.role === "admin" && "border-destructive text-destructive bg-destructive/10",
+                              u.role === "supervisor" && "border-orange-500 text-orange-600 bg-orange-50",
+                              u.role === "line_manager" && "border-blue-500 text-blue-600 bg-blue-50",
+                              u.role === "manager" && "border-green-500 text-green-600 bg-green-50",
+                            )}
+                          >
                             {ROLE_LABELS[u.role] || u.role}
                           </Badge>
                         </TableCell>
@@ -600,7 +582,9 @@ export default function AccessControl() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[200px]">Permission</TableHead>
-                    {ROLES.map((role) => (
+
+                    {/* ✅ Supervisor removed only here */}
+                    {PERMISSION_ROLES.map((role) => (
                       <TableHead key={role} className="text-center min-w-[100px]">
                         {ROLE_LABELS[role]}
                       </TableHead>
@@ -610,15 +594,15 @@ export default function AccessControl() {
                 <TableBody>
                   {ALL_PERMISSIONS.map((permission) => (
                     <TableRow key={permission}>
-                      <TableCell className="font-medium">
-                        {PERMISSION_LABELS[permission]}
-                      </TableCell>
-                      {ROLES.map((role) => {
+                      <TableCell className="font-medium">{PERMISSION_LABELS[permission]}</TableCell>
+
+                      {/* ✅ Supervisor removed only here */}
+                      {PERMISSION_ROLES.map((role) => {
                         const enabled = getPermissionForRole(role, permission);
-                        const isProtected = 
-                          ((role === 'vp' || role === 'admin') && permission === 'manage_access') ||
-                          (permission === 'manage_salaries_all' && role !== 'vp' && role !== 'admin');
-                        
+                        const isProtected =
+                          ((role === "vp" || role === "admin") && permission === "manage_access") ||
+                          (permission === "manage_salaries_all" && role !== "vp" && role !== "admin");
+
                         return (
                           <TableCell key={role} className="text-center">
                             <Switch
@@ -645,9 +629,7 @@ export default function AccessControl() {
             <Card className="lg:col-span-1">
               <CardHeader>
                 <CardTitle>Select User</CardTitle>
-                <CardDescription>
-                  Choose a user to manage their individual permissions
-                </CardDescription>
+                <CardDescription>Choose a user to manage their individual permissions</CardDescription>
                 <div className="relative mt-4">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -660,31 +642,33 @@ export default function AccessControl() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {filteredUsers.filter(u => u.has_account).map((u) => (
-                    <div
-                      key={u.id}
-                      onClick={() => setSelectedUser(u)}
-                      className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors",
-                        selectedUser?.id === u.id 
-                          ? "bg-primary/10 border border-primary" 
-                          : "hover:bg-muted"
-                      )}
-                    >
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                          {getInitials(u.first_name, u.last_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium block truncate">{u.first_name} {u.last_name}</span>
-                        <span className="text-xs text-muted-foreground truncate block">{u.email}</span>
+                  {filteredUsers
+                    .filter((u) => u.has_account)
+                    .map((u) => (
+                      <div
+                        key={u.id}
+                        onClick={() => setSelectedUser(u)}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors",
+                          selectedUser?.id === u.id ? "bg-primary/10 border border-primary" : "hover:bg-muted",
+                        )}
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                            {getInitials(u.first_name, u.last_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium block truncate">
+                            {u.first_name} {u.last_name}
+                          </span>
+                          <span className="text-xs text-muted-foreground truncate block">{u.email}</span>
+                        </div>
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          {ROLE_LABELS[u.role]}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="text-xs shrink-0">
-                        {ROLE_LABELS[u.role]}
-                      </Badge>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </CardContent>
             </Card>
@@ -693,16 +677,14 @@ export default function AccessControl() {
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle>
-                  {selectedUser 
+                  {selectedUser
                     ? `Permissions for ${selectedUser.first_name} ${selectedUser.last_name}`
-                    : 'Select a User'
-                  }
+                    : "Select a User"}
                 </CardTitle>
                 <CardDescription>
-                  {selectedUser 
+                  {selectedUser
                     ? `Override role-based permissions for this user. Role: ${ROLE_LABELS[selectedUser.role]}`
-                    : 'Click on a user to manage their individual permission overrides'
-                  }
+                    : "Click on a user to manage their individual permission overrides"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -721,12 +703,10 @@ export default function AccessControl() {
                         const roleDefault = getPermissionForRole(selectedUser.role, permission);
                         const override = getUserPermissionOverride(selectedUser.user_id!, permission);
                         const effective = override !== null ? override : roleDefault;
-                        
+
                         return (
                           <TableRow key={permission}>
-                            <TableCell className="font-medium">
-                              {PERMISSION_LABELS[permission]}
-                            </TableCell>
+                            <TableCell className="font-medium">{PERMISSION_LABELS[permission]}</TableCell>
                             <TableCell className="text-center">
                               {roleDefault ? (
                                 <Check className="h-4 w-4 text-green-500 inline" />
@@ -738,18 +718,20 @@ export default function AccessControl() {
                               <div className="flex items-center justify-center gap-2">
                                 <Switch
                                   checked={override === true}
-                                  onCheckedChange={() => handleUserPermissionToggle(selectedUser.user_id!, permission, override)}
+                                  onCheckedChange={() =>
+                                    handleUserPermissionToggle(selectedUser.user_id!, permission, override)
+                                  }
                                 />
                                 {override !== null && (
                                   <Badge variant="secondary" className="text-xs">
-                                    {override ? 'ON' : 'OFF'}
+                                    {override ? "ON" : "OFF"}
                                   </Badge>
                                 )}
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
                               <Badge variant={effective ? "default" : "secondary"}>
-                                {effective ? 'Allowed' : 'Denied'}
+                                {effective ? "Allowed" : "Denied"}
                               </Badge>
                             </TableCell>
                           </TableRow>
@@ -778,7 +760,8 @@ export default function AccessControl() {
                   Security Monitor - Flagged Users
                 </CardTitle>
                 <CardDescription>
-                  Monitor and manage suspicious or unauthorized user accounts. Only visible to Shree Gauli, Bikash Neupane, and VPs.
+                  Monitor and manage suspicious or unauthorized user accounts. Only visible to Shree Gauli, Bikash
+                  Neupane, and VPs.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -792,28 +775,32 @@ export default function AccessControl() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.filter(u => u.is_spam).map((u) => (
-                      <TableRow key={u.id} className="bg-destructive/5">
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8 ring-2 ring-destructive">
-                              <AvatarFallback className="bg-destructive/20 text-destructive">
-                                <AlertTriangle className="h-4 w-4" />
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium text-destructive">SPAM USER</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                        <TableCell>
-                          <Badge variant="destructive">Blocked</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">Unauthorized signup - not in employee list</span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {users.filter(u => u.is_spam).length === 0 && (
+                    {users
+                      .filter((u) => u.is_spam)
+                      .map((u) => (
+                        <TableRow key={u.id} className="bg-destructive/5">
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8 ring-2 ring-destructive">
+                                <AvatarFallback className="bg-destructive/20 text-destructive">
+                                  <AlertTriangle className="h-4 w-4" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium text-destructive">SPAM USER</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                          <TableCell>
+                            <Badge variant="destructive">Blocked</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">
+                              Unauthorized signup - not in employee list
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    {users.filter((u) => u.is_spam).length === 0 && (
                       <TableRow>
                         <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                           <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
