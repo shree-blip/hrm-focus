@@ -16,17 +16,31 @@ import { format } from "date-fns";
 import { Megaphone, Plus, Trash2, Calendar, Loader2, Send, Pin } from "lucide-react";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 
+type DurationOption = "none" | "1h" | "4h" | "1d" | "3d" | "1w" | "custom";
+
+const durationToMs: Record<Exclude<DurationOption, "none" | "custom">, number> = {
+  "1h": 60 * 60 * 1000,
+  "4h": 4 * 60 * 60 * 1000,
+  "1d": 24 * 60 * 60 * 1000,
+  "3d": 3 * 24 * 60 * 60 * 1000,
+  "1w": 7 * 24 * 60 * 60 * 1000,
+};
+
 const Announcements = () => {
-  const { user, role, profile } = useAuth();
+  const { user, role } = useAuth();
   const { announcements, loading } = useAnnouncements();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     title: "",
     content: "",
     type: "info",
     isPinned: false,
+    duration: "none" as DurationOption,
+    // datetime-local value: "YYYY-MM-DDTHH:mm"
+    expiresAtLocal: "",
   });
 
   const canManage = role === "admin" || role === "vp" || role === "manager";
@@ -35,6 +49,20 @@ const Announcements = () => {
     const pinned = announcements.filter((a) => a.is_pinned).length;
     return { total: announcements.length, pinned };
   }, [announcements]);
+
+  const computeExpiresAtISO = (): string | null => {
+    if (formData.duration === "none") return null;
+
+    if (formData.duration === "custom") {
+      if (!formData.expiresAtLocal) return null;
+      const dt = new Date(formData.expiresAtLocal);
+      if (Number.isNaN(dt.getTime())) return null;
+      return dt.toISOString();
+    }
+
+    const ms = durationToMs[formData.duration];
+    return new Date(Date.now() + ms).toISOString();
+  };
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -48,6 +76,28 @@ const Announcements = () => {
       return;
     }
 
+    const expiresAt = computeExpiresAtISO();
+
+    // If custom duration selected, ensure valid + future date
+    if (formData.duration === "custom") {
+      if (!expiresAt) {
+        toast({
+          title: "Validation Error",
+          description: "Please choose an expiry date/time.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (new Date(expiresAt).getTime() <= Date.now()) {
+        toast({
+          title: "Validation Error",
+          description: "Expiry time must be in the future.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     const { error } = await supabase.from("announcements").insert({
@@ -58,7 +108,7 @@ const Announcements = () => {
       is_active: true,
       created_by: user.id,
       org_id: null,
-      expires_at: null,
+      expires_at: expiresAt, // ✅ key change
     });
 
     setIsSubmitting(false);
@@ -72,12 +122,21 @@ const Announcements = () => {
       return;
     }
 
-    setFormData({ title: "", content: "", type: "info", isPinned: false });
+    setFormData({
+      title: "",
+      content: "",
+      type: "info",
+      isPinned: false,
+      duration: "none",
+      expiresAtLocal: "",
+    });
     setDialogOpen(false);
 
     toast({
       title: "Announcement Published",
-      description: "It will appear instantly on everyone’s dashboard.",
+      description: expiresAt
+        ? "It will appear instantly and auto-expire on schedule."
+        : "It will appear instantly on everyone’s dashboard.",
     });
   };
 
@@ -126,6 +185,7 @@ const Announcements = () => {
               <DialogHeader>
                 <DialogTitle className="font-display">Create Announcement</DialogTitle>
               </DialogHeader>
+
               <div className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor="title">Title</Label>
@@ -168,11 +228,66 @@ const Announcements = () => {
                     <div className="flex items-center gap-2 h-10 px-3 border rounded-md">
                       <Checkbox
                         checked={formData.isPinned}
-                        onCheckedChange={(v) => setFormData((p) => ({ ...p, isPinned: Boolean(v) }))}
+                        onCheckedChange={(v) =>
+                          setFormData((p) => ({
+                            ...p,
+                            isPinned: Boolean(v),
+                          }))
+                        }
                       />
                       <span className="text-sm text-muted-foreground">Pin to top</span>
                     </div>
                   </div>
+                </div>
+
+                {/* ✅ Duration / Expiry */}
+                <div className="space-y-2">
+                  <Label>Duration</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Select
+                      value={formData.duration}
+                      onValueChange={(v) =>
+                        setFormData((p) => ({
+                          ...p,
+                          duration: v as DurationOption,
+                          expiresAtLocal: v === "custom" ? p.expiresAtLocal : "",
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select duration" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No expiry</SelectItem>
+                        <SelectItem value="1h">1 hour</SelectItem>
+                        <SelectItem value="4h">4 hours</SelectItem>
+                        <SelectItem value="1d">1 day</SelectItem>
+                        <SelectItem value="3d">3 days</SelectItem>
+                        <SelectItem value="1w">1 week</SelectItem>
+                        <SelectItem value="custom">Custom date/time</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {formData.duration === "custom" ? (
+                      <Input
+                        type="datetime-local"
+                        value={formData.expiresAtLocal}
+                        onChange={(e) =>
+                          setFormData((p) => ({
+                            ...p,
+                            expiresAtLocal: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      <div className="h-10 px-3 border rounded-md flex items-center text-sm text-muted-foreground">
+                        {formData.duration === "none" ? "Stays live until deleted" : "Auto-expires"}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Expired announcements will automatically disappear for all users.
+                  </p>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">
@@ -225,7 +340,10 @@ const Announcements = () => {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Today</p>
                 <p className="text-3xl font-display font-bold">
-                  {announcements.filter((a) => new Date(a.created_at).toDateString() === new Date().toDateString()).length}
+                  {
+                    announcements.filter((a) => new Date(a.created_at).toDateString() === new Date().toDateString())
+                      .length
+                  }
                 </p>
               </div>
               <div className="p-3 rounded-full bg-success/10">
@@ -244,6 +362,7 @@ const Announcements = () => {
           </CardTitle>
           <CardDescription>These appear for all users immediately (banner + dashboard widget)</CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-4">
           {announcements.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -258,9 +377,18 @@ const Announcements = () => {
                     <div className="flex items-center gap-2 mb-2">
                       {a.is_pinned && <Pin className="h-4 w-4 text-primary" />}
                       <h3 className="font-medium">{a.title}</h3>
-                      <Badge variant="outline" className="text-xs">{a.type}</Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {a.type}
+                      </Badge>
+                      {a.expires_at && (
+                        <Badge variant="secondary" className="text-xs">
+                          Ends {format(new Date(a.expires_at), "MMM d, h:mm a")}
+                        </Badge>
+                      )}
                     </div>
+
                     <p className="text-sm text-muted-foreground">{a.content}</p>
+
                     <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
