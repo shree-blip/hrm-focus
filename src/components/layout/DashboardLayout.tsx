@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -55,6 +56,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         
         <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
+
+      {/* Chat Widget */}
+      <ChatWidget />
     </div>
   );
 }
