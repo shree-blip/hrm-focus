@@ -9,29 +9,35 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User, Bell, Shield, Building2, Loader2 } from "lucide-react";
+import { User, Bell, Shield, Building2, Loader2, Camera, Upload, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/hooks/useSettings";
+import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 const Settings = () => {
-  const { profile } = useAuth();
-  const { preferences, updateProfile, updateAvatar, updatePreferences, updatePassword, loading } = useSettings();
-  
+  const { user, profile, refreshProfile } = useAuth();
+  const { preferences, updateProfile, updatePreferences, updatePassword, loading } = useSettings();
+
+  // Get signed URL for avatar
+  const { signedUrl: avatarSignedUrl } = useAvatarUrl(profile?.avatar_url);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState("");
-  
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
   // Profile form state
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  
+
   // Password form state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  
+
   // Notification preferences state
   const [leaveNotifications, setLeaveNotifications] = useState(true);
   const [taskNotifications, setTaskNotifications] = useState(true);
@@ -39,13 +45,11 @@ const Settings = () => {
   const [performanceNotifications, setPerformanceNotifications] = useState(false);
   const [emailDigest, setEmailDigest] = useState(false);
 
-  // Company settings state - track initial values to detect changes
+  // Company settings state
   const [companyName, setCompanyName] = useState("Focus Your Finance");
   const [timezone, setTimezone] = useState("America/New_York (EST)");
   const [fiscalYear, setFiscalYear] = useState("January 1");
   const [payFrequency, setPayFrequency] = useState("Semi-Monthly");
-  
-  // Track if company settings have been modified
   const [companySettingsChanged, setCompanySettingsChanged] = useState(false);
 
   // Initialize form with profile data
@@ -54,7 +58,6 @@ const Settings = () => {
       setFirstName(profile.first_name || "");
       setLastName(profile.last_name || "");
       setPhone(profile.phone || "");
-      setAvatarUrl(profile.avatar_url || "");
     }
   }, [profile]);
 
@@ -85,23 +88,135 @@ const Settings = () => {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
 
-    if (file.size > 2 * 1024 * 1024) {
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!validTypes.includes(file.type)) {
       toast({
-        title: "File Too Large",
-        description: "Please select an image under 2MB",
+        title: "Invalid File Type",
+        description: "Please upload a JPG, PNG, WebP, or GIF image.",
         variant: "destructive",
       });
       return;
     }
 
-    setSaving(true);
-    const result = await updateAvatar(file);
-    if (result.url) {
-      setAvatarUrl(result.url);
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please upload an image smaller than 5MB.",
+        variant: "destructive",
+      });
+      return;
     }
-    setSaving(false);
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setAvatarPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setIsUploadingAvatar(true);
+
+    try {
+      // Delete old avatar if exists
+      if (profile?.avatar_url) {
+        const oldPath = profile.avatar_url.includes("/avatars/")
+          ? profile.avatar_url.split("/avatars/")[1]
+          : profile.avatar_url;
+        if (oldPath) {
+          await supabase.storage.from("avatars").remove([oldPath]);
+        }
+      }
+
+      // Upload new avatar
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Update profile with new avatar path
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          avatar_url: fileName,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Photo Updated",
+        description: "Your profile photo has been updated successfully.",
+      });
+
+      // Refresh profile to get new avatar URL everywhere
+      if (refreshProfile) {
+        await refreshProfile();
+      }
+
+      // Clear preview after successful upload
+      setAvatarPreview(null);
+    } catch (error: any) {
+      console.error("Avatar upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload profile photo.",
+        variant: "destructive",
+      });
+      setAvatarPreview(null);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!user || !profile?.avatar_url) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      // Delete from storage
+      const oldPath = profile.avatar_url.includes("/avatars/")
+        ? profile.avatar_url.split("/avatars/")[1]
+        : profile.avatar_url;
+      if (oldPath) {
+        await supabase.storage.from("avatars").remove([oldPath]);
+      }
+
+      // Update profile
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          avatar_url: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setAvatarPreview(null);
+      toast({
+        title: "Photo Removed",
+        description: "Your profile photo has been removed.",
+      });
+
+      if (refreshProfile) {
+        await refreshProfile();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to remove profile photo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   const handleUpdatePassword = async () => {
@@ -134,7 +249,6 @@ const Settings = () => {
   };
 
   const handleNotificationChange = async (key: string, value: boolean) => {
-    // Update local state immediately
     switch (key) {
       case "leave_notifications":
         setLeaveNotifications(value);
@@ -153,7 +267,6 @@ const Settings = () => {
         break;
     }
 
-    // Save to database
     await updatePreferences({ [key]: value });
   };
 
@@ -161,7 +274,6 @@ const Settings = () => {
     if (!companySettingsChanged) {
       return;
     }
-    // In a real app, this would save to a company_settings table
     toast({
       title: "Company Settings Saved",
       description: "Your company settings have been updated",
@@ -175,30 +287,32 @@ const Settings = () => {
   };
 
   const getInitials = () => {
-    return `${firstName?.[0] || 'J'}${lastName?.[0] || 'D'}`.toUpperCase();
+    return `${firstName?.[0] || "J"}${lastName?.[0] || "D"}`.toUpperCase();
   };
+
+  // Display avatar preview if uploading, otherwise signed URL
+  const displayAvatarUrl = avatarPreview || avatarSignedUrl || "";
 
   return (
     <DashboardLayout>
-      {/* Hidden file input for avatar upload */}
       <input
         type="file"
         ref={fileInputRef}
         className="hidden"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/gif"
         onChange={handleFileChange}
       />
 
-      {/* Page Header */}
       <div className="mb-8 animate-fade-in">
         <h1 className="text-3xl font-display font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your account and system preferences
-        </p>
+        <p className="text-muted-foreground mt-1">Manage your account and system preferences</p>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
+        <TabsList
+          className="animate-slide-up opacity-0"
+          style={{ animationDelay: "100ms", animationFillMode: "forwards" }}
+        >
           <TabsTrigger value="profile" className="gap-2">
             <User className="h-4 w-4" />
             Profile
@@ -217,7 +331,11 @@ const Settings = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile" className="space-y-6 animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+        <TabsContent
+          value="profile"
+          className="space-y-6 animate-slide-up opacity-0"
+          style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
+        >
           <Card>
             <CardHeader>
               <CardTitle className="font-display">Profile Information</CardTitle>
@@ -225,18 +343,60 @@ const Settings = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-6">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={avatarUrl} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-semibold">
-                    {getInitials()}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative group">
+                  <Avatar className="h-20 w-20 cursor-pointer" onClick={handleChangePhoto}>
+                    {isUploadingAvatar ? (
+                      <div className="h-full w-full flex items-center justify-center bg-muted">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <>
+                        <AvatarImage src={displayAvatarUrl} />
+                        <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-semibold">
+                          {getInitials()}
+                        </AvatarFallback>
+                      </>
+                    )}
+                  </Avatar>
+
+                  {!isUploadingAvatar && (
+                    <div
+                      className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      onClick={handleChangePhoto}
+                    >
+                      <Camera className="h-6 w-6 text-white" />
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
-                  <Button variant="outline" onClick={handleChangePhoto} disabled={saving}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Change Photo
-                  </Button>
-                  <p className="text-xs text-muted-foreground">JPG, PNG or GIF. Max 2MB.</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleChangePhoto} disabled={isUploadingAvatar}>
+                      {isUploadingAvatar ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Change Photo
+                        </>
+                      )}
+                    </Button>
+                    {profile?.avatar_url && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleRemoveAvatar}
+                        disabled={isUploadingAvatar}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">JPG, PNG, WebP or GIF. Max 5MB.</p>
                 </div>
               </div>
 
@@ -245,56 +405,27 @@ const Settings = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input 
-                    id="firstName" 
-                    value={firstName} 
-                    onChange={(e) => setFirstName(e.target.value)}
-                  />
+                  <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input 
-                    id="lastName" 
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                  />
+                  <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    value={profile?.email || ""} 
-                    disabled 
-                    className="bg-muted" 
-                  />
+                  <Input id="email" type="email" value={profile?.email || ""} disabled className="bg-muted" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
-                  <Input 
-                    id="phone" 
-                    type="tel" 
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                  />
+                  <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Input 
-                    id="role" 
-                    value={profile?.job_title || "Employee"} 
-                    disabled 
-                    className="bg-muted" 
-                  />
+                  <Input id="role" value={profile?.job_title || "Employee"} disabled className="bg-muted" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
-                  <Input 
-                    id="department" 
-                    value={profile?.department || "General"} 
-                    disabled 
-                    className="bg-muted" 
-                  />
+                  <Input id="department" value={profile?.department || "General"} disabled className="bg-muted" />
                 </div>
               </div>
 
@@ -306,9 +437,31 @@ const Settings = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Photo Guidelines */}
+          <Card className="border-dashed">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <Camera className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground mb-1">Profile Photo Guidelines</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Use a professional headshot or clear photo of yourself</li>
+                    <li>Supported formats: JPG, PNG, WebP, GIF</li>
+                    <li>Maximum file size: 5MB</li>
+                    <li>Your photo will be visible across all pages and to your colleagues</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="notifications" className="space-y-6 animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+        <TabsContent
+          value="notifications"
+          className="space-y-6 animate-slide-up opacity-0"
+          style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
+        >
           <Card>
             <CardHeader>
               <CardTitle className="font-display">Notification Preferences</CardTitle>
@@ -321,7 +474,7 @@ const Settings = () => {
                     <p className="font-medium">Leave Requests</p>
                     <p className="text-sm text-muted-foreground">Get notified when team members request leave</p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={leaveNotifications}
                     onCheckedChange={(checked) => handleNotificationChange("leave_notifications", checked)}
                   />
@@ -332,7 +485,7 @@ const Settings = () => {
                     <p className="font-medium">Task Assignments</p>
                     <p className="text-sm text-muted-foreground">Receive alerts for new task assignments</p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={taskNotifications}
                     onCheckedChange={(checked) => handleNotificationChange("task_notifications", checked)}
                   />
@@ -343,7 +496,7 @@ const Settings = () => {
                     <p className="font-medium">Payroll Reminders</p>
                     <p className="text-sm text-muted-foreground">Get reminded before payroll deadlines</p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={payrollNotifications}
                     onCheckedChange={(checked) => handleNotificationChange("payroll_notifications", checked)}
                   />
@@ -354,7 +507,7 @@ const Settings = () => {
                     <p className="font-medium">Performance Reviews</p>
                     <p className="text-sm text-muted-foreground">Notifications for review cycles</p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={performanceNotifications}
                     onCheckedChange={(checked) => handleNotificationChange("performance_notifications", checked)}
                   />
@@ -365,7 +518,7 @@ const Settings = () => {
                     <p className="font-medium">Email Digest</p>
                     <p className="text-sm text-muted-foreground">Receive daily summary of activities</p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={emailDigest}
                     onCheckedChange={(checked) => handleNotificationChange("email_digest", checked)}
                   />
@@ -375,7 +528,11 @@ const Settings = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="security" className="space-y-6 animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+        <TabsContent
+          value="security"
+          className="space-y-6 animate-slide-up opacity-0"
+          style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
+        >
           <Card>
             <CardHeader>
               <CardTitle className="font-display">Security Settings</CardTitle>
@@ -388,13 +545,15 @@ const Settings = () => {
                     <p className="font-medium">Two-Factor Authentication</p>
                     <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
                   </div>
-                  <Badge variant="outline" className="border-success text-success">Enabled</Badge>
+                  <Badge variant="outline" className="border-success text-success">
+                    Enabled
+                  </Badge>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="currentPassword">Current Password</Label>
-                  <Input 
-                    id="currentPassword" 
+                  <Input
+                    id="currentPassword"
                     type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
@@ -402,8 +561,8 @@ const Settings = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="newPassword">New Password</Label>
-                  <Input 
-                    id="newPassword" 
+                  <Input
+                    id="newPassword"
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
@@ -411,8 +570,8 @@ const Settings = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Input 
-                    id="confirmPassword" 
+                  <Input
+                    id="confirmPassword"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -430,7 +589,11 @@ const Settings = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="company" className="space-y-6 animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+        <TabsContent
+          value="company"
+          className="space-y-6 animate-slide-up opacity-0"
+          style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
+        >
           <Card>
             <CardHeader>
               <CardTitle className="font-display">Company Settings</CardTitle>
@@ -440,32 +603,32 @@ const Settings = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="companyName">Company Name</Label>
-                  <Input 
-                    id="companyName" 
+                  <Input
+                    id="companyName"
                     value={companyName}
                     onChange={(e) => handleCompanyFieldChange(setCompanyName, e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="timezone">Timezone</Label>
-                  <Input 
-                    id="timezone" 
+                  <Input
+                    id="timezone"
                     value={timezone}
                     onChange={(e) => handleCompanyFieldChange(setTimezone, e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fiscalYear">Fiscal Year Start</Label>
-                  <Input 
-                    id="fiscalYear" 
+                  <Input
+                    id="fiscalYear"
                     value={fiscalYear}
                     onChange={(e) => handleCompanyFieldChange(setFiscalYear, e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="payFrequency">Pay Frequency</Label>
-                  <Input 
-                    id="payFrequency" 
+                  <Input
+                    id="payFrequency"
                     value={payFrequency}
                     onChange={(e) => handleCompanyFieldChange(setPayFrequency, e.target.value)}
                   />
