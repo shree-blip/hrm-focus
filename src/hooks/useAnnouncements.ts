@@ -24,14 +24,9 @@ function ensureAnnouncementsChannel() {
 
   announcementsChannel = supabase
     .channel("announcements-realtime-shared")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "announcements" },
-      () => {
-        // Notify all mounted hooks to refetch.
-        channelListeners.forEach((fn) => fn());
-      }
-    )
+    .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => {
+      channelListeners.forEach((fn) => fn());
+    })
     .subscribe();
 }
 
@@ -47,10 +42,14 @@ export function useAnnouncements() {
 
   const fetchAnnouncements = useCallback(async () => {
     try {
+      const nowIso = new Date().toISOString();
+
+      // ✅ Only fetch active + not expired (expires_at is null OR > now)
       const { data, error } = await supabase
         .from("announcements")
         .select("*")
         .eq("is_active", true)
+        .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
         .order("is_pinned", { ascending: false })
         .order("created_at", { ascending: false });
 
@@ -66,10 +65,13 @@ export function useAnnouncements() {
           .in("user_id", creatorIds);
 
         if (profiles) {
-          profilesMap = profiles.reduce((acc, p) => {
-            acc[p.user_id] = `${p.first_name} ${p.last_name}`;
-            return acc;
-          }, {} as Record<string, string>);
+          profilesMap = profiles.reduce(
+            (acc, p) => {
+              acc[p.user_id] = `${p.first_name} ${p.last_name}`;
+              return acc;
+            },
+            {} as Record<string, string>,
+          );
         }
       }
 
@@ -89,6 +91,26 @@ export function useAnnouncements() {
   useEffect(() => {
     fetchAnnouncements();
   }, [fetchAnnouncements]);
+
+  // ✅ Auto-refetch when the next announcement is about to expire,
+  // so it disappears without needing a DB change.
+  useEffect(() => {
+    const now = Date.now();
+    const upcoming = announcements
+      .map((a) => (a.expires_at ? new Date(a.expires_at).getTime() : null))
+      .filter((t): t is number => typeof t === "number" && t > now);
+
+    if (upcoming.length === 0) return;
+
+    const nextExpiry = Math.min(...upcoming);
+    const delay = Math.min(nextExpiry - now + 1000, 2147483647); // cap for setTimeout
+
+    const t = setTimeout(() => {
+      fetchAnnouncements();
+    }, delay);
+
+    return () => clearTimeout(t);
+  }, [announcements, fetchAnnouncements]);
 
   useEffect(() => {
     announcementsChannelUsers += 1;
