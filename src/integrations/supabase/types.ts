@@ -1919,6 +1919,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_conversation_participant: {
+        Args: { _conversation_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_direct_manager: {
         Args: { _employee_id: string; _user_id: string }
         Returns: boolean
@@ -1939,6 +1943,7 @@ export type Database = {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      user_conversation_ids: { Args: { _user_id: string }; Returns: string[] }
       validate_email_domain: {
         Args: { _email: string; _org_id: string }
         Returns: boolean
