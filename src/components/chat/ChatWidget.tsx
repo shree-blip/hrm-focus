@@ -22,6 +22,7 @@ export function ChatWidget() {
     setIsOpen,
     sendMessage,
     startConversation,
+    createGroupChat,
     getPresenceStatus,
     getConversationName
   } = useChat();

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useEncryption } from '@/hooks/useEncryption';
 
 interface Profile {
   id: string;
@@ -19,12 +20,16 @@ interface Message {
   content: string;
   created_at: string;
   sender?: Profile;
+  is_encrypted?: boolean;
+  encrypted_content?: string | null;
+  nonce?: string | null;
 }
 
 interface Conversation {
   id: string;
   is_group: boolean;
   name: string | null;
+  description: string | null;
   created_at: string;
   participants: {
     user_id: string;
@@ -43,6 +48,8 @@ interface UserPresence {
 export function useChat() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const { encrypt, decrypt, createConversationKey, getConversationKey, isInitialized: encryptionReady } = useEncryption();
+  
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -56,7 +63,6 @@ export function useChat() {
     if (!user) return;
 
     try {
-      // Get org_id from supabase profile
       const { data: userProfile } = await supabase
         .from('profiles')
         .select('org_id')
@@ -123,13 +129,21 @@ export function useChat() {
     setPresence(presenceMap);
   }, []);
 
+  // Decrypt a message if needed
+  const decryptMessageContent = useCallback(async (msg: Message): Promise<Message> => {
+    if (msg.is_encrypted && msg.encrypted_content && msg.nonce) {
+      const decrypted = await decrypt(msg.encrypted_content, msg.nonce, msg.conversation_id);
+      return { ...msg, content: decrypted };
+    }
+    return msg;
+  }, [decrypt]);
+
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
     try {
-      // Get all conversations the user is part of
       const { data: participantData, error: participantError } = await supabase
         .from('chat_participants')
         .select('conversation_id')
@@ -144,7 +158,6 @@ export function useChat() {
 
       const conversationIds = participantData.map(p => p.conversation_id);
 
-      // Fetch conversations
       const { data: convData, error: convError } = await supabase
         .from('chat_conversations')
         .select('*')
@@ -152,7 +165,6 @@ export function useChat() {
 
       if (convError) throw convError;
 
-      // Fetch all participants for these conversations
       const { data: allParticipants, error: participantsError } = await supabase
         .from('chat_participants')
         .select('*')
@@ -160,14 +172,12 @@ export function useChat() {
 
       if (participantsError) throw participantsError;
 
-      // Fetch profiles for all participants
       const participantUserIds = [...new Set(allParticipants?.map(p => p.user_id) || [])];
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, user_id, first_name, last_name, avatar_url, job_title')
         .in('user_id', participantUserIds);
 
-      // Fetch last message for each conversation
       const conversationsWithData: Conversation[] = await Promise.all(
         (convData || []).map(async (conv) => {
           const { data: lastMsg } = await supabase
@@ -185,15 +195,23 @@ export function useChat() {
               profile: profilesData?.find(pr => pr.user_id === p.user_id)
             })) || [];
 
+          // Cast to any for new columns not yet in types
+          const lastMsgAny = lastMsg as any;
+          let decryptedLastMsg = lastMsg as Message | undefined;
+          if (lastMsgAny?.is_encrypted && lastMsgAny?.encrypted_content && lastMsgAny?.nonce) {
+            const decrypted = await decrypt(lastMsgAny.encrypted_content, lastMsgAny.nonce, conv.id);
+            decryptedLastMsg = { ...lastMsgAny, content: decrypted };
+          }
+
           return {
             ...conv,
+            description: (conv as any).description || null,
             participants,
-            last_message: lastMsg || undefined
+            last_message: decryptedLastMsg || undefined
           };
         })
       );
 
-      // Sort by last message time
       conversationsWithData.sort((a, b) => {
         const aTime = a.last_message?.created_at || a.created_at;
         const bTime = b.last_message?.created_at || b.created_at;
@@ -206,7 +224,7 @@ export function useChat() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, decrypt]);
 
   // Fetch messages for active conversation
   const fetchMessages = useCallback(async (conversationId: string) => {
@@ -221,26 +239,34 @@ export function useChat() {
       return;
     }
 
-    // Fetch sender profiles
     const senderIds = [...new Set(data?.map(m => m.sender_id) || [])];
     const { data: senderProfiles } = await supabase
       .from('profiles')
       .select('id, user_id, first_name, last_name, avatar_url, job_title')
       .in('user_id', senderIds);
 
-    const messagesWithSenders = data?.map(msg => ({
-      ...msg,
-      sender: senderProfiles?.find(p => p.user_id === msg.sender_id)
-    })) || [];
+    // Decrypt messages
+    const messagesWithSenders = await Promise.all(
+      (data || []).map(async (msg) => {
+        const msgAny = msg as any;
+        const message: Message = {
+          ...msg,
+          is_encrypted: msgAny.is_encrypted,
+          encrypted_content: msgAny.encrypted_content,
+          nonce: msgAny.nonce,
+          sender: senderProfiles?.find(p => p.user_id === msg.sender_id)
+        };
+        return await decryptMessageContent(message);
+      })
+    );
 
     setMessages(messagesWithSenders);
-  }, []);
+  }, [decryptMessageContent]);
 
-  // Create or get existing conversation with a user
+  // Create or get existing DM conversation
   const startConversation = useCallback(async (otherUserId: string) => {
     if (!user) return null;
 
-    // Check if conversation already exists
     const existingConv = conversations.find(c => 
       !c.is_group && 
       c.participants.some(p => p.user_id === otherUserId)
@@ -253,14 +279,12 @@ export function useChat() {
     }
 
     try {
-      // Get org_id from supabase profile
       const { data: userProfile } = await supabase
         .from('profiles')
         .select('org_id')
         .eq('user_id', user.id)
         .single();
 
-      // Create new conversation
       const { data: newConv, error: convError } = await supabase
         .from('chat_conversations')
         .insert({
@@ -272,7 +296,6 @@ export function useChat() {
 
       if (convError) throw convError;
 
-      // Add both participants
       const { error: partError } = await supabase
         .from('chat_participants')
         .insert([
@@ -282,13 +305,15 @@ export function useChat() {
 
       if (partError) throw partError;
 
-      // Refresh conversations
+      // Create encryption key for this conversation
+      await createConversationKey(newConv.id, [user.id, otherUserId]);
+
       await fetchConversations();
 
-      // Set the new conversation as active
       const otherProfile = profiles.find(p => p.user_id === otherUserId);
       const conversation: Conversation = {
         ...newConv,
+        description: null,
         participants: [
           { user_id: user.id, profile: profile as unknown as Profile },
           { user_id: otherUserId, profile: otherProfile }
@@ -306,26 +331,127 @@ export function useChat() {
       });
       return null;
     }
-  }, [user, profile, conversations, profiles, fetchConversations, fetchMessages, toast]);
+  }, [user, profile, conversations, profiles, fetchConversations, fetchMessages, createConversationKey, toast]);
 
-  // Send message
-  const sendMessage = useCallback(async (content: string) => {
-    if (!user || !activeConversation || !content.trim()) return;
+  // Create a group chat
+  const createGroupChat = useCallback(async (name: string, memberUserIds: string[]) => {
+    if (!user) return null;
 
     try {
-      const { data, error } = await supabase
-        .from('chat_messages')
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('org_id')
+        .eq('user_id', user.id)
+        .single();
+
+      const { data: newConv, error: convError } = await supabase
+        .from('chat_conversations')
         .insert({
-          conversation_id: activeConversation.id,
-          sender_id: user.id,
-          content: content.trim()
+          is_group: true,
+          name,
+          org_id: userProfile?.org_id
         })
         .select()
         .single();
 
+      if (convError) throw convError;
+
+      // Add all members including creator
+      const allMembers = [user.id, ...memberUserIds];
+      const { error: partError } = await supabase
+        .from('chat_participants')
+        .insert(allMembers.map(userId => ({
+          conversation_id: newConv.id,
+          user_id: userId
+        })));
+
+      if (partError) throw partError;
+
+      // Create encryption key for all members
+      await createConversationKey(newConv.id, allMembers);
+
+      await fetchConversations();
+
+      toast({
+        title: 'Group created',
+        description: `"${name}" group chat has been created`
+      });
+
+      return newConv;
+    } catch (error) {
+      console.error('Error creating group chat:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create group chat',
+        variant: 'destructive'
+      });
+      return null;
+    }
+  }, [user, fetchConversations, createConversationKey, toast]);
+
+  // Add member to group
+  const addGroupMember = useCallback(async (conversationId: string, userId: string) => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from('chat_participants')
+        .insert({ conversation_id: conversationId, user_id: userId });
+
       if (error) throw error;
 
-      // Message will be added via realtime subscription
+      // Re-create encryption key for all members
+      const { data: allParticipants } = await supabase
+        .from('chat_participants')
+        .select('user_id')
+        .eq('conversation_id', conversationId);
+
+      if (allParticipants) {
+        await createConversationKey(conversationId, allParticipants.map(p => p.user_id));
+      }
+
+      await fetchConversations();
+      return true;
+    } catch (error) {
+      console.error('Error adding member:', error);
+      return false;
+    }
+  }, [user, fetchConversations, createConversationKey]);
+
+  // Send message (encrypted)
+  const sendMessage = useCallback(async (content: string) => {
+    if (!user || !activeConversation || !content.trim()) return;
+
+    try {
+      // Try to encrypt the message
+      let messageData: any = {
+        conversation_id: activeConversation.id,
+        sender_id: user.id,
+        content: '', // Placeholder for encrypted messages
+        is_encrypted: false
+      };
+
+      const encrypted = await encrypt(content.trim(), activeConversation.id);
+      if (encrypted) {
+        messageData = {
+          ...messageData,
+          content: '[Encrypted message]',
+          encrypted_content: encrypted.ciphertext,
+          nonce: encrypted.nonce,
+          is_encrypted: true
+        };
+      } else {
+        // Fallback to unencrypted if encryption fails
+        messageData.content = content.trim();
+      }
+
+      const { error } = await supabase
+        .from('chat_messages')
+        .insert(messageData)
+        .select()
+        .single();
+
+      if (error) throw error;
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -334,14 +460,13 @@ export function useChat() {
         variant: 'destructive'
       });
     }
-  }, [user, activeConversation, toast]);
+  }, [user, activeConversation, encrypt, toast]);
 
   // Get presence status for a user
   const getPresenceStatus = useCallback((userId: string): 'online' | 'away' | 'offline' => {
     const userPresence = presence.get(userId);
     if (!userPresence) return 'offline';
     
-    // Consider offline if last seen more than 5 minutes ago
     const lastSeen = new Date(userPresence.last_seen);
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
@@ -353,6 +478,15 @@ export function useChat() {
   const getConversationName = useCallback((conversation: Conversation): string => {
     if (conversation.name) return conversation.name;
     
+    if (conversation.is_group) {
+      const otherParticipants = conversation.participants
+        .filter(p => p.user_id !== user?.id)
+        .slice(0, 3);
+      return otherParticipants
+        .map(p => p.profile?.first_name || 'Unknown')
+        .join(', ');
+    }
+
     const otherParticipant = conversation.participants.find(p => p.user_id !== user?.id);
     if (otherParticipant?.profile) {
       return `${otherParticipant.profile.first_name} ${otherParticipant.profile.last_name}`;
@@ -362,19 +496,17 @@ export function useChat() {
 
   // Initialize and set up presence
   useEffect(() => {
-    if (user) {
+    if (user && encryptionReady) {
       updatePresence('online');
       fetchProfiles();
       fetchPresence();
       fetchConversations();
 
-      // Update presence periodically
       const interval = setInterval(() => {
         updatePresence('online');
         fetchPresence();
-      }, 60000); // Every minute
+      }, 60000);
 
-      // Set offline on page unload
       const handleUnload = () => {
         updatePresence('offline');
       };
@@ -386,13 +518,12 @@ export function useChat() {
         updatePresence('offline');
       };
     }
-  }, [user, updatePresence, fetchProfiles, fetchPresence, fetchConversations]);
+  }, [user, encryptionReady, updatePresence, fetchProfiles, fetchPresence, fetchConversations]);
 
   // Set up realtime subscriptions
   useEffect(() => {
     if (!user) return;
 
-    // Subscribe to new messages
     const messagesChannel = supabase
       .channel('chat_messages_changes')
       .on(
@@ -405,25 +536,24 @@ export function useChat() {
         async (payload) => {
           const newMessage = payload.new as Message;
           
-          // If it's for the active conversation, add it to messages
           if (activeConversation && newMessage.conversation_id === activeConversation.id) {
-            // Fetch sender profile
             const { data: senderProfile } = await supabase
               .from('profiles')
               .select('id, user_id, first_name, last_name, avatar_url, job_title')
               .eq('user_id', newMessage.sender_id)
               .single();
 
-            setMessages(prev => [...prev, { ...newMessage, sender: senderProfile || undefined }]);
+            const messageWithSender: Message = { ...newMessage, sender: senderProfile || undefined };
+            const decryptedMessage = await decryptMessageContent(messageWithSender);
+
+            setMessages(prev => [...prev, decryptedMessage]);
           }
 
-          // Refresh conversations to update last message
           fetchConversations();
         }
       )
       .subscribe();
 
-    // Subscribe to presence changes
     const presenceChannel = supabase
       .channel('user_presence_changes')
       .on(
@@ -446,7 +576,7 @@ export function useChat() {
       messagesChannel.unsubscribe();
       presenceChannel.unsubscribe();
     };
-  }, [user, activeConversation, fetchConversations]);
+  }, [user, activeConversation, fetchConversations, decryptMessageContent]);
 
   // Fetch messages when active conversation changes
   useEffect(() => {
@@ -467,8 +597,11 @@ export function useChat() {
     setIsOpen,
     sendMessage,
     startConversation,
+    createGroupChat,
+    addGroupMember,
     getPresenceStatus,
     getConversationName,
-    fetchConversations
+    fetchConversations,
+    encryptionReady
   };
 }
