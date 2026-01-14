@@ -4,25 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useTeamAttendance } from "@/hooks/useTeamAttendance";
-import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
-import { 
-  BarChart3, 
-  Download, 
-  FileSpreadsheet,
-  FileText,
-  Calendar,
-  Clock,
-  Users,
-  TrendingUp,
-  Loader2
-} from "lucide-react";
+import { format } from "date-fns";
+import { BarChart3, Download, FileText, Calendar, Clock, Users, TrendingUp, Loader2, Coffee } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const Reports = () => {
   const { requests, loading: leaveLoading } = useLeaveRequests();
-  const { teamAttendance, loading: attendanceLoading } = useTeamAttendance();
+  const { teamAttendance, dailyAttendance, loading: attendanceLoading } = useTeamAttendance();
   const [activeTab, setActiveTab] = useState("leave");
   const [dateRange, setDateRange] = useState("this-month");
 
@@ -31,42 +23,82 @@ const Reports = () => {
   // Calculate leave statistics
   const leaveStats = {
     total: requests.length,
-    approved: requests.filter(r => r.status === "approved").length,
-    pending: requests.filter(r => r.status === "pending").length,
-    rejected: requests.filter(r => r.status === "rejected").length,
-    byType: requests.reduce((acc, r) => {
-      acc[r.leave_type] = (acc[r.leave_type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>),
+    approved: requests.filter((r) => r.status === "approved").length,
+    pending: requests.filter((r) => r.status === "pending").length,
+    rejected: requests.filter((r) => r.status === "rejected").length,
+    byType: requests.reduce(
+      (acc, r) => {
+        acc[r.leave_type] = (acc[r.leave_type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ),
   };
 
   // Calculate attendance statistics
   const attendanceStats = {
     totalRecords: teamAttendance.length,
-    avgHoursWorked: teamAttendance.length > 0 
-      ? (teamAttendance.reduce((sum, emp) => sum + emp.total_hours, 0) / teamAttendance.length).toFixed(1)
-      : "0",
-    lateArrivals: 0, // Would need clock-in time policy to calculate
+    avgHoursWorked:
+      teamAttendance.length > 0
+        ? (teamAttendance.reduce((sum, emp) => sum + emp.total_hours, 0) / teamAttendance.length).toFixed(1)
+        : "0",
+    lateArrivals: 0,
     totalDaysWorked: teamAttendance.reduce((sum, emp) => sum + emp.days_worked, 0),
   };
 
-  const exportToCSV = (type: "leave" | "attendance") => {
+  // Calculate daily attendance stats
+  const dailyStats = {
+    totalRecords: dailyAttendance.length,
+    avgWorkHours:
+      dailyAttendance.length > 0
+        ? (dailyAttendance.reduce((sum, att) => sum + att.hours_worked, 0) / dailyAttendance.length).toFixed(1)
+        : "0",
+    totalBreakTime: dailyAttendance.reduce((sum, att) => sum + (att.total_break_minutes || 0), 0),
+  };
+
+  const formatTime24 = (dateString: string | null) => {
+    if (!dateString) return "-";
+    return format(new Date(dateString), "HH:mm");
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-";
+    return format(new Date(dateString), "yyyy-MM-dd");
+  };
+
+  const exportToCSV = (type: "leave" | "attendance" | "daily") => {
     let csvContent = "";
     let filename = "";
 
     if (type === "leave") {
       csvContent = "Employee,Leave Type,Start Date,End Date,Days,Status,Reason\n";
-      requests.forEach(r => {
+      requests.forEach((r) => {
         const name = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown";
         csvContent += `"${name}","${r.leave_type}","${r.start_date}","${r.end_date}",${r.days},"${r.status}","${r.reason || ""}"\n`;
       });
       filename = `leave-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    } else {
+    } else if (type === "attendance") {
       csvContent = "Employee,Email,Days Worked,Total Hours\n";
-      teamAttendance.forEach(emp => {
+      teamAttendance.forEach((emp) => {
         csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours}\n`;
       });
-      filename = `attendance-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
+      filename = `attendance-summary-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    } else if (type === "daily") {
+      csvContent =
+        "Date,Employee,Email,Clock In,Break Start,Break End,Total Break (min),Clock Out,Hours Worked,Status\n";
+      dailyAttendance.forEach((att) => {
+        const date = formatDate(att.clock_in);
+        const clockIn = formatTime24(att.clock_in);
+        const breakStart = formatTime24(att.break_start);
+        const breakEnd = formatTime24(att.break_end);
+        const clockOut = formatTime24(att.clock_out);
+        const breakMinutes = att.total_break_minutes || 0;
+        const hoursWorked = att.hours_worked.toFixed(2);
+        const status = att.clock_out ? "Complete" : "In Progress";
+
+        csvContent += `"${date}","${att.employee_name}","${att.email}","${clockIn}","${breakStart}","${breakEnd}",${breakMinutes},"${clockOut}",${hoursWorked},"${status}"\n`;
+      });
+      filename = `daily-attendance-${format(new Date(), "yyyy-MM-dd")}.csv`;
     }
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -118,17 +150,22 @@ const Reports = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+        <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
           <TabsTrigger value="leave" className="gap-2">
             <Calendar className="h-4 w-4" />
             Leave Reports
           </TabsTrigger>
           <TabsTrigger value="attendance" className="gap-2">
             <Clock className="h-4 w-4" />
-            Attendance Reports
+            Attendance Summary
+          </TabsTrigger>
+          <TabsTrigger value="daily" className="gap-2">
+            <Users className="h-4 w-4" />
+            Daily Attendance
           </TabsTrigger>
         </TabsList>
 
+        {/* LEAVE REPORTS TAB */}
         <TabsContent value="leave" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="animate-slide-up">
@@ -220,6 +257,7 @@ const Reports = () => {
           </Card>
         </TabsContent>
 
+        {/* ATTENDANCE SUMMARY TAB */}
         <TabsContent value="attendance" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="animate-slide-up">
@@ -283,8 +321,8 @@ const Reports = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="font-display text-lg">Attendance Records</CardTitle>
-                  <CardDescription>Team attendance data</CardDescription>
+                  <CardTitle className="font-display text-lg">Attendance Summary</CardTitle>
+                  <CardDescription>Team attendance data (aggregated)</CardDescription>
                 </div>
                 <Button onClick={() => exportToCSV("attendance")} className="gap-2">
                   <Download className="h-4 w-4" />
@@ -303,7 +341,7 @@ const Reports = () => {
                     <span>Days Worked</span>
                     <span>Total Hours</span>
                   </div>
-                  {teamAttendance.slice(0, 10).map(emp => (
+                  {teamAttendance.slice(0, 10).map((emp) => (
                     <div key={emp.user_id} className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-accent/30 text-sm">
                       <span>{emp.employee_name}</span>
                       <span className="text-muted-foreground">{emp.email}</span>
@@ -311,6 +349,115 @@ const Reports = () => {
                       <span>{emp.total_hours}h</span>
                     </div>
                   ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* DAILY ATTENDANCE TAB */}
+        <TabsContent value="daily" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="animate-slide-up">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Records</p>
+                    <p className="text-3xl font-display font-bold">{dailyStats.totalRecords}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-primary/10">
+                    <Calendar className="h-6 w-6 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="animate-slide-up" style={{ animationDelay: "100ms" }}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Avg Work Hours</p>
+                    <p className="text-3xl font-display font-bold">{dailyStats.avgWorkHours}h</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-success/10">
+                    <Clock className="h-6 w-6 text-success" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="animate-slide-up" style={{ animationDelay: "200ms" }}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Break Time</p>
+                    <p className="text-3xl font-display font-bold">{Math.round(dailyStats.totalBreakTime / 60)}h</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-warning/10">
+                    <Coffee className="h-6 w-6 text-warning" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="animate-slide-up" style={{ animationDelay: "300ms" }}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="font-display text-lg">Daily Attendance Records</CardTitle>
+                  <CardDescription>Detailed time tracking (24-hour format)</CardDescription>
+                </div>
+                <Button onClick={() => exportToCSV("daily")} className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {dailyAttendance.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">No daily attendance records available</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Clock In</TableHead>
+                        <TableHead>Break Start</TableHead>
+                        <TableHead>Break End</TableHead>
+                        <TableHead>Break (min)</TableHead>
+                        <TableHead>Clock Out</TableHead>
+                        <TableHead>Hours</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dailyAttendance.map((att, index) => (
+                        <TableRow key={`${att.user_id}-${att.clock_in}-${index}`}>
+                          <TableCell className="font-medium">{formatDate(att.clock_in)}</TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{att.employee_name}</p>
+                              <p className="text-xs text-muted-foreground">{att.email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-success font-mono">{formatTime24(att.clock_in)}</TableCell>
+                          <TableCell className="text-warning font-mono">{formatTime24(att.break_start)}</TableCell>
+                          <TableCell className="text-warning font-mono">{formatTime24(att.break_end)}</TableCell>
+                          <TableCell className="font-medium">{att.total_break_minutes || 0}</TableCell>
+                          <TableCell className="text-destructive font-mono">{formatTime24(att.clock_out)}</TableCell>
+                          <TableCell className="font-bold">{att.hours_worked.toFixed(2)}h</TableCell>
+                          <TableCell>
+                            <Badge variant={att.clock_out ? "default" : "secondary"}>
+                              {att.clock_out ? "Complete" : "In Progress"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>
