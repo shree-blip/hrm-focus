@@ -15,18 +15,14 @@ export interface UserPreferences {
 }
 
 export function useSettings() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchPreferences = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from("user_preferences")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
+    const { data, error } = await supabase.from("user_preferences").select("*").eq("user_id", user.id).single();
 
     if (!error && data) {
       setPreferences(data);
@@ -38,11 +34,7 @@ export function useSettings() {
     fetchPreferences();
   }, [user]);
 
-  const updateProfile = async (updates: {
-    first_name?: string;
-    last_name?: string;
-    phone?: string;
-  }) => {
+  const updateProfile = async (updates: { first_name?: string; last_name?: string; phone?: string }) => {
     if (!user) return { error: new Error("Not authenticated") };
 
     const { error } = await supabase
@@ -67,16 +59,20 @@ export function useSettings() {
     return { error: null };
   };
 
+  /**
+   * ✅ Avatar Upload (Recommended)
+   * - Upload file to storage bucket: "documents"
+   * - Save STORAGE PATH (example: `${user.id}/avatar.jpg`) in profiles.avatar_url
+   * - Other pages can generate signed URL using useAvatarUrl(path)
+   */
   const updateAvatar = async (file: File) => {
     if (!user) return { error: new Error("Not authenticated") };
 
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}/avatar.${fileExt}`;
+    const fileExt = file.name.split(".").pop() || "jpg";
+    const filePath = `${user.id}/avatar.${fileExt}`;
 
-    // Upload to storage
-    const { error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(fileName, file, { upsert: true });
+    // Upload to storage (private bucket compatible)
+    const { error: uploadError } = await supabase.storage.from("documents").upload(filePath, file, { upsert: true });
 
     if (uploadError) {
       toast({
@@ -87,15 +83,10 @@ export function useSettings() {
       return { error: uploadError };
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from("documents")
-      .getPublicUrl(fileName);
-
-    // Update profile
+    // ✅ Save the storage path to profiles.avatar_url
     const { error: updateError } = await supabase
       .from("profiles")
-      .update({ avatar_url: urlData.publicUrl, updated_at: new Date().toISOString() })
+      .update({ avatar_url: filePath, updated_at: new Date().toISOString() })
       .eq("user_id", user.id);
 
     if (updateError) {
@@ -112,7 +103,7 @@ export function useSettings() {
       description: "Your profile photo has been updated",
     });
 
-    return { error: null, url: urlData.publicUrl };
+    return { error: null, path: filePath };
   };
 
   const updatePreferences = async (updates: Partial<UserPreferences>) => {
@@ -144,7 +135,6 @@ export function useSettings() {
   const updatePassword = async (currentPassword: string, newPassword: string) => {
     if (!user) return { error: new Error("Not authenticated") };
 
-    // Supabase requires re-authentication for password change
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
