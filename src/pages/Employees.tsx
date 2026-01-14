@@ -22,6 +22,26 @@ import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useAuth } from "@/contexts/AuthContext";
 import { MyTeamSection } from "@/components/employees/MyTeamSection";
+import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+
+// Component to handle individual employee avatar with signed URL
+const EmployeeAvatar = ({ employee }: { employee: any }) => {
+  const avatarPath = employee.profiles?.avatar_url || employee.avatar_url;
+  const { signedUrl } = useAvatarUrl(avatarPath);
+
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
+  };
+
+  return (
+    <Avatar className="h-10 w-10">
+      <AvatarImage src={signedUrl || ""} />
+      <AvatarFallback className="bg-primary/10 text-primary font-medium">
+        {getInitials(employee.first_name, employee.last_name)}
+      </AvatarFallback>
+    </Avatar>
+  );
+};
 
 const Employees = () => {
   const { employees, loading, createEmployee, updateEmployee, deactivateEmployee } = useEmployees();
@@ -97,7 +117,6 @@ const Employees = () => {
     setDeactivateOpen(true);
   };
 
-  // ✅ UPDATED: shows real Supabase error + sends minimal payload + closes dialog on success
   const handleAddEmployee = async (data: {
     name: string;
     email: string;
@@ -118,7 +137,6 @@ const Employees = () => {
         throw new Error("Name and email are required.");
       }
 
-      // ✅ Keep payload minimal to avoid unknown columns / constraints
       const payload = {
         first_name: firstName,
         last_name: lastName,
@@ -129,15 +147,12 @@ const Employees = () => {
         location: data.location || "US",
         status: data.status || "active",
         hire_date: new Date().toISOString().slice(0, 10),
-
-        // only include these if they exist as columns in employees table:
         manager_id: data.managerId,
         line_manager_id: data.lineManagerId,
       };
 
       const res: any = await createEmployee(payload as any);
 
-      // If your hook returns { error }, handle it:
       if (res?.error) throw res.error;
 
       setAddDialogOpen(false);
@@ -281,12 +296,7 @@ const Employees = () => {
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src="" />
-                        <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                          {getInitials(employee.first_name, employee.last_name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <EmployeeAvatar employee={employee} />
                       <div>
                         <p className="font-medium">
                           {employee.first_name} {employee.last_name}
@@ -324,7 +334,6 @@ const Employees = () => {
                     </Badge>
                   </TableCell>
 
-                  {/* ✅ Contact: only email icon now (call icon removed) */}
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Button
