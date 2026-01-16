@@ -9,21 +9,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EditHistoryDialog } from "@/components/logsheet/EditHistoryDialog";
 import { useWorkLogs, WorkLogInput } from "@/hooks/useWorkLogs";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,13 +45,13 @@ export default function LogSheet() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const totalMinutes = hours * 60 + minutes;
-    
+
     if (editingLog) {
       await updateLog(editingLog, { ...formData, time_spent_minutes: totalMinutes });
     } else {
       await addLog({ ...formData, time_spent_minutes: totalMinutes });
     }
-    
+
     resetForm();
     setIsAddDialogOpen(false);
   };
@@ -118,10 +105,13 @@ export default function LogSheet() {
               </PopoverContent>
             </Popover>
 
-            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-              setIsAddDialogOpen(open);
-              if (!open) resetForm();
-            }}>
+            <Dialog
+              open={isAddDialogOpen}
+              onOpenChange={(open) => {
+                setIsAddDialogOpen(open);
+                if (!open) resetForm();
+              }}
+            >
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -185,10 +175,14 @@ export default function LogSheet() {
                   </div>
 
                   <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => {
-                      setIsAddDialogOpen(false);
-                      resetForm();
-                    }}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsAddDialogOpen(false);
+                        resetForm();
+                      }}
+                    >
                       Cancel
                     </Button>
                     <Button type="submit" disabled={!formData.task_description || (hours === 0 && minutes === 0)}>
@@ -285,18 +279,10 @@ export default function LogSheet() {
                               >
                                 <History className="h-4 w-4 text-muted-foreground" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEdit(log)}
-                              >
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(log)}>
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => deleteLog(log.id)}
-                              >
+                              <Button variant="ghost" size="icon" onClick={() => deleteLog(log.id)}>
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </div>
@@ -335,6 +321,7 @@ export default function LogSheet() {
                           <TableHead>Task Description</TableHead>
                           <TableHead>Time Spent</TableHead>
                           <TableHead>Notes</TableHead>
+                          <TableHead className="w-[60px]">History</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -354,6 +341,19 @@ export default function LogSheet() {
                             </TableCell>
                             <TableCell className="text-muted-foreground max-w-xs">
                               <p className="truncate">{log.notes || "-"}</p>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedLogForHistory({ id: log.id, task: log.task_description });
+                                  setHistoryDialogOpen(true);
+                                }}
+                                title="View edit history"
+                              >
+                                <History className="h-4 w-4 text-muted-foreground" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
