@@ -1569,6 +1569,62 @@ export type Database = {
         }
         Relationships: []
       }
+      work_log_history: {
+        Row: {
+          change_type: string
+          changed_at: string
+          id: string
+          new_log_date: string | null
+          new_notes: string | null
+          new_task_description: string | null
+          new_time_spent_minutes: number | null
+          previous_log_date: string | null
+          previous_notes: string | null
+          previous_task_description: string | null
+          previous_time_spent_minutes: number | null
+          user_id: string
+          work_log_id: string
+        }
+        Insert: {
+          change_type?: string
+          changed_at?: string
+          id?: string
+          new_log_date?: string | null
+          new_notes?: string | null
+          new_task_description?: string | null
+          new_time_spent_minutes?: number | null
+          previous_log_date?: string | null
+          previous_notes?: string | null
+          previous_task_description?: string | null
+          previous_time_spent_minutes?: number | null
+          user_id: string
+          work_log_id: string
+        }
+        Update: {
+          change_type?: string
+          changed_at?: string
+          id?: string
+          new_log_date?: string | null
+          new_notes?: string | null
+          new_task_description?: string | null
+          new_time_spent_minutes?: number | null
+          previous_log_date?: string | null
+          previous_notes?: string | null
+          previous_task_description?: string | null
+          previous_time_spent_minutes?: number | null
+          user_id?: string
+          work_log_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_log_history_work_log_id_fkey"
+            columns: ["work_log_id"]
+            isOneToOne: false
+            referencedRelation: "work_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_logs: {
         Row: {
           created_at: string

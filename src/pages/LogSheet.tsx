@@ -24,10 +24,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { EditHistoryDialog } from "@/components/logsheet/EditHistoryDialog";
 import { useWorkLogs, WorkLogInput } from "@/hooks/useWorkLogs";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Clock, Pencil, Trash2, Users, FileText } from "lucide-react";
+import { CalendarIcon, Plus, Clock, Pencil, Trash2, Users, FileText, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function LogSheet() {
@@ -35,6 +36,8 @@ export default function LogSheet() {
   const { isManager, isVP } = useAuth();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<string | null>(null);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [selectedLogForHistory, setSelectedLogForHistory] = useState<{ id: string; task: string } | null>(null);
 
   const [formData, setFormData] = useState<WorkLogInput>({
     task_description: "",
@@ -274,6 +277,17 @@ export default function LogSheet() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                onClick={() => {
+                                  setSelectedLogForHistory({ id: log.id, task: log.task_description });
+                                  setHistoryDialogOpen(true);
+                                }}
+                                title="View edit history"
+                              >
+                                <History className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => handleEdit(log)}
                               >
                                 <Pencil className="h-4 w-4" />
@@ -351,6 +365,16 @@ export default function LogSheet() {
             </TabsContent>
           )}
         </Tabs>
+
+        {/* Edit History Dialog */}
+        {selectedLogForHistory && (
+          <EditHistoryDialog
+            open={historyDialogOpen}
+            onOpenChange={setHistoryDialogOpen}
+            workLogId={selectedLogForHistory.id}
+            taskDescription={selectedLogForHistory.task}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
