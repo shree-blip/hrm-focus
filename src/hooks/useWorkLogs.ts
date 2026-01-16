@@ -128,7 +128,41 @@ export function useWorkLogs() {
   };
 
   const updateLog = async (id: string, input: Partial<WorkLogInput>) => {
+    if (!user) return;
+    
     try {
+      // First, get the current log data to store in history
+      const { data: currentLog, error: fetchError } = await supabase
+        .from("work_logs")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Insert the edit history record
+      const { error: historyError } = await supabase
+        .from("work_log_history")
+        .insert({
+          work_log_id: id,
+          user_id: user.id,
+          change_type: "update",
+          previous_task_description: currentLog.task_description,
+          new_task_description: input.task_description || currentLog.task_description,
+          previous_time_spent_minutes: currentLog.time_spent_minutes,
+          new_time_spent_minutes: input.time_spent_minutes ?? currentLog.time_spent_minutes,
+          previous_notes: currentLog.notes,
+          new_notes: input.notes ?? currentLog.notes,
+          previous_log_date: currentLog.log_date,
+          new_log_date: input.log_date || currentLog.log_date,
+        });
+
+      if (historyError) {
+        console.error("Error saving edit history:", historyError);
+        // Continue with update even if history fails
+      }
+
+      // Now update the log
       const { error } = await supabase
         .from("work_logs")
         .update({
