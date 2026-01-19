@@ -26,7 +26,7 @@ export interface UploaderInfo {
 }
 
 export function useDocuments() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isVP } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploaderNames, setUploaderNames] = useState<UploaderInfo>({});
   const [loading, setLoading] = useState(true);
@@ -53,10 +53,10 @@ export function useDocuments() {
 
     const allDocs = data || [];
     
-    // Filter private category documents - only show if user is uploader or admin
+    // Filter private category documents - only show if user is uploader, admin, or VP
     const filteredDocs = allDocs.filter((doc) => {
       if (PRIVATE_CATEGORIES.includes(doc.category || "")) {
-        return doc.uploaded_by === user.id || isAdmin;
+        return doc.uploaded_by === user.id || isAdmin || isVP;
       }
       return true;
     });
@@ -239,7 +239,7 @@ export function useDocuments() {
 
   const canAccessDocument = (doc: Document) => {
     if (!isPrivateCategory(doc.category)) return true;
-    return doc.uploaded_by === user?.id || isAdmin;
+    return doc.uploaded_by === user?.id || isAdmin || isVP;
   };
 
   return {
