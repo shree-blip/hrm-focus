@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
+// Private categories that only uploader and admin can see
+export const PRIVATE_CATEGORIES = ["Compliance", "Contracts"];
+
 export interface Document {
   id: string;
   name: string;
@@ -15,11 +18,17 @@ export interface Document {
   updated_at: string;
   uploaded_by: string;
   employee_id: string | null;
+  uploader_name?: string;
+}
+
+export interface UploaderInfo {
+  [key: string]: string;
 }
 
 export function useDocuments() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [uploaderNames, setUploaderNames] = useState<UploaderInfo>({});
   const [loading, setLoading] = useState(true);
 
   const fetchDocuments = async () => {
@@ -38,9 +47,38 @@ export function useDocuments() {
         description: "Failed to load documents",
         variant: "destructive",
       });
-    } else {
-      setDocuments(data || []);
+      setLoading(false);
+      return;
     }
+
+    const allDocs = data || [];
+    
+    // Filter private category documents - only show if user is uploader or admin
+    const filteredDocs = allDocs.filter((doc) => {
+      if (PRIVATE_CATEGORIES.includes(doc.category || "")) {
+        return doc.uploaded_by === user.id || isAdmin;
+      }
+      return true;
+    });
+
+    // Fetch uploader names for display
+    const uploaderIds = [...new Set(filteredDocs.map(d => d.uploaded_by).filter(Boolean))];
+    if (uploaderIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name")
+        .in("user_id", uploaderIds);
+      
+      if (profiles) {
+        const names: UploaderInfo = {};
+        profiles.forEach((p) => {
+          names[p.user_id] = `${p.first_name} ${p.last_name}`;
+        });
+        setUploaderNames(names);
+      }
+    }
+
+    setDocuments(filteredDocs);
     setLoading(false);
   };
 
@@ -191,6 +229,19 @@ export function useDocuments() {
     });
   };
 
+  const getUploaderName = (uploaderId: string) => {
+    return uploaderNames[uploaderId] || "Unknown";
+  };
+
+  const isPrivateCategory = (category: string | null) => {
+    return PRIVATE_CATEGORIES.includes(category || "");
+  };
+
+  const canAccessDocument = (doc: Document) => {
+    if (!isPrivateCategory(doc.category)) return true;
+    return doc.uploaded_by === user?.id || isAdmin;
+  };
+
   return {
     documents,
     loading,
@@ -199,6 +250,9 @@ export function useDocuments() {
     renameDocument,
     downloadDocument,
     getDownloadUrl,
+    getUploaderName,
+    isPrivateCategory,
+    canAccessDocument,
     refetch: fetchDocuments,
   };
 }
