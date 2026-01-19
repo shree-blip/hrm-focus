@@ -315,10 +315,7 @@ const Employees = () => {
                   </TableCell>
 
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{employee.location === "US" ? "🇺🇸" : "🇳🇵"}</span>
-                      {employee.location || "US"}
-                    </div>
+                    <div className="flex items-center font-bold gap-2">{employee.location === "US" ? " US" : "NP"}</div>
                   </TableCell>
 
                   <TableCell>
