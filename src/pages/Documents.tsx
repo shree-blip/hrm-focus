@@ -19,6 +19,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   FileText,
   Upload,
   Search,
@@ -30,15 +35,18 @@ import {
   MoreHorizontal,
   Clock,
   Loader2,
+  Lock,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useDocuments, Document } from "@/hooks/useDocuments";
+import { useDocuments, Document, PRIVATE_CATEGORIES } from "@/hooks/useDocuments";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
 import { DocumentViewDialog } from "@/components/documents/DocumentViewDialog";
 import { RenameDocumentDialog } from "@/components/documents/RenameDocumentDialog";
 import { DeleteDocumentDialog } from "@/components/documents/DeleteDocumentDialog";
 import { ShareDocumentDialog } from "@/components/documents/ShareDocumentDialog";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Mock data for display when no real documents exist
 const mockDocuments = [
@@ -97,7 +105,18 @@ interface DisplayDocument {
 }
 
 const Documents = () => {
-  const { documents: realDocuments, loading, uploadDocument, deleteDocument, renameDocument, downloadDocument, getDownloadUrl } = useDocuments();
+  const { user, isAdmin } = useAuth();
+  const { 
+    documents: realDocuments, 
+    loading, 
+    uploadDocument, 
+    deleteDocument, 
+    renameDocument, 
+    downloadDocument, 
+    getDownloadUrl,
+    getUploaderName,
+    isPrivateCategory 
+  } = useDocuments();
   const [selectedCategory, setSelectedCategory] = useState("All Documents");
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -267,6 +286,7 @@ const Documents = () => {
                   <TableRow className="hover:bg-transparent">
                     <TableHead>Name</TableHead>
                     <TableHead>Category</TableHead>
+                    <TableHead>Uploaded By</TableHead>
                     <TableHead>Size</TableHead>
                     <TableHead>Modified</TableHead>
                     <TableHead>Status</TableHead>
@@ -284,12 +304,37 @@ const Documents = () => {
                         <div className="flex items-center gap-3">
                           {getFileIcon(doc.file_type)}
                           <span className="font-medium">{doc.name}</span>
+                          {isPrivateCategory(doc.category) && (
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Lock className="h-3 w-3 text-warning" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Private - Only visible to uploader and admins</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="font-normal">
-                          {doc.category || "Uncategorized"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="font-normal">
+                            {doc.category || "Uncategorized"}
+                          </Badge>
+                          {isPrivateCategory(doc.category) && (
+                            <Lock className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <User className="h-3 w-3" />
+                          <span className="text-sm">
+                            {doc.uploaded_by === user?.id 
+                              ? "You" 
+                              : getUploaderName(doc.uploaded_by)}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatFileSize(doc.file_size)}
