@@ -1,16 +1,50 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { BarChart3, Download, FileText, Calendar, Clock, Users, TrendingUp, Loader2, Coffee } from "lucide-react";
+import {
+  BarChart3,
+  Download,
+  FileText,
+  Calendar,
+  Clock,
+  Users,
+  TrendingUp,
+  Loader2,
+  Coffee,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useTeamAttendance } from "@/hooks/useTeamAttendance";
 import { toast } from "@/hooks/use-toast";
+
+// Types for multi-break support
+interface BreakRecord {
+  id?: string;
+  break_start: string | null;
+  break_end: string | null;
+  duration_minutes: number;
+}
+
+interface DailyAttendanceRecord {
+  user_id: string;
+  employee_name: string;
+  email: string;
+  clock_in: string;
+  clock_out: string | null;
+  hours_worked: number;
+  // Support both single break (legacy) and multiple breaks
+  break_start?: string | null;
+  break_end?: string | null;
+  breaks?: BreakRecord[];
+  total_break_minutes: number;
+}
 
 const Reports = () => {
   const { requests, loading: leaveLoading } = useLeaveRequests();
@@ -18,6 +52,7 @@ const Reports = () => {
   const [activeTab, setActiveTab] = useState("daily");
   const [dateRange, setDateRange] = useState("this-month");
   const [searchDate, setSearchDate] = useState("");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const loading = leaveLoading || attendanceLoading;
 
@@ -64,16 +99,93 @@ const Reports = () => {
       })
     : dailyAttendance;
 
+  // Helper function to get breaks from attendance record (handles both legacy and new format)
+  const getBreaks = (att: DailyAttendanceRecord): BreakRecord[] => {
+    // If breaks array exists and has data, use it
+    if (att.breaks && att.breaks.length > 0) {
+      return att.breaks;
+    }
+
+    // Legacy support: if single break_start/break_end exists, convert to array
+    if (att.break_start) {
+      return [
+        {
+          break_start: att.break_start,
+          break_end: att.break_end || null,
+          duration_minutes: att.total_break_minutes || 0,
+        },
+      ];
+    }
+
+    return [];
+  };
+
+  // Calculate total break time from breaks array
+  const calculateTotalBreakMinutes = (att: DailyAttendanceRecord): number => {
+    const breaks = getBreaks(att);
+
+    if (breaks.length === 0) {
+      return att.total_break_minutes || 0;
+    }
+
+    return breaks.reduce((total, brk) => {
+      if (brk.duration_minutes) {
+        return total + brk.duration_minutes;
+      }
+
+      // Calculate duration if not provided
+      if (brk.break_start && brk.break_end) {
+        const start = new Date(brk.break_start).getTime();
+        const end = new Date(brk.break_end).getTime();
+        const durationMs = end - start;
+        return total + Math.round(durationMs / (1000 * 60));
+      }
+
+      return total;
+    }, 0);
+  };
+
+  // Calculate total working hours (clock out - clock in - total break time)
+  const calculateTotalHours = (att: DailyAttendanceRecord): number | null => {
+    // If not clocked out yet, return null
+    if (!att.clock_out) {
+      return null;
+    }
+
+    const clockIn = new Date(att.clock_in).getTime();
+    const clockOut = new Date(att.clock_out).getTime();
+    const totalBreakMinutes = calculateTotalBreakMinutes(att);
+
+    // Calculate total time in milliseconds
+    const totalTimeMs = clockOut - clockIn;
+
+    // Convert to hours and subtract break time
+    const totalHours = totalTimeMs / (1000 * 60 * 60);
+    const breakHours = totalBreakMinutes / 60;
+
+    return Math.max(0, totalHours - breakHours);
+  };
+
   // Calculate daily attendance stats based on filtered data
   const dailyStats = {
     totalRecords: filteredDailyAttendance.length,
-    avgWorkHours:
-      filteredDailyAttendance.length > 0
-        ? (
-            filteredDailyAttendance.reduce((sum, att) => sum + att.hours_worked, 0) / filteredDailyAttendance.length
-          ).toFixed(1)
-        : "0",
-    totalBreakTime: filteredDailyAttendance.reduce((sum, att) => sum + (att.total_break_minutes || 0), 0),
+    avgTotalHours: (() => {
+      const completedRecords = filteredDailyAttendance.filter((att) => (att as DailyAttendanceRecord).clock_out);
+      if (completedRecords.length === 0) return "0";
+      const totalHours = completedRecords.reduce((sum, att) => {
+        const hours = calculateTotalHours(att as DailyAttendanceRecord);
+        return sum + (hours || 0);
+      }, 0);
+      return (totalHours / completedRecords.length).toFixed(1);
+    })(),
+    totalBreakTime: filteredDailyAttendance.reduce(
+      (sum, att) => sum + calculateTotalBreakMinutes(att as DailyAttendanceRecord),
+      0,
+    ),
+    totalBreakCount: filteredDailyAttendance.reduce(
+      (sum, att) => sum + getBreaks(att as DailyAttendanceRecord).length,
+      0,
+    ),
   };
 
   const formatTime24 = (dateString: string | null) => {
@@ -84,11 +196,32 @@ const Reports = () => {
     return `${hours}:${minutes}`;
   };
 
-  const getWorkStatus = (hoursWorked: number, clockOut: string | null) => {
-    if (!clockOut) return { label: "In Progress", variant: "secondary" as const };
-    if (hoursWorked > 8) return { label: "Overtime", variant: "default" as const };
-    if (hoursWorked < 8) return { label: "Short Time", variant: "destructive" as const };
-    return { label: "Complete", variant: "default" as const };
+  const formatBreakDuration = (minutes: number): string => {
+    if (minutes < 60) {
+      return `${minutes}m`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  };
+
+  const getWorkStatus = (totalHours: number | null, clockOut: string | null) => {
+    if (!clockOut || totalHours === null) return { label: "In Progress", variant: "secondary" as const };
+    if (totalHours >= 8.5) return { label: "Overtime", variant: "default" as const };
+    if (totalHours >= 7.5 && totalHours < 8.5) return { label: "Complete", variant: "default" as const };
+    return { label: "Short Time", variant: "destructive" as const };
+  };
+
+  const toggleRowExpanded = (rowKey: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) {
+        next.delete(rowKey);
+      } else {
+        next.add(rowKey);
+      }
+      return next;
+    });
   };
 
   const exportToCSV = (type: "leave" | "attendance" | "daily") => {
@@ -111,19 +244,62 @@ const Reports = () => {
       });
       filename = `attendance-summary-${dateStr}.csv`;
     } else if (type === "daily") {
-      csvContent =
-        "Date,Employee,Email,Clock In,Break Start,Break End,Total Break (min),Clock Out,Hours Worked,Status\n";
-      filteredDailyAttendance.forEach((att) => {
-        const date = formatDate(att.clock_in);
-        const clockIn = formatTime24(att.clock_in);
-        const breakStart = formatTime24(att.break_start);
-        const breakEnd = formatTime24(att.break_end);
-        const clockOut = formatTime24(att.clock_out);
-        const breakMinutes = att.total_break_minutes || 0;
-        const hoursWorked = att.hours_worked.toFixed(2);
-        const status = getWorkStatus(att.hours_worked, att.clock_out).label;
+      // Find maximum number of breaks across all records to determine columns needed
+      const maxBreaks = Math.max(
+        1,
+        filteredDailyAttendance.reduce((max, att) => {
+          const breaks = getBreaks(att as DailyAttendanceRecord);
+          return Math.max(max, breaks.length);
+        }, 0),
+      );
 
-        csvContent += `"${date}","${att.employee_name}","${att.email}","${clockIn}","${breakStart}","${breakEnd}",${breakMinutes},"${clockOut}",${hoursWorked},"${status}"\n`;
+      // Build dynamic header with individual break columns
+      let header = "Date,Employee,Email,Clock In";
+
+      // Add columns for each possible break (Start, End, Duration for each)
+      for (let i = 1; i <= maxBreaks; i++) {
+        header += `,Break ${i} Start,Break ${i} End,Break ${i} Duration (min)`;
+      }
+
+      header += ",Total Breaks Count,Total Break Time (min),Clock Out,Total Hours,Status\n";
+      csvContent = header;
+
+      filteredDailyAttendance.forEach((att) => {
+        const typedAtt = att as DailyAttendanceRecord;
+        const date = formatDate(typedAtt.clock_in);
+        const clockIn = formatTime24(typedAtt.clock_in);
+        const clockOut = formatTime24(typedAtt.clock_out);
+        const breaks = getBreaks(typedAtt);
+        const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
+        const totalHours = calculateTotalHours(typedAtt);
+        const status = getWorkStatus(totalHours, typedAtt.clock_out).label;
+
+        let row = `"${date}","${typedAtt.employee_name}","${typedAtt.email}","${clockIn}"`;
+
+        // Add each break's individual data (Start, End, Duration)
+        for (let i = 0; i < maxBreaks; i++) {
+          if (breaks[i]) {
+            const brk = breaks[i];
+            const breakStart = formatTime24(brk.break_start);
+            const breakEnd = formatTime24(brk.break_end);
+            // Calculate individual break duration
+            let breakDuration = brk.duration_minutes || 0;
+            if (!breakDuration && brk.break_start && brk.break_end) {
+              const start = new Date(brk.break_start).getTime();
+              const end = new Date(brk.break_end).getTime();
+              breakDuration = Math.round((end - start) / (1000 * 60));
+            }
+            row += `,"${breakStart}","${breakEnd}",${breakDuration}`;
+          } else {
+            // Empty cells for breaks that don't exist for this record
+            row += `,"-","-",0`;
+          }
+        }
+
+        const totalHoursStr = totalHours !== null ? totalHours.toFixed(2) : "In Progress";
+
+        row += `,${breaks.length},${totalBreakMinutes},"${clockOut}",${totalHoursStr},"${status}"\n`;
+        csvContent += row;
       });
       filename = `daily-attendance-${dateStr}.csv`;
     }
@@ -382,9 +558,9 @@ const Reports = () => {
           </Card>
         </TabsContent>
 
-        {/* DAILY ATTENDANCE TAB */}
+        {/* DAILY ATTENDANCE TAB - Updated with single Total Hours column */}
         <TabsContent value="daily" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -403,8 +579,9 @@ const Reports = () => {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600">Avg Work Hours</p>
-                    <p className="text-3xl font-bold">{dailyStats.avgWorkHours}h</p>
+                    <p className="text-sm font-medium text-slate-600">Avg Total Hours</p>
+                    <p className="text-3xl font-bold">{dailyStats.avgTotalHours}h</p>
+                    <p className="text-xs text-slate-400">excl. breaks</p>
                   </div>
                   <div className="p-3 rounded-full bg-green-100">
                     <Clock className="h-6 w-6 text-green-600" />
@@ -418,10 +595,24 @@ const Reports = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-slate-600">Total Break Time</p>
-                    <p className="text-3xl font-bold">{Math.round(dailyStats.totalBreakTime / 60)}h</p>
+                    <p className="text-3xl font-bold">{formatBreakDuration(dailyStats.totalBreakTime)}</p>
                   </div>
                   <div className="p-3 rounded-full bg-yellow-100">
                     <Coffee className="h-6 w-6 text-yellow-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">Total Breaks Taken</p>
+                    <p className="text-3xl font-bold">{dailyStats.totalBreakCount}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-purple-100">
+                    <Coffee className="h-6 w-6 text-purple-600" />
                   </div>
                 </div>
               </CardContent>
@@ -433,7 +624,7 @@ const Reports = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle className="text-lg">Daily Attendance Records</CardTitle>
-                  <CardDescription>Detailed time tracking (24-hour format)</CardDescription>
+                  <CardDescription>Detailed time tracking with multiple breaks (24-hour format)</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
@@ -465,39 +656,107 @@ const Reports = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
+                        <th className="text-left p-3 font-medium w-8"></th>
                         <th className="text-left p-3 font-medium">Date</th>
                         <th className="text-left p-3 font-medium">Employee</th>
                         <th className="text-left p-3 font-medium">Clock In</th>
-                        <th className="text-left p-3 font-medium">Break Start</th>
-                        <th className="text-left p-3 font-medium">Break End</th>
-                        <th className="text-left p-3 font-medium">Break (min)</th>
+                        <th className="text-left p-3 font-medium">Breaks</th>
+                        <th className="text-left p-3 font-medium">Total Break</th>
                         <th className="text-left p-3 font-medium">Clock Out</th>
-                        <th className="text-left p-3 font-medium">Hours</th>
+                        <th className="text-left p-3 font-medium">Total Hrs</th>
                         <th className="text-left p-3 font-medium">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredDailyAttendance.map((att, index) => {
-                        const status = getWorkStatus(att.hours_worked, att.clock_out);
+                        const typedAtt = att as DailyAttendanceRecord;
+                        const breaks = getBreaks(typedAtt);
+                        const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
+                        const totalHours = calculateTotalHours(typedAtt);
+                        const status = getWorkStatus(totalHours, typedAtt.clock_out);
+                        const rowKey = `${typedAtt.user_id}-${typedAtt.clock_in}-${index}`;
+                        const isExpanded = expandedRows.has(rowKey);
+                        const hasMultipleBreaks = breaks.length > 1;
+
                         return (
-                          <tr key={`${att.user_id}-${att.clock_in}-${index}`} className="border-b hover:bg-slate-50">
-                            <td className="p-3 font-medium">{formatDate(att.clock_in)}</td>
-                            <td className="p-3">
-                              <div>
-                                <p className="font-medium">{att.employee_name}</p>
-                                <p className="text-xs text-slate-600">{att.email}</p>
-                              </div>
-                            </td>
-                            <td className="p-3 text-green-600 font-mono">{formatTime24(att.clock_in)}</td>
-                            <td className="p-3 text-yellow-600 font-mono">{formatTime24(att.break_start)}</td>
-                            <td className="p-3 text-yellow-600 font-mono">{formatTime24(att.break_end)}</td>
-                            <td className="p-3 font-medium">{att.total_break_minutes || 0}</td>
-                            <td className="p-3 text-red-600 font-mono">{formatTime24(att.clock_out)}</td>
-                            <td className="p-3 font-bold">{att.hours_worked.toFixed(2)}h</td>
-                            <td className="p-3">
-                              <Badge variant={status.variant}>{status.label}</Badge>
-                            </td>
-                          </tr>
+                          <Fragment key={rowKey}>
+                            <tr className="border-b hover:bg-slate-50">
+                              <td className="p-3">
+                                {hasMultipleBreaks && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => toggleRowExpanded(rowKey)}
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronUp className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronDown className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                )}
+                              </td>
+                              <td className="p-3 font-medium">{formatDate(typedAtt.clock_in)}</td>
+                              <td className="p-3">
+                                <div>
+                                  <p className="font-medium">{typedAtt.employee_name}</p>
+                                  <p className="text-xs text-slate-600">{typedAtt.email}</p>
+                                </div>
+                              </td>
+                              <td className="p-3 text-green-600 font-mono">{formatTime24(typedAtt.clock_in)}</td>
+                              <td className="p-3">
+                                {breaks.length === 0 ? (
+                                  <span className="text-slate-400">No breaks</span>
+                                ) : breaks.length === 1 ? (
+                                  <span className="text-yellow-600 font-mono">
+                                    {formatTime24(breaks[0].break_start)} - {formatTime24(breaks[0].break_end)}
+                                  </span>
+                                ) : (
+                                  <Badge variant="outline" className="gap-1">
+                                    <Coffee className="h-3 w-3" />
+                                    {breaks.length} breaks
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="p-3 font-medium">
+                                {totalBreakMinutes > 0 ? formatBreakDuration(totalBreakMinutes) : "-"}
+                              </td>
+                              <td className="p-3 text-red-600 font-mono">{formatTime24(typedAtt.clock_out)}</td>
+                              <td className="p-3 font-bold">
+                                {totalHours !== null ? `${totalHours.toFixed(2)}h` : "-"}
+                              </td>
+                              <td className="p-3">
+                                <Badge variant={status.variant}>{status.label}</Badge>
+                              </td>
+                            </tr>
+                            {/* Expanded breaks detail row */}
+                            {hasMultipleBreaks && isExpanded && (
+                              <tr className="bg-slate-50">
+                                <td colSpan={9} className="p-0">
+                                  <div className="px-12 py-3 border-b">
+                                    <p className="text-sm font-medium text-slate-600 mb-2">Break Details:</p>
+                                    <div className="space-y-1">
+                                      {breaks.map((brk, brkIndex) => (
+                                        <div
+                                          key={brkIndex}
+                                          className="flex items-center gap-4 text-sm bg-white p-2 rounded border"
+                                        >
+                                          <Badge variant="secondary" className="text-xs">
+                                            Break {brkIndex + 1}
+                                          </Badge>
+                                          <span className="text-yellow-600 font-mono">
+                                            {formatTime24(brk.break_start)} - {formatTime24(brk.break_end)}
+                                          </span>
+                                          <span className="text-slate-600">({brk.duration_minutes || 0} min)</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         );
                       })}
                     </tbody>
