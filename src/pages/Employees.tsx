@@ -10,17 +10,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Plus, Filter, MoreHorizontal, Mail, MapPin, Loader2, FileCheck, FileSignature } from "lucide-react";
+import { Search, Plus, Filter, MoreHorizontal, Mail, MapPin, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
 import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
 import { TimesheetDialog } from "@/components/employees/TimesheetDialog";
 import { DeactivateDialog } from "@/components/employees/DeactivateDialog";
 import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
-import { EmployeeDocumentsDialog } from "@/components/employees/EmployeeDocumentsDialog";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useAuth } from "@/contexts/AuthContext";
 import { MyTeamSection } from "@/components/employees/MyTeamSection";
@@ -60,8 +58,6 @@ const Employees = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [timesheetOpen, setTimesheetOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
-  const [complianceOpen, setComplianceOpen] = useState(false);
-  const [contractsOpen, setContractsOpen] = useState(false);
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
@@ -382,16 +378,6 @@ const Employees = () => {
                             </DropdownMenuItem>
                           </>
                         )}
-
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setComplianceOpen(true)}>
-                          <FileCheck className="h-4 w-4 mr-2" />
-                          Compliance
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setContractsOpen(true)}>
-                          <FileSignature className="h-4 w-4 mr-2" />
-                          Contracts
-                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -437,18 +423,6 @@ const Employees = () => {
         open={deactivateOpen}
         onOpenChange={setDeactivateOpen}
         onConfirm={handleConfirmDeactivate}
-      />
-
-      <EmployeeDocumentsDialog
-        open={complianceOpen}
-        onOpenChange={setComplianceOpen}
-        category="Compliance"
-      />
-
-      <EmployeeDocumentsDialog
-        open={contractsOpen}
-        onOpenChange={setContractsOpen}
-        category="Contracts"
       />
     </DashboardLayout>
   );
