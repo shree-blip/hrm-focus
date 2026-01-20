@@ -1,4 +1,4 @@
-import { useState, Fragment } from "react";
+import { useState, Fragment, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -17,6 +17,9 @@ import {
   Coffee,
   ChevronDown,
   ChevronUp,
+  User,
+  Mail,
+  Timer,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -52,6 +55,7 @@ const Reports = () => {
   const [activeTab, setActiveTab] = useState("daily");
   const [dateRange, setDateRange] = useState("this-month");
   const [searchDate, setSearchDate] = useState("");
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const loading = leaveLoading || attendanceLoading;
@@ -91,13 +95,44 @@ const Reports = () => {
     return `${year}-${month}-${day}`;
   };
 
-  // Filter daily attendance by search date
-  const filteredDailyAttendance = searchDate
-    ? dailyAttendance.filter((att) => {
+  // Get unique employees list from daily attendance
+  const employeesList = useMemo(() => {
+    const employeesMap = new Map<string, { user_id: string; employee_name: string; email: string }>();
+    dailyAttendance.forEach((att) => {
+      const typedAtt = att as DailyAttendanceRecord;
+      if (!employeesMap.has(typedAtt.user_id)) {
+        employeesMap.set(typedAtt.user_id, {
+          user_id: typedAtt.user_id,
+          employee_name: typedAtt.employee_name,
+          email: typedAtt.email,
+        });
+      }
+    });
+    return Array.from(employeesMap.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name));
+  }, [dailyAttendance]);
+
+  // Filter daily attendance by search date and selected employee
+  const filteredDailyAttendance = useMemo(() => {
+    let filtered = dailyAttendance;
+
+    // Filter by employee
+    if (selectedEmployee !== "all") {
+      filtered = filtered.filter((att) => {
+        const typedAtt = att as DailyAttendanceRecord;
+        return typedAtt.user_id === selectedEmployee;
+      });
+    }
+
+    // Filter by date
+    if (searchDate) {
+      filtered = filtered.filter((att) => {
         const attDate = formatDate(att.clock_in);
         return attDate === searchDate;
-      })
-    : dailyAttendance;
+      });
+    }
+
+    return filtered;
+  }, [dailyAttendance, selectedEmployee, searchDate]);
 
   // Helper function to get breaks from attendance record (handles both legacy and new format)
   const getBreaks = (att: DailyAttendanceRecord): BreakRecord[] => {
@@ -188,6 +223,55 @@ const Reports = () => {
     ),
   };
 
+  // Calculate selected employee summary
+  const selectedEmployeeSummary = useMemo(() => {
+    if (selectedEmployee === "all") return null;
+
+    const employeeRecords = dailyAttendance.filter((att) => {
+      const typedAtt = att as DailyAttendanceRecord;
+      return typedAtt.user_id === selectedEmployee;
+    });
+
+    if (employeeRecords.length === 0) return null;
+
+    const firstRecord = employeeRecords[0] as DailyAttendanceRecord;
+    const completedRecords = employeeRecords.filter((att) => (att as DailyAttendanceRecord).clock_out);
+
+    const totalHoursWorked = completedRecords.reduce((sum, att) => {
+      const hours = calculateTotalHours(att as DailyAttendanceRecord);
+      return sum + (hours || 0);
+    }, 0);
+
+    const totalBreakMinutes = employeeRecords.reduce(
+      (sum, att) => sum + calculateTotalBreakMinutes(att as DailyAttendanceRecord),
+      0,
+    );
+
+    const totalBreaks = employeeRecords.reduce((sum, att) => sum + getBreaks(att as DailyAttendanceRecord).length, 0);
+
+    // Get date range
+    const dates = employeeRecords.map((att) => new Date((att as DailyAttendanceRecord).clock_in).getTime());
+    const firstDate = new Date(Math.min(...dates));
+    const lastDate = new Date(Math.max(...dates));
+
+    return {
+      employee_name: firstRecord.employee_name,
+      email: firstRecord.email,
+      totalDaysWorked: employeeRecords.length,
+      totalHoursWorked: totalHoursWorked.toFixed(1),
+      avgHoursPerDay: completedRecords.length > 0 ? (totalHoursWorked / completedRecords.length).toFixed(1) : "0",
+      totalBreakMinutes,
+      totalBreaks,
+      avgBreakPerDay: employeeRecords.length > 0 ? Math.round(totalBreakMinutes / employeeRecords.length) : 0,
+      dateRange: {
+        from: formatDate(firstDate.toISOString()),
+        to: formatDate(lastDate.toISOString()),
+      },
+      completedDays: completedRecords.length,
+      inProgressDays: employeeRecords.length - completedRecords.length,
+    };
+  }, [selectedEmployee, dailyAttendance]);
+
   const formatTime24 = (dateString: string | null) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
@@ -222,6 +306,11 @@ const Reports = () => {
       }
       return next;
     });
+  };
+
+  const clearFilters = () => {
+    setSearchDate("");
+    setSelectedEmployee("all");
   };
 
   const exportToCSV = (type: "leave" | "attendance" | "daily") => {
@@ -301,7 +390,13 @@ const Reports = () => {
         row += `,${breaks.length},${totalBreakMinutes},"${clockOut}",${totalHoursStr},"${status}"\n`;
         csvContent += row;
       });
-      filename = `daily-attendance-${dateStr}.csv`;
+
+      // Add employee name to filename if filtered
+      const employeeSuffix =
+        selectedEmployee !== "all" && selectedEmployeeSummary
+          ? `-${selectedEmployeeSummary.employee_name.replace(/\s+/g, "-")}`
+          : "";
+      filename = `daily-attendance${employeeSuffix}-${dateStr}.csv`;
     }
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -558,8 +653,113 @@ const Reports = () => {
           </Card>
         </TabsContent>
 
-        {/* DAILY ATTENDANCE TAB - Updated with single Total Hours column */}
+        {/* DAILY ATTENDANCE TAB - Updated with employee filter and summary */}
         <TabsContent value="daily" className="space-y-6">
+          {/* Employee Filter Section */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Filter by Employee
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex-1 min-w-[250px]">
+                  <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Employees</SelectItem>
+                      {employeesList.map((emp) => (
+                        <SelectItem key={emp.user_id} value={emp.user_id}>
+                          {emp.employee_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Input
+                  type="date"
+                  value={searchDate}
+                  onChange={(e) => setSearchDate(e.target.value)}
+                  placeholder="Filter by date"
+                  className="w-[180px]"
+                />
+                {(searchDate || selectedEmployee !== "all") && (
+                  <Button variant="outline" onClick={clearFilters}>
+                    Clear All Filters
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Selected Employee Summary Card */}
+          {selectedEmployeeSummary && (
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-blue-100">
+                      <User className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">{selectedEmployeeSummary.employee_name}</CardTitle>
+                      <CardDescription className="flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {selectedEmployeeSummary.email}
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-sm">
+                    {selectedEmployeeSummary.dateRange.from} to {selectedEmployeeSummary.dateRange.to}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  <div className="bg-white p-4 rounded-lg border">
+                    <p className="text-sm text-slate-600">Days Worked</p>
+                    <p className="text-2xl font-bold text-blue-600">{selectedEmployeeSummary.totalDaysWorked}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border">
+                    <p className="text-sm text-slate-600">Total Hours</p>
+                    <p className="text-2xl font-bold text-green-600">{selectedEmployeeSummary.totalHoursWorked}h</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border">
+                    <p className="text-sm text-slate-600">Avg Hours/Day</p>
+                    <p className="text-2xl font-bold">{selectedEmployeeSummary.avgHoursPerDay}h</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border">
+                    <p className="text-sm text-slate-600">Total Breaks</p>
+                    <p className="text-2xl font-bold text-yellow-600">{selectedEmployeeSummary.totalBreaks}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border">
+                    <p className="text-sm text-slate-600">Total Break Time</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {formatBreakDuration(selectedEmployeeSummary.totalBreakMinutes)}
+                    </p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border">
+                    <p className="text-sm text-slate-600">Avg Break/Day</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {formatBreakDuration(selectedEmployeeSummary.avgBreakPerDay)}
+                    </p>
+                  </div>
+                </div>
+                {selectedEmployeeSummary.inProgressDays > 0 && (
+                  <p className="text-sm text-slate-500 mt-4">
+                    <Timer className="h-4 w-4 inline mr-1" />
+                    {selectedEmployeeSummary.inProgressDays} day(s) still in progress
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Stats Cards - Show filtered stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-6">
@@ -624,32 +824,27 @@ const Reports = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle className="text-lg">Daily Attendance Records</CardTitle>
-                  <CardDescription>Detailed time tracking with multiple breaks (24-hour format)</CardDescription>
+                  <CardDescription>
+                    Detailed time tracking with multiple breaks (24-hour format)
+                    {selectedEmployee !== "all" && selectedEmployeeSummary && (
+                      <span className="ml-2 text-blue-600">
+                        — Showing {selectedEmployeeSummary.employee_name}'s records
+                      </span>
+                    )}
+                  </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="date"
-                    value={searchDate}
-                    onChange={(e) => setSearchDate(e.target.value)}
-                    placeholder="Filter by date"
-                    className="w-[180px]"
-                  />
-                  {searchDate && (
-                    <Button variant="outline" size="sm" onClick={() => setSearchDate("")}>
-                      Clear
-                    </Button>
-                  )}
-                  <Button onClick={() => exportToCSV("daily")} className="gap-2">
-                    <Download className="h-4 w-4" />
-                    Export CSV
-                  </Button>
-                </div>
+                <Button onClick={() => exportToCSV("daily")} className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
               {filteredDailyAttendance.length === 0 ? (
                 <p className="text-center py-8 text-slate-600">
-                  {searchDate ? "No records found for this date" : "No daily attendance records available"}
+                  {searchDate || selectedEmployee !== "all"
+                    ? "No records found for the selected filters"
+                    : "No daily attendance records available"}
                 </p>
               ) : (
                 <div className="overflow-x-auto">
