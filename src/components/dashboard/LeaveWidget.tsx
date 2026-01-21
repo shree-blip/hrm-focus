@@ -1,4 +1,4 @@
-import { Calendar, Check, X, ArrowRight } from "lucide-react";
+import { Calendar, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,8 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO } from "date-fns";
 
 export function LeaveWidget() {
-  const { requests, balances, approveRequest, rejectRequest, loading } = useLeaveRequests();
-  const { isManager, profile } = useAuth();
+  const { requests, balances, loading } = useLeaveRequests();
+  const { isManager } = useAuth();
 
   // Get the first 3 pending requests for managers, or user's own requests for employees
   const displayRequests = requests.slice(0, 3);
@@ -33,99 +33,91 @@ export function LeaveWidget() {
     return `${format(start, "MMM d")} - ${format(end, "MMM d")}`;
   };
 
-  const getInitials = (userId: string) => {
-    // For now, use first two letters of user id or a default
+  const getEmployeeName = (request: any) => {
+    if (request.profile?.first_name || request.profile?.last_name) {
+      return `${request.profile.first_name || ""} ${request.profile.last_name || ""}`.trim();
+    }
+    return "Unknown";
+  };
+
+  const getInitials = (request: any) => {
+    if (request.profile?.first_name && request.profile?.last_name) {
+      return `${request.profile.first_name[0]}${request.profile.last_name[0]}`.toUpperCase();
+    }
+    if (request.profile?.first_name) {
+      return request.profile.first_name.substring(0, 2).toUpperCase();
+    }
     return "U";
   };
 
   return (
-    <Card className="animate-slide-up opacity-0" style={{ animationDelay: "400ms", animationFillMode: "forwards" }}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="font-display text-lg flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
-            {isManager ? "Leave Requests" : "My Leave"}
-          </CardTitle>
-          <Link to="/leave">
-            <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 gap-1">
-              View All
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-blue-600" />
+          {isManager ? "Leave Requests" : "My Leave"}
+        </CardTitle>
+        <Link to="/leave">
+          <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+            View All
+            <ArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+        </Link>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <div className="text-center py-4 text-muted-foreground text-sm">Loading...</div>
+          <div className="text-center py-4 text-muted-foreground">Loading...</div>
         ) : displayRequests.length === 0 ? (
-          <div className="text-center py-4 text-muted-foreground text-sm">
+          <div className="text-center py-4 text-muted-foreground">
             {isManager ? "No pending leave requests" : "No leave requests"}
           </div>
         ) : (
           displayRequests.map((request) => (
-            <div key={request.id} className="flex items-center gap-4 p-3 rounded-lg bg-accent/30 border border-border">
+            <div key={request.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
               <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                  {getInitials(request.user_id)}
+                <AvatarFallback className="bg-blue-100 text-blue-700 text-sm font-medium">
+                  {getInitials(request)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{request.leave_type}</p>
-                <p className="text-xs text-muted-foreground">{formatDateRange(request.start_date, request.end_date)}</p>
+                <p className="text-sm font-medium truncate">{getEmployeeName(request)}</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{request.leave_type}</span>
+                  <span>•</span>
+                  <span>{formatDateRange(request.start_date, request.end_date)}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant={
-                    request.status === "approved"
-                      ? "default"
-                      : request.status === "rejected"
-                        ? "destructive"
-                        : "secondary"
-                  }
-                  className="text-xs"
-                >
-                  {request.status === "pending"
-                    ? `${request.days} ${request.days === 1 ? "day" : "days"}`
-                    : request.status}
-                </Badge>
-                {isManager && request.status === "pending" && (
-                  <div className="flex gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
-                      onClick={() => approveRequest(request.id)}
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => rejectRequest(request.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <Badge
+                variant={
+                  request.status === "approved"
+                    ? "default"
+                    : request.status === "rejected"
+                      ? "destructive"
+                      : "secondary"
+                }
+                className="shrink-0"
+              >
+                {request.status === "pending"
+                  ? `${request.days} ${request.days === 1 ? "day" : "days"}`
+                  : request.status}
+              </Badge>
             </div>
           ))
         )}
 
         {/* Leave Balance Summary - only show for the current user */}
-        <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
+        <div className="grid grid-cols-3 gap-2 pt-2 border-t">
           <div className="text-center">
-            <p className="text-lg font-semibold text-foreground">{annualLeft}</p>
-            <p className="text-xs text-muted-foreground">Annual Left</p>
+            <div className="text-2xl font-bold text-blue-600">{annualLeft}</div>
+            <div className="text-xs text-muted-foreground">Annual Left</div>
           </div>
           <div className="text-center">
-            <p className="text-lg font-semibold text-foreground">{sickLeft}</p>
-            <p className="text-xs text-muted-foreground">Sick Left</p>
+            <div className="text-2xl font-bold text-orange-600">{sickLeft}</div>
+            <div className="text-xs text-muted-foreground">Sick Left</div>
           </div>
           <div className="text-center">
-            <p className="text-lg font-semibold text-foreground">{personalLeft}</p>
-            <p className="text-xs text-muted-foreground">Personal Left</p>
+            <div className="text-2xl font-bold text-purple-600">{personalLeft}</div>
+            <div className="text-xs text-muted-foreground">Personal Left</div>
           </div>
         </div>
       </CardContent>
