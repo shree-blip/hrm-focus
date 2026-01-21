@@ -13,6 +13,11 @@ export interface Announcement {
   expires_at: string | null;
   is_active: boolean | null;
   publisher_name?: string;
+  deleted_at?: string | null;
+}
+
+export interface AnnouncementHistory extends Announcement {
+  history_reason: "expired" | "deleted";
 }
 
 let announcementsChannel: ReturnType<typeof supabase.channel> | null = null;
@@ -25,6 +30,7 @@ function ensureAnnouncementsChannel() {
   announcementsChannel = supabase
     .channel("announcements-realtime-shared")
     .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => {
+      // Trigger all listeners on any change
       channelListeners.forEach((fn) => fn());
     })
     .subscribe();
@@ -38,14 +44,16 @@ function teardownAnnouncementsChannelIfUnused() {
 
 export function useAnnouncements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [history, setHistory] = useState<AnnouncementHistory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
 
   const fetchAnnouncements = useCallback(async () => {
     try {
       const nowIso = new Date().toISOString();
 
-      // ✅ Only fetch active + not expired (expires_at is null OR > now)
-      const { data, error } = await supabase
+      // Fetch active + not expired announcements
+      const { data: activeData, error: activeError } = await supabase
         .from("announcements")
         .select("*")
         .eq("is_active", true)
@@ -53,9 +61,21 @@ export function useAnnouncements() {
         .order("is_pinned", { ascending: false })
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (activeError) throw activeError;
 
-      const creatorIds = [...new Set((data || []).map((a) => a.created_by).filter(Boolean))] as string[];
+      // Fetch history: expired announcements OR soft-deleted (is_active = false)
+      const { data: historyData, error: historyError } = await supabase
+        .from("announcements")
+        .select("*")
+        .or(`is_active.eq.false,and(is_active.eq.true,expires_at.lt.${nowIso})`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (historyError) throw historyError;
+
+      // Get all unique creator IDs from both active and history
+      const allData = [...(activeData || []), ...(historyData || [])];
+      const creatorIds = [...new Set(allData.map((a) => a.created_by).filter(Boolean))] as string[];
 
       let profilesMap: Record<string, string> = {};
       if (creatorIds.length > 0) {
@@ -75,12 +95,25 @@ export function useAnnouncements() {
         }
       }
 
-      const transformed: Announcement[] = (data || []).map((a) => ({
+      // Transform active announcements
+      const transformedActive: Announcement[] = (activeData || []).map((a) => ({
         ...a,
         publisher_name: a.created_by ? profilesMap[a.created_by] || "System" : "System",
       })) as Announcement[];
 
-      setAnnouncements(transformed);
+      // Transform history announcements with reason
+      const transformedHistory: AnnouncementHistory[] = (historyData || []).map((a) => {
+        const isExpired = a.is_active && a.expires_at && new Date(a.expires_at).getTime() < Date.now();
+        return {
+          ...a,
+          publisher_name: a.created_by ? profilesMap[a.created_by] || "System" : "System",
+          history_reason: isExpired ? "expired" : "deleted",
+        } as AnnouncementHistory;
+      });
+
+      setAnnouncements(transformedActive);
+      setHistory(transformedHistory);
+      setLastRefresh(Date.now());
     } catch (error) {
       console.error("Failed to fetch announcements:", error);
     } finally {
@@ -88,12 +121,12 @@ export function useAnnouncements() {
     }
   }, []);
 
+  // Initial fetch
   useEffect(() => {
     fetchAnnouncements();
   }, [fetchAnnouncements]);
 
-  // ✅ Auto-refetch when the next announcement is about to expire,
-  // so it disappears without needing a DB change.
+  // Auto-refetch when the next announcement is about to expire
   useEffect(() => {
     const now = Date.now();
     const upcoming = announcements
@@ -103,15 +136,33 @@ export function useAnnouncements() {
     if (upcoming.length === 0) return;
 
     const nextExpiry = Math.min(...upcoming);
-    const delay = Math.min(nextExpiry - now + 1000, 2147483647); // cap for setTimeout
+    // Refresh 500ms after expiry to ensure it's moved to history
+    const delay = Math.min(nextExpiry - now + 500, 2147483647);
 
     const t = setTimeout(() => {
+      console.log("Auto-refreshing: announcement expired");
       fetchAnnouncements();
     }, delay);
 
     return () => clearTimeout(t);
+  }, [announcements, fetchAnnouncements, lastRefresh]);
+
+  // Periodic check every 30 seconds to catch any missed expirations
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const hasExpired = announcements.some((a) => a.expires_at && new Date(a.expires_at).getTime() <= now);
+
+      if (hasExpired) {
+        console.log("Periodic check: found expired announcements");
+        fetchAnnouncements();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [announcements, fetchAnnouncements]);
 
+  // Realtime subscription
   useEffect(() => {
     announcementsChannelUsers += 1;
     ensureAnnouncementsChannel();
@@ -127,6 +178,7 @@ export function useAnnouncements() {
 
   return {
     announcements,
+    history,
     loading,
     refetch: fetchAnnouncements,
   };
