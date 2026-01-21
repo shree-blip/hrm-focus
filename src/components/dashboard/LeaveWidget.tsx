@@ -9,10 +9,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO } from "date-fns";
 
 export function LeaveWidget() {
-  const { requests, balances, approveRequest, rejectRequest, loading, canApprove } = useLeaveRequests();
-  const { profile } = useAuth();
+  const { requests, balances, approveRequest, rejectRequest, loading } = useLeaveRequests();
+  const { isManager, profile } = useAuth();
 
-  // Get the first 3 pending requests for managers/VPs, or user's own requests for employees
+  // Get the first 3 pending requests for managers, or user's own requests for employees
   const displayRequests = requests.slice(0, 3);
 
   // Calculate leave balances
@@ -33,26 +33,9 @@ export function LeaveWidget() {
     return `${format(start, "MMM d")} - ${format(end, "MMM d")}`;
   };
 
-  // Get initials from profile data
-  const getInitials = (request: (typeof displayRequests)[0]) => {
-    if (request.profile?.first_name && request.profile?.last_name) {
-      return `${request.profile.first_name[0]}${request.profile.last_name[0]}`.toUpperCase();
-    }
-    if (request.profile?.first_name) {
-      return request.profile.first_name.substring(0, 2).toUpperCase();
-    }
-    return "??";
-  };
-
-  // Get full name from profile data
-  const getFullName = (request: (typeof displayRequests)[0]) => {
-    if (request.profile?.first_name && request.profile?.last_name) {
-      return `${request.profile.first_name} ${request.profile.last_name}`;
-    }
-    if (request.profile?.first_name) {
-      return request.profile.first_name;
-    }
-    return "Unknown Employee";
+  const getInitials = (userId: string) => {
+    // For now, use first two letters of user id or a default
+    return "U";
   };
 
   return (
@@ -61,7 +44,7 @@ export function LeaveWidget() {
         <div className="flex items-center justify-between">
           <CardTitle className="font-display text-lg flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            {canApprove ? "Leave Requests" : "My Leave"}
+            {isManager ? "Leave Requests" : "My Leave"}
           </CardTitle>
           <Link to="/leave">
             <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 gap-1">
@@ -76,22 +59,18 @@ export function LeaveWidget() {
           <div className="text-center py-4 text-muted-foreground text-sm">Loading...</div>
         ) : displayRequests.length === 0 ? (
           <div className="text-center py-4 text-muted-foreground text-sm">
-            {canApprove ? "No pending leave requests" : "No leave requests"}
+            {isManager ? "No pending leave requests" : "No leave requests"}
           </div>
         ) : (
           displayRequests.map((request) => (
             <div key={request.id} className="flex items-center gap-4 p-3 rounded-lg bg-accent/30 border border-border">
               <Avatar className="h-10 w-10">
                 <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                  {getInitials(request)}
+                  {getInitials(request.user_id)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                {/* Show employee name for managers/VPs */}
-                {canApprove && <p className="font-medium text-sm truncate">{getFullName(request)}</p>}
-                <p className={canApprove ? "text-xs text-muted-foreground" : "font-medium text-sm"}>
-                  {request.leave_type}
-                </p>
+                <p className="font-medium text-sm">{request.leave_type}</p>
                 <p className="text-xs text-muted-foreground">{formatDateRange(request.start_date, request.end_date)}</p>
               </div>
               <div className="flex items-center gap-2">
@@ -109,7 +88,7 @@ export function LeaveWidget() {
                     ? `${request.days} ${request.days === 1 ? "day" : "days"}`
                     : request.status}
                 </Badge>
-                {canApprove && request.status === "pending" && (
+                {isManager && request.status === "pending" && (
                   <div className="flex gap-1">
                     <Button
                       size="icon"
@@ -134,7 +113,7 @@ export function LeaveWidget() {
           ))
         )}
 
-        {/* Leave Balance Summary */}
+        {/* Leave Balance Summary - only show for the current user */}
         <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
           <div className="text-center">
             <p className="text-lg font-semibold text-foreground">{annualLeft}</p>
