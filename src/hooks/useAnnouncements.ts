@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface Announcement {
@@ -30,7 +30,6 @@ function ensureAnnouncementsChannel() {
   announcementsChannel = supabase
     .channel("announcements-realtime-shared")
     .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => {
-      // Trigger all listeners on any change
       channelListeners.forEach((fn) => fn());
     })
     .subscribe();
@@ -46,7 +45,9 @@ export function useAnnouncements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [history, setHistory] = useState<AnnouncementHistory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
+
+  // Use ref to track expiry timers
+  const expiryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchAnnouncements = useCallback(async () => {
     try {
@@ -113,7 +114,6 @@ export function useAnnouncements() {
 
       setAnnouncements(transformedActive);
       setHistory(transformedHistory);
-      setLastRefresh(Date.now());
     } catch (error) {
       console.error("Failed to fetch announcements:", error);
     } finally {
@@ -126,38 +126,56 @@ export function useAnnouncements() {
     fetchAnnouncements();
   }, [fetchAnnouncements]);
 
-  // Auto-refetch when the next announcement is about to expire
+  // Set up expiry timer whenever announcements change
   useEffect(() => {
+    // Clear any existing timer
+    if (expiryTimerRef.current) {
+      clearTimeout(expiryTimerRef.current);
+      expiryTimerRef.current = null;
+    }
+
+    if (announcements.length === 0) return;
+
     const now = Date.now();
-    const upcoming = announcements
-      .map((a) => (a.expires_at ? new Date(a.expires_at).getTime() : null))
-      .filter((t): t is number => typeof t === "number" && t > now);
 
-    if (upcoming.length === 0) return;
+    // Find all upcoming expiry times
+    const upcomingExpiries = announcements
+      .filter((a) => a.expires_at)
+      .map((a) => new Date(a.expires_at!).getTime())
+      .filter((t) => t > now);
 
-    const nextExpiry = Math.min(...upcoming);
-    // Refresh 500ms after expiry to ensure it's moved to history
-    const delay = Math.min(nextExpiry - now + 500, 2147483647);
+    if (upcomingExpiries.length === 0) return;
 
-    const t = setTimeout(() => {
-      console.log("Auto-refreshing: announcement expired");
+    // Set timer for the next expiry
+    const nextExpiry = Math.min(...upcomingExpiries);
+    const delay = nextExpiry - now + 500; // 500ms buffer
+
+    console.log(`Setting expiry timer for ${delay}ms from now`);
+
+    expiryTimerRef.current = setTimeout(() => {
+      console.log("Expiry timer fired - refreshing announcements");
       fetchAnnouncements();
     }, delay);
 
-    return () => clearTimeout(t);
-  }, [announcements, fetchAnnouncements, lastRefresh]);
+    return () => {
+      if (expiryTimerRef.current) {
+        clearTimeout(expiryTimerRef.current);
+        expiryTimerRef.current = null;
+      }
+    };
+  }, [announcements, fetchAnnouncements]);
 
-  // Periodic check every 30 seconds to catch any missed expirations
+  // Fallback: Check every 10 seconds for any missed expirations
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       const hasExpired = announcements.some((a) => a.expires_at && new Date(a.expires_at).getTime() <= now);
 
       if (hasExpired) {
-        console.log("Periodic check: found expired announcements");
+        console.log("Fallback check: found expired announcements, refreshing");
         fetchAnnouncements();
       }
-    }, 30000);
+    }, 10000); // Check every 10 seconds
 
     return () => clearInterval(interval);
   }, [announcements, fetchAnnouncements]);
