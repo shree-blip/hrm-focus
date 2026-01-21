@@ -16,6 +16,7 @@ interface LeaveRequest {
   approved_at: string | null;
   rejection_reason: string | null;
   created_at: string;
+  // Joined profile data
   profile?: {
     first_name: string;
     last_name: string;
@@ -31,21 +32,22 @@ interface LeaveBalance {
 }
 
 export function useLeaveRequests() {
-  const { user, isManager, isVP } = useAuth(); // Added isVP
+  const { user, isManager } = useAuth();
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Check if user can approve/reject requests
-  const canApprove = isManager || isVP;
-
   const fetchRequests = useCallback(async () => {
     if (!user) return;
 
-    let query = supabase.from("leave_requests").select("*").order("created_at", { ascending: false });
+    // Fetch leave requests
+    let query = supabase
+      .from("leave_requests")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    // Managers and VPs can see all requests; others see only their own
-    if (!canApprove) {
+    // If manager, fetch all; otherwise only own
+    if (!isManager) {
       query = query.eq("user_id", user.id);
     }
 
@@ -56,27 +58,32 @@ export function useLeaveRequests() {
       return;
     }
 
-    const userIds = [...new Set(leaveData.map((r) => r.user_id))];
+    // Fetch profiles for all unique user_ids
+    const userIds = [...new Set(leaveData.map(r => r.user_id))];
     const { data: profilesData } = await supabase
       .from("profiles")
       .select("user_id, first_name, last_name, email")
       .in("user_id", userIds);
 
-    const profilesMap = new Map(profilesData?.map((p) => [p.user_id, p]) || []);
-
-    const requestsWithProfiles = leaveData.map((request) => ({
+    // Map profiles to requests
+    const profilesMap = new Map(profilesData?.map(p => [p.user_id, p]) || []);
+    
+    const requestsWithProfiles = leaveData.map(request => ({
       ...request,
       profile: profilesMap.get(request.user_id) || undefined,
     })) as LeaveRequest[];
 
     setRequests(requestsWithProfiles);
     setLoading(false);
-  }, [user, canApprove]);
+  }, [user, isManager]);
 
   const fetchBalances = useCallback(async () => {
     if (!user) return;
 
-    const { data, error } = await supabase.from("leave_balances").select("*").eq("user_id", user.id);
+    const { data, error } = await supabase
+      .from("leave_balances")
+      .select("*")
+      .eq("user_id", user.id);
 
     if (!error && data) {
       setBalances(data as LeaveBalance[]);
@@ -87,11 +94,16 @@ export function useLeaveRequests() {
     fetchRequests();
     fetchBalances();
 
+    // Set up real-time subscription for leave requests
     const channel = supabase
-      .channel("leave-requests-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "leave_requests" }, () => {
-        fetchRequests();
-      })
+      .channel('leave-requests-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'leave_requests' },
+        () => {
+          fetchRequests();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -99,15 +111,23 @@ export function useLeaveRequests() {
     };
   }, [fetchRequests, fetchBalances]);
 
-  const createRequest = async (request: { leave_type: string; start_date: Date; end_date: Date; reason: string }) => {
+  const createRequest = async (request: {
+    leave_type: string;
+    start_date: Date;
+    end_date: Date;
+    reason: string;
+  }) => {
     if (!user) return;
 
-    const days = Math.ceil((request.end_date.getTime() - request.start_date.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const days = Math.ceil(
+      (request.end_date.getTime() - request.start_date.getTime()) / (1000 * 60 * 60 * 24)
+    ) + 1;
 
+    // Format dates as YYYY-MM-DD using local date components to avoid timezone shifts
     const formatLocalDate = (date: Date) => {
       const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     };
 
@@ -130,7 +150,7 @@ export function useLeaveRequests() {
   };
 
   const approveRequest = async (requestId: string) => {
-    if (!user || !canApprove) return; // Updated check
+    if (!user || !isManager) return;
 
     const { error } = await supabase
       .from("leave_requests")
@@ -150,7 +170,7 @@ export function useLeaveRequests() {
   };
 
   const rejectRequest = async (requestId: string, reason?: string) => {
-    if (!user || !canApprove) return; // Updated check
+    if (!user || !isManager) return;
 
     const { error } = await supabase
       .from("leave_requests")
@@ -174,7 +194,6 @@ export function useLeaveRequests() {
     requests,
     balances,
     loading,
-    canApprove, // Expose this for UI components
     createRequest,
     approveRequest,
     rejectRequest,
