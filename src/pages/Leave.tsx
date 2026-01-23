@@ -5,17 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Plus, Check, X, ChevronLeft, ChevronRight, Users, Loader2, MessageSquare } from "lucide-react";
+import { Calendar, Plus, Check, X, ChevronLeft, ChevronRight, Users, Loader2, MessageSquare, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/hooks/useNotifications";
 import { format } from "date-fns";
+import { toast } from "@/hooks/use-toast";
 
 const Leave = () => {
   const { user, isManager } = useAuth();
   const { requests, balances, loading, createRequest, approveRequest, rejectRequest } = useLeaveRequests();
+  const { unreadCount } = useNotifications();
   const [activeTab, setActiveTab] = useState("all");
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -27,10 +30,14 @@ const Leave = () => {
   });
 
   const handleApprove = async (id: string) => {
-    // Check if user is trying to approve their own request
-    const request = requests.find(r => r.id === id);
+    const request = requests.find((r) => r.id === id);
     if (request?.user_id === user?.id) {
-      return; // Can't approve own request - separation of duties
+      toast({
+        title: "Cannot Approve",
+        description: "You cannot approve your own leave request.",
+        variant: "destructive",
+      });
+      return;
     }
     await approveRequest(id);
   };
@@ -57,19 +64,36 @@ const Leave = () => {
   };
 
   // Default balances if none exist
-  const displayBalances = balances.length > 0 ? balances.map(b => ({
-    type: b.leave_type,
-    used: b.used_days,
-    total: b.total_days,
-    color: b.leave_type === "Annual Leave" ? "bg-primary" : 
-           b.leave_type === "Sick Leave" ? "bg-info" : 
-           b.leave_type === "Personal Leave" ? "bg-warning" : "bg-success"
-  })) : [
-    { type: "Annual Leave", used: 0, total: 20, color: "bg-primary" },
-    { type: "Sick Leave", used: 0, total: 10, color: "bg-info" },
-    { type: "Personal Leave", used: 0, total: 3, color: "bg-warning" },
-    { type: "Comp Time", used: 0, total: 5, color: "bg-success" },
-  ];
+  const displayBalances =
+    balances.length > 0
+      ? balances.map((b) => ({
+          type: b.leave_type,
+          used: b.used_days,
+          total: b.total_days,
+          color:
+            b.leave_type === "Annual Leave"
+              ? "bg-primary"
+              : b.leave_type === "Sick Leave"
+                ? "bg-info"
+                : b.leave_type === "Personal Leave"
+                  ? "bg-warning"
+                  : "bg-success",
+        }))
+      : [
+          { type: "Annual Leave", used: 0, total: 20, color: "bg-primary" },
+          { type: "Sick Leave", used: 0, total: 10, color: "bg-info" },
+          { type: "Personal Leave", used: 0, total: 3, color: "bg-warning" },
+          { type: "Comp Time", used: 0, total: 5, color: "bg-success" },
+        ];
+
+  // Get upcoming approved leave requests
+  const upcomingLeave = requests
+    .filter((r) => r.status === "approved" && new Date(r.start_date) >= new Date())
+    .slice(0, 3);
+
+  // Get pending requests count
+  const pendingRequestsCount = requests.filter((r) => r.status === "pending").length;
+  const ownPendingRequests = requests.filter((r) => r.status === "pending" && r.user_id === user?.id).length;
 
   if (loading) {
     return (
@@ -83,24 +107,119 @@ const Leave = () => {
 
   return (
     <DashboardLayout>
+      {/* Header with Notifications Badge */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Leave Management</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-display font-bold text-foreground">Leave Management</h1>
+            {unreadCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="relative gap-2"
+                onClick={() => (window.location.href = "/notifications")}
+              >
+                <Bell className="h-4 w-4" />
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center bg-destructive text-destructive-foreground">
+                  {unreadCount}
+                </Badge>
+              </Button>
+            )}
+          </div>
           <p className="text-muted-foreground mt-1">Manage leave requests and track balances</p>
         </div>
-        <Button className="gap-2 shadow-md" onClick={() => setRequestDialogOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Request Leave
-        </Button>
+        <div className="flex items-center gap-3">
+          {ownPendingRequests > 0 && (
+            <Badge variant="outline" className="text-warning border-warning">
+              {ownPendingRequests} pending request{ownPendingRequests !== 1 ? "s" : ""}
+            </Badge>
+          )}
+          <Button className="gap-2 shadow-md" onClick={() => setRequestDialogOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Request Leave
+          </Button>
+        </div>
       </div>
 
+      {/* Quick Stats Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Balance</p>
+                <p className="text-2xl font-bold mt-1">
+                  {displayBalances.reduce((sum, b) => sum + (b.total - b.used), 0)} days
+                </p>
+              </div>
+              <Calendar className="h-8 w-8 text-primary/60" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-info/5 border-info/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Approved Leave</p>
+                <p className="text-2xl font-bold mt-1">
+                  {requests.filter((r) => r.status === "approved").length} requests
+                </p>
+              </div>
+              <Check className="h-8 w-8 text-info/60" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-warning/5 border-warning/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Pending Requests</p>
+                <p className="text-2xl font-bold mt-1">{pendingRequestsCount}</p>
+              </div>
+              <Loader2 className="h-8 w-8 text-warning/60" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-success/5 border-success/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Team On Leave</p>
+                <p className="text-2xl font-bold mt-1">
+                  {
+                    requests.filter(
+                      (r) =>
+                        r.status === "approved" &&
+                        new Date(r.start_date) <= new Date() &&
+                        new Date(r.end_date) >= new Date(),
+                    ).length
+                  }
+                </p>
+              </div>
+              <Users className="h-8 w-8 text-success/60" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Balance Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {displayBalances.map((balance, index) => (
-          <Card key={balance.type} className="animate-slide-up opacity-0" style={{ animationDelay: `${100 + index * 50}ms`, animationFillMode: "forwards" }}>
+          <Card
+            key={balance.type}
+            className="animate-slide-up opacity-0 hover:shadow-md transition-shadow"
+            style={{
+              animationDelay: `${100 + index * 50}ms`,
+              animationFillMode: "forwards",
+            }}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-medium text-muted-foreground">{balance.type}</p>
-                <Badge variant="secondary">{balance.total - balance.used} left</Badge>
+                <Badge variant="secondary">{balance.total - balance.used} days left</Badge>
               </div>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-1">
@@ -108,28 +227,60 @@ const Leave = () => {
                   <span className="text-muted-foreground">/ {balance.total} days</span>
                 </div>
                 <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div className={cn("h-full rounded-full transition-all duration-500", balance.color)} style={{ width: `${balance.total > 0 ? (balance.used / balance.total) * 100 : 0}%` }} />
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-500", balance.color)}
+                    style={{
+                      width: `${balance.total > 0 ? Math.min((balance.used / balance.total) * 100, 100) : 0}%`,
+                    }}
+                  />
                 </div>
-                <p className="text-xs text-muted-foreground">{balance.used} days used</p>
+                <p className="text-xs text-muted-foreground">
+                  {balance.used} days used • {((balance.used / balance.total) * 100).toFixed(0)}% utilized
+                </p>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 animate-slide-up opacity-0" style={{ animationDelay: "300ms", animationFillMode: "forwards" }}>
+        {/* Leave Requests Panel */}
+        <Card
+          className="lg:col-span-2 animate-slide-up opacity-0"
+          style={{ animationDelay: "300ms", animationFillMode: "forwards" }}
+        >
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <CardTitle className="font-display text-lg flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
                 Leave Requests
+                {pendingRequestsCount > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {pendingRequestsCount} pending
+                  </Badge>
+                )}
               </CardTitle>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex">
-                  <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
-                  <TabsTrigger value="pending" className="text-xs sm:text-sm">Pending</TabsTrigger>
-                  <TabsTrigger value="approved" className="text-xs sm:text-sm">Approved</TabsTrigger>
+                  <TabsTrigger value="all" className="text-xs sm:text-sm">
+                    All
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      {requests.length}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="pending" className="text-xs sm:text-sm">
+                    Pending
+                    <Badge variant="outline" className="ml-2 text-xs bg-warning/10 text-warning">
+                      {requests.filter((r) => r.status === "pending").length}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="approved" className="text-xs sm:text-sm">
+                    Approved
+                    <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success">
+                      {requests.filter((r) => r.status === "approved").length}
+                    </Badge>
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -137,40 +288,70 @@ const Leave = () => {
           <CardContent className="space-y-4">
             {filteredRequests.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No leave requests found
+                <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                <p className="text-lg font-medium">No leave requests found</p>
+                <p className="text-sm mt-1">
+                  {activeTab === "all"
+                    ? "Submit your first leave request to get started."
+                    : `No ${activeTab} leave requests.`}
+                </p>
+                {activeTab === "all" && (
+                  <Button className="mt-4" onClick={() => setRequestDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Request Leave
+                  </Button>
+                )}
               </div>
             ) : (
               filteredRequests.map((request, index) => {
                 const isOwnRequest = request.user_id === user?.id;
-                const employeeName = request.profile 
-                  ? `${request.profile.first_name} ${request.profile.last_name}` 
-                  : "Unknown";
-                const initials = request.profile 
-                  ? `${request.profile.first_name[0]}${request.profile.last_name[0]}` 
+                const employeeName = request.profile
+                  ? `${request.profile.first_name} ${request.profile.last_name}`
+                  : "Unknown Employee";
+                const initials = request.profile
+                  ? `${request.profile.first_name[0]}${request.profile.last_name[0]}`
                   : "??";
-                
+                const email = request.profile?.email || "";
+
                 return (
-                  <div 
-                    key={request.id} 
-                    className="flex items-start gap-4 p-4 rounded-xl bg-accent/30 border border-border hover:border-primary/20 transition-all animate-fade-in" 
+                  <div
+                    key={request.id}
+                    className={cn(
+                      "flex items-start gap-4 p-4 rounded-xl border transition-all animate-fade-in",
+                      request.status === "pending" && "bg-warning/5 border-warning/20 hover:border-warning/40",
+                      request.status === "approved" && "bg-success/5 border-success/20 hover:border-success/40",
+                      request.status === "rejected" &&
+                        "bg-destructive/5 border-destructive/20 hover:border-destructive/40",
+                      request.status === "cancelled" &&
+                        "bg-secondary/50 border-border hover:border-muted-foreground/30",
+                    )}
                     style={{ animationDelay: `${400 + index * 100}ms` }}
                   >
                     <Avatar className="h-10 w-10">
                       <AvatarImage src="" />
-                      <AvatarFallback className="bg-primary/10 text-primary font-medium">{initials}</AvatarFallback>
+                      <AvatarFallback
+                        className={cn(
+                          request.status === "pending" && "bg-warning/20 text-warning",
+                          request.status === "approved" && "bg-success/20 text-success",
+                          request.status === "rejected" && "bg-destructive/20 text-destructive",
+                          "bg-primary/10 text-primary",
+                        )}
+                      >
+                        {initials}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="font-medium">
-                            {isOwnRequest ? "You" : employeeName}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{isOwnRequest ? "You" : employeeName}</p>
+                            {!isOwnRequest && <span className="text-xs text-muted-foreground">{email}</span>}
+                          </div>
                           <p className="text-sm text-muted-foreground mt-0.5">
-                            {request.leave_type} • {format(new Date(request.start_date), "MMM d, yyyy")} - {format(new Date(request.end_date), "MMM d, yyyy")}
+                            {request.leave_type} • {format(new Date(request.start_date), "MMM d, yyyy")} -{" "}
+                            {format(new Date(request.end_date), "MMM d, yyyy")}
                           </p>
-                          {request.reason && (
-                            <p className="text-sm text-muted-foreground mt-1">"{request.reason}"</p>
-                          )}
+                          {request.reason && <p className="text-sm text-muted-foreground mt-2">"{request.reason}"</p>}
                           {request.status === "rejected" && request.rejection_reason && (
                             <div className="flex items-start gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                               <MessageSquare className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
@@ -181,12 +362,21 @@ const Leave = () => {
                           )}
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <Badge variant="outline" className={cn(
-                            request.status === "pending" && "border-warning text-warning bg-warning/10",
-                            request.status === "approved" && "border-success text-success bg-success/10",
-                            request.status === "rejected" && "border-destructive text-destructive bg-destructive/10"
-                          )}>{request.status}</Badge>
-                          <span className="text-sm font-medium">{request.days} days</span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "capitalize",
+                              request.status === "pending" && "border-warning text-warning bg-warning/10",
+                              request.status === "approved" && "border-success text-success bg-success/10",
+                              request.status === "rejected" && "border-destructive text-destructive bg-destructive/10",
+                              request.status === "cancelled" && "border-gray-400 text-gray-400 bg-gray-400/10",
+                            )}
+                          >
+                            {request.status}
+                          </Badge>
+                          <span className="text-sm font-medium">
+                            {request.days} day{request.days !== 1 ? "s" : ""}
+                          </span>
                         </div>
                       </div>
                       {request.status === "pending" && isManager && !isOwnRequest && (
@@ -195,7 +385,12 @@ const Leave = () => {
                             <Check className="h-3 w-3" />
                             Approve
                           </Button>
-                          <Button size="sm" variant="outline" className="gap-1 text-destructive hover:bg-destructive/10" onClick={() => handleOpenRejectDialog(request.id, employeeName)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleOpenRejectDialog(request.id, employeeName)}
+                          >
                             <X className="h-3 w-3" />
                             Reject
                           </Button>
@@ -212,70 +407,136 @@ const Leave = () => {
           </CardContent>
         </Card>
 
-        <Card className="animate-slide-up opacity-0" style={{ animationDelay: "400ms", animationFillMode: "forwards" }}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="font-display text-lg flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                Team Calendar
-              </CardTitle>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-7 w-7"><ChevronLeft className="h-4 w-4" /></Button>
-                <span className="text-sm font-medium px-2">{format(new Date(), "MMM yyyy")}</span>
-                <Button variant="ghost" size="icon" className="h-7 w-7"><ChevronRight className="h-4 w-4" /></Button>
+        {/* Team Calendar & Notifications Panel */}
+        <div className="space-y-6">
+          <Card
+            className="animate-slide-up opacity-0"
+            style={{ animationDelay: "400ms", animationFillMode: "forwards" }}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  Team Calendar
+                </CardTitle>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium px-2">{format(new Date(), "MMM yyyy")}</span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-7 gap-1 text-center mb-4">
-              {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
-                <div key={i} className="text-xs font-medium text-muted-foreground py-2">{day}</div>
-              ))}
-              {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-                const today = new Date().getDate();
-                const hasLeave = requests.some(r => {
-                  const start = new Date(r.start_date).getDate();
-                  const end = new Date(r.end_date).getDate();
-                  return r.status === "approved" && day >= start && day <= end;
-                });
-                
-                return (
-                  <div 
-                    key={day} 
-                    className={cn(
-                      "text-sm py-2 rounded-md cursor-pointer transition-colors",
-                      day === today && "bg-primary text-primary-foreground font-medium",
-                      hasLeave && day !== today && "bg-warning/20 text-warning"
-                    )}
-                  >
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-7 gap-1 text-center mb-4">
+                {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
+                  <div key={i} className="text-xs font-medium text-muted-foreground py-2">
                     {day}
                   </div>
-                );
-              })}
-            </div>
-            <div className="space-y-2 pt-4 border-t border-border">
-              <p className="text-sm font-medium mb-2">Upcoming Time Off</p>
-              <div className="space-y-2">
-                {requests
-                  .filter(r => r.status === "approved" && new Date(r.start_date) >= new Date())
-                  .slice(0, 3)
-                  .map(r => (
-                    <div key={r.id} className="flex items-center gap-2 text-sm">
-                      <div className="h-2 w-2 rounded-full bg-warning" />
-                      <span>
-                        {format(new Date(r.start_date), "MMM d")} - {format(new Date(r.end_date), "MMM d")}
-                      </span>
+                ))}
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
+                  const today = new Date().getDate();
+                  const currentMonth = new Date().getMonth();
+                  const currentYear = new Date().getFullYear();
+                  const currentDate = new Date(currentYear, currentMonth, day);
+
+                  const hasLeave = requests.some((r) => {
+                    if (r.status !== "approved") return false;
+                    const startDate = new Date(r.start_date);
+                    const endDate = new Date(r.end_date);
+                    return currentDate >= startDate && currentDate <= endDate;
+                  });
+
+                  return (
+                    <div
+                      key={day}
+                      className={cn(
+                        "text-sm py-2 rounded-md cursor-pointer transition-colors",
+                        day === today && "bg-primary text-primary-foreground font-medium",
+                        hasLeave && day !== today && "bg-warning/20 text-warning-foreground",
+                      )}
+                    >
+                      {day}
                     </div>
-                  ))}
-                {requests.filter(r => r.status === "approved" && new Date(r.start_date) >= new Date()).length === 0 && (
-                  <p className="text-sm text-muted-foreground">No upcoming time off</p>
+                  );
+                })}
+              </div>
+
+              {/* Upcoming Time Off Section */}
+              <div className="space-y-2 pt-4 border-t border-border">
+                <p className="text-sm font-medium mb-2">Upcoming Time Off</p>
+                <div className="space-y-2">
+                  {upcomingLeave.length > 0 ? (
+                    upcomingLeave.map((r) => {
+                      const employeeName = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Employee";
+                      return (
+                        <div key={r.id} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-warning" />
+                            <span className="font-medium">{employeeName}</span>
+                          </div>
+                          <span className="text-muted-foreground">
+                            {format(new Date(r.start_date), "MMM d")} - {format(new Date(r.end_date), "MMM d")}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No upcoming time off scheduled</p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notifications Summary */}
+          <Card
+            className="animate-slide-up opacity-0"
+            style={{ animationDelay: "500ms", animationFillMode: "forwards" }}
+          >
+            <CardHeader>
+              <CardTitle className="font-display text-lg flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                Recent Notifications
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {unreadCount > 0 ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Bell className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium">
+                          You have {unreadCount} new notification{unreadCount !== 1 ? "s" : ""}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Check your notifications for updates</p>
+                      </div>
+                    </div>
+                    <Button className="w-full gap-2" onClick={() => (window.location.href = "/notifications")}>
+                      <Bell className="h-4 w-4" />
+                      View All Notifications
+                    </Button>
+                  </>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p>No new notifications</p>
+                    <p className="text-xs mt-1">You're all caught up!</p>
+                  </div>
                 )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
+      {/* Dialogs */}
       <RequestLeaveDialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen} onSubmit={handleSubmitRequest} />
       <RejectReasonDialog
         open={rejectDialogOpen}
