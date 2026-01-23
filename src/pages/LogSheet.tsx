@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,45 +11,128 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EditHistoryDialog } from "@/components/logsheet/EditHistoryDialog";
+import { AddClientDialog } from "@/components/logsheet/AddClientDialog";
+import { ClientAlertPopup } from "@/components/logsheet/ClientAlertPopup";
+import { TeamRealtimeDashboard } from "@/components/logsheet/TeamRealtimeDashboard";
+import { ClientReportDownload } from "@/components/logsheet/ClientReportDownload";
 import { useWorkLogs, WorkLogInput } from "@/hooks/useWorkLogs";
+import { useClients } from "@/hooks/useClients";
+import { useClientAlerts, ClientAlert } from "@/hooks/useClientAlerts";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Clock, Pencil, Trash2, Users, FileText, History } from "lucide-react";
+import {
+  CalendarIcon,
+  Plus,
+  Clock,
+  Pencil,
+  Trash2,
+  Users,
+  FileText,
+  History,
+  Download,
+  Activity,
+  Briefcase,
+  Building2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const DEPARTMENTS = [
+  "Engineering",
+  "Marketing",
+  "Sales",
+  "Human Resources",
+  "Finance",
+  "Operations",
+  "Design",
+  "Customer Support",
+  "Legal",
+  "Product",
+];
 
 export default function LogSheet() {
   const { logs, teamLogs, loading, selectedDate, setSelectedDate, addLog, updateLog, deleteLog } = useWorkLogs();
+  const { clients, loading: clientsLoading } = useClients();
+  const { fetchAlertsForClient } = useClientAlerts();
   const { isManager, isVP } = useAuth();
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<string | null>(null);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [selectedLogForHistory, setSelectedLogForHistory] = useState<{ id: string; task: string } | null>(null);
+  const [addClientDialogOpen, setAddClientDialogOpen] = useState(false);
+
+  // Client alerts state
+  const [clientAlerts, setClientAlerts] = useState<ClientAlert[]>([]);
+  const [alertClientName, setAlertClientName] = useState<string>("");
 
   const [formData, setFormData] = useState<WorkLogInput>({
     task_description: "",
     time_spent_minutes: 0,
     notes: "",
+    client_id: "",
+    department: "",
+    start_time: "",
+    end_time: "",
+    status: "completed",
   });
 
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
 
   const resetForm = () => {
-    setFormData({ task_description: "", time_spent_minutes: 0, notes: "" });
+    setFormData({
+      task_description: "",
+      time_spent_minutes: 0,
+      notes: "",
+      client_id: "",
+      department: "",
+      start_time: "",
+      end_time: "",
+      status: "completed",
+    });
     setHours(0);
     setMinutes(0);
     setEditingLog(null);
+  };
+
+  const handleClientChange = async (clientId: string) => {
+    setFormData({ ...formData, client_id: clientId });
+
+    if (clientId && clientId !== "add-new") {
+      const alerts = await fetchAlertsForClient(clientId);
+      if (alerts.length > 0) {
+        const client = clients.find((c) => c.id === clientId);
+        setAlertClientName(client?.name || "");
+        setClientAlerts(alerts);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const totalMinutes = hours * 60 + minutes;
 
+    const payload: WorkLogInput = {
+      ...formData,
+      time_spent_minutes: totalMinutes,
+      client_id: formData.client_id || undefined,
+      department: formData.department || undefined,
+      start_time: formData.start_time || undefined,
+      end_time: formData.end_time || undefined,
+    };
+
     if (editingLog) {
-      await updateLog(editingLog, { ...formData, time_spent_minutes: totalMinutes });
+      await updateLog(editingLog, payload);
     } else {
-      await addLog({ ...formData, time_spent_minutes: totalMinutes });
+      await addLog(payload);
     }
 
     resetForm();
@@ -61,6 +144,11 @@ export default function LogSheet() {
       task_description: log.task_description,
       time_spent_minutes: log.time_spent_minutes,
       notes: log.notes || "",
+      client_id: log.client_id || "",
+      department: log.department || "",
+      start_time: log.start_time || "",
+      end_time: log.end_time || "",
+      status: log.status || "completed",
     });
     setHours(Math.floor(log.time_spent_minutes / 60));
     setMinutes(log.time_spent_minutes % 60);
@@ -118,11 +206,65 @@ export default function LogSheet() {
                   Add Log
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>{editingLog ? "Edit Work Log" : "Add Work Log"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Client Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="client">Client</Label>
+                    <Select
+                      value={formData.client_id}
+                      onValueChange={(value) => {
+                        if (value === "add-new") {
+                          setAddClientDialogOpen(true);
+                        } else {
+                          handleClientChange(value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select client (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No client</SelectItem>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="add-new" className="text-primary font-medium">
+                          <span className="flex items-center gap-2">
+                            <Plus className="h-4 w-4" />
+                            Add New Client
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Department Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Department</Label>
+                    <Select
+                      value={formData.department}
+                      onValueChange={(value) => setFormData({ ...formData, department: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEPARTMENTS.map((dept) => (
+                          <SelectItem key={dept} value={dept}>
+                            {dept}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Task Description */}
                   <div className="space-y-2">
                     <Label htmlFor="task">Task Description *</Label>
                     <Textarea
@@ -135,6 +277,27 @@ export default function LogSheet() {
                     />
                   </div>
 
+                  {/* Time Inputs */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Start Time</Label>
+                      <Input
+                        type="time"
+                        value={formData.start_time}
+                        onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>End Time</Label>
+                      <Input
+                        type="time"
+                        value={formData.end_time}
+                        onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Time Spent */}
                   <div className="space-y-2">
                     <Label>Time Spent *</Label>
                     <div className="flex items-center gap-2">
@@ -163,6 +326,25 @@ export default function LogSheet() {
                     </div>
                   </div>
 
+                  {/* Status */}
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => setFormData({ ...formData, status: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="on_hold">On Hold</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Notes */}
                   <div className="space-y-2">
                     <Label htmlFor="notes">Notes (Optional)</Label>
                     <Textarea
@@ -213,21 +395,32 @@ export default function LogSheet() {
           </CardContent>
         </Card>
 
-        {/* Tabs for My Logs and Team Logs */}
+        {/* Main Tabs */}
         <Tabs defaultValue="my-logs" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="my-logs" className="gap-2">
               <FileText className="h-4 w-4" />
               My Logs
             </TabsTrigger>
             {(isManager || isVP) && (
-              <TabsTrigger value="team-logs" className="gap-2">
-                <Users className="h-4 w-4" />
-                Team Logs
-              </TabsTrigger>
+              <>
+                <TabsTrigger value="team-live" className="gap-2">
+                  <Activity className="h-4 w-4" />
+                  Team Live
+                </TabsTrigger>
+                <TabsTrigger value="team-logs" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Team Logs
+                </TabsTrigger>
+                <TabsTrigger value="reports" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Reports
+                </TabsTrigger>
+              </>
             )}
           </TabsList>
 
+          {/* My Logs Tab */}
           <TabsContent value="my-logs">
             <Card>
               <CardHeader>
@@ -248,23 +441,57 @@ export default function LogSheet() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Client</TableHead>
                         <TableHead>Task Description</TableHead>
-                        <TableHead>Time Spent</TableHead>
-                        <TableHead>Notes</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead className="w-[100px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {logs.map((log) => (
                         <TableRow key={log.id}>
+                          <TableCell>
+                            {log.client?.name ? (
+                              <Badge variant="outline" className="gap-1">
+                                <Briefcase className="h-3 w-3" />
+                                {log.client.name}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                           <TableCell className="font-medium max-w-xs">
                             <p className="truncate">{log.task_description}</p>
+                            {log.department && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                <Building2 className="h-3 w-3" />
+                                {log.department}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge variant="secondary">{formatTime(log.time_spent_minutes)}</Badge>
+                            {log.start_time && log.end_time && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {log.start_time} - {log.end_time}
+                              </p>
+                            )}
                           </TableCell>
-                          <TableCell className="text-muted-foreground max-w-xs">
-                            <p className="truncate">{log.notes || "-"}</p>
+                          <TableCell>
+                            <Badge
+                              variant={log.status === "in_progress" ? "default" : "outline"}
+                              className={cn(
+                                log.status === "in_progress" && "bg-green-500",
+                                log.status === "on_hold" && "bg-yellow-500"
+                              )}
+                            >
+                              {log.status === "in_progress"
+                                ? "In Progress"
+                                : log.status === "on_hold"
+                                ? "On Hold"
+                                : "Completed"}
+                            </Badge>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
@@ -296,6 +523,14 @@ export default function LogSheet() {
             </Card>
           </TabsContent>
 
+          {/* Team Live Dashboard */}
+          {(isManager || isVP) && (
+            <TabsContent value="team-live">
+              <TeamRealtimeDashboard />
+            </TabsContent>
+          )}
+
+          {/* Team Logs Tab */}
           {(isManager || isVP) && (
             <TabsContent value="team-logs">
               <Card>
@@ -317,10 +552,10 @@ export default function LogSheet() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Employee</TableHead>
-                          <TableHead>Department</TableHead>
+                          <TableHead>Client</TableHead>
                           <TableHead>Task Description</TableHead>
-                          <TableHead>Time Spent</TableHead>
-                          <TableHead>Notes</TableHead>
+                          <TableHead>Time</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead className="w-[60px]">History</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -329,9 +564,16 @@ export default function LogSheet() {
                           <TableRow key={log.id}>
                             <TableCell className="font-medium">
                               {log.employee?.first_name} {log.employee?.last_name}
+                              {log.employee?.department && (
+                                <p className="text-xs text-muted-foreground">{log.employee.department}</p>
+                              )}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline">{log.employee?.department || "N/A"}</Badge>
+                              {log.client?.name ? (
+                                <Badge variant="outline">{log.client.name}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
                             </TableCell>
                             <TableCell className="max-w-xs">
                               <p className="truncate">{log.task_description}</p>
@@ -339,8 +581,13 @@ export default function LogSheet() {
                             <TableCell>
                               <Badge variant="secondary">{formatTime(log.time_spent_minutes)}</Badge>
                             </TableCell>
-                            <TableCell className="text-muted-foreground max-w-xs">
-                              <p className="truncate">{log.notes || "-"}</p>
+                            <TableCell>
+                              <Badge
+                                variant={log.status === "in_progress" ? "default" : "outline"}
+                                className={cn(log.status === "in_progress" && "bg-green-500")}
+                              >
+                                {log.status === "in_progress" ? "Active" : log.status || "Completed"}
+                              </Badge>
                             </TableCell>
                             <TableCell>
                               <Button
@@ -364,6 +611,13 @@ export default function LogSheet() {
               </Card>
             </TabsContent>
           )}
+
+          {/* Reports Tab */}
+          {(isManager || isVP) && (
+            <TabsContent value="reports">
+              <ClientReportDownload />
+            </TabsContent>
+          )}
         </Tabs>
 
         {/* Edit History Dialog */}
@@ -375,6 +629,22 @@ export default function LogSheet() {
             taskDescription={selectedLogForHistory.task}
           />
         )}
+
+        {/* Add Client Dialog */}
+        <AddClientDialog
+          open={addClientDialogOpen}
+          onOpenChange={setAddClientDialogOpen}
+          onClientAdded={(clientId) => {
+            setFormData({ ...formData, client_id: clientId });
+          }}
+        />
+
+        {/* Client Alerts Popup */}
+        <ClientAlertPopup
+          alerts={clientAlerts}
+          clientName={alertClientName}
+          onDismiss={() => setClientAlerts([])}
+        />
       </div>
     </DashboardLayout>
   );
