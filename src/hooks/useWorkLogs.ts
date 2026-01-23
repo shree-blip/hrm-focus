@@ -8,16 +8,24 @@ export interface WorkLog {
   user_id: string;
   employee_id: string | null;
   org_id: string | null;
+  client_id: string | null;
+  department: string | null;
   log_date: string;
   task_description: string;
   time_spent_minutes: number;
   notes: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  status: string | null;
   created_at: string;
   updated_at: string;
   employee?: {
     first_name: string;
     last_name: string;
     department: string | null;
+  };
+  client?: {
+    name: string;
   };
 }
 
@@ -26,6 +34,11 @@ export interface WorkLogInput {
   time_spent_minutes: number;
   notes?: string;
   log_date?: string;
+  client_id?: string;
+  department?: string;
+  start_time?: string;
+  end_time?: string;
+  status?: string;
 }
 
 export function useWorkLogs() {
@@ -43,7 +56,10 @@ export function useWorkLogs() {
       const dateStr = date.toISOString().split("T")[0];
       const { data, error } = await supabase
         .from("work_logs")
-        .select("*")
+        .select(`
+          *,
+          client:clients(name)
+        `)
         .eq("user_id", user.id)
         .eq("log_date", dateStr)
         .order("created_at", { ascending: false });
@@ -69,7 +85,8 @@ export function useWorkLogs() {
         .from("work_logs")
         .select(`
           *,
-          employee:employees(first_name, last_name, department)
+          employee:employees(first_name, last_name, department),
+          client:clients(name)
         `)
         .eq("log_date", dateStr)
         .neq("user_id", user.id)
@@ -86,10 +103,10 @@ export function useWorkLogs() {
     if (!user) return null;
 
     try {
-      // Get employee_id and org_id
+      // Get employee_id, org_id, and department
       const { data: employeeData } = await supabase
         .from("employees")
-        .select("id, org_id")
+        .select("id, org_id, department")
         .eq("email", user.email)
         .single();
 
@@ -103,8 +120,13 @@ export function useWorkLogs() {
           task_description: input.task_description,
           time_spent_minutes: input.time_spent_minutes,
           notes: input.notes || null,
+          client_id: input.client_id || null,
+          department: input.department || employeeData?.department || null,
+          start_time: input.start_time || null,
+          end_time: input.end_time || null,
+          status: input.status || "completed",
         })
-        .select()
+        .select(`*, client:clients(name)`)
         .single();
 
       if (error) throw error;
@@ -163,13 +185,19 @@ export function useWorkLogs() {
       }
 
       // Now update the log
+      const updateData: Record<string, any> = {};
+      if (input.task_description !== undefined) updateData.task_description = input.task_description;
+      if (input.time_spent_minutes !== undefined) updateData.time_spent_minutes = input.time_spent_minutes;
+      if (input.notes !== undefined) updateData.notes = input.notes;
+      if (input.client_id !== undefined) updateData.client_id = input.client_id;
+      if (input.department !== undefined) updateData.department = input.department;
+      if (input.start_time !== undefined) updateData.start_time = input.start_time;
+      if (input.end_time !== undefined) updateData.end_time = input.end_time;
+      if (input.status !== undefined) updateData.status = input.status;
+
       const { error } = await supabase
         .from("work_logs")
-        .update({
-          task_description: input.task_description,
-          time_spent_minutes: input.time_spent_minutes,
-          notes: input.notes,
-        })
+        .update(updateData)
         .eq("id", id);
 
       if (error) throw error;
