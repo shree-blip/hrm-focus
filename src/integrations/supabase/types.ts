@@ -310,6 +310,63 @@ export type Database = {
           },
         ]
       }
+      client_alerts: {
+        Row: {
+          alert_type: string
+          client_id: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          message: string
+          org_id: string | null
+          show_on_selection: boolean
+          title: string
+        }
+        Insert: {
+          alert_type?: string
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          org_id?: string | null
+          show_on_selection?: boolean
+          title: string
+        }
+        Update: {
+          alert_type?: string
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string
+          org_id?: string | null
+          show_on_selection?: boolean
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_alerts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_alerts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           created_at: string
@@ -1672,10 +1729,13 @@ export type Database = {
           created_at: string
           department: string | null
           employee_id: string | null
+          end_time: string | null
           id: string
           log_date: string
           notes: string | null
           org_id: string | null
+          start_time: string | null
+          status: string | null
           task_description: string
           time_spent_minutes: number
           updated_at: string
@@ -1686,10 +1746,13 @@ export type Database = {
           created_at?: string
           department?: string | null
           employee_id?: string | null
+          end_time?: string | null
           id?: string
           log_date?: string
           notes?: string | null
           org_id?: string | null
+          start_time?: string | null
+          status?: string | null
           task_description: string
           time_spent_minutes?: number
           updated_at?: string
@@ -1700,10 +1763,13 @@ export type Database = {
           created_at?: string
           department?: string | null
           employee_id?: string | null
+          end_time?: string | null
           id?: string
           log_date?: string
           notes?: string | null
           org_id?: string | null
+          start_time?: string | null
+          status?: string | null
           task_description?: string
           time_spent_minutes?: number
           updated_at?: string
