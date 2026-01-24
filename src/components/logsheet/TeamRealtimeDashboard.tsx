@@ -19,6 +19,7 @@ interface LiveLog {
   created_at: string;
   client?: {
     name: string;
+    client_id: string | null;
   } | null;
   employee?: {
     first_name: string;
@@ -45,7 +46,8 @@ export function TeamRealtimeDashboard() {
       const today = format(new Date(), "yyyy-MM-dd");
       const { data, error } = await supabase
         .from("work_logs")
-        .select(`
+        .select(
+          `
           id,
           user_id,
           log_date,
@@ -54,9 +56,10 @@ export function TeamRealtimeDashboard() {
           status,
           start_time,
           created_at,
-          client:clients(name),
+          client:clients(name, client_id),
           employee:employees(first_name, last_name, department)
-        `)
+        `,
+        )
         .eq("log_date", today)
         .neq("user_id", user?.id || "")
         .order("created_at", { ascending: false })
@@ -86,7 +89,7 @@ export function TeamRealtimeDashboard() {
         },
         () => {
           fetchLiveLogs();
-        }
+        },
       )
       .subscribe();
 
@@ -110,9 +113,7 @@ export function TeamRealtimeDashboard() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
             </span>
-            <span className="text-sm text-muted-foreground">
-              {activeCount} active
-            </span>
+            <span className="text-sm text-muted-foreground">{activeCount} active</span>
           </div>
         </div>
       </CardHeader>
@@ -135,7 +136,7 @@ export function TeamRealtimeDashboard() {
                   "flex items-start gap-3 p-3 rounded-lg border transition-all",
                   log.status === "in_progress"
                     ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                    : "bg-muted/30"
+                    : "bg-muted/30",
                 )}
               >
                 <Avatar className="h-9 w-9">
@@ -154,27 +155,26 @@ export function TeamRealtimeDashboard() {
                         {log.employee.department}
                       </Badge>
                     )}
-                    {log.status === "in_progress" && (
-                      <Badge className="text-xs bg-green-500">Active</Badge>
-                    )}
+                    {log.status === "in_progress" && <Badge className="text-xs bg-green-500">Active</Badge>}
                   </div>
-                  <p className="text-sm text-muted-foreground truncate mt-1">
-                    {log.task_description}
-                  </p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground truncate mt-1">{log.task_description}</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
                     {log.client?.name && (
                       <span className="flex items-center gap-1">
                         <Briefcase className="h-3 w-3" />
-                        {log.client.name}
+                        <span>
+                          {log.client.name}
+                          {log.client.client_id && (
+                            <span className="text-muted-foreground/70 ml-1">({log.client.client_id})</span>
+                          )}
+                        </span>
                       </span>
                     )}
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {formatTime(log.time_spent_minutes)}
                     </span>
-                    {log.start_time && (
-                      <span>Started: {log.start_time}</span>
-                    )}
+                    {log.start_time && <span>Started: {log.start_time}</span>}
                   </div>
                 </div>
               </div>
