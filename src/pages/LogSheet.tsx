@@ -59,7 +59,7 @@ const DEPARTMENTS = [
 
 export default function LogSheet() {
   const { logs, teamLogs, loading, selectedDate, setSelectedDate, addLog, updateLog, deleteLog } = useWorkLogs();
-  const { clients, loading: clientsLoading } = useClients();
+  const { clients, loading: clientsLoading, refetch: refetchClients } = useClients();
   const { fetchAlertsForClient } = useClientAlerts();
   const { isManager, isVP } = useAuth();
 
@@ -625,8 +625,9 @@ export default function LogSheet() {
         <AddClientDialog
           open={addClientDialogOpen}
           onOpenChange={setAddClientDialogOpen}
-          onClientAdded={(clientId) => {
-            setFormData({ ...formData, client_id: clientId });
+          onClientAdded={async (clientId) => {
+            await refetchClients();
+            setFormData((prev) => ({ ...prev, client_id: clientId }));
           }}
         />
 
