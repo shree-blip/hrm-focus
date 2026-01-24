@@ -84,8 +84,21 @@ export default function LogSheet() {
     status: "completed",
   });
 
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
+  // Calculate time spent from start and end times
+  const calculateTimeSpent = (start: string, end: string): number => {
+    if (!start || !end) return 0;
+    const [startH, startM] = start.split(":").map(Number);
+    const [endH, endM] = end.split(":").map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    // Handle case where end time is after midnight (next day)
+    if (endMinutes < startMinutes) {
+      return (24 * 60 - startMinutes) + endMinutes;
+    }
+    return endMinutes - startMinutes;
+  };
+
+  const calculatedTimeSpent = calculateTimeSpent(formData.start_time || "", formData.end_time || "");
 
   const resetForm = () => {
     setFormData({
@@ -98,8 +111,6 @@ export default function LogSheet() {
       end_time: "",
       status: "completed",
     });
-    setHours(0);
-    setMinutes(0);
     setEditingLog(null);
   };
 
@@ -118,11 +129,10 @@ export default function LogSheet() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const totalMinutes = hours * 60 + minutes;
 
     const payload: WorkLogInput = {
       ...formData,
-      time_spent_minutes: totalMinutes,
+      time_spent_minutes: calculatedTimeSpent,
       client_id: formData.client_id || undefined,
       department: formData.department || undefined,
       start_time: formData.start_time || undefined,
@@ -150,8 +160,6 @@ export default function LogSheet() {
       end_time: log.end_time || "",
       status: log.status || "completed",
     });
-    setHours(Math.floor(log.time_spent_minutes / 60));
-    setMinutes(log.time_spent_minutes % 60);
     setEditingLog(log.id);
     setIsAddDialogOpen(true);
   };
@@ -297,34 +305,17 @@ export default function LogSheet() {
                     </div>
                   </div>
 
-                  {/* Time Spent */}
-                  <div className="space-y-2">
-                    <Label>Time Spent *</Label>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="24"
-                          value={hours}
-                          onChange={(e) => setHours(parseInt(e.target.value) || 0)}
-                          className="w-20"
-                        />
-                        <span className="text-sm text-muted-foreground">hours</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="59"
-                          value={minutes}
-                          onChange={(e) => setMinutes(parseInt(e.target.value) || 0)}
-                          className="w-20"
-                        />
-                        <span className="text-sm text-muted-foreground">minutes</span>
+                  {/* Calculated Time Display */}
+                  {formData.start_time && formData.end_time && (
+                    <div className="p-3 rounded-lg bg-muted/50 border">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">
+                          Time Spent: {formatTime(calculatedTimeSpent)}
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Status */}
                   <div className="space-y-2">
@@ -367,7 +358,7 @@ export default function LogSheet() {
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={!formData.task_description || (hours === 0 && minutes === 0)}>
+                    <Button type="submit" disabled={!formData.task_description || !formData.start_time || !formData.end_time}>
                       {editingLog ? "Update" : "Add"} Log
                     </Button>
                   </div>
