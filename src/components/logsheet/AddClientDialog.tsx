@@ -8,7 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useClients } from "@/hooks/useClients";
 
 interface AddClientDialogProps {
@@ -20,7 +19,7 @@ interface AddClientDialogProps {
 export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClientDialogProps) {
   const { addClient } = useClients();
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [clientId, setClientId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,12 +27,12 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
     if (!name.trim()) return;
 
     setIsSubmitting(true);
-    const client = await addClient({ name: name.trim(), description: description.trim() });
+    const client = await addClient({ name: name.trim(), client_id: clientId.trim() || undefined });
     setIsSubmitting(false);
 
     if (client) {
       setName("");
-      setDescription("");
+      setClientId("");
       onOpenChange(false);
       onClientAdded?.(client.id);
     }
@@ -57,13 +56,12 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="client-description">Description (Optional)</Label>
-            <Textarea
-              id="client-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of the client"
-              rows={3}
+            <Label htmlFor="client-id">Client ID (Optional)</Label>
+            <Input
+              id="client-id"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              placeholder="e.g., CLT001"
             />
           </div>
           <div className="flex justify-end gap-2">
