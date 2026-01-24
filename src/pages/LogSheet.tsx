@@ -239,7 +239,7 @@ export default function LogSheet() {
                         <SelectItem value="none">No client</SelectItem>
                         {clients.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
-                            {client.name}
+                            {client.name}{client.client_id ? ` (${client.client_id})` : ''}
                           </SelectItem>
                         ))}
                         <SelectItem value="add-new" className="text-primary font-medium">
@@ -446,7 +446,7 @@ export default function LogSheet() {
                             {log.client?.name ? (
                               <Badge variant="outline" className="gap-1">
                                 <Briefcase className="h-3 w-3" />
-                                {log.client.name}
+                                {log.client.name}{log.client.client_id ? ` (${log.client.client_id})` : ''}
                               </Badge>
                             ) : (
                               <span className="text-muted-foreground">-</span>
@@ -561,7 +561,7 @@ export default function LogSheet() {
                             </TableCell>
                             <TableCell>
                               {log.client?.name ? (
-                                <Badge variant="outline">{log.client.name}</Badge>
+                                <Badge variant="outline">{log.client.name}{log.client.client_id ? ` (${log.client.client_id})` : ''}</Badge>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}

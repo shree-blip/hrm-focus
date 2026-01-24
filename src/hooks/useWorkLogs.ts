@@ -26,6 +26,7 @@ export interface WorkLog {
   };
   client?: {
     name: string;
+    client_id: string | null;
   };
 }
 
@@ -58,7 +59,7 @@ export function useWorkLogs() {
         .from("work_logs")
         .select(`
           *,
-          client:clients(name)
+          client:clients(name, client_id)
         `)
         .eq("user_id", user.id)
         .eq("log_date", dateStr)
@@ -86,7 +87,7 @@ export function useWorkLogs() {
         .select(`
           *,
           employee:employees(first_name, last_name, department),
-          client:clients(name)
+          client:clients(name, client_id)
         `)
         .eq("log_date", dateStr)
         .neq("user_id", user.id)
@@ -126,7 +127,7 @@ export function useWorkLogs() {
           end_time: input.end_time || null,
           status: input.status || "completed",
         })
-        .select(`*, client:clients(name)`)
+        .select(`*, client:clients(name, client_id)`)
         .single();
 
       if (error) throw error;

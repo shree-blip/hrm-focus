@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 export interface Client {
   id: string;
   name: string;
-  description: string | null;
+  client_id: string | null;
   org_id: string | null;
   is_active: boolean;
   created_by: string | null;
@@ -15,7 +15,7 @@ export interface Client {
 
 export interface ClientInput {
   name: string;
-  description?: string;
+  client_id?: string;
 }
 
 export function useClients() {
@@ -61,7 +61,7 @@ export function useClients() {
         .from("clients")
         .insert({
           name: input.name,
-          description: input.description || null,
+          client_id: input.client_id || null,
           org_id: employeeData?.org_id || null,
           created_by: userData.user.id,
         })
@@ -94,7 +94,7 @@ export function useClients() {
         .from("clients")
         .update({
           name: input.name,
-          description: input.description,
+          client_id: input.client_id,
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
