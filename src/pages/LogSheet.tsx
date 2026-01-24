@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,13 +11,16 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
 import { EditHistoryDialog } from "@/components/logsheet/EditHistoryDialog";
 import { AddClientDialog } from "@/components/logsheet/AddClientDialog";
 import { ClientAlertPopup } from "@/components/logsheet/ClientAlertPopup";
@@ -41,6 +44,8 @@ import {
   Activity,
   Briefcase,
   Building2,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +74,10 @@ export default function LogSheet() {
   const [selectedLogForHistory, setSelectedLogForHistory] = useState<{ id: string; task: string } | null>(null);
   const [addClientDialogOpen, setAddClientDialogOpen] = useState(false);
 
+  // Client search state
+  const [clientSearchOpen, setClientSearchOpen] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState("");
+
   // Client alerts state
   const [clientAlerts, setClientAlerts] = useState<ClientAlert[]>([]);
   const [alertClientName, setAlertClientName] = useState<string>("");
@@ -84,6 +93,25 @@ export default function LogSheet() {
     status: "completed",
   });
 
+  // Filter clients based on search query (searches both name and client_id)
+  const filteredClients = useMemo(() => {
+    if (!clientSearchQuery.trim()) return clients;
+    const query = clientSearchQuery.toLowerCase();
+    return clients.filter(
+      (client) =>
+        client.name.toLowerCase().includes(query) ||
+        (client.client_id && client.client_id.toLowerCase().includes(query)),
+    );
+  }, [clients, clientSearchQuery]);
+
+  // Get selected client display text
+  const selectedClientDisplay = useMemo(() => {
+    if (!formData.client_id || formData.client_id === "none") return null;
+    const client = clients.find((c) => c.id === formData.client_id);
+    if (!client) return null;
+    return client.client_id ? `${client.name} (${client.client_id})` : client.name;
+  }, [formData.client_id, clients]);
+
   // Calculate time spent from start and end times
   const calculateTimeSpent = (start: string, end: string): number => {
     if (!start || !end) return 0;
@@ -93,7 +121,7 @@ export default function LogSheet() {
     const endMinutes = endH * 60 + endM;
     // Handle case where end time is after midnight (next day)
     if (endMinutes < startMinutes) {
-      return (24 * 60 - startMinutes) + endMinutes;
+      return 24 * 60 - startMinutes + endMinutes;
     }
     return endMinutes - startMinutes;
   };
@@ -112,15 +140,25 @@ export default function LogSheet() {
       status: "completed",
     });
     setEditingLog(null);
+    setClientSearchQuery("");
   };
 
-  const handleClientChange = async (clientId: string) => {
-    setFormData({ ...formData, client_id: clientId });
+  const handleClientSelect = async (clientId: string) => {
+    if (clientId === "add-new") {
+      setAddClientDialogOpen(true);
+      setClientSearchOpen(false);
+      return;
+    }
 
-    if (clientId && clientId !== "add-new") {
-      const alerts = await fetchAlertsForClient(clientId);
+    const actualClientId = clientId === "none" ? "" : clientId;
+    setFormData({ ...formData, client_id: actualClientId });
+    setClientSearchOpen(false);
+    setClientSearchQuery("");
+
+    if (actualClientId) {
+      const alerts = await fetchAlertsForClient(actualClientId);
       if (alerts.length > 0) {
-        const client = clients.find((c) => c.id === clientId);
+        const client = clients.find((c) => c.id === actualClientId);
         setAlertClientName(client?.name || "");
         setClientAlerts(alerts);
       }
@@ -219,37 +257,85 @@ export default function LogSheet() {
                   <DialogTitle>{editingLog ? "Edit Work Log" : "Add Work Log"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Client Selection */}
+                  {/* Searchable Client Selection */}
                   <div className="space-y-2">
                     <Label htmlFor="client">Client</Label>
-                    <Select
-                      value={formData.client_id}
-                      onValueChange={(value) => {
-                        if (value === "add-new") {
-                          setAddClientDialogOpen(true);
-                        } else {
-                          handleClientChange(value);
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select client (optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No client</SelectItem>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}{client.client_id ? ` (${client.client_id})` : ''}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="add-new" className="text-primary font-medium">
-                          <span className="flex items-center gap-2">
-                            <Plus className="h-4 w-4" />
-                            Add New Client
-                          </span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={clientSearchOpen}
+                          className="w-full justify-between font-normal"
+                        >
+                          {selectedClientDisplay || "Select client (optional)"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0" align="start">
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder="Search by name or client ID..."
+                            value={clientSearchQuery}
+                            onValueChange={setClientSearchQuery}
+                          />
+                          <CommandList>
+                            <CommandEmpty>
+                              <div className="py-4 text-center text-sm">
+                                <p className="text-muted-foreground">No clients found.</p>
+                                <Button
+                                  variant="link"
+                                  className="mt-2 text-primary"
+                                  onClick={() => handleClientSelect("add-new")}
+                                >
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Add New Client
+                                </Button>
+                              </div>
+                            </CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem value="none" onSelect={() => handleClientSelect("none")}>
+                                <Check
+                                  className={cn("mr-2 h-4 w-4", !formData.client_id ? "opacity-100" : "opacity-0")}
+                                />
+                                <span className="text-muted-foreground">No client</span>
+                              </CommandItem>
+                              {filteredClients.map((client) => (
+                                <CommandItem
+                                  key={client.id}
+                                  value={client.id}
+                                  onSelect={() => handleClientSelect(client.id)}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      formData.client_id === client.id ? "opacity-100" : "opacity-0",
+                                    )}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span>{client.name}</span>
+                                    {client.client_id && (
+                                      <span className="text-xs text-muted-foreground">ID: {client.client_id}</span>
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                            <CommandSeparator />
+                            <CommandGroup>
+                              <CommandItem
+                                value="add-new"
+                                onSelect={() => handleClientSelect("add-new")}
+                                className="text-primary"
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add New Client
+                              </CommandItem>
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   {/* Department Selection */}
@@ -310,9 +396,7 @@ export default function LogSheet() {
                     <div className="p-3 rounded-lg bg-muted/50 border">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">
-                          Time Spent: {formatTime(calculatedTimeSpent)}
-                        </span>
+                        <span className="text-sm font-medium">Time Spent: {formatTime(calculatedTimeSpent)}</span>
                       </div>
                     </div>
                   )}
@@ -358,7 +442,10 @@ export default function LogSheet() {
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={!formData.task_description || !formData.start_time || !formData.end_time}>
+                    <Button
+                      type="submit"
+                      disabled={!formData.task_description || !formData.start_time || !formData.end_time}
+                    >
                       {editingLog ? "Update" : "Add"} Log
                     </Button>
                   </div>
@@ -444,10 +531,15 @@ export default function LogSheet() {
                         <TableRow key={log.id}>
                           <TableCell>
                             {log.client?.name ? (
-                              <Badge variant="outline" className="gap-1">
-                                <Briefcase className="h-3 w-3" />
-                                {log.client.name}{log.client.client_id ? ` (${log.client.client_id})` : ''}
-                              </Badge>
+                              <div className="flex flex-col gap-1">
+                                <Badge variant="outline" className="gap-1 w-fit">
+                                  <Briefcase className="h-3 w-3" />
+                                  {log.client.name}
+                                </Badge>
+                                {log.client.client_id && (
+                                  <span className="text-xs text-muted-foreground">ID: {log.client.client_id}</span>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -474,14 +566,14 @@ export default function LogSheet() {
                               variant={log.status === "in_progress" ? "default" : "outline"}
                               className={cn(
                                 log.status === "in_progress" && "bg-green-500",
-                                log.status === "on_hold" && "bg-yellow-500"
+                                log.status === "on_hold" && "bg-yellow-500",
                               )}
                             >
                               {log.status === "in_progress"
                                 ? "In Progress"
                                 : log.status === "on_hold"
-                                ? "On Hold"
-                                : "Completed"}
+                                  ? "On Hold"
+                                  : "Completed"}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -561,7 +653,12 @@ export default function LogSheet() {
                             </TableCell>
                             <TableCell>
                               {log.client?.name ? (
-                                <Badge variant="outline">{log.client.name}{log.client.client_id ? ` (${log.client.client_id})` : ''}</Badge>
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant="outline">{log.client.name}</Badge>
+                                  {log.client.client_id && (
+                                    <span className="text-xs text-muted-foreground">ID: {log.client.client_id}</span>
+                                  )}
+                                </div>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
@@ -632,11 +729,7 @@ export default function LogSheet() {
         />
 
         {/* Client Alerts Popup */}
-        <ClientAlertPopup
-          alerts={clientAlerts}
-          clientName={alertClientName}
-          onDismiss={() => setClientAlerts([])}
-        />
+        <ClientAlertPopup alerts={clientAlerts} clientName={alertClientName} onDismiss={() => setClientAlerts([])} />
       </div>
     </DashboardLayout>
   );
