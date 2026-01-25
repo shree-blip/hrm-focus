@@ -10,8 +10,11 @@ interface AttendanceLog {
   break_start: string | null;
   break_end: string | null;
   total_break_minutes: number;
+  pause_start: string | null;
+  pause_end: string | null;
+  total_pause_minutes: number;
   clock_type: "payroll" | "billable";
-  status: "active" | "break" | "completed" | "auto_clocked_out";
+  status: "active" | "break" | "paused" | "completed" | "auto_clocked_out";
   location_name?: string;
 }
 
@@ -38,8 +41,10 @@ export function useAttendance(weekStart?: Date) {
 
     if (!error && data) {
       const log = data as AttendanceLog;
-      // Ensure status is correctly determined from actual break_start/break_end values
-      if (log.break_start && !log.break_end) {
+      // Ensure status is correctly determined from actual break_start/break_end and pause_start/pause_end values
+      if (log.pause_start && !log.pause_end) {
+        log.status = "paused";
+      } else if (log.break_start && !log.break_end) {
         log.status = "break";
       } else if (!log.clock_out) {
         log.status = "active";
@@ -250,8 +255,57 @@ export function useAttendance(weekStart?: Date) {
     }
   };
 
+  const pauseClock = async () => {
+    if (!user || !currentLog) return;
+
+    const { data, error } = await supabase
+      .from("attendance_logs")
+      .update({
+        pause_start: new Date().toISOString(),
+        pause_end: null,
+        status: "paused",
+      })
+      .eq("id", currentLog.id)
+      .select()
+      .single();
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to pause clock", variant: "destructive" });
+    } else {
+      setCurrentLog({ ...data, status: "paused" } as AttendanceLog);
+      toast({ title: "Clock Paused", description: "Your session is paused. Resume when ready." });
+    }
+  };
+
+  const resumeClock = async () => {
+    if (!user || !currentLog || !currentLog.pause_start) return;
+
+    const pauseStart = new Date(currentLog.pause_start);
+    const pauseEnd = new Date();
+    const pauseMinutes = Math.round((pauseEnd.getTime() - pauseStart.getTime()) / 60000);
+
+    const { data, error } = await supabase
+      .from("attendance_logs")
+      .update({
+        pause_end: pauseEnd.toISOString(),
+        total_pause_minutes: (currentLog.total_pause_minutes || 0) + pauseMinutes,
+        status: "active",
+      })
+      .eq("id", currentLog.id)
+      .select()
+      .single();
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to resume clock", variant: "destructive" });
+    } else {
+      setCurrentLog({ ...data, status: "active" } as AttendanceLog);
+      toast({ title: "Clock Resumed", description: `Paused for ${pauseMinutes} minutes. Back to work!` });
+    }
+  };
+
   const getStatus = () => {
     if (!currentLog) return "out";
+    if (currentLog.status === "paused") return "paused";
     if (currentLog.status === "break") return "break";
     return "in";
   };
@@ -264,7 +318,8 @@ export function useAttendance(weekStart?: Date) {
         const start = new Date(log.clock_in);
         const end = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
+        const pauseMinutes = log.total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
         totalMinutes += diffMs / (1000 * 60);
       }
     });
@@ -282,6 +337,8 @@ export function useAttendance(weekStart?: Date) {
     clockOut,
     startBreak,
     endBreak,
+    pauseClock,
+    resumeClock,
     status: getStatus(),
     monthlyHours: getMonthlyHours(),
     refetch: () => {
