@@ -110,8 +110,7 @@ export function useTeamAttendance(month?: Date) {
         const clockIn = new Date(log.clock_in);
         const clockOut = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
-        const pauseMinutes = (log as any).total_pause_minutes || 0;
-        const hours = (clockOut.getTime() - clockIn.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000) / (1000 * 60 * 60);
+        const hours = (clockOut.getTime() - clockIn.getTime() - breakMinutes * 60 * 1000) / (1000 * 60 * 60);
 
         const dayKey = clockIn.toISOString().split("T")[0];
 
@@ -130,9 +129,8 @@ export function useTeamAttendance(month?: Date) {
         const clockIn = new Date(log.clock_in);
         const clockOut = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
-        const pauseMinutes = (log as any).total_pause_minutes || 0;
         const totalMinutes = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60);
-        hoursWorked = (totalMinutes - breakMinutes - pauseMinutes) / 60;
+        hoursWorked = (totalMinutes - breakMinutes) / 60;
       }
 
       // Add to daily records
