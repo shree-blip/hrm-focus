@@ -32,6 +32,7 @@ import {
   Loader2,
   Briefcase,
   DollarSign,
+  Pause,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAttendance } from "@/hooks/useAttendance";
@@ -54,6 +55,8 @@ const Attendance = () => {
     clockOut, 
     startBreak, 
     endBreak,
+    pauseClock,
+    resumeClock,
     monthlyHours,
     refetch 
   } = useAttendance(currentWeekStart);
@@ -62,6 +65,7 @@ const Attendance = () => {
   const getClockStatus = () => {
     if (!currentLog) return "out";
     if (currentLog.clock_out) return "out";
+    if (currentLog.pause_start && !currentLog.pause_end) return "paused";
     if (currentLog.break_start && !currentLog.break_end) return "break";
     return "in";
   };
@@ -74,7 +78,8 @@ const Attendance = () => {
     const start = new Date(currentLog.clock_in);
     const end = currentLog.clock_out ? new Date(currentLog.clock_out) : new Date();
     const breakMinutes = currentLog.total_break_minutes || 0;
-    const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
+    const pauseMinutes = currentLog.total_pause_minutes || 0;
+    const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${minutes}m`;
@@ -98,7 +103,8 @@ const Attendance = () => {
         const start = new Date(log.clock_in);
         const end = log.clock_out ? new Date(log.clock_out) : new Date();
         const breakMinutes = log.total_break_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
+        const pauseMinutes = log.total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
         totalMinutes += diffMs / (1000 * 60);
       }
     });
@@ -122,20 +128,31 @@ const Attendance = () => {
     }
   };
 
+  const handlePause = async () => {
+    if (clockStatus === "paused") {
+      await resumeClock();
+    } else {
+      await pauseClock();
+    }
+  };
+
   const handleExport = () => {
     // Generate CSV
-    const headers = ["Date", "Clock In", "Clock Out", "Break (min)", "Total Hours", "Type"];
+    const headers = ["Date", "Clock In", "Clock Out", "Break (min)", "Pause (min)", "Total Hours", "Type"];
     const rows = weeklyLogs.map(log => {
       const clockIn = new Date(log.clock_in);
       const clockOut = log.clock_out ? new Date(log.clock_out) : null;
+      const breakMinutes = log.total_break_minutes || 0;
+      const pauseMinutes = log.total_pause_minutes || 0;
       const hours = clockOut 
-        ? ((clockOut.getTime() - clockIn.getTime() - (log.total_break_minutes || 0) * 60 * 1000) / (1000 * 60 * 60)).toFixed(2)
+        ? ((clockOut.getTime() - clockIn.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000) / (1000 * 60 * 60)).toFixed(2)
         : "-";
       return [
         format(clockIn, "yyyy-MM-dd"),
         format(clockIn, "hh:mm a"),
         clockOut ? format(clockOut, "hh:mm a") : "-",
-        log.total_break_minutes || 0,
+        breakMinutes,
+        pauseMinutes,
         hours,
         log.clock_type || "payroll"
       ].join(",");
@@ -238,38 +255,55 @@ const Attendance = () => {
                   "mt-3",
                   clockStatus === "in" && "border-success text-success bg-success/10",
                   clockStatus === "out" && "border-muted-foreground",
-                  clockStatus === "break" && "border-warning text-warning bg-warning/10"
+                  clockStatus === "break" && "border-warning text-warning bg-warning/10",
+                  clockStatus === "paused" && "border-info text-info bg-info/10"
                 )}
               >
                 {clockStatus === "in" && `Working • ${getTimeWorked()}`}
                 {clockStatus === "out" && "Not Clocked In"}
                 {clockStatus === "break" && "On Break"}
+                {clockStatus === "paused" && "Paused"}
               </Badge>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2 flex-wrap">
               {clockStatus === "out" ? (
                 <Button onClick={handleClockIn} className="flex-1 gap-2" size="lg">
                   <Play className="h-4 w-4" />
                   Clock In
                 </Button>
+              ) : clockStatus === "paused" ? (
+                <>
+                  <Button onClick={handlePause} className="flex-1 gap-2" size="lg">
+                    <Play className="h-4 w-4" />
+                    Resume
+                  </Button>
+                  <Button onClick={handleClockOut} variant="destructive" className="flex-1 gap-2" size="lg">
+                    <Square className="h-4 w-4" />
+                    Clock Out
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button
                     onClick={handleBreak}
                     variant={clockStatus === "break" ? "default" : "secondary"}
-                    className="flex-1 gap-2"
+                    className="gap-2"
                     size="lg"
                   >
                     <Coffee className="h-4 w-4" />
                     {clockStatus === "break" ? "Resume" : "Break"}
                   </Button>
                   <Button
-                    onClick={handleClockOut}
-                    variant="destructive"
-                    className="flex-1 gap-2"
+                    onClick={handlePause}
+                    variant="outline"
+                    className="gap-2 border-info text-info hover:bg-info/10"
                     size="lg"
                   >
+                    <Pause className="h-4 w-4" />
+                    Pause
+                  </Button>
+                  <Button onClick={handleClockOut} variant="destructive" className="gap-2" size="lg">
                     <Square className="h-4 w-4" />
                     Clock Out
                   </Button>
@@ -393,6 +427,7 @@ const Attendance = () => {
                 <TableHead>Clock In</TableHead>
                 <TableHead>Clock Out</TableHead>
                 <TableHead>Break</TableHead>
+                <TableHead>Pause</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Hours Worked</TableHead>
               </TableRow>
@@ -400,7 +435,7 @@ const Attendance = () => {
             <TableBody>
               {weeklyLogs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No attendance logs for this week
                   </TableCell>
                 </TableRow>
@@ -409,10 +444,11 @@ const Attendance = () => {
                   const clockInDate = new Date(log.clock_in);
                   const clockOutDate = log.clock_out ? new Date(log.clock_out) : null;
                   const breakMinutes = log.total_break_minutes || 0;
+                  const pauseMinutes = log.total_pause_minutes || 0;
                   
                   let hours = "-";
                   if (clockOutDate) {
-                    const diffMs = clockOutDate.getTime() - clockInDate.getTime() - (breakMinutes * 60 * 1000);
+                    const diffMs = clockOutDate.getTime() - clockInDate.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
                     hours = `${(diffMs / (1000 * 60 * 60)).toFixed(2)}h`;
                   }
                   
@@ -426,6 +462,7 @@ const Attendance = () => {
                         {clockOutDate ? format(clockOutDate, "hh:mm a") : "-"}
                       </TableCell>
                       <TableCell>{breakMinutes > 0 ? `${breakMinutes}m` : "-"}</TableCell>
+                      <TableCell>{pauseMinutes > 0 ? `${pauseMinutes}m` : "-"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={cn(
                           log.clock_type === "billable" && "border-info text-info bg-info/10",

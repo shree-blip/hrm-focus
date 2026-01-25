@@ -132,8 +132,11 @@ export type Database = {
           location_name: string | null
           notes: string | null
           org_id: string | null
+          pause_end: string | null
+          pause_start: string | null
           status: string | null
           total_break_minutes: number | null
+          total_pause_minutes: number | null
           user_id: string
         }
         Insert: {
@@ -151,8 +154,11 @@ export type Database = {
           location_name?: string | null
           notes?: string | null
           org_id?: string | null
+          pause_end?: string | null
+          pause_start?: string | null
           status?: string | null
           total_break_minutes?: number | null
+          total_pause_minutes?: number | null
           user_id: string
         }
         Update: {
@@ -170,8 +176,11 @@ export type Database = {
           location_name?: string | null
           notes?: string | null
           org_id?: string | null
+          pause_end?: string | null
+          pause_start?: string | null
           status?: string | null
           total_break_minutes?: number | null
+          total_pause_minutes?: number | null
           user_id?: string
         }
         Relationships: [
