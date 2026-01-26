@@ -607,3 +607,18 @@ INSERT INTO public.company_holidays (name, date, region) VALUES
   ('Tihar', '2025-10-21', 'Nepal'),
   ('Buddha Jayanti', '2025-05-12', 'Nepal'),
   ('Republic Day', '2025-05-29', 'Nepal');
+
+-- 17. ADD PAUSE FUNCTIONALITY TO ATTENDANCE LOGS
+-- =====================================================
+ALTER TABLE public.attendance_logs 
+ADD COLUMN IF NOT EXISTS pause_start TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS pause_end TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS total_pause_minutes INTEGER DEFAULT 0;
+
+-- Update the status check constraint to include 'paused' and 'auto_clocked_out'
+ALTER TABLE public.attendance_logs 
+DROP CONSTRAINT IF EXISTS attendance_logs_status_check;
+
+ALTER TABLE public.attendance_logs 
+ADD CONSTRAINT attendance_logs_status_check 
+CHECK (status IN ('active', 'break', 'paused', 'completed', 'auto_clocked_out'));
