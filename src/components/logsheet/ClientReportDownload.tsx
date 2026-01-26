@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,10 +8,21 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { useClients, Client } from "@/hooks/useClients";
+import { useClients } from "@/hooks/useClients";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import { CalendarIcon, Download, FileText, Loader2, Check, ChevronsUpDown, Briefcase } from "lucide-react";
+import {
+  CalendarIcon,
+  Download,
+  FileText,
+  Loader2,
+  Check,
+  ChevronsUpDown,
+  Briefcase,
+  User,
+  X,
+  FileSpreadsheet,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ReportLog {
@@ -28,16 +39,52 @@ interface ReportLog {
     last_name: string;
     department: string | null;
   };
+  client?: {
+    name: string;
+    client_id: string | null;
+  };
 }
+
+interface Employee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  department: string | null;
+  employee_id: string | null;
+  email: string | null;
+}
+
+// Helper to format minutes as hours and minutes
+const formatTime = (totalMinutes: number) => {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+};
+
+// Helper to format minutes as decimal hours (e.g., 90 minutes = 1.50 hours)
+const formatDecimalHours = (totalMinutes: number) => {
+  return (totalMinutes / 60).toFixed(2);
+};
 
 export function ClientReportDownload() {
   const { clients, loading: clientsLoading } = useClients();
   const { toast } = useToast();
 
+  // Employee data state
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(true);
+
   // Client search state
   const [clientSearchOpen, setClientSearchOpen] = useState(false);
   const [clientSearchQuery, setClientSearchQuery] = useState("");
   const [selectedClient, setSelectedClient] = useState<string>("");
+
+  // Employee search state
+  const [employeeSearchOpen, setEmployeeSearchOpen] = useState(false);
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
 
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
@@ -45,7 +92,28 @@ export function ClientReportDownload() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Filter clients based on search query (searches both name and client_id)
+  // Fetch employees on mount
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("employees")
+          .select("id, first_name, last_name, department, employee_id, email")
+          .order("first_name", { ascending: true });
+
+        if (error) throw error;
+        setEmployees(data || []);
+      } catch (error) {
+        console.error("Error fetching employees:", error);
+      } finally {
+        setEmployeesLoading(false);
+      }
+    };
+
+    fetchEmployees();
+  }, []);
+
+  // Filter clients based on search query
   const filteredClients = useMemo(() => {
     if (!clientSearchQuery.trim()) return clients;
     const query = clientSearchQuery.toLowerCase();
@@ -56,11 +124,31 @@ export function ClientReportDownload() {
     );
   }, [clients, clientSearchQuery]);
 
+  // Filter employees based on search query
+  const filteredEmployees = useMemo(() => {
+    if (!employeeSearchQuery.trim()) return employees;
+    const query = employeeSearchQuery.toLowerCase();
+    return employees.filter(
+      (emp) =>
+        emp.first_name.toLowerCase().includes(query) ||
+        emp.last_name.toLowerCase().includes(query) ||
+        `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(query) ||
+        (emp.employee_id && emp.employee_id.toLowerCase().includes(query)) ||
+        (emp.email && emp.email.toLowerCase().includes(query)),
+    );
+  }, [employees, employeeSearchQuery]);
+
   // Get selected client object
   const selectedClientObj = useMemo(() => {
     if (!selectedClient) return null;
     return clients.find((c) => c.id === selectedClient);
   }, [selectedClient, clients]);
+
+  // Get selected employee object
+  const selectedEmployeeObj = useMemo(() => {
+    if (!selectedEmployee) return null;
+    return employees.find((e) => e.id === selectedEmployee);
+  }, [selectedEmployee, employees]);
 
   // Get selected client display text
   const selectedClientDisplay = selectedClientObj
@@ -69,35 +157,75 @@ export function ClientReportDownload() {
       : selectedClientObj.name
     : null;
 
+  // Get selected employee display text
+  const selectedEmployeeDisplay = selectedEmployeeObj
+    ? selectedEmployeeObj.employee_id
+      ? `${selectedEmployeeObj.first_name} ${selectedEmployeeObj.last_name} (${selectedEmployeeObj.employee_id})`
+      : `${selectedEmployeeObj.first_name} ${selectedEmployeeObj.last_name}`
+    : null;
+
+  // Calculate time spent by each employee
+  const employeeTimeSummary = useMemo(() => {
+    const summary: Record<string, { name: string; department: string; totalMinutes: number }> = {};
+
+    reportLogs.forEach((log) => {
+      const employeeName = log.employee ? `${log.employee.first_name} ${log.employee.last_name}` : "Unassigned";
+      const department = log.employee?.department || "N/A";
+      const key = employeeName;
+
+      if (!summary[key]) {
+        summary[key] = { name: employeeName, department, totalMinutes: 0 };
+      }
+      summary[key].totalMinutes += log.time_spent_minutes;
+    });
+
+    return Object.values(summary).sort((a, b) => b.totalMinutes - a.totalMinutes);
+  }, [reportLogs]);
+
+  // Calculate time spent by each client (for employee reports)
+  const clientTimeSummary = useMemo(() => {
+    const summary: Record<string, { name: string; clientId: string | null; totalMinutes: number }> = {};
+
+    reportLogs.forEach((log) => {
+      const clientName = log.client?.name || "No Client";
+      const clientId = log.client?.client_id || null;
+      const key = clientName;
+
+      if (!summary[key]) {
+        summary[key] = { name: clientName, clientId, totalMinutes: 0 };
+      }
+      summary[key].totalMinutes += log.time_spent_minutes;
+    });
+
+    return Object.values(summary).sort((a, b) => b.totalMinutes - a.totalMinutes);
+  }, [reportLogs]);
+
   const handleClientSelect = (clientId: string) => {
     setSelectedClient(clientId);
     setClientSearchOpen(false);
     setClientSearchQuery("");
   };
 
-  const formatTime = (totalMinutes: number) => {
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
+  const handleEmployeeSelect = (employeeId: string) => {
+    setSelectedEmployee(employeeId);
+    setEmployeeSearchOpen(false);
+    setEmployeeSearchQuery("");
+  };
+
+  const clearClient = () => {
+    setSelectedClient("");
+  };
+
+  const clearEmployee = () => {
+    setSelectedEmployee("");
   };
 
   const fetchReport = async () => {
-    if (!selectedClient) {
-      toast({
-        title: "Select a client",
-        description: "Please select a client to generate the report",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
     setHasSearched(true);
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("work_logs")
         .select(
           `
@@ -109,13 +237,23 @@ export function ClientReportDownload() {
           start_time,
           end_time,
           status,
-          employee:employees(first_name, last_name, department)
+          employee:employees(first_name, last_name, department),
+          client:clients(name, client_id)
         `,
         )
-        .eq("client_id", selectedClient)
         .gte("log_date", format(startDate, "yyyy-MM-dd"))
         .lte("log_date", format(endDate, "yyyy-MM-dd"))
         .order("log_date", { ascending: false });
+
+      // Apply filters only if selected
+      if (selectedClient) {
+        query = query.eq("client_id", selectedClient);
+      }
+      if (selectedEmployee) {
+        query = query.eq("employee_id", selectedEmployee);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setReportLogs((data as ReportLog[]) || []);
@@ -134,39 +272,158 @@ export function ClientReportDownload() {
   const downloadCSV = () => {
     if (reportLogs.length === 0) return;
 
-    const clientName = selectedClientObj?.name || "Unknown";
+    const clientName = selectedClientObj?.name || "All Clients";
     const clientCode = selectedClientObj?.client_id || "";
-    const headers = [
+    const employeeName = selectedEmployeeObj
+      ? `${selectedEmployeeObj.first_name} ${selectedEmployeeObj.last_name}`
+      : "All Employees";
+    const employeeCode = selectedEmployeeObj?.employee_id || "";
+    const totalMinutes = reportLogs.reduce((sum, log) => sum + log.time_spent_minutes, 0);
+
+    // Determine report type for header
+    const isAllReport = !selectedClient && !selectedEmployee;
+    const reportTitle = isAllReport ? "COMPLETE WORK LOG REPORT - ALL CLIENTS & EMPLOYEES" : "WORK LOG REPORT";
+
+    // Build CSV content with sections
+    const csvLines: string[] = [];
+
+    // ===== SECTION 1: Report Header =====
+    csvLines.push(reportTitle);
+    csvLines.push("");
+
+    // Client info
+    if (selectedClient) {
+      csvLines.push(`Client Name,${clientName}`);
+      if (clientCode) {
+        csvLines.push(`Client ID,${clientCode}`);
+      }
+    } else {
+      csvLines.push("Client Filter,All Clients");
+    }
+
+    // Employee info
+    if (selectedEmployee) {
+      csvLines.push(`Employee Name,${employeeName}`);
+      if (employeeCode) {
+        csvLines.push(`Employee ID,${employeeCode}`);
+      }
+      if (selectedEmployeeObj?.department) {
+        csvLines.push(`Department,${selectedEmployeeObj.department}`);
+      }
+    } else {
+      csvLines.push("Employee Filter,All Employees");
+    }
+
+    csvLines.push(`Report Period,${format(startDate, "yyyy-MM-dd")} to ${format(endDate, "yyyy-MM-dd")}`);
+    csvLines.push(`Generated On,${format(new Date(), "yyyy-MM-dd HH:mm")}`);
+    csvLines.push("");
+
+    // ===== SECTION 2: Summary Statistics =====
+    csvLines.push("SUMMARY");
+    csvLines.push("");
+    csvLines.push(`Total Entries,${reportLogs.length}`);
+    csvLines.push(`Total Time,${formatTime(totalMinutes)} (${formatDecimalHours(totalMinutes)} hours)`);
+    if (!selectedClient) {
+      csvLines.push(`Total Clients,${clientTimeSummary.length}`);
+    }
+    if (!selectedEmployee) {
+      csvLines.push(`Total Employees,${employeeTimeSummary.length}`);
+    }
+    csvLines.push("");
+
+    // ===== SECTION 3: Time by Client (if not filtering by single client) =====
+    if (!selectedClient && clientTimeSummary.length > 0) {
+      csvLines.push("TIME BY CLIENT");
+      csvLines.push("");
+      csvLines.push("Client Name,Client ID,Total Time,Hours (Decimal)");
+
+      clientTimeSummary.forEach((client) => {
+        csvLines.push(
+          `"${client.name}","${client.clientId || "N/A"}","${formatTime(client.totalMinutes)}",${formatDecimalHours(client.totalMinutes)}`,
+        );
+      });
+
+      csvLines.push(`"TOTAL","","${formatTime(totalMinutes)}",${formatDecimalHours(totalMinutes)}`);
+      csvLines.push("");
+    }
+
+    // ===== SECTION 4: Time by Employee (if not filtering by single employee) =====
+    if (!selectedEmployee && employeeTimeSummary.length > 0) {
+      csvLines.push("TIME BY EMPLOYEE");
+      csvLines.push("");
+      csvLines.push("Employee Name,Department,Total Time,Hours (Decimal)");
+
+      employeeTimeSummary.forEach((emp) => {
+        csvLines.push(
+          `"${emp.name}","${emp.department}","${formatTime(emp.totalMinutes)}",${formatDecimalHours(emp.totalMinutes)}`,
+        );
+      });
+
+      csvLines.push(`"TOTAL","","${formatTime(totalMinutes)}",${formatDecimalHours(totalMinutes)}`);
+      csvLines.push("");
+    }
+
+    // ===== SECTION 5: Detailed Log Entries =====
+    csvLines.push("DETAILED LOG ENTRIES");
+    csvLines.push("");
+
+    const detailHeaders = [
       "Date",
       "Employee",
       "Department",
+      "Client",
+      "Client ID",
       "Task",
       "Time Spent",
+      "Hours (Decimal)",
       "Start Time",
       "End Time",
       "Status",
       "Notes",
     ];
-    const rows = reportLogs.map((log) => [
-      format(new Date(log.log_date), "yyyy-MM-dd"),
-      log.employee ? `${log.employee.first_name} ${log.employee.last_name}` : "N/A",
-      log.employee?.department || "N/A",
-      `"${log.task_description.replace(/"/g, '""')}"`,
-      formatTime(log.time_spent_minutes),
-      log.start_time || "",
-      log.end_time || "",
-      log.status || "completed",
-      `"${(log.notes || "").replace(/"/g, '""')}"`,
-    ]);
+    csvLines.push(detailHeaders.join(","));
 
-    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    reportLogs.forEach((log) => {
+      const row = [
+        format(new Date(log.log_date), "yyyy-MM-dd"),
+        log.employee ? `"${log.employee.first_name} ${log.employee.last_name}"` : "N/A",
+        log.employee?.department ? `"${log.employee.department}"` : "N/A",
+        log.client?.name ? `"${log.client.name}"` : "N/A",
+        log.client?.client_id || "N/A",
+        `"${log.task_description.replace(/"/g, '""')}"`,
+        formatTime(log.time_spent_minutes),
+        formatDecimalHours(log.time_spent_minutes),
+        log.start_time || "",
+        log.end_time || "",
+        log.status || "completed",
+        `"${(log.notes || "").replace(/"/g, '""')}"`,
+      ];
+      csvLines.push(row.join(","));
+    });
+
+    // Create and download the file
+    const csvContent = csvLines.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    const fileName = clientCode
-      ? `${clientName}_${clientCode}_work_logs_${format(startDate, "yyyy-MM-dd")}_to_${format(endDate, "yyyy-MM-dd")}.csv`
-      : `${clientName}_work_logs_${format(startDate, "yyyy-MM-dd")}_to_${format(endDate, "yyyy-MM-dd")}.csv`;
+
+    // Generate filename based on filters
+    let fileName = "work_logs";
+    if (selectedClient) {
+      fileName += `_${clientName.replace(/\s+/g, "_")}`;
+      if (clientCode) fileName += `_${clientCode}`;
+    } else {
+      fileName += "_all_clients";
+    }
+    if (selectedEmployee) {
+      fileName += `_${employeeName.replace(/\s+/g, "_")}`;
+      if (employeeCode) fileName += `_${employeeCode}`;
+    } else {
+      fileName += "_all_employees";
+    }
+    fileName += `_${format(startDate, "yyyy-MM-dd")}_to_${format(endDate, "yyyy-MM-dd")}.csv`;
+
     link.download = fileName;
     link.click();
     URL.revokeObjectURL(url);
@@ -179,67 +436,162 @@ export function ClientReportDownload() {
 
   const totalHours = reportLogs.reduce((sum, log) => sum + log.time_spent_minutes, 0);
 
+  // Determine report type label
+  const getReportTypeLabel = () => {
+    if (!selectedClient && !selectedEmployee) return "All Data";
+    if (selectedClient && selectedEmployee) return "Client & Employee";
+    if (selectedClient) return "Client";
+    if (selectedEmployee) return "Employee";
+    return "";
+  };
+
+  // Check if it's an "all data" report
+  const isAllDataReport = !selectedClient && !selectedEmployee;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="h-5 w-5" />
-          Client Report Download
+          Work Log Report Download
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Searchable Client Selection */}
           <div className="space-y-2">
-            <Label>Client *</Label>
-            <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={clientSearchOpen}
-                  className="w-full justify-between font-normal"
-                >
-                  {selectedClientDisplay || "Select client"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[350px] p-0" align="start">
-                <Command shouldFilter={false}>
-                  <CommandInput
-                    placeholder="Search by name or client ID..."
-                    value={clientSearchQuery}
-                    onValueChange={setClientSearchQuery}
-                  />
-                  <CommandList>
-                    <CommandEmpty>
-                      <div className="py-4 text-center text-sm text-muted-foreground">
-                        No clients found matching "{clientSearchQuery}"
-                      </div>
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {filteredClients.map((client) => (
-                        <CommandItem key={client.id} value={client.id} onSelect={() => handleClientSelect(client.id)}>
-                          <Check
-                            className={cn("mr-2 h-4 w-4", selectedClient === client.id ? "opacity-100" : "opacity-0")}
-                          />
-                          <div className="flex flex-col flex-1">
-                            <div className="flex items-center gap-2">
-                              <Briefcase className="h-3 w-3 text-muted-foreground" />
-                              <span className="font-medium">{client.name}</span>
+            <Label>Client</Label>
+            <div className="relative">
+              <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={clientSearchOpen}
+                    className="w-full justify-between font-normal pr-8"
+                  >
+                    <span className="truncate">{selectedClientDisplay || "All clients"}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[350px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search by name or client ID..."
+                      value={clientSearchQuery}
+                      onValueChange={setClientSearchQuery}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        <div className="py-4 text-center text-sm text-muted-foreground">
+                          No clients found matching "{clientSearchQuery}"
+                        </div>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {filteredClients.map((client) => (
+                          <CommandItem key={client.id} value={client.id} onSelect={() => handleClientSelect(client.id)}>
+                            <Check
+                              className={cn("mr-2 h-4 w-4", selectedClient === client.id ? "opacity-100" : "opacity-0")}
+                            />
+                            <div className="flex flex-col flex-1">
+                              <div className="flex items-center gap-2">
+                                <Briefcase className="h-3 w-3 text-muted-foreground" />
+                                <span className="font-medium">{client.name}</span>
+                              </div>
+                              {client.client_id && (
+                                <span className="text-xs text-muted-foreground ml-5">ID: {client.client_id}</span>
+                              )}
                             </div>
-                            {client.client_id && (
-                              <span className="text-xs text-muted-foreground ml-5">ID: {client.client_id}</span>
-                            )}
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {selectedClient && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
+                  onClick={clearClient}
+                >
+                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Searchable Employee Selection */}
+          <div className="space-y-2">
+            <Label>Employee</Label>
+            <div className="relative">
+              <Popover open={employeeSearchOpen} onOpenChange={setEmployeeSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={employeeSearchOpen}
+                    className="w-full justify-between font-normal pr-8"
+                  >
+                    <span className="truncate">{selectedEmployeeDisplay || "All employees"}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[350px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search by name, ID, or email..."
+                      value={employeeSearchQuery}
+                      onValueChange={setEmployeeSearchQuery}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        <div className="py-4 text-center text-sm text-muted-foreground">
+                          No employees found matching "{employeeSearchQuery}"
+                        </div>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {filteredEmployees.map((emp) => (
+                          <CommandItem key={emp.id} value={emp.id} onSelect={() => handleEmployeeSelect(emp.id)}>
+                            <Check
+                              className={cn("mr-2 h-4 w-4", selectedEmployee === emp.id ? "opacity-100" : "opacity-0")}
+                            />
+                            <div className="flex flex-col flex-1">
+                              <div className="flex items-center gap-2">
+                                <User className="h-3 w-3 text-muted-foreground" />
+                                <span className="font-medium">
+                                  {emp.first_name} {emp.last_name}
+                                </span>
+                              </div>
+                              <div className="flex gap-2 ml-5">
+                                {emp.employee_id && (
+                                  <span className="text-xs text-muted-foreground">ID: {emp.employee_id}</span>
+                                )}
+                                {emp.department && (
+                                  <span className="text-xs text-muted-foreground">• {emp.department}</span>
+                                )}
+                              </div>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {selectedEmployee && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
+                  onClick={clearEmployee}
+                >
+                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -278,11 +630,21 @@ export function ClientReportDownload() {
           </div>
 
           <div className="flex items-end gap-2">
-            <Button onClick={fetchReport} disabled={loading || !selectedClient} className="flex-1">
+            <Button onClick={fetchReport} disabled={loading} className="flex-1">
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Generate Report
             </Button>
           </div>
+        </div>
+
+        {/* Helper text */}
+        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+          <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            {isAllDataReport
+              ? "Generate a complete report for all clients and employees within the selected date range."
+              : "Filter by client, employee, or both. Leave filters empty for a complete report."}
+          </p>
         </div>
 
         {/* Results */}
@@ -290,19 +652,52 @@ export function ClientReportDownload() {
           <>
             {/* Summary */}
             {reportLogs.length > 0 && (
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-6">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Client</p>
-                    <p className="text-lg font-semibold">
-                      {selectedClientObj?.name}
-                      {selectedClientObj?.client_id && (
-                        <span className="text-sm font-normal text-muted-foreground ml-2">
-                          ({selectedClientObj.client_id})
-                        </span>
-                      )}
-                    </p>
-                  </div>
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg">
+                <div className="flex flex-wrap items-center gap-6">
+                  <Badge
+                    variant={isAllDataReport ? "default" : "outline"}
+                    className={cn("text-xs", isAllDataReport && "bg-primary")}
+                  >
+                    {getReportTypeLabel()} Report
+                  </Badge>
+                  {selectedClientObj && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Client</p>
+                      <p className="font-semibold">
+                        {selectedClientObj.name}
+                        {selectedClientObj.client_id && (
+                          <span className="text-sm font-normal text-muted-foreground ml-2">
+                            ({selectedClientObj.client_id})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                  {selectedEmployeeObj && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Employee</p>
+                      <p className="font-semibold">
+                        {selectedEmployeeObj.first_name} {selectedEmployeeObj.last_name}
+                        {selectedEmployeeObj.employee_id && (
+                          <span className="text-sm font-normal text-muted-foreground ml-2">
+                            ({selectedEmployeeObj.employee_id})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                  {!selectedClient && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Clients</p>
+                      <p className="text-2xl font-bold">{clientTimeSummary.length}</p>
+                    </div>
+                  )}
+                  {!selectedEmployee && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Employees</p>
+                      <p className="text-2xl font-bold">{employeeTimeSummary.length}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-muted-foreground">Total Entries</p>
                     <p className="text-2xl font-bold">{reportLogs.length}</p>
@@ -319,11 +714,57 @@ export function ClientReportDownload() {
               </div>
             )}
 
+            {/* Time by Client Summary (when not filtering by specific client) */}
+            {reportLogs.length > 0 && !selectedClient && clientTimeSummary.length > 0 && (
+              <div className="p-4 border rounded-lg bg-card">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  Time by Client ({clientTimeSummary.length} clients)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto">
+                  {clientTimeSummary.map((client) => (
+                    <div key={client.name} className="flex items-center justify-between p-3 bg-muted/30 rounded-md">
+                      <div>
+                        <p className="font-medium text-sm">{client.name}</p>
+                        {client.clientId && <p className="text-xs text-muted-foreground">ID: {client.clientId}</p>}
+                      </div>
+                      <Badge variant="secondary" className="ml-2">
+                        {formatTime(client.totalMinutes)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Time by Employee Summary (when not filtering by specific employee) */}
+            {reportLogs.length > 0 && !selectedEmployee && employeeTimeSummary.length > 0 && (
+              <div className="p-4 border rounded-lg bg-card">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Time by Employee ({employeeTimeSummary.length} employees)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto">
+                  {employeeTimeSummary.map((emp) => (
+                    <div key={emp.name} className="flex items-center justify-between p-3 bg-muted/30 rounded-md">
+                      <div>
+                        <p className="font-medium text-sm">{emp.name}</p>
+                        <p className="text-xs text-muted-foreground">{emp.department}</p>
+                      </div>
+                      <Badge variant="secondary" className="ml-2">
+                        {formatTime(emp.totalMinutes)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Table */}
             {reportLogs.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No logs found for this client in the selected date range</p>
+                <p>No logs found for the selected filters in the date range</p>
               </div>
             ) : (
               <div className="border rounded-lg overflow-hidden">
@@ -332,17 +773,30 @@ export function ClientReportDownload() {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Employee</TableHead>
+                      <TableHead>Client</TableHead>
                       <TableHead>Task</TableHead>
                       <TableHead>Time</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportLogs.slice(0, 10).map((log) => (
+                    {reportLogs.slice(0, 15).map((log) => (
                       <TableRow key={log.id}>
                         <TableCell>{format(new Date(log.log_date), "MMM d, yyyy")}</TableCell>
                         <TableCell>
                           {log.employee ? `${log.employee.first_name} ${log.employee.last_name}` : "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          {log.client?.name ? (
+                            <div className="flex flex-col">
+                              <span>{log.client.name}</span>
+                              {log.client.client_id && (
+                                <span className="text-xs text-muted-foreground">{log.client.client_id}</span>
+                              )}
+                            </div>
+                          ) : (
+                            "N/A"
+                          )}
                         </TableCell>
                         <TableCell className="max-w-xs">
                           <p className="truncate">{log.task_description}</p>
@@ -359,9 +813,9 @@ export function ClientReportDownload() {
                     ))}
                   </TableBody>
                 </Table>
-                {reportLogs.length > 10 && (
+                {reportLogs.length > 15 && (
                   <div className="p-3 text-center text-sm text-muted-foreground bg-muted/30">
-                    Showing 10 of {reportLogs.length} entries. Download CSV for full report.
+                    Showing 15 of {reportLogs.length} entries. Download CSV for full report.
                   </div>
                 )}
               </div>
