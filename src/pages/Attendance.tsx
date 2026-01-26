@@ -32,6 +32,7 @@ import {
   Loader2,
   Briefcase,
   DollarSign,
+  Pause,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAttendance } from "@/hooks/useAttendance";
@@ -54,6 +55,8 @@ const Attendance = () => {
     clockOut, 
     startBreak, 
     endBreak,
+    startPause,
+    endPause,
     monthlyHours,
     refetch 
   } = useAttendance(currentWeekStart);
@@ -62,21 +65,23 @@ const Attendance = () => {
   const getClockStatus = () => {
     if (!currentLog) return "out";
     if (currentLog.clock_out) return "out";
+    if ((currentLog as any).pause_start && !(currentLog as any).pause_end) return "paused";
     if (currentLog.break_start && !currentLog.break_end) return "break";
     return "in";
   };
 
   const clockStatus = getClockStatus();
 
-  // Calculate time worked today
+  // Calculate time worked today (excluding breaks and pauses)
   const getTimeWorked = () => {
     if (!currentLog || !currentLog.clock_in) return "0h 0m";
     const start = new Date(currentLog.clock_in);
     const end = currentLog.clock_out ? new Date(currentLog.clock_out) : new Date();
     const breakMinutes = currentLog.total_break_minutes || 0;
-    const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const pauseMinutes = (currentLog as any).total_pause_minutes || 0;
+    const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
+    const hours = Math.floor(Math.max(0, diffMs) / (1000 * 60 * 60));
+    const minutes = Math.floor((Math.max(0, diffMs) % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${minutes}m`;
   };
 
@@ -84,7 +89,7 @@ const Attendance = () => {
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
 
-  // Calculate hours per day from weekly logs
+  // Calculate hours per day from weekly logs (excluding breaks and pauses)
   const getHoursForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     const dayLogs = weeklyLogs.filter(log => {
@@ -98,8 +103,9 @@ const Attendance = () => {
         const start = new Date(log.clock_in);
         const end = log.clock_out ? new Date(log.clock_out) : new Date();
         const breakMinutes = log.total_break_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
-        totalMinutes += diffMs / (1000 * 60);
+        const pauseMinutes = (log as any).total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
+        totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
     
@@ -122,20 +128,33 @@ const Attendance = () => {
     }
   };
 
+  const handlePause = async () => {
+    if (clockStatus === "paused") {
+      await endPause();
+    } else {
+      await startPause();
+    }
+  };
+
   const handleExport = () => {
-    // Generate CSV
-    const headers = ["Date", "Clock In", "Clock Out", "Break (min)", "Total Hours", "Type"];
+    // Generate CSV with pause data
+    const headers = ["Date", "Clock In", "Clock Out", "Break (min)", "Pause (min)", "Total Hours", "Type"];
     const rows = weeklyLogs.map(log => {
       const clockIn = new Date(log.clock_in);
       const clockOut = log.clock_out ? new Date(log.clock_out) : null;
-      const hours = clockOut 
-        ? ((clockOut.getTime() - clockIn.getTime() - (log.total_break_minutes || 0) * 60 * 1000) / (1000 * 60 * 60)).toFixed(2)
-        : "-";
+      const breakMinutes = log.total_break_minutes || 0;
+      const pauseMinutes = (log as any).total_pause_minutes || 0;
+      let hours = "-";
+      if (clockOut) {
+        const diffMs = clockOut.getTime() - clockIn.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
+        hours = (Math.max(0, diffMs) / (1000 * 60 * 60)).toFixed(2);
+      }
       return [
         format(clockIn, "yyyy-MM-dd"),
         format(clockIn, "hh:mm a"),
         clockOut ? format(clockOut, "hh:mm a") : "-",
-        log.total_break_minutes || 0,
+        breakMinutes,
+        pauseMinutes,
         hours,
         log.clock_type || "payroll"
       ].join(",");
@@ -238,16 +257,18 @@ const Attendance = () => {
                   "mt-3",
                   clockStatus === "in" && "border-success text-success bg-success/10",
                   clockStatus === "out" && "border-muted-foreground",
-                  clockStatus === "break" && "border-warning text-warning bg-warning/10"
+                  clockStatus === "break" && "border-warning text-warning bg-warning/10",
+                  clockStatus === "paused" && "border-info text-info bg-info/10"
                 )}
               >
                 {clockStatus === "in" && `Working • ${getTimeWorked()}`}
                 {clockStatus === "out" && "Not Clocked In"}
                 {clockStatus === "break" && "On Break"}
+                {clockStatus === "paused" && "Paused"}
               </Badge>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2 flex-wrap">
               {clockStatus === "out" ? (
                 <Button onClick={handleClockIn} className="flex-1 gap-2" size="lg">
                   <Play className="h-4 w-4" />
@@ -260,9 +281,23 @@ const Attendance = () => {
                     variant={clockStatus === "break" ? "default" : "secondary"}
                     className="flex-1 gap-2"
                     size="lg"
+                    disabled={clockStatus === "paused"}
                   >
                     <Coffee className="h-4 w-4" />
                     {clockStatus === "break" ? "Resume" : "Break"}
+                  </Button>
+                  <Button
+                    onClick={handlePause}
+                    variant={clockStatus === "paused" ? "default" : "outline"}
+                    className={cn(
+                      "flex-1 gap-2",
+                      clockStatus === "paused" && "bg-info hover:bg-info/90 text-info-foreground"
+                    )}
+                    size="lg"
+                    disabled={clockStatus === "break"}
+                  >
+                    <Pause className="h-4 w-4" />
+                    {clockStatus === "paused" ? "Resume" : "Pause"}
                   </Button>
                   <Button
                     onClick={handleClockOut}
@@ -393,6 +428,7 @@ const Attendance = () => {
                 <TableHead>Clock In</TableHead>
                 <TableHead>Clock Out</TableHead>
                 <TableHead>Break</TableHead>
+                <TableHead>Pause</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Hours Worked</TableHead>
               </TableRow>
@@ -400,7 +436,7 @@ const Attendance = () => {
             <TableBody>
               {weeklyLogs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No attendance logs for this week
                   </TableCell>
                 </TableRow>
@@ -409,11 +445,12 @@ const Attendance = () => {
                   const clockInDate = new Date(log.clock_in);
                   const clockOutDate = log.clock_out ? new Date(log.clock_out) : null;
                   const breakMinutes = log.total_break_minutes || 0;
+                  const pauseMinutes = (log as any).total_pause_minutes || 0;
                   
                   let hours = "-";
                   if (clockOutDate) {
-                    const diffMs = clockOutDate.getTime() - clockInDate.getTime() - (breakMinutes * 60 * 1000);
-                    hours = `${(diffMs / (1000 * 60 * 60)).toFixed(2)}h`;
+                    const diffMs = clockOutDate.getTime() - clockInDate.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
+                    hours = `${(Math.max(0, diffMs) / (1000 * 60 * 60)).toFixed(2)}h`;
                   }
                   
                   return (
@@ -426,6 +463,7 @@ const Attendance = () => {
                         {clockOutDate ? format(clockOutDate, "hh:mm a") : "-"}
                       </TableCell>
                       <TableCell>{breakMinutes > 0 ? `${breakMinutes}m` : "-"}</TableCell>
+                      <TableCell>{pauseMinutes > 0 ? `${pauseMinutes}m` : "-"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={cn(
                           log.clock_type === "billable" && "border-info text-info bg-info/10",

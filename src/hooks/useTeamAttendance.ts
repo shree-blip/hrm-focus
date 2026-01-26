@@ -54,7 +54,10 @@ export function useTeamAttendance(month?: Date) {
         clock_out,
         break_start,
         break_end,
-        total_break_minutes
+        total_break_minutes,
+        pause_start,
+        pause_end,
+        total_pause_minutes
       `,
       )
       .gte("clock_in", startOfMonth.toISOString())
@@ -105,12 +108,13 @@ export function useTeamAttendance(month?: Date) {
         }
       }
 
-      // Calculate hours for summary (only completed records)
+      // Calculate hours for summary (only completed records, excluding breaks and pauses)
       if (log.clock_out) {
         const clockIn = new Date(log.clock_in);
         const clockOut = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
-        const hours = (clockOut.getTime() - clockIn.getTime() - breakMinutes * 60 * 1000) / (1000 * 60 * 60);
+        const pauseMinutes = log.total_pause_minutes || 0;
+        const hours = (clockOut.getTime() - clockIn.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000) / (1000 * 60 * 60);
 
         const dayKey = clockIn.toISOString().split("T")[0];
 
@@ -119,18 +123,19 @@ export function useTeamAttendance(month?: Date) {
         }
 
         const totals = userTotals.get(userId)!;
-        totals.hours += hours;
+        totals.hours += Math.max(0, hours);
         totals.days.add(dayKey);
       }
 
-      // Calculate hours for daily records
+      // Calculate hours for daily records (excluding breaks and pauses)
       let hoursWorked = 0;
       if (log.clock_in && log.clock_out) {
         const clockIn = new Date(log.clock_in);
         const clockOut = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
+        const pauseMinutes = log.total_pause_minutes || 0;
         const totalMinutes = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60);
-        hoursWorked = (totalMinutes - breakMinutes) / 60;
+        hoursWorked = Math.max(0, (totalMinutes - breakMinutes - pauseMinutes) / 60);
       }
 
       // Add to daily records

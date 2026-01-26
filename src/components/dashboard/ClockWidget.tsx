@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Clock, Play, Square, Coffee, Loader2, Briefcase } from "lucide-react";
+import { Clock, Play, Square, Coffee, Loader2, Briefcase, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,8 @@ export function ClockWidget() {
     clockOut, 
     startBreak, 
     endBreak,
+    startPause,
+    endPause,
     status: clockStatus 
   } = useAttendance();
   
@@ -40,11 +42,21 @@ export function ClockWidget() {
       // Subtract total break time
       const totalBreakMs = (currentLog.total_break_minutes || 0) * 60 * 1000;
       elapsed -= totalBreakMs;
+
+      // Subtract total pause time
+      const totalPauseMs = ((currentLog as any).total_pause_minutes || 0) * 60 * 1000;
+      elapsed -= totalPauseMs;
       
       // If currently on break, subtract current break time
       if (clockStatus === "break" && currentLog.break_start) {
         const breakStart = new Date(currentLog.break_start);
         elapsed -= (now.getTime() - breakStart.getTime());
+      }
+
+      // If currently paused, subtract current pause time
+      if (clockStatus === "paused" && (currentLog as any).pause_start) {
+        const pauseStart = new Date((currentLog as any).pause_start);
+        elapsed -= (now.getTime() - pauseStart.getTime());
       }
 
       // Ensure we don't show negative time
@@ -80,7 +92,15 @@ export function ClockWidget() {
     }
   };
 
-  // Calculate today's hours from logs
+  const handlePause = async () => {
+    if (clockStatus === "paused") {
+      await endPause();
+    } else {
+      await startPause();
+    }
+  };
+
+  // Calculate today's hours from logs (excluding breaks and pauses)
   const getTodayHours = () => {
     const today = format(new Date(), "yyyy-MM-dd");
     const todayLogs = weeklyLogs.filter(log => {
@@ -93,7 +113,8 @@ export function ClockWidget() {
       const start = new Date(log.clock_in);
       const end = log.clock_out ? new Date(log.clock_out) : new Date();
       const breakMinutes = log.total_break_minutes || 0;
-      const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
+      const pauseMinutes = (log as any).total_pause_minutes || 0;
+      const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
       totalMinutes += Math.max(0, diffMs / (1000 * 60));
     });
     
@@ -102,7 +123,7 @@ export function ClockWidget() {
     return `${hours}h ${mins}m`;
   };
 
-  // Calculate weekly hours
+  // Calculate weekly hours (excluding breaks and pauses)
   const getWeeklyHours = () => {
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -115,7 +136,8 @@ export function ClockWidget() {
         const start = new Date(log.clock_in);
         const end = log.clock_out ? new Date(log.clock_out) : new Date();
         const breakMinutes = log.total_break_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
+        const pauseMinutes = (log as any).total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
@@ -138,7 +160,8 @@ export function ClockWidget() {
         const start = new Date(log.clock_in);
         const end = log.clock_out ? new Date(log.clock_out) : new Date();
         const breakMinutes = log.total_break_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000);
+        const pauseMinutes = (log as any).total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
@@ -174,12 +197,14 @@ export function ClockWidget() {
               "font-medium",
               clockStatus === "in" && "border-success text-success bg-success/10",
               clockStatus === "out" && "border-muted-foreground text-muted-foreground",
-              clockStatus === "break" && "border-warning text-warning bg-warning/10"
+              clockStatus === "break" && "border-warning text-warning bg-warning/10",
+              clockStatus === "paused" && "border-info text-info bg-info/10"
             )}
           >
             {clockStatus === "in" && (currentLog?.clock_type === "billable" ? "Billable" : "Active")}
             {clockStatus === "out" && "Not Clocked In"}
             {clockStatus === "break" && "On Break"}
+            {clockStatus === "paused" && "Paused"}
           </Badge>
         </div>
       </CardHeader>
@@ -214,7 +239,7 @@ export function ClockWidget() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-2 flex-wrap">
           {clockStatus === "out" ? (
             <Button onClick={handleClockIn} className="flex-1 gap-2" size="lg">
               <Play className="h-4 w-4" />
@@ -227,9 +252,23 @@ export function ClockWidget() {
                 variant={clockStatus === "break" ? "default" : "secondary"}
                 className="flex-1 gap-2"
                 size="lg"
+                disabled={clockStatus === "paused"}
               >
                 <Coffee className="h-4 w-4" />
                 {clockStatus === "break" ? "Resume" : "Break"}
+              </Button>
+              <Button
+                onClick={handlePause}
+                variant={clockStatus === "paused" ? "default" : "outline"}
+                className={cn(
+                  "flex-1 gap-2",
+                  clockStatus === "paused" && "bg-info hover:bg-info/90 text-info-foreground"
+                )}
+                size="lg"
+                disabled={clockStatus === "break"}
+              >
+                <Pause className="h-4 w-4" />
+                {clockStatus === "paused" ? "Resume" : "Pause"}
               </Button>
               <Button onClick={handleClockOut} variant="destructive" className="flex-1 gap-2" size="lg">
                 <Square className="h-4 w-4" />
