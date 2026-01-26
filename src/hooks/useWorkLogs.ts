@@ -42,63 +42,101 @@ export interface WorkLogInput {
   status?: string;
 }
 
+// ========== FIX: Helper functions for LOCAL timezone date handling ==========
+
+/**
+ * Format date as YYYY-MM-DD in LOCAL timezone (not UTC)
+ * This prevents the date from shifting due to timezone offset
+ */
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Get today's date at midnight in local timezone
+ * Ensures consistent date comparison
+ */
+const getLocalToday = (): Date => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+// =============================================================================
+
 export function useWorkLogs() {
   const [logs, setLogs] = useState<WorkLog[]>([]);
   const [teamLogs, setTeamLogs] = useState<WorkLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  // FIX: Initialize with local midnight to prevent timezone issues
+  const [selectedDate, setSelectedDate] = useState<Date>(getLocalToday);
   const { user, isManager, isVP } = useAuth();
   const { toast } = useToast();
 
-  const fetchMyLogs = useCallback(async (date: Date) => {
-    if (!user) return;
+  const fetchMyLogs = useCallback(
+    async (date: Date) => {
+      if (!user) return;
 
-    try {
-      const dateStr = date.toISOString().split("T")[0];
-      const { data, error } = await supabase
-        .from("work_logs")
-        .select(`
+      try {
+        // FIX: Use formatLocalDate instead of toISOString() to prevent UTC conversion
+        const dateStr = formatLocalDate(date);
+        const { data, error } = await supabase
+          .from("work_logs")
+          .select(
+            `
           *,
           client:clients(name, client_id)
-        `)
-        .eq("user_id", user.id)
-        .eq("log_date", dateStr)
-        .order("created_at", { ascending: false });
+        `,
+          )
+          .eq("user_id", user.id)
+          .eq("log_date", dateStr)
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setLogs((data as WorkLog[]) || []);
-    } catch (error: any) {
-      console.error("Error fetching work logs:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch work logs",
-        variant: "destructive",
-      });
-    }
-  }, [user, toast]);
+        if (error) throw error;
+        setLogs((data as WorkLog[]) || []);
+      } catch (error: any) {
+        console.error("Error fetching work logs:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch work logs",
+          variant: "destructive",
+        });
+      }
+    },
+    [user, toast],
+  );
 
-  const fetchTeamLogs = useCallback(async (date: Date) => {
-    if (!user || (!isManager && !isVP)) return;
+  const fetchTeamLogs = useCallback(
+    async (date: Date) => {
+      if (!user || (!isManager && !isVP)) return;
 
-    try {
-      const dateStr = date.toISOString().split("T")[0];
-      const { data, error } = await supabase
-        .from("work_logs")
-        .select(`
+      try {
+        // FIX: Use formatLocalDate instead of toISOString()
+        const dateStr = formatLocalDate(date);
+        const { data, error } = await supabase
+          .from("work_logs")
+          .select(
+            `
           *,
           employee:employees(first_name, last_name, department),
           client:clients(name, client_id)
-        `)
-        .eq("log_date", dateStr)
-        .neq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        `,
+          )
+          .eq("log_date", dateStr)
+          .neq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setTeamLogs((data as WorkLog[]) || []);
-    } catch (error: any) {
-      console.error("Error fetching team logs:", error);
-    }
-  }, [user, isManager, isVP]);
+        if (error) throw error;
+        setTeamLogs((data as WorkLog[]) || []);
+      } catch (error: any) {
+        console.error("Error fetching team logs:", error);
+      }
+    },
+    [user, isManager, isVP],
+  );
 
   const addLog = async (input: WorkLogInput) => {
     if (!user) return null;
@@ -117,7 +155,8 @@ export function useWorkLogs() {
           user_id: user.id,
           employee_id: employeeData?.id || null,
           org_id: employeeData?.org_id || null,
-          log_date: input.log_date || selectedDate.toISOString().split("T")[0],
+          // FIX: Use formatLocalDate instead of toISOString()
+          log_date: input.log_date || formatLocalDate(selectedDate),
           task_description: input.task_description,
           time_spent_minutes: input.time_spent_minutes,
           notes: input.notes || null,
@@ -152,7 +191,7 @@ export function useWorkLogs() {
 
   const updateLog = async (id: string, input: Partial<WorkLogInput>) => {
     if (!user) return;
-    
+
     try {
       // First, get the current log data to store in history
       const { data: currentLog, error: fetchError } = await supabase
@@ -164,21 +203,19 @@ export function useWorkLogs() {
       if (fetchError) throw fetchError;
 
       // Insert the edit history record
-      const { error: historyError } = await supabase
-        .from("work_log_history")
-        .insert({
-          work_log_id: id,
-          user_id: user.id,
-          change_type: "update",
-          previous_task_description: currentLog.task_description,
-          new_task_description: input.task_description || currentLog.task_description,
-          previous_time_spent_minutes: currentLog.time_spent_minutes,
-          new_time_spent_minutes: input.time_spent_minutes ?? currentLog.time_spent_minutes,
-          previous_notes: currentLog.notes,
-          new_notes: input.notes ?? currentLog.notes,
-          previous_log_date: currentLog.log_date,
-          new_log_date: input.log_date || currentLog.log_date,
-        });
+      const { error: historyError } = await supabase.from("work_log_history").insert({
+        work_log_id: id,
+        user_id: user.id,
+        change_type: "update",
+        previous_task_description: currentLog.task_description,
+        new_task_description: input.task_description || currentLog.task_description,
+        previous_time_spent_minutes: currentLog.time_spent_minutes,
+        new_time_spent_minutes: input.time_spent_minutes ?? currentLog.time_spent_minutes,
+        previous_notes: currentLog.notes,
+        new_notes: input.notes ?? currentLog.notes,
+        previous_log_date: currentLog.log_date,
+        new_log_date: input.log_date || currentLog.log_date,
+      });
 
       if (historyError) {
         console.error("Error saving edit history:", historyError);
@@ -196,10 +233,7 @@ export function useWorkLogs() {
       if (input.end_time !== undefined) updateData.end_time = input.end_time;
       if (input.status !== undefined) updateData.status = input.status;
 
-      const { error } = await supabase
-        .from("work_logs")
-        .update(updateData)
-        .eq("id", id);
+      const { error } = await supabase.from("work_logs").update(updateData).eq("id", id);
 
       if (error) throw error;
 
@@ -221,10 +255,7 @@ export function useWorkLogs() {
 
   const deleteLog = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from("work_logs")
-        .delete()
-        .eq("id", id);
+      const { error } = await supabase.from("work_logs").delete().eq("id", id);
 
       if (error) throw error;
 
@@ -246,10 +277,7 @@ export function useWorkLogs() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      fetchMyLogs(selectedDate),
-      fetchTeamLogs(selectedDate),
-    ]).finally(() => setLoading(false));
+    Promise.all([fetchMyLogs(selectedDate), fetchTeamLogs(selectedDate)]).finally(() => setLoading(false));
   }, [selectedDate, fetchMyLogs, fetchTeamLogs]);
 
   return {
