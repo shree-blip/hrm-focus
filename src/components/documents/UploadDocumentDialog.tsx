@@ -1,21 +1,9 @@
 import { useState, useRef } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, File, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -33,32 +21,28 @@ interface UploadDocumentDialogProps {
   }) => void;
 }
 
-export function UploadDocumentDialog({
-  open,
-  onOpenChange,
-  onUpload,
-}: UploadDocumentDialogProps) {
+export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDocumentDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const allowedTypes = ['.pdf', '.doc', '.docx', '.xls', '.xlsx'];
-  
+  const allowedTypes = [".pdf", ".doc", ".docx", ".xls", ".xlsx"];
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      const ext = '.' + selectedFile.name.split('.').pop()?.toLowerCase();
-      
+      const ext = "." + selectedFile.name.split(".").pop()?.toLowerCase();
+
       if (!allowedTypes.includes(ext)) {
         toast({
           title: "Invalid File Type",
           description: "Only PDF, DOC, DOCX, XLS, and XLSX files are allowed.",
           variant: "destructive",
         });
-        e.target.value = '';
+        e.target.value = "";
         return;
       }
-      
+
       setFile(selectedFile);
     }
   };
@@ -119,9 +103,7 @@ export function UploadDocumentDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">Upload Document</DialogTitle>
-          <DialogDescription>
-            Upload a new document to the system.
-          </DialogDescription>
+          <DialogDescription>Upload a new document to the system.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           {/* File Upload Zone */}
@@ -141,9 +123,7 @@ export function UploadDocumentDialog({
                 <File className="h-10 w-10 text-primary" />
                 <div className="text-left">
                   <p className="font-medium">{file.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatFileSize(file.size)}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
                 </div>
                 <Button
                   type="button"
@@ -162,9 +142,7 @@ export function UploadDocumentDialog({
               <>
                 <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
                 <p className="font-medium">Click to upload a file</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  PDF, DOC, DOCX, XLS, XLSX up to 10MB
-                </p>
+                <p className="text-sm text-muted-foreground mt-1">PDF, DOC, DOCX, XLS, XLSX up to 10MB</p>
               </>
             )}
           </div>
@@ -178,10 +156,7 @@ export function UploadDocumentDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Contracts">Contracts</SelectItem>
-                <SelectItem value="Tax Forms">Tax Forms</SelectItem>
                 <SelectItem value="Policies">Policies</SelectItem>
-                <SelectItem value="Reviews">Reviews</SelectItem>
-                <SelectItem value="Templates">Templates</SelectItem>
                 <SelectItem value="Compliance">Compliance</SelectItem>
               </SelectContent>
             </Select>
