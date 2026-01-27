@@ -5,7 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Plus, Check, X, ChevronLeft, ChevronRight, Users, Loader2, MessageSquare, Bell } from "lucide-react";
+import {
+  Calendar,
+  Plus,
+  Check,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  Loader2,
+  MessageSquare,
+  Bell,
+  User,
+  X as XIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
@@ -34,6 +47,7 @@ const Leave = () => {
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<{ id: string; name: string } | null>(null);
+  const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
 
   // Function to get requests for display based on user role and active tab
   const getRequestsForDisplay = () => {
@@ -50,6 +64,29 @@ const Leave = () => {
   };
 
   const filteredRequests = getRequestsForDisplay();
+
+  // Get team members currently on leave (excluding current user)
+  const getTeamMembersOnLeave = () => {
+    const today = new Date();
+    return teamLeaves.filter((r) => {
+      if (r.status !== "approved" || r.user_id === user?.id) return false;
+      const startDate = new Date(r.start_date);
+      const endDate = new Date(r.end_date);
+      return today >= startDate && today <= endDate;
+    });
+  };
+
+  const teamMembersOnLeave = getTeamMembersOnLeave();
+  const teamLeaveCount = teamMembersOnLeave.length;
+
+  // Get current user's leave status
+  const isUserOnLeaveToday = ownRequests.some((r) => {
+    if (r.status !== "approved" || r.user_id !== user?.id) return false;
+    const today = new Date();
+    const startDate = new Date(r.start_date);
+    const endDate = new Date(r.end_date);
+    return today >= startDate && today <= endDate;
+  });
 
   const handleApprove = async (id: string) => {
     const request = requests.find((r) => r.id === id);
@@ -124,7 +161,7 @@ const Leave = () => {
   return (
     <DashboardLayout>
       {/* Header with Notifications Badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 animate-fade-in">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-display font-bold text-foreground">Leave Management</h1>
@@ -156,6 +193,76 @@ const Leave = () => {
           </Button>
         </div>
       </div>
+
+      {/* Team On Leave Banner - Shows actual team members on leave */}
+      {showTeamLeaveBanner && teamLeaveCount > 0 && (
+        <div className="mb-6 animate-slide-down">
+          <Card className="bg-gradient-to-r from-success/10 to-success/5 border-success/30 border-2">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1">
+                    <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-success" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-success-foreground">Team On Leave Today</h3>
+                      <Badge className="bg-success text-success-foreground">
+                        {teamLeaveCount} team member{teamLeaveCount !== 1 ? "s" : ""}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {teamMembersOnLeave.map((leave) => {
+                        const employeeName = leave.profile
+                          ? `${leave.profile.first_name} ${leave.profile.last_name}`
+                          : "Team Member";
+                        const initials = leave.profile
+                          ? `${leave.profile.first_name[0]}${leave.profile.last_name[0]}`
+                          : "TM";
+                        const endDate = format(new Date(leave.end_date), "MMM d");
+
+                        return (
+                          <div
+                            key={leave.id}
+                            className="flex items-center gap-2 bg-white/50 dark:bg-gray-800/50 rounded-lg px-3 py-2 border border-success/20"
+                          >
+                            <Avatar className="h-7 w-7">
+                              <AvatarImage src="" />
+                              <AvatarFallback className="bg-success/20 text-success text-xs">{initials}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{employeeName}</span>
+                              <div className="flex items-center gap-1">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 h-4 bg-success/10 text-success border-success/30"
+                                >
+                                  {leave.leave_type.replace(" Leave", "")}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">Until {endDate}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowTeamLeaveBanner(false)}
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Quick Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -202,17 +309,7 @@ const Leave = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Team On Leave</p>
-                <p className="text-2xl font-bold mt-1">
-                  {
-                    teamLeaves.filter(
-                      (r) =>
-                        r.status === "approved" &&
-                        new Date(r.start_date) <= new Date() &&
-                        new Date(r.end_date) >= new Date() &&
-                        r.user_id !== user?.id, // Exclude current user from count
-                    ).length
-                  }
-                </p>
+                <p className="text-2xl font-bold mt-1">{teamLeaveCount}</p>
               </div>
               <Users className="h-8 w-8 text-success/60" />
             </div>
