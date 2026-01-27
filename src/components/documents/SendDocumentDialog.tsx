@@ -90,56 +90,73 @@ export function SendDocumentDialog({
   const fetchRecipients = async () => {
     setLoading(true);
     
-    // Fetch profiles with their user_ids
-    const { data: profiles, error } = await supabase
-      .from("profiles")
-      .select("id, user_id, first_name, last_name, email, job_title, department, avatar_url")
-      .neq("user_id", user?.id || "")
-      .order("first_name", { ascending: true });
+    try {
+      // For employees (not manager/admin/vp), use the security definer function to get management user_ids
+      if (!canSelectMultiple) {
+        // Use RPC to get management user_ids (bypasses RLS on user_roles)
+        const { data: managementUserIds, error: rpcError } = await supabase
+          .rpc("get_management_user_ids");
 
-    if (error) {
-      console.error("Error fetching recipients:", error);
+        if (rpcError) {
+          console.error("Error fetching management user ids:", rpcError);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch profiles for these management users
+        const { data: profiles, error } = await supabase
+          .from("profiles")
+          .select("id, user_id, first_name, last_name, email, job_title, department, avatar_url")
+          .in("user_id", managementUserIds || [])
+          .neq("user_id", user?.id || "")
+          .order("first_name", { ascending: true });
+
+        if (error) {
+          console.error("Error fetching recipients:", error);
+          setLoading(false);
+          return;
+        }
+
+        setRecipients((profiles || []).map(p => ({
+          id: p.id,
+          user_id: p.user_id,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          email: p.email,
+          job_title: p.job_title,
+          department: p.department,
+          avatar_url: p.avatar_url,
+        })));
+      } else {
+        // For managers/admins/VPs - fetch all profiles except self
+        const { data: profiles, error } = await supabase
+          .from("profiles")
+          .select("id, user_id, first_name, last_name, email, job_title, department, avatar_url")
+          .neq("user_id", user?.id || "")
+          .order("first_name", { ascending: true });
+
+        if (error) {
+          console.error("Error fetching recipients:", error);
+          setLoading(false);
+          return;
+        }
+
+        setRecipients((profiles || []).map(p => ({
+          id: p.id,
+          user_id: p.user_id,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          email: p.email,
+          job_title: p.job_title,
+          department: p.department,
+          avatar_url: p.avatar_url,
+        })));
+      }
+    } catch (err) {
+      console.error("Error in fetchRecipients:", err);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // If user is an employee (not manager/admin/vp), filter to only show managers, admins, vps
-    if (!canSelectMultiple) {
-      const { data: managerRoles } = await supabase
-        .from("user_roles")
-        .select("user_id, role")
-        .in("role", ["manager", "admin", "vp"]);
-
-      const managerUserIds = new Set((managerRoles || []).map(r => r.user_id));
-      
-      const filteredProfiles = (profiles || []).filter(p => 
-        managerUserIds.has(p.user_id)
-      );
-
-      setRecipients(filteredProfiles.map(p => ({
-        id: p.id,
-        user_id: p.user_id,
-        first_name: p.first_name,
-        last_name: p.last_name,
-        email: p.email,
-        job_title: p.job_title,
-        department: p.department,
-        avatar_url: p.avatar_url,
-      })));
-    } else {
-      setRecipients((profiles || []).map(p => ({
-        id: p.id,
-        user_id: p.user_id,
-        first_name: p.first_name,
-        last_name: p.last_name,
-        email: p.email,
-        job_title: p.job_title,
-        department: p.department,
-        avatar_url: p.avatar_url,
-      })));
-    }
-    
-    setLoading(false);
   };
 
   const filteredRecipients = recipients.filter(r => {
