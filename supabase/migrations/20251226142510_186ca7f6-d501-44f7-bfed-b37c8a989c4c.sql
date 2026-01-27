@@ -241,6 +241,10 @@ CREATE POLICY "Managers can update requests" ON public.leave_requests
     public.has_role(auth.uid(), 'vp') OR 
     public.has_role(auth.uid(), 'manager')
   );
+CREATE POLICY "All users can view approved leaves for team calendar"
+ON public.leave_requests
+FOR SELECT
+USING (status = 'approved');
 
 -- 6. TASKS
 -- =====================================================
