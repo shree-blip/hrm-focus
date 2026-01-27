@@ -27,17 +27,29 @@ export type SpecialLeaveType = keyof typeof SPECIAL_LEAVE_TYPES;
 
 const Leave = () => {
   const { user, isManager } = useAuth();
-  const { requests, balances, loading, createRequest, approveRequest, rejectRequest } = useLeaveRequests();
+  const { requests, ownRequests, teamLeaves, balances, loading, createRequest, approveRequest, rejectRequest } =
+    useLeaveRequests();
   const { unreadCount } = useNotifications();
   const [activeTab, setActiveTab] = useState("all");
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<{ id: string; name: string } | null>(null);
 
-  const filteredRequests = requests.filter((req) => {
-    if (activeTab === "all") return true;
-    return req.status === activeTab;
-  });
+  // Function to get requests for display based on user role and active tab
+  const getRequestsForDisplay = () => {
+    if (isManager && activeTab === "pending") {
+      // Managers see all pending requests in the pending tab
+      return requests.filter((req) => req.status === "pending");
+    }
+
+    // Regular employees and other tabs show only their own requests
+    return ownRequests.filter((req) => {
+      if (activeTab === "all") return true;
+      return req.status === activeTab;
+    });
+  };
+
+  const filteredRequests = getRequestsForDisplay();
 
   const handleApprove = async (id: string) => {
     const request = requests.find((r) => r.id === id);
@@ -75,7 +87,7 @@ const Leave = () => {
 
   // Calculate used days for each leave type from approved requests (ONLY for current user)
   const getUsedDaysForType = (leaveType: string) => {
-    return requests
+    return ownRequests
       .filter((r) => r.status === "approved" && r.leave_type === leaveType && r.user_id === user?.id)
       .reduce((sum, r) => sum + r.days, 0);
   };
@@ -83,19 +95,21 @@ const Leave = () => {
   // Calculate special leave usage (sum of all special leave subtypes) (ONLY for current user)
   const getSpecialLeaveUsed = () => {
     const specialLeaveTypes = Object.keys(SPECIAL_LEAVE_TYPES);
-    return requests
+    return ownRequests
       .filter((r) => r.status === "approved" && specialLeaveTypes.includes(r.leave_type) && r.user_id === user?.id)
       .reduce((sum, r) => sum + r.days, 0);
   };
 
-  // Get upcoming approved leave requests
-  const upcomingLeave = requests
+  // Get upcoming approved leave requests from team (for calendar)
+  const upcomingLeave = teamLeaves
     .filter((r) => r.status === "approved" && new Date(r.start_date) >= new Date())
     .slice(0, 3);
 
-  // Get pending requests count
-  const pendingRequestsCount = requests.filter((r) => r.status === "pending").length;
-  const ownPendingRequests = requests.filter((r) => r.status === "pending" && r.user_id === user?.id).length;
+  // Get pending requests count (only user's own)
+  const ownPendingRequests = ownRequests.filter((r) => r.status === "pending" && r.user_id === user?.id).length;
+
+  // For managers, show total pending count in badge
+  const pendingRequestsCount = isManager ? requests.filter((r) => r.status === "pending").length : ownPendingRequests;
 
   if (loading) {
     return (
@@ -163,7 +177,7 @@ const Leave = () => {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Approved Leave</p>
                 <p className="text-2xl font-bold mt-1">
-                  {requests.filter((r) => r.status === "approved").length} requests
+                  {ownRequests.filter((r) => r.status === "approved").length} requests
                 </p>
               </div>
               <Check className="h-8 w-8 text-info/60" />
@@ -190,11 +204,12 @@ const Leave = () => {
                 <p className="text-sm font-medium text-muted-foreground">Team On Leave</p>
                 <p className="text-2xl font-bold mt-1">
                   {
-                    requests.filter(
+                    teamLeaves.filter(
                       (r) =>
                         r.status === "approved" &&
                         new Date(r.start_date) <= new Date() &&
-                        new Date(r.end_date) >= new Date(),
+                        new Date(r.end_date) >= new Date() &&
+                        r.user_id !== user?.id, // Exclude current user from count
                     ).length
                   }
                 </p>
@@ -257,7 +272,7 @@ const Leave = () => {
                 <p className="text-xs text-muted-foreground font-medium">Leave categories:</p>
                 <div className="flex flex-wrap gap-1">
                   {Object.entries(SPECIAL_LEAVE_TYPES).map(([leaveType, config]) => {
-                    const isTaken = requests.some(
+                    const isTaken = ownRequests.some(
                       (r) =>
                         r.leave_type === leaveType &&
                         r.user_id === user?.id &&
@@ -280,7 +295,7 @@ const Leave = () => {
                     <p className="text-xs text-muted-foreground font-medium mb-1">Taken leaves:</p>
                     <div className="space-y-1">
                       {Object.keys(SPECIAL_LEAVE_TYPES).map((leaveType) => {
-                        const takenLeave = requests.find(
+                        const takenLeave = ownRequests.find(
                           (r) => r.leave_type === leaveType && r.user_id === user?.id && r.status === "approved",
                         );
                         if (!takenLeave) return null;
@@ -323,19 +338,19 @@ const Leave = () => {
                   <TabsTrigger value="all" className="text-xs sm:text-sm">
                     All
                     <Badge variant="outline" className="ml-2 text-xs">
-                      {requests.length}
+                      {isManager && activeTab === "all" ? requests.length : ownRequests.length}
                     </Badge>
                   </TabsTrigger>
                   <TabsTrigger value="pending" className="text-xs sm:text-sm">
                     Pending
                     <Badge variant="outline" className="ml-2 text-xs bg-warning/10 text-warning">
-                      {requests.filter((r) => r.status === "pending").length}
+                      {pendingRequestsCount}
                     </Badge>
                   </TabsTrigger>
                   <TabsTrigger value="approved" className="text-xs sm:text-sm">
                     Approved
                     <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success">
-                      {requests.filter((r) => r.status === "approved").length}
+                      {ownRequests.filter((r) => r.status === "approved").length}
                     </Badge>
                   </TabsTrigger>
                 </TabsList>
@@ -409,7 +424,9 @@ const Leave = () => {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-medium">{isOwnRequest ? "You" : employeeName}</p>
-                            {!isOwnRequest && <span className="text-xs text-muted-foreground">{email}</span>}
+                            {!isOwnRequest && isManager && (
+                              <span className="text-xs text-muted-foreground">{email}</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
                             <Badge
@@ -515,16 +532,16 @@ const Leave = () => {
                   const currentYear = new Date().getFullYear();
                   const currentDate = new Date(currentYear, currentMonth, day);
 
-                  // Check if current user is on leave this day
-                  const isUserOnLeave = requests.some((r) => {
+                  // Check if current user is on leave this day (from ownRequests)
+                  const isUserOnLeave = ownRequests.some((r) => {
                     if (r.status !== "approved" || r.user_id !== user?.id) return false;
                     const startDate = new Date(r.start_date);
                     const endDate = new Date(r.end_date);
                     return currentDate >= startDate && currentDate <= endDate;
                   });
 
-                  // Check if any other team member is on leave this day
-                  const othersOnLeave = requests.some((r) => {
+                  // Check if any other team member is on leave this day (from teamLeaves)
+                  const othersOnLeave = teamLeaves.some((r) => {
                     if (r.status !== "approved" || r.user_id === user?.id) return false;
                     const startDate = new Date(r.start_date);
                     const endDate = new Date(r.end_date);
@@ -575,7 +592,7 @@ const Leave = () => {
                 <p className="text-sm font-medium mb-2">Currently On Leave</p>
                 <div className="space-y-2">
                   {(() => {
-                    const currentlyOnLeave = requests.filter((r) => {
+                    const currentlyOnLeave = teamLeaves.filter((r) => {
                       if (r.status !== "approved") return false;
                       const today = new Date();
                       const startDate = new Date(r.start_date);
@@ -617,7 +634,7 @@ const Leave = () => {
                 <p className="text-sm font-medium mb-2">Upcoming Time Off</p>
                 <div className="space-y-2">
                   {(() => {
-                    const upcoming = requests
+                    const upcoming = teamLeaves
                       .filter((r) => r.status === "approved" && new Date(r.start_date) > new Date())
                       .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
                       .slice(0, 5);
