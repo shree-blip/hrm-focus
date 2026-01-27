@@ -334,9 +334,9 @@ export function useLeaveRequests() {
 
       // Notify managers
       const { data: managers } = await supabase
-        .from("profiles")
-        .select("user_id, role")
-        .or("role.eq.manager,role.eq.admin,role.eq.vp");
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["manager", "admin", "vp"]);
 
       if (managers && Array.isArray(managers)) {
         for (const manager of managers) {
