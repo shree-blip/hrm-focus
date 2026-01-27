@@ -26,9 +26,12 @@ import {
   Loader2,
   Lock,
   User,
+  Share2,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDocuments, Document, PRIVATE_CATEGORIES } from "@/hooks/useDocuments";
+import { useSharedDocuments } from "@/hooks/useSharedDocuments";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
 import { DocumentViewDialog } from "@/components/documents/DocumentViewDialog";
 import { RenameDocumentDialog } from "@/components/documents/RenameDocumentDialog";
@@ -122,6 +125,7 @@ const mockDocuments = [
 
 const categories = [
   { name: "All Documents", icon: FolderOpen },
+  { name: "Shared with me", icon: Share2 },
   { name: "Contracts", icon: FileText },
   { name: "Policies", icon: File },
   { name: "Compliance", icon: File },
@@ -176,6 +180,13 @@ const Documents = () => {
     getUploaderName,
     isPrivateCategory,
   } = useDocuments();
+  const {
+    sharedDocuments,
+    loading: sharedLoading,
+    downloadSharedDocument,
+    markAsRead,
+    unreadCount,
+  } = useSharedDocuments();
   const [selectedCategory, setSelectedCategory] = useState("All Documents");
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -186,28 +197,44 @@ const Documents = () => {
   const [shareUrl, setShareUrl] = useState("");
   const [sendDoc, setSendDoc] = useState<DisplayDocument | null>(null);
 
+  // Check if viewing shared documents
+  const isSharedView = selectedCategory === "Shared with me";
+
   // Use real documents if available, otherwise use mock data
   const documents: DisplayDocument[] = realDocuments.length > 0 ? realDocuments : mockDocuments;
 
   // Filter documents based on category and search
   const filteredDocuments = useMemo(() => {
+    if (isSharedView) return []; // Don't show regular docs in shared view
     return documents.filter((doc) => {
       const matchesCategory = selectedCategory === "All Documents" || doc.category === selectedCategory;
       const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [documents, selectedCategory, searchQuery]);
+  }, [documents, selectedCategory, searchQuery, isSharedView]);
+
+  // Filter shared documents based on search
+  const filteredSharedDocuments = useMemo(() => {
+    if (!isSharedView) return [];
+    return sharedDocuments.filter((doc) =>
+      doc.document_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doc.sender_name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [sharedDocuments, searchQuery, isSharedView]);
 
   // Get category counts
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { "All Documents": documents.length };
+    const counts: Record<string, number> = { 
+      "All Documents": documents.length,
+      "Shared with me": sharedDocuments.length,
+    };
     documents.forEach((doc) => {
       if (doc.category) {
         counts[doc.category] = (counts[doc.category] || 0) + 1;
       }
     });
     return counts;
-  }, [documents]);
+  }, [documents, sharedDocuments]);
 
   const handleUpload = async (docData: {
     name: string;
@@ -289,6 +316,8 @@ const Documents = () => {
             {categories.map((category) => {
               const Icon = category.icon;
               const isSelected = selectedCategory === category.name;
+              const isSharedCategory = category.name === "Shared with me";
+              const hasUnread = isSharedCategory && unreadCount > 0;
               return (
                 <button
                   key={category.name}
@@ -301,6 +330,11 @@ const Documents = () => {
                   <div className="flex items-center gap-3">
                     <Icon className="h-4 w-4" />
                     <span>{category.name}</span>
+                    {hasUnread && !isSelected && (
+                      <Badge variant="destructive" className="text-xs h-5 min-w-5 flex items-center justify-center">
+                        {unreadCount}
+                      </Badge>
+                    )}
                   </div>
                   <Badge variant={isSelected ? "secondary" : "outline"} className="text-xs">
                     {categoryCounts[category.name] || 0}
@@ -334,10 +368,113 @@ const Documents = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {(loading || (isSharedView && sharedLoading)) ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
+            ) : isSharedView ? (
+              // Shared documents view
+              filteredSharedDocuments.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Share2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No shared documents</p>
+                  <p className="text-sm mt-2">Documents sent to you will appear here</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[700px]">
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead>Name</TableHead>
+                        <TableHead>From</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead>Received</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-[100px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredSharedDocuments.map((doc, index) => (
+                        <TableRow
+                          key={doc.id}
+                          className={cn(
+                            "group cursor-pointer animate-fade-in",
+                            !doc.is_read && "bg-primary/5"
+                          )}
+                          style={{ animationDelay: `${300 + index * 50}ms` }}
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              {getFileIcon(doc.file_type)}
+                              <span className={cn("font-medium", !doc.is_read && "font-semibold")}>
+                                {doc.document_name}
+                              </span>
+                              {!doc.is_read && (
+                                <Badge variant="default" className="text-xs">New</Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              <span className="text-sm">{doc.sender_name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="font-normal">
+                              {doc.category || "Uncategorized"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {formatFileSize(doc.file_size)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {format(new Date(doc.created_at), "MMM d, yyyy")}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                doc.is_read
+                                  ? "border-muted-foreground text-muted-foreground"
+                                  : "border-primary text-primary bg-primary/10"
+                              )}
+                            >
+                              {doc.is_read ? "Read" : "Unread"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => downloadSharedDocument(doc)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              {!doc.is_read && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => markAsRead(doc.id)}
+                                >
+                                  Mark as read
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )
             ) : filteredDocuments.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
