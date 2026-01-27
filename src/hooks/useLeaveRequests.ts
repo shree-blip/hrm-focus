@@ -40,7 +40,7 @@ const SPECIAL_LEAVE_TYPES: Record<string, number> = {
 
 export function useLeaveRequests() {
   const { user, isManager } = useAuth();
-  const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const [ownRequests, setOwnRequests] = useState<LeaveRequest[]>([]);
   const [teamLeaves, setTeamLeaves] = useState<LeaveRequest[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +131,7 @@ export function useLeaveRequests() {
     if (!user) return;
 
     // Fetch own requests
-    const ownRequests = await fetchOwnRequests();
+    const ownRequestsData = await fetchOwnRequests();
 
     // Fetch team leaves (approved) for calendar
     const approvedTeamLeaves = await fetchTeamLeaves();
@@ -140,7 +140,7 @@ export function useLeaveRequests() {
     const pendingRequests = isManager ? await fetchPendingForManager() : [];
 
     // Combine own requests with pending requests for managers
-    const allManageableRequests = [...ownRequests];
+    const allManageableRequests = [...ownRequestsData];
 
     // Add pending requests from others (for managers)
     pendingRequests.forEach((req) => {
@@ -163,8 +163,8 @@ export function useLeaveRequests() {
 
     const profilesMap = new Map(profilesData?.map((p) => [p.user_id, p]) || []);
 
-    // Add profiles to requests
-    const requestsWithProfiles = allManageableRequests.map((request) => ({
+    // Add profiles to own requests
+    const ownRequestsWithProfiles = allManageableRequests.map((request) => ({
       ...request,
       profile: profilesMap.get(request.user_id) || undefined,
     })) as LeaveRequest[];
@@ -175,7 +175,7 @@ export function useLeaveRequests() {
       profile: profilesMap.get(request.user_id) || undefined,
     })) as LeaveRequest[];
 
-    setRequests(requestsWithProfiles);
+    setOwnRequests(ownRequestsWithProfiles);
     setTeamLeaves(teamLeavesWithProfiles);
   }, [user, isManager, fetchOwnRequests, fetchTeamLeaves, fetchPendingForManager]);
 
@@ -268,7 +268,7 @@ export function useLeaveRequests() {
           return;
         }
       } else {
-        const usedAnnualLeave = requests
+        const usedAnnualLeave = ownRequests
           .filter((r) => r.status === "approved" && r.leave_type === "Annual Leave" && r.user_id === user.id)
           .reduce((sum, r) => sum + r.days, 0);
 
@@ -500,18 +500,22 @@ export function useLeaveRequests() {
     }
   };
 
-  // Combine requests and teamLeaves for components that need all data
-  const allLeaves = [...requests];
-  teamLeaves.forEach((tl) => {
-    if (!allLeaves.find((r) => r.id === tl.id)) {
-      allLeaves.push(tl);
-    }
-  });
+  // For managers, we need all requests to display pending requests from team
+  const getAllRequests = () => {
+    const allRequests = [...ownRequests];
+    // Add team leaves that aren't already in ownRequests
+    teamLeaves.forEach((tl) => {
+      if (!allRequests.find((r) => r.id === tl.id)) {
+        allRequests.push(tl);
+      }
+    });
+    return allRequests;
+  };
 
   return {
-    requests: allLeaves, // Combined list for calendar view
-    ownRequests: requests.filter((r) => r.user_id === user?.id), // Only user's own requests
-    teamLeaves, // All approved team leaves
+    requests: getAllRequests(), // Combined list for manager view
+    ownRequests, // Only user's own requests (for employee dashboard)
+    teamLeaves, // All approved team leaves (for calendar)
     balances,
     loading,
     createRequest,
