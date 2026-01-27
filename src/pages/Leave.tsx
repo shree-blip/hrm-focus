@@ -15,6 +15,16 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 
+// Special leave subtypes configuration
+export const SPECIAL_LEAVE_TYPES = {
+  "Wedding Leave": { days: 15, color: "bg-pink-500" },
+  "Bereavement Leave": { days: 15, color: "bg-slate-500" },
+  "Maternity Leave": { days: 98, color: "bg-purple-500" },
+  "Paternity Leave": { days: 22, color: "bg-indigo-500" },
+} as const;
+
+export type SpecialLeaveType = keyof typeof SPECIAL_LEAVE_TYPES;
+
 const Leave = () => {
   const { user, isManager } = useAuth();
   const { requests, balances, loading, createRequest, approveRequest, rejectRequest } = useLeaveRequests();
@@ -63,28 +73,20 @@ const Leave = () => {
     });
   };
 
-  // Default balances if none exist
-  const displayBalances =
-    balances.length > 0
-      ? balances.map((b) => ({
-          type: b.leave_type,
-          used: b.used_days,
-          total: b.total_days,
-          color:
-            b.leave_type === "Annual Leave"
-              ? "bg-primary"
-              : b.leave_type === "Sick Leave"
-                ? "bg-info"
-                : b.leave_type === "Personal Leave"
-                  ? "bg-warning"
-                  : "bg-success",
-        }))
-      : [
-          { type: "Annual Leave", used: 0, total: 20, color: "bg-primary" },
-          { type: "Sick Leave", used: 0, total: 10, color: "bg-info" },
-          { type: "Personal Leave", used: 0, total: 3, color: "bg-warning" },
-          { type: "Comp Time", used: 0, total: 5, color: "bg-success" },
-        ];
+  // Calculate used days for each leave type from approved requests (ONLY for current user)
+  const getUsedDaysForType = (leaveType: string) => {
+    return requests
+      .filter((r) => r.status === "approved" && r.leave_type === leaveType && r.user_id === user?.id)
+      .reduce((sum, r) => sum + r.days, 0);
+  };
+
+  // Calculate special leave usage (sum of all special leave subtypes) (ONLY for current user)
+  const getSpecialLeaveUsed = () => {
+    const specialLeaveTypes = Object.keys(SPECIAL_LEAVE_TYPES);
+    return requests
+      .filter((r) => r.status === "approved" && specialLeaveTypes.includes(r.leave_type) && r.user_id === user?.id)
+      .reduce((sum, r) => sum + r.days, 0);
+  };
 
   // Get upcoming approved leave requests
   const upcomingLeave = requests
@@ -147,10 +149,8 @@ const Leave = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Balance</p>
-                <p className="text-2xl font-bold mt-1">
-                  {displayBalances.reduce((sum, b) => sum + (b.total - b.used), 0)} days
-                </p>
+                <p className="text-sm font-medium text-muted-foreground">Annual Leave Balance</p>
+                <p className="text-2xl font-bold mt-1">{12 - getUsedDaysForType("Annual Leave")} days</p>
               </div>
               <Calendar className="h-8 w-8 text-primary/60" />
             </div>
@@ -206,41 +206,98 @@ const Leave = () => {
       </div>
 
       {/* Balance Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {displayBalances.map((balance, index) => (
-          <Card
-            key={balance.type}
-            className="animate-slide-up opacity-0 hover:shadow-md transition-shadow"
-            style={{
-              animationDelay: `${100 + index * 50}ms`,
-              animationFillMode: "forwards",
-            }}
-          >
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium text-muted-foreground">{balance.type}</p>
-                <Badge variant="secondary">{balance.total - balance.used} days left</Badge>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        {/* Annual Leave Card */}
+        <Card
+          className="animate-slide-up opacity-0 hover:shadow-md transition-shadow"
+          style={{ animationDelay: "100ms", animationFillMode: "forwards" }}
+        >
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-medium text-muted-foreground">Annual Leave</p>
+              <Badge variant="secondary">{12 - getUsedDaysForType("Annual Leave")} days left</Badge>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-display font-bold">{12 - getUsedDaysForType("Annual Leave")}</span>
+                <span className="text-muted-foreground">/ 12 days</span>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-display font-bold">{balance.total - balance.used}</span>
-                  <span className="text-muted-foreground">/ {balance.total} days</span>
-                </div>
-                <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div
-                    className={cn("h-full rounded-full transition-all duration-500", balance.color)}
-                    style={{
-                      width: `${balance.total > 0 ? Math.min((balance.used / balance.total) * 100, 100) : 0}%`,
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {balance.used} days used • {((balance.used / balance.total) * 100).toFixed(0)}% utilized
-                </p>
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500 bg-primary"
+                  style={{ width: `${Math.min((getUsedDaysForType("Annual Leave") / 12) * 100, 100)}%` }}
+                />
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              <p className="text-xs text-muted-foreground">
+                {getUsedDaysForType("Annual Leave")} days used •{" "}
+                {((getUsedDaysForType("Annual Leave") / 12) * 100).toFixed(0)}% utilized
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Special Leave Card */}
+        <Card
+          className="animate-slide-up opacity-0 hover:shadow-md transition-shadow"
+          style={{ animationDelay: "150ms", animationFillMode: "forwards" }}
+        >
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-medium text-muted-foreground">Special Leave</p>
+              <Badge variant="secondary" className="bg-warning/10 text-warning">
+                Category based
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-display font-bold">{getSpecialLeaveUsed()}</span>
+                <span className="text-muted-foreground">days used</span>
+              </div>
+              <div className="space-y-2 mt-3">
+                <p className="text-xs text-muted-foreground font-medium">Leave categories:</p>
+                <div className="flex flex-wrap gap-1">
+                  {Object.entries(SPECIAL_LEAVE_TYPES).map(([leaveType, config]) => {
+                    const isTaken = requests.some(
+                      (r) =>
+                        r.leave_type === leaveType &&
+                        r.user_id === user?.id &&
+                        (r.status === "approved" || r.status === "pending"),
+                    );
+                    return (
+                      <Badge
+                        key={leaveType}
+                        variant={isTaken ? "default" : "outline"}
+                        className={cn("text-xs", isTaken && "bg-warning text-warning-foreground")}
+                      >
+                        {leaveType.replace(" Leave", "")} ({config.days}d)
+                        {isTaken && " ✓"}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                {getSpecialLeaveUsed() > 0 && (
+                  <div className="pt-2 border-t border-border mt-2">
+                    <p className="text-xs text-muted-foreground font-medium mb-1">Taken leaves:</p>
+                    <div className="space-y-1">
+                      {Object.keys(SPECIAL_LEAVE_TYPES).map((leaveType) => {
+                        const takenLeave = requests.find(
+                          (r) => r.leave_type === leaveType && r.user_id === user?.id && r.status === "approved",
+                        );
+                        if (!takenLeave) return null;
+                        return (
+                          <div key={leaveType} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">{leaveType}</span>
+                            <span className="font-medium text-warning">{takenLeave.days} days</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Main Content */}
@@ -313,6 +370,13 @@ const Leave = () => {
                   : "??";
                 const email = request.profile?.email || "";
 
+                // Determine leave type badge color
+                const getLeaveTypeBadgeClass = (leaveType: string) => {
+                  if (leaveType === "Annual Leave") return "bg-primary/10 text-primary";
+                  if (Object.keys(SPECIAL_LEAVE_TYPES).includes(leaveType)) return "bg-warning/10 text-warning";
+                  return "bg-muted text-muted-foreground";
+                };
+
                 return (
                   <div
                     key={request.id}
@@ -347,10 +411,18 @@ const Leave = () => {
                             <p className="font-medium">{isOwnRequest ? "You" : employeeName}</p>
                             {!isOwnRequest && <span className="text-xs text-muted-foreground">{email}</span>}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-0.5">
-                            {request.leave_type} • {format(new Date(request.start_date), "MMM d, yyyy")} -{" "}
-                            {format(new Date(request.end_date), "MMM d, yyyy")}
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge
+                              variant="outline"
+                              className={cn("text-xs", getLeaveTypeBadgeClass(request.leave_type))}
+                            >
+                              {request.leave_type}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {format(new Date(request.start_date), "MMM d, yyyy")} -{" "}
+                              {format(new Date(request.end_date), "MMM d, yyyy")}
+                            </span>
+                          </div>
                           {request.reason && <p className="text-sm text-muted-foreground mt-2">"{request.reason}"</p>}
                           {request.status === "rejected" && request.rejection_reason && (
                             <div className="flex items-start gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
@@ -443,8 +515,17 @@ const Leave = () => {
                   const currentYear = new Date().getFullYear();
                   const currentDate = new Date(currentYear, currentMonth, day);
 
-                  const hasLeave = requests.some((r) => {
-                    if (r.status !== "approved") return false;
+                  // Check if current user is on leave this day
+                  const isUserOnLeave = requests.some((r) => {
+                    if (r.status !== "approved" || r.user_id !== user?.id) return false;
+                    const startDate = new Date(r.start_date);
+                    const endDate = new Date(r.end_date);
+                    return currentDate >= startDate && currentDate <= endDate;
+                  });
+
+                  // Check if any other team member is on leave this day
+                  const othersOnLeave = requests.some((r) => {
+                    if (r.status !== "approved" || r.user_id === user?.id) return false;
                     const startDate = new Date(r.start_date);
                     const endDate = new Date(r.end_date);
                     return currentDate >= startDate && currentDate <= endDate;
@@ -454,39 +535,118 @@ const Leave = () => {
                     <div
                       key={day}
                       className={cn(
-                        "text-sm py-2 rounded-md cursor-pointer transition-colors",
+                        "text-sm py-2 rounded-md cursor-pointer transition-colors relative",
                         day === today && "bg-primary text-primary-foreground font-medium",
-                        hasLeave && day !== today && "bg-warning/20 text-warning-foreground",
+                        isUserOnLeave &&
+                          day !== today &&
+                          "bg-success/30 text-success-foreground border border-success/50",
+                        othersOnLeave && !isUserOnLeave && day !== today && "bg-warning/20 text-warning-foreground",
                       )}
+                      title={isUserOnLeave ? "You are on leave" : othersOnLeave ? "Team member(s) on leave" : ""}
                     >
                       {day}
+                      {(isUserOnLeave || othersOnLeave) && day !== today && (
+                        <div
+                          className={cn(
+                            "absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full",
+                            isUserOnLeave ? "bg-success" : "bg-warning",
+                          )}
+                        />
+                      )}
                     </div>
                   );
                 })}
               </div>
 
-              {/* Upcoming Time Off Section */}
-              <div className="space-y-2 pt-4 border-t border-border">
-                <p className="text-sm font-medium mb-2">Upcoming Time Off</p>
+              {/* Calendar Legend */}
+              <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4 pb-2 border-b">
+                <div className="flex items-center gap-1">
+                  <div className="h-3 w-3 rounded bg-success/30 border border-success/50" />
+                  <span>Your leave</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="h-3 w-3 rounded bg-warning/20" />
+                  <span>Team on leave</span>
+                </div>
+              </div>
+
+              {/* Currently On Leave Section */}
+              <div className="space-y-2 pb-4 border-b border-border">
+                <p className="text-sm font-medium mb-2">Currently On Leave</p>
                 <div className="space-y-2">
-                  {upcomingLeave.length > 0 ? (
-                    upcomingLeave.map((r) => {
-                      const employeeName = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Employee";
+                  {(() => {
+                    const currentlyOnLeave = requests.filter((r) => {
+                      if (r.status !== "approved") return false;
+                      const today = new Date();
+                      const startDate = new Date(r.start_date);
+                      const endDate = new Date(r.end_date);
+                      return today >= startDate && today <= endDate;
+                    });
+
+                    if (currentlyOnLeave.length === 0) {
+                      return <p className="text-sm text-muted-foreground">No one is currently on leave</p>;
+                    }
+
+                    return currentlyOnLeave.map((r) => {
+                      const employeeName =
+                        r.user_id === user?.id
+                          ? "You"
+                          : r.profile
+                            ? `${r.profile.first_name} ${r.profile.last_name}`
+                            : "Employee";
+                      const isCurrentUser = r.user_id === user?.id;
                       return (
                         <div key={r.id} className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-warning" />
-                            <span className="font-medium">{employeeName}</span>
+                            <div className={cn("h-2 w-2 rounded-full", isCurrentUser ? "bg-success" : "bg-warning")} />
+                            <span className={cn("font-medium", isCurrentUser && "text-success")}>{employeeName}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {r.leave_type.replace(" Leave", "")}
+                            </Badge>
                           </div>
-                          <span className="text-muted-foreground">
+                          <span className="text-muted-foreground text-xs">{format(new Date(r.end_date), "MMM d")}</span>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Upcoming Time Off Section */}
+              <div className="space-y-2 pt-4">
+                <p className="text-sm font-medium mb-2">Upcoming Time Off</p>
+                <div className="space-y-2">
+                  {(() => {
+                    const upcoming = requests
+                      .filter((r) => r.status === "approved" && new Date(r.start_date) > new Date())
+                      .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+                      .slice(0, 5);
+
+                    if (upcoming.length === 0) {
+                      return <p className="text-sm text-muted-foreground">No upcoming time off scheduled</p>;
+                    }
+
+                    return upcoming.map((r) => {
+                      const employeeName =
+                        r.user_id === user?.id
+                          ? "You"
+                          : r.profile
+                            ? `${r.profile.first_name} ${r.profile.last_name}`
+                            : "Employee";
+                      const isCurrentUser = r.user_id === user?.id;
+                      return (
+                        <div key={r.id} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className={cn("h-2 w-2 rounded-full", isCurrentUser ? "bg-success" : "bg-warning")} />
+                            <span className={cn("font-medium", isCurrentUser && "text-success")}>{employeeName}</span>
+                          </div>
+                          <span className="text-muted-foreground text-xs">
                             {format(new Date(r.start_date), "MMM d")} - {format(new Date(r.end_date), "MMM d")}
                           </span>
                         </div>
                       );
-                    })
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No upcoming time off scheduled</p>
-                  )}
+                    });
+                  })()}
                 </div>
               </div>
             </CardContent>
