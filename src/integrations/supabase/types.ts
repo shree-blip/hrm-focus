@@ -2123,9 +2123,7 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limits: { Args: never; Returns: undefined }
-      get_all_user_ids_for_sharing: { Args: never; Returns: string[] }
       get_employee_id_for_user: { Args: { _user_id: string }; Returns: string }
-      get_management_user_ids: { Args: never; Returns: string[] }
       get_org_by_slug: {
         Args: { _slug: string }
         Returns: {
