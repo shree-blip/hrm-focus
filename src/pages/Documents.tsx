@@ -52,19 +52,13 @@ import { useAuth } from "@/contexts/AuthContext";
 const mockDocuments = [
   { id: "1", name: "Offer Letter - Michael Chen.pdf", file_path: "", file_type: "pdf", file_size: 245000, category: "Contracts", created_at: "2025-12-20", updated_at: "2025-12-20", status: "signed", uploaded_by: "", employee_id: null },
   { id: "2", name: "Employee Handbook 2025.pdf", file_path: "", file_type: "pdf", file_size: 1200000, category: "Policies", created_at: "2025-01-01", updated_at: "2025-01-01", status: "active", uploaded_by: "", employee_id: null },
-  { id: "3", name: "NDA Template.docx", file_path: "", file_type: "docx", file_size: 89000, category: "Templates", created_at: "2025-11-15", updated_at: "2025-11-15", status: "active", uploaded_by: "", employee_id: null },
-  { id: "4", name: "Q4 Performance Reviews.xlsx", file_path: "", file_type: "xlsx", file_size: 456000, category: "Reviews", created_at: "2025-12-18", updated_at: "2025-12-18", status: "draft", uploaded_by: "", employee_id: null },
-  { id: "5", name: "Tax Form W-4 - Sarah Johnson.pdf", file_path: "", file_type: "pdf", file_size: 178000, category: "Tax Forms", created_at: "2025-12-10", updated_at: "2025-12-10", status: "completed", uploaded_by: "", employee_id: null },
-  { id: "6", name: "Background Check Results.pdf", file_path: "", file_type: "pdf", file_size: 312000, category: "Compliance", created_at: "2025-12-05", updated_at: "2025-12-05", status: "approved", uploaded_by: "", employee_id: null },
+  { id: "3", name: "Background Check Results.pdf", file_path: "", file_type: "pdf", file_size: 312000, category: "Compliance", created_at: "2025-12-05", updated_at: "2025-12-05", status: "approved", uploaded_by: "", employee_id: null },
 ];
 
 const categories = [
   { name: "All Documents", icon: FolderOpen },
   { name: "Contracts", icon: FileText },
-  { name: "Tax Forms", icon: FileSpreadsheet },
   { name: "Policies", icon: File },
-  { name: "Reviews", icon: FileText },
-  { name: "Templates", icon: FileImage },
   { name: "Compliance", icon: File },
 ];
 
