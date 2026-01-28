@@ -9,22 +9,22 @@ import { useAttendance } from "@/hooks/useAttendance";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 
 export function ClockWidget() {
-  const { 
-    currentLog, 
+  const {
+    currentLog,
     weeklyLogs,
-    monthlyHours, 
+    monthlyHours,
     loading,
     clockType,
     setClockType,
-    clockIn, 
-    clockOut, 
-    startBreak, 
+    clockIn,
+    clockOut,
+    startBreak,
     endBreak,
     startPause,
     endPause,
-    status: clockStatus 
+    status: clockStatus,
   } = useAttendance();
-  
+
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
 
   // Update elapsed time every second
@@ -38,7 +38,7 @@ export function ClockWidget() {
       const now = new Date();
       const clockInTime = new Date(currentLog.clock_in);
       let elapsed = now.getTime() - clockInTime.getTime();
-      
+
       // Subtract total break time
       const totalBreakMs = (currentLog.total_break_minutes || 0) * 60 * 1000;
       elapsed -= totalBreakMs;
@@ -46,17 +46,17 @@ export function ClockWidget() {
       // Subtract total pause time
       const totalPauseMs = ((currentLog as any).total_pause_minutes || 0) * 60 * 1000;
       elapsed -= totalPauseMs;
-      
+
       // If currently on break, subtract current break time
       if (clockStatus === "break" && currentLog.break_start) {
         const breakStart = new Date(currentLog.break_start);
-        elapsed -= (now.getTime() - breakStart.getTime());
+        elapsed -= now.getTime() - breakStart.getTime();
       }
 
       // If currently paused, subtract current pause time
       if (clockStatus === "paused" && (currentLog as any).pause_start) {
         const pauseStart = new Date((currentLog as any).pause_start);
-        elapsed -= (now.getTime() - pauseStart.getTime());
+        elapsed -= now.getTime() - pauseStart.getTime();
       }
 
       // Ensure we don't show negative time
@@ -67,7 +67,7 @@ export function ClockWidget() {
       const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
 
       setElapsedTime(
-        `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+        `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`,
       );
     };
 
@@ -103,21 +103,21 @@ export function ClockWidget() {
   // Calculate today's hours from logs (excluding breaks and pauses)
   const getTodayHours = () => {
     const today = format(new Date(), "yyyy-MM-dd");
-    const todayLogs = weeklyLogs.filter(log => {
+    const todayLogs = weeklyLogs.filter((log) => {
       const logDate = format(new Date(log.clock_in), "yyyy-MM-dd");
       return logDate === today;
     });
-    
+
     let totalMinutes = 0;
-    todayLogs.forEach(log => {
+    todayLogs.forEach((log) => {
       const start = new Date(log.clock_in);
       const end = log.clock_out ? new Date(log.clock_out) : new Date();
       const breakMinutes = log.total_break_minutes || 0;
       const pauseMinutes = (log as any).total_pause_minutes || 0;
-      const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
+      const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
       totalMinutes += Math.max(0, diffMs / (1000 * 60));
     });
-    
+
     const hours = Math.floor(totalMinutes / 60);
     const mins = Math.round(totalMinutes % 60);
     return `${hours}h ${mins}m`;
@@ -128,20 +128,20 @@ export function ClockWidget() {
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-    
+
     let totalMinutes = 0;
-    weeklyLogs.forEach(log => {
+    weeklyLogs.forEach((log) => {
       const logDate = new Date(log.clock_in);
       if (logDate >= weekStart && logDate <= weekEnd) {
         const start = new Date(log.clock_in);
         const end = log.clock_out ? new Date(log.clock_out) : new Date();
         const breakMinutes = log.total_break_minutes || 0;
         const pauseMinutes = (log as any).total_pause_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
+        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
-    
+
     const hours = Math.floor(totalMinutes / 60);
     const mins = Math.round(totalMinutes % 60);
     return `${hours}h ${mins}m`;
@@ -152,20 +152,20 @@ export function ClockWidget() {
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-    
+
     let totalMinutes = 0;
-    weeklyLogs.forEach(log => {
+    weeklyLogs.forEach((log) => {
       const logDate = new Date(log.clock_in);
       if (logDate >= weekStart && logDate <= weekEnd) {
         const start = new Date(log.clock_in);
         const end = log.clock_out ? new Date(log.clock_out) : new Date();
         const breakMinutes = log.total_break_minutes || 0;
         const pauseMinutes = (log as any).total_pause_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - (breakMinutes * 60 * 1000) - (pauseMinutes * 60 * 1000);
+        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
-    
+
     const targetMinutes = 40 * 60; // 40 hours per week
     const utilization = Math.round((totalMinutes / targetMinutes) * 100);
     return Math.min(utilization, 100);
@@ -173,7 +173,10 @@ export function ClockWidget() {
 
   if (loading) {
     return (
-      <Card className="overflow-hidden animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+      <Card
+        className="overflow-hidden animate-slide-up opacity-0"
+        style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
+      >
         <CardContent className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </CardContent>
@@ -184,7 +187,10 @@ export function ClockWidget() {
   const clockInTime = currentLog ? new Date(currentLog.clock_in) : null;
 
   return (
-    <Card className="overflow-hidden animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+    <Card
+      className="overflow-hidden animate-slide-up opacity-0"
+      style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="font-display text-lg flex items-center gap-2">
@@ -198,7 +204,7 @@ export function ClockWidget() {
               clockStatus === "in" && "border-success text-success bg-success/10",
               clockStatus === "out" && "border-muted-foreground text-muted-foreground",
               clockStatus === "break" && "border-warning text-warning bg-warning/10",
-              clockStatus === "paused" && "border-info text-info bg-info/10"
+              clockStatus === "paused" && "border-info text-info bg-info/10",
             )}
           >
             {clockStatus === "in" && (currentLog?.clock_type === "billable" ? "Billable" : "Active")}
@@ -219,17 +225,15 @@ export function ClockWidget() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="payroll">Payroll Time</SelectItem>
-                <SelectItem value="billable">Billable Time</SelectItem>
+                {/* <SelectItem value="billable">Billable Time</SelectItem> */}
               </SelectContent>
             </Select>
           </div>
         )}
-        
+
         {/* Timer Display */}
         <div className="text-center py-6 rounded-lg bg-secondary/50">
-          <p className="text-5xl font-display font-bold tracking-wider text-foreground">
-            {elapsedTime}
-          </p>
+          <p className="text-5xl font-display font-bold tracking-wider text-foreground">{elapsedTime}</p>
           {clockInTime && (
             <p className="text-sm text-muted-foreground mt-2">
               Clocked in at {clockInTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
@@ -262,7 +266,7 @@ export function ClockWidget() {
                 variant={clockStatus === "paused" ? "default" : "outline"}
                 className={cn(
                   "flex-1 gap-2",
-                  clockStatus === "paused" && "bg-info hover:bg-info/90 text-info-foreground"
+                  clockStatus === "paused" && "bg-info hover:bg-info/90 text-info-foreground",
                 )}
                 size="lg"
                 disabled={clockStatus === "break"}
