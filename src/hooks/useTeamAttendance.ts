@@ -30,7 +30,51 @@ interface DailyAttendanceRecord {
   date: string;
 }
 
-export function useTeamAttendance(month?: Date) {
+export type DateRangeType = "this-month" | "last-month" | "this-quarter" | "this-year";
+
+interface DateRange {
+  start: Date;
+  end: Date;
+}
+
+// Helper function to calculate date range based on selection
+export function getDateRangeFromType(rangeType: DateRangeType): DateRange {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const currentQuarter = Math.floor(currentMonth / 3);
+
+  switch (rangeType) {
+    case "this-month":
+      return {
+        start: new Date(currentYear, currentMonth, 1),
+        end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999),
+      };
+    case "last-month":
+      return {
+        start: new Date(currentYear, currentMonth - 1, 1),
+        end: new Date(currentYear, currentMonth, 0, 23, 59, 59, 999),
+      };
+    case "this-quarter":
+      const quarterStartMonth = currentQuarter * 3;
+      return {
+        start: new Date(currentYear, quarterStartMonth, 1),
+        end: new Date(currentYear, quarterStartMonth + 3, 0, 23, 59, 59, 999),
+      };
+    case "this-year":
+      return {
+        start: new Date(currentYear, 0, 1),
+        end: new Date(currentYear, 11, 31, 23, 59, 59, 999),
+      };
+    default:
+      return {
+        start: new Date(currentYear, currentMonth, 1),
+        end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999),
+      };
+  }
+}
+
+export function useTeamAttendance(dateRangeType?: DateRangeType) {
   const { isManager } = useAuth();
   const [teamAttendance, setTeamAttendance] = useState<EmployeeAttendance[]>([]);
   const [dailyAttendance, setDailyAttendance] = useState<DailyAttendanceRecord[]>([]);
@@ -42,9 +86,8 @@ export function useTeamAttendance(month?: Date) {
       return;
     }
 
-    const targetMonth = month || new Date();
-    const startOfMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
-    const endOfMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59, 999);
+    // Get date range based on selection (default to this-month)
+    const { start: startDate, end: endDate } = getDateRangeFromType(dateRangeType || "this-month");
 
     // Fetch attendance logs with profile info
     const { data: logs, error } = await supabase
@@ -64,8 +107,8 @@ export function useTeamAttendance(month?: Date) {
         total_pause_minutes
       `,
       )
-      .gte("clock_in", startOfMonth.toISOString())
-      .lte("clock_in", endOfMonth.toISOString());
+      .gte("clock_in", startDate.toISOString())
+      .lte("clock_in", endDate.toISOString());
 
     if (error) {
       console.error("Error fetching team attendance:", error);
@@ -177,7 +220,7 @@ export function useTeamAttendance(month?: Date) {
     setTeamAttendance(result.sort((a, b) => b.total_hours - a.total_hours));
     setDailyAttendance(dailyRecords.sort((a, b) => new Date(b.clock_in).getTime() - new Date(a.clock_in).getTime()));
     setLoading(false);
-  }, [isManager, month]);
+  }, [isManager, dateRangeType]);
 
   useEffect(() => {
     fetchTeamAttendance();
