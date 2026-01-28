@@ -34,7 +34,6 @@ import { DocumentViewDialog } from "@/components/documents/DocumentViewDialog";
 import { RenameDocumentDialog } from "@/components/documents/RenameDocumentDialog";
 import { DeleteDocumentDialog } from "@/components/documents/DeleteDocumentDialog";
 import { ShareDocumentDialog } from "@/components/documents/ShareDocumentDialog";
-import { SendDocumentDialog } from "@/components/documents/SendDocumentDialog";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -184,7 +183,6 @@ const Documents = () => {
   const [deleteDoc, setDeleteDoc] = useState<DisplayDocument | null>(null);
   const [shareDoc, setShareDoc] = useState<DisplayDocument | null>(null);
   const [shareUrl, setShareUrl] = useState("");
-  const [sendDoc, setSendDoc] = useState<DisplayDocument | null>(null);
 
   // Use real documents if available, otherwise use mock data
   const documents: DisplayDocument[] = realDocuments.length > 0 ? realDocuments : mockDocuments;
@@ -434,8 +432,7 @@ const Documents = () => {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => handleView(doc)}>View</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setRenameDoc(doc)}>Rename</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleShare(doc)}>Copy Link</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setSendDoc(doc)}>Send to Employee</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleShare(doc)}>Share</DropdownMenuItem>
                                 <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDoc(doc)}>
                                   Delete
                                 </DropdownMenuItem>
@@ -482,12 +479,6 @@ const Documents = () => {
         open={!!shareDoc}
         onOpenChange={(open) => !open && setShareDoc(null)}
         shareUrl={shareUrl}
-      />
-
-      <SendDocumentDialog
-        document={sendDoc}
-        open={!!sendDoc}
-        onOpenChange={(open) => !open && setSendDoc(null)}
       />
     </DashboardLayout>
   );

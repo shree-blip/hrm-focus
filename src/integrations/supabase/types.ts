@@ -447,57 +447,6 @@ export type Database = {
         }
         Relationships: []
       }
-      document_shares: {
-        Row: {
-          created_at: string
-          document_id: string
-          id: string
-          is_read: boolean | null
-          message: string | null
-          org_id: string | null
-          read_at: string | null
-          recipient_id: string
-          sender_id: string
-        }
-        Insert: {
-          created_at?: string
-          document_id: string
-          id?: string
-          is_read?: boolean | null
-          message?: string | null
-          org_id?: string | null
-          read_at?: string | null
-          recipient_id: string
-          sender_id: string
-        }
-        Update: {
-          created_at?: string
-          document_id?: string
-          id?: string
-          is_read?: boolean | null
-          message?: string | null
-          org_id?: string | null
-          read_at?: string | null
-          recipient_id?: string
-          sender_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "document_shares_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "document_shares_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       documents: {
         Row: {
           category: string | null
