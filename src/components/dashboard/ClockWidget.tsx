@@ -8,6 +8,20 @@ import { cn } from "@/lib/utils";
 import { useAttendance } from "@/hooks/useAttendance";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 
+// Extended type for attendance log with pause support
+interface AttendanceLogWithPause {
+  id: string;
+  clock_in: string;
+  clock_out: string | null;
+  clock_type: "payroll" | "billable";
+  break_start: string | null;
+  break_end: string | null;
+  total_break_minutes: number;
+  pause_start: string | null;
+  pause_end: string | null;
+  total_pause_minutes: number;
+}
+
 export function ClockWidget() {
   const {
     currentLog,
@@ -27,35 +41,38 @@ export function ClockWidget() {
 
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
 
+  // Cast currentLog to include pause fields
+  const typedCurrentLog = currentLog as AttendanceLogWithPause | null;
+
   // Update elapsed time every second
   useEffect(() => {
-    if (clockStatus === "out" || !currentLog) {
+    if (clockStatus === "out" || !typedCurrentLog) {
       setElapsedTime("00:00:00");
       return;
     }
 
     const updateElapsed = () => {
       const now = new Date();
-      const clockInTime = new Date(currentLog.clock_in);
+      const clockInTime = new Date(typedCurrentLog.clock_in);
       let elapsed = now.getTime() - clockInTime.getTime();
 
       // Subtract total break time
-      const totalBreakMs = (currentLog.total_break_minutes || 0) * 60 * 1000;
+      const totalBreakMs = (typedCurrentLog.total_break_minutes || 0) * 60 * 1000;
       elapsed -= totalBreakMs;
 
-      // Subtract total pause time
-      const totalPauseMs = ((currentLog as any).total_pause_minutes || 0) * 60 * 1000;
+      // Subtract total pause time (completed pauses)
+      const totalPauseMs = (typedCurrentLog.total_pause_minutes || 0) * 60 * 1000;
       elapsed -= totalPauseMs;
 
       // If currently on break, subtract current break time
-      if (clockStatus === "break" && currentLog.break_start) {
-        const breakStart = new Date(currentLog.break_start);
+      if (clockStatus === "break" && typedCurrentLog.break_start) {
+        const breakStart = new Date(typedCurrentLog.break_start);
         elapsed -= now.getTime() - breakStart.getTime();
       }
 
       // If currently paused, subtract current pause time
-      if (clockStatus === "paused" && (currentLog as any).pause_start) {
-        const pauseStart = new Date((currentLog as any).pause_start);
+      if (clockStatus === "paused" && typedCurrentLog.pause_start) {
+        const pauseStart = new Date(typedCurrentLog.pause_start);
         elapsed -= now.getTime() - pauseStart.getTime();
       }
 
@@ -74,7 +91,7 @@ export function ClockWidget() {
     updateElapsed();
     const interval = setInterval(updateElapsed, 1000);
     return () => clearInterval(interval);
-  }, [clockStatus, currentLog]);
+  }, [clockStatus, typedCurrentLog]);
 
   const handleClockIn = async () => {
     await clockIn(clockType);
@@ -110,10 +127,11 @@ export function ClockWidget() {
 
     let totalMinutes = 0;
     todayLogs.forEach((log) => {
-      const start = new Date(log.clock_in);
-      const end = log.clock_out ? new Date(log.clock_out) : new Date();
-      const breakMinutes = log.total_break_minutes || 0;
-      const pauseMinutes = (log as any).total_pause_minutes || 0;
+      const typedLog = log as AttendanceLogWithPause;
+      const start = new Date(typedLog.clock_in);
+      const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
+      const breakMinutes = typedLog.total_break_minutes || 0;
+      const pauseMinutes = typedLog.total_pause_minutes || 0;
       const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
       totalMinutes += Math.max(0, diffMs / (1000 * 60));
     });
@@ -131,12 +149,13 @@ export function ClockWidget() {
 
     let totalMinutes = 0;
     weeklyLogs.forEach((log) => {
-      const logDate = new Date(log.clock_in);
+      const typedLog = log as AttendanceLogWithPause;
+      const logDate = new Date(typedLog.clock_in);
       if (logDate >= weekStart && logDate <= weekEnd) {
-        const start = new Date(log.clock_in);
-        const end = log.clock_out ? new Date(log.clock_out) : new Date();
-        const breakMinutes = log.total_break_minutes || 0;
-        const pauseMinutes = (log as any).total_pause_minutes || 0;
+        const start = new Date(typedLog.clock_in);
+        const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
+        const breakMinutes = typedLog.total_break_minutes || 0;
+        const pauseMinutes = typedLog.total_pause_minutes || 0;
         const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
@@ -155,12 +174,13 @@ export function ClockWidget() {
 
     let totalMinutes = 0;
     weeklyLogs.forEach((log) => {
-      const logDate = new Date(log.clock_in);
+      const typedLog = log as AttendanceLogWithPause;
+      const logDate = new Date(typedLog.clock_in);
       if (logDate >= weekStart && logDate <= weekEnd) {
-        const start = new Date(log.clock_in);
-        const end = log.clock_out ? new Date(log.clock_out) : new Date();
-        const breakMinutes = log.total_break_minutes || 0;
-        const pauseMinutes = (log as any).total_pause_minutes || 0;
+        const start = new Date(typedLog.clock_in);
+        const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
+        const breakMinutes = typedLog.total_break_minutes || 0;
+        const pauseMinutes = typedLog.total_pause_minutes || 0;
         const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
@@ -184,7 +204,7 @@ export function ClockWidget() {
     );
   }
 
-  const clockInTime = currentLog ? new Date(currentLog.clock_in) : null;
+  const clockInTime = typedCurrentLog ? new Date(typedCurrentLog.clock_in) : null;
 
   return (
     <Card
@@ -207,7 +227,7 @@ export function ClockWidget() {
               clockStatus === "paused" && "border-info text-info bg-info/10",
             )}
           >
-            {clockStatus === "in" && (currentLog?.clock_type === "billable" ? "Billable" : "Active")}
+            {clockStatus === "in" && (typedCurrentLog?.clock_type === "billable" ? "Billable" : "Active")}
             {clockStatus === "out" && "Not Clocked In"}
             {clockStatus === "break" && "On Break"}
             {clockStatus === "paused" && "Paused"}
@@ -237,7 +257,17 @@ export function ClockWidget() {
           {clockInTime && (
             <p className="text-sm text-muted-foreground mt-2">
               Clocked in at {clockInTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-              {currentLog?.clock_type === "billable" && " (Billable)"}
+              {typedCurrentLog?.clock_type === "billable" && " (Billable)"}
+            </p>
+          )}
+          {/* Show pause info if paused */}
+          {clockStatus === "paused" && typedCurrentLog?.pause_start && (
+            <p className="text-xs text-info mt-1">
+              Paused since{" "}
+              {new Date(typedCurrentLog.pause_start).toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </p>
           )}
         </div>
