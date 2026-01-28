@@ -21,11 +21,12 @@ import {
   Mail,
   Timer,
   Pause,
+  CalendarRange,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
-import { useTeamAttendance } from "@/hooks/useTeamAttendance";
+import { useTeamAttendance, DateRangeType, getDateRangeFromType } from "@/hooks/useTeamAttendance";
 import { toast } from "@/hooks/use-toast";
 
 // Types for multi-break support
@@ -63,11 +64,23 @@ interface DailyAttendanceRecord {
   total_pause_minutes?: number;
 }
 
+// Helper to get human-readable date range label
+const getDateRangeLabel = (rangeType: DateRangeType): string => {
+  const { start, end } = getDateRangeFromType(rangeType);
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+  return `${formatDate(start)} - ${formatDate(end)}`;
+};
+
 const Reports = () => {
   const { requests, loading: leaveLoading } = useLeaveRequests();
-  const { teamAttendance, dailyAttendance, loading: attendanceLoading } = useTeamAttendance();
+  const [dateRange, setDateRange] = useState<DateRangeType>("this-month");
+
+  // Pass dateRange to the hook so it fetches data for the selected period
+  const { teamAttendance, dailyAttendance, loading: attendanceLoading } = useTeamAttendance(dateRange);
+
   const [activeTab, setActiveTab] = useState("daily");
-  const [dateRange, setDateRange] = useState("this-month");
   const [searchDate, setSearchDate] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -415,7 +428,7 @@ const Reports = () => {
       teamAttendance.forEach((emp) => {
         csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours}\n`;
       });
-      filename = `attendance-summary-${dateStr}.csv`;
+      filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
       // Find maximum number of breaks and pauses across all records
       const maxBreaks = Math.max(
@@ -514,7 +527,7 @@ const Reports = () => {
         selectedEmployee !== "all" && selectedEmployeeSummary
           ? `-${selectedEmployeeSummary.employee_name.replace(/\s+/g, "-")}`
           : "";
-      filename = `daily-attendance${employeeSuffix}-${dateStr}.csv`;
+      filename = `daily-attendance${employeeSuffix}-${dateRange}-${dateStr}.csv`;
     }
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -550,18 +563,25 @@ const Reports = () => {
           <h1 className="text-3xl font-bold text-foreground">Reports & Analytics</h1>
           <p className="text-slate-600 mt-1">View and export HR reports</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="this-month">This Month</SelectItem>
-              <SelectItem value="last-month">Last Month</SelectItem>
-              <SelectItem value="this-quarter">This Quarter</SelectItem>
-              <SelectItem value="this-year">This Year</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarRange className="h-4 w-4 text-muted-foreground" />
+            <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRangeType)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="this-month">This Month</SelectItem>
+                <SelectItem value="last-month">Last Month</SelectItem>
+                <SelectItem value="this-quarter">This Quarter</SelectItem>
+                <SelectItem value="this-year">This Year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Show current date range */}
+          <Badge variant="outline" className="text-xs whitespace-nowrap">
+            {getDateRangeLabel(dateRange)}
+          </Badge>
         </div>
       </div>
 
@@ -738,7 +758,7 @@ const Reports = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-lg">Attendance Summary</CardTitle>
-                  <CardDescription>Team attendance data (aggregated)</CardDescription>
+                  <CardDescription>Team attendance data for {getDateRangeLabel(dateRange)}</CardDescription>
                 </div>
                 <Button onClick={() => exportToCSV("attendance")} className="gap-2">
                   <Download className="h-4 w-4" />
@@ -748,7 +768,7 @@ const Reports = () => {
             </CardHeader>
             <CardContent>
               {teamAttendance.length === 0 ? (
-                <p className="text-center py-8 text-slate-600">No attendance data available</p>
+                <p className="text-center py-8 text-slate-600">No attendance data available for this period</p>
               ) : (
                 <div className="space-y-2">
                   <div className="grid grid-cols-4 gap-4 p-3 bg-slate-100 rounded-lg text-sm font-medium">
@@ -981,7 +1001,7 @@ const Reports = () => {
                 <div>
                   <CardTitle className="text-lg">Daily Attendance Records</CardTitle>
                   <CardDescription>
-                    Detailed time tracking with breaks and pauses (24-hour format)
+                    Detailed time tracking for {getDateRangeLabel(dateRange)}
                     {selectedEmployee !== "all" && selectedEmployeeSummary && (
                       <span className="ml-2 text-blue-600">
                         — Showing {selectedEmployeeSummary.employee_name}'s records
@@ -1000,7 +1020,7 @@ const Reports = () => {
                 <p className="text-center py-8 text-slate-600">
                   {searchDate || selectedEmployee !== "all"
                     ? "No records found for the selected filters"
-                    : "No daily attendance records available"}
+                    : `No daily attendance records available for ${getDateRangeLabel(dateRange)}`}
                 </p>
               ) : (
                 <div className="overflow-x-auto">
