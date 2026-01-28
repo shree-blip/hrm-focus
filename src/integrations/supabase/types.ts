@@ -1324,12 +1324,14 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          date_of_birth: string | null
           department: string | null
           email: string
           first_name: string
           hire_date: string | null
           id: string
           job_title: string | null
+          joining_date: string | null
           last_name: string
           location: string | null
           org_id: string | null
@@ -1341,12 +1343,14 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          date_of_birth?: string | null
           department?: string | null
           email: string
           first_name: string
           hire_date?: string | null
           id?: string
           job_title?: string | null
+          joining_date?: string | null
           last_name: string
           location?: string | null
           org_id?: string | null
@@ -1358,12 +1362,14 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          date_of_birth?: string | null
           department?: string | null
           email?: string
           first_name?: string
           hire_date?: string | null
           id?: string
           job_title?: string | null
+          joining_date?: string | null
           last_name?: string
           location?: string | null
           org_id?: string | null
@@ -2134,6 +2140,16 @@ export type Database = {
           logo_url: string
           name: string
           slug: string
+        }[]
+      }
+      get_todays_milestones: {
+        Args: never
+        Returns: {
+          first_name: string
+          last_name: string
+          milestone_type: string
+          user_id: string
+          years: number
         }[]
       }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
