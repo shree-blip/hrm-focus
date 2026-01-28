@@ -20,6 +20,7 @@ import {
   User,
   Mail,
   Timer,
+  Pause,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -35,6 +36,14 @@ interface BreakRecord {
   duration_minutes: number;
 }
 
+// Types for pause support
+interface PauseRecord {
+  id?: string;
+  pause_start: string | null;
+  pause_end: string | null;
+  duration_minutes: number;
+}
+
 interface DailyAttendanceRecord {
   user_id: string;
   employee_name: string;
@@ -47,6 +56,11 @@ interface DailyAttendanceRecord {
   break_end?: string | null;
   breaks?: BreakRecord[];
   total_break_minutes: number;
+  // Pause support
+  pause_start?: string | null;
+  pause_end?: string | null;
+  pauses?: PauseRecord[];
+  total_pause_minutes?: number;
 }
 
 const Reports = () => {
@@ -155,6 +169,27 @@ const Reports = () => {
     return [];
   };
 
+  // Helper function to get pauses from attendance record
+  const getPauses = (att: DailyAttendanceRecord): PauseRecord[] => {
+    // If pauses array exists and has data, use it
+    if (att.pauses && att.pauses.length > 0) {
+      return att.pauses;
+    }
+
+    // Legacy support: if single pause_start/pause_end exists, convert to array
+    if (att.pause_start) {
+      return [
+        {
+          pause_start: att.pause_start,
+          pause_end: att.pause_end || null,
+          duration_minutes: att.total_pause_minutes || 0,
+        },
+      ];
+    }
+
+    return [];
+  };
+
   // Calculate total break time from breaks array
   const calculateTotalBreakMinutes = (att: DailyAttendanceRecord): number => {
     const breaks = getBreaks(att);
@@ -180,7 +215,37 @@ const Reports = () => {
     }, 0);
   };
 
-  // Calculate total working hours (clock out - clock in - total break time)
+  // Calculate total pause time from pauses array
+  const calculateTotalPauseMinutes = (att: DailyAttendanceRecord): number => {
+    // First check if total_pause_minutes is directly available
+    if (att.total_pause_minutes !== undefined && att.total_pause_minutes !== null) {
+      return att.total_pause_minutes;
+    }
+
+    const pauses = getPauses(att);
+
+    if (pauses.length === 0) {
+      return 0;
+    }
+
+    return pauses.reduce((total, pause) => {
+      if (pause.duration_minutes) {
+        return total + pause.duration_minutes;
+      }
+
+      // Calculate duration if not provided
+      if (pause.pause_start && pause.pause_end) {
+        const start = new Date(pause.pause_start).getTime();
+        const end = new Date(pause.pause_end).getTime();
+        const durationMs = end - start;
+        return total + Math.round(durationMs / (1000 * 60));
+      }
+
+      return total;
+    }, 0);
+  };
+
+  // Calculate total working hours (clock out - clock in - total break time - total pause time)
   const calculateTotalHours = (att: DailyAttendanceRecord): number | null => {
     // If not clocked out yet, return null
     if (!att.clock_out) {
@@ -190,15 +255,17 @@ const Reports = () => {
     const clockIn = new Date(att.clock_in).getTime();
     const clockOut = new Date(att.clock_out).getTime();
     const totalBreakMinutes = calculateTotalBreakMinutes(att);
+    const totalPauseMinutes = calculateTotalPauseMinutes(att);
 
     // Calculate total time in milliseconds
     const totalTimeMs = clockOut - clockIn;
 
-    // Convert to hours and subtract break time
+    // Convert to hours and subtract break and pause time
     const totalHours = totalTimeMs / (1000 * 60 * 60);
     const breakHours = totalBreakMinutes / 60;
+    const pauseHours = totalPauseMinutes / 60;
 
-    return Math.max(0, totalHours - breakHours);
+    return Math.max(0, totalHours - breakHours - pauseHours);
   };
 
   // Calculate daily attendance stats based on filtered data
@@ -219,6 +286,14 @@ const Reports = () => {
     ),
     totalBreakCount: filteredDailyAttendance.reduce(
       (sum, att) => sum + getBreaks(att as DailyAttendanceRecord).length,
+      0,
+    ),
+    totalPauseTime: filteredDailyAttendance.reduce(
+      (sum, att) => sum + calculateTotalPauseMinutes(att as DailyAttendanceRecord),
+      0,
+    ),
+    totalPauseCount: filteredDailyAttendance.reduce(
+      (sum, att) => sum + getPauses(att as DailyAttendanceRecord).length,
       0,
     ),
   };
@@ -247,7 +322,13 @@ const Reports = () => {
       0,
     );
 
+    const totalPauseMinutes = employeeRecords.reduce(
+      (sum, att) => sum + calculateTotalPauseMinutes(att as DailyAttendanceRecord),
+      0,
+    );
+
     const totalBreaks = employeeRecords.reduce((sum, att) => sum + getBreaks(att as DailyAttendanceRecord).length, 0);
+    const totalPauses = employeeRecords.reduce((sum, att) => sum + getPauses(att as DailyAttendanceRecord).length, 0);
 
     // Get date range
     const dates = employeeRecords.map((att) => new Date((att as DailyAttendanceRecord).clock_in).getTime());
@@ -261,8 +342,11 @@ const Reports = () => {
       totalHoursWorked: totalHoursWorked.toFixed(1),
       avgHoursPerDay: completedRecords.length > 0 ? (totalHoursWorked / completedRecords.length).toFixed(1) : "0",
       totalBreakMinutes,
+      totalPauseMinutes,
       totalBreaks,
+      totalPauses,
       avgBreakPerDay: employeeRecords.length > 0 ? Math.round(totalBreakMinutes / employeeRecords.length) : 0,
+      avgPausePerDay: employeeRecords.length > 0 ? Math.round(totalPauseMinutes / employeeRecords.length) : 0,
       dateRange: {
         from: formatDate(firstDate.toISOString()),
         to: formatDate(lastDate.toISOString()),
@@ -333,7 +417,7 @@ const Reports = () => {
       });
       filename = `attendance-summary-${dateStr}.csv`;
     } else if (type === "daily") {
-      // Find maximum number of breaks across all records to determine columns needed
+      // Find maximum number of breaks and pauses across all records
       const maxBreaks = Math.max(
         1,
         filteredDailyAttendance.reduce((max, att) => {
@@ -342,15 +426,30 @@ const Reports = () => {
         }, 0),
       );
 
-      // Build dynamic header with individual break columns
+      const maxPauses = Math.max(
+        1,
+        filteredDailyAttendance.reduce((max, att) => {
+          const pauses = getPauses(att as DailyAttendanceRecord);
+          return Math.max(max, pauses.length);
+        }, 0),
+      );
+
+      // Build dynamic header with individual break and pause columns
       let header = "Date,Employee,Email,Clock In";
 
-      // Add columns for each possible break (Start, End, Duration for each)
+      // Add columns for each possible break
       for (let i = 1; i <= maxBreaks; i++) {
         header += `,Break ${i} Start,Break ${i} End,Break ${i} Duration (min)`;
       }
+      header += ",Total Breaks Count,Total Break Time (min)";
 
-      header += ",Total Breaks Count,Total Break Time (min),Clock Out,Total Hours,Status\n";
+      // Add columns for each possible pause
+      for (let i = 1; i <= maxPauses; i++) {
+        header += `,Pause ${i} Start,Pause ${i} End,Pause ${i} Duration (min)`;
+      }
+      header += ",Total Pauses Count,Total Pause Time (min)";
+
+      header += ",Clock Out,Total Hours (excl. breaks & pauses),Status\n";
       csvContent = header;
 
       filteredDailyAttendance.forEach((att) => {
@@ -359,19 +458,20 @@ const Reports = () => {
         const clockIn = formatTime24(typedAtt.clock_in);
         const clockOut = formatTime24(typedAtt.clock_out);
         const breaks = getBreaks(typedAtt);
+        const pauses = getPauses(typedAtt);
         const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
+        const totalPauseMinutes = calculateTotalPauseMinutes(typedAtt);
         const totalHours = calculateTotalHours(typedAtt);
         const status = getWorkStatus(totalHours, typedAtt.clock_out).label;
 
         let row = `"${date}","${typedAtt.employee_name}","${typedAtt.email}","${clockIn}"`;
 
-        // Add each break's individual data (Start, End, Duration)
+        // Add each break's individual data
         for (let i = 0; i < maxBreaks; i++) {
           if (breaks[i]) {
             const brk = breaks[i];
             const breakStart = formatTime24(brk.break_start);
             const breakEnd = formatTime24(brk.break_end);
-            // Calculate individual break duration
             let breakDuration = brk.duration_minutes || 0;
             if (!breakDuration && brk.break_start && brk.break_end) {
               const start = new Date(brk.break_start).getTime();
@@ -380,14 +480,32 @@ const Reports = () => {
             }
             row += `,"${breakStart}","${breakEnd}",${breakDuration}`;
           } else {
-            // Empty cells for breaks that don't exist for this record
             row += `,"-","-",0`;
           }
         }
+        row += `,${breaks.length},${totalBreakMinutes}`;
+
+        // Add each pause's individual data
+        for (let i = 0; i < maxPauses; i++) {
+          if (pauses[i]) {
+            const pause = pauses[i];
+            const pauseStart = formatTime24(pause.pause_start);
+            const pauseEnd = formatTime24(pause.pause_end);
+            let pauseDuration = pause.duration_minutes || 0;
+            if (!pauseDuration && pause.pause_start && pause.pause_end) {
+              const start = new Date(pause.pause_start).getTime();
+              const end = new Date(pause.pause_end).getTime();
+              pauseDuration = Math.round((end - start) / (1000 * 60));
+            }
+            row += `,"${pauseStart}","${pauseEnd}",${pauseDuration}`;
+          } else {
+            row += `,"-","-",0`;
+          }
+        }
+        row += `,${pauses.length},${totalPauseMinutes}`;
 
         const totalHoursStr = totalHours !== null ? totalHours.toFixed(2) : "In Progress";
-
-        row += `,${breaks.length},${totalBreakMinutes},"${clockOut}",${totalHoursStr},"${status}"\n`;
+        row += `,"${clockOut}",${totalHoursStr},"${status}"\n`;
         csvContent += row;
       });
 
@@ -653,7 +771,7 @@ const Reports = () => {
           </Card>
         </TabsContent>
 
-        {/* DAILY ATTENDANCE TAB - Updated with employee filter and summary */}
+        {/* DAILY ATTENDANCE TAB - Updated with pause tracking */}
         <TabsContent value="daily" className="space-y-6">
           {/* Employee Filter Section */}
           <Card>
@@ -696,7 +814,7 @@ const Reports = () => {
             </CardContent>
           </Card>
 
-          {/* Selected Employee Summary Card */}
+          {/* Selected Employee Summary Card - Updated with pause info */}
           {selectedEmployeeSummary && (
             <Card className="border-blue-200 bg-blue-50/50">
               <CardHeader className="pb-4">
@@ -719,7 +837,7 @@ const Reports = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                   <div className="bg-white p-4 rounded-lg border">
                     <p className="text-sm text-slate-600">Days Worked</p>
                     <p className="text-2xl font-bold text-blue-600">{selectedEmployeeSummary.totalDaysWorked}</p>
@@ -737,15 +855,25 @@ const Reports = () => {
                     <p className="text-2xl font-bold text-yellow-600">{selectedEmployeeSummary.totalBreaks}</p>
                   </div>
                   <div className="bg-white p-4 rounded-lg border">
-                    <p className="text-sm text-slate-600">Total Break Time</p>
+                    <p className="text-sm text-slate-600">Break Time</p>
                     <p className="text-2xl font-bold text-orange-600">
                       {formatBreakDuration(selectedEmployeeSummary.totalBreakMinutes)}
                     </p>
                   </div>
                   <div className="bg-white p-4 rounded-lg border">
-                    <p className="text-sm text-slate-600">Avg Break/Day</p>
+                    <p className="text-sm text-slate-600">Total Pauses</p>
+                    <p className="text-2xl font-bold text-cyan-600">{selectedEmployeeSummary.totalPauses}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border">
+                    <p className="text-sm text-slate-600">Pause Time</p>
+                    <p className="text-2xl font-bold text-indigo-600">
+                      {formatBreakDuration(selectedEmployeeSummary.totalPauseMinutes)}
+                    </p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border">
+                    <p className="text-sm text-slate-600">Avg Pause/Day</p>
                     <p className="text-2xl font-bold text-purple-600">
-                      {formatBreakDuration(selectedEmployeeSummary.avgBreakPerDay)}
+                      {formatBreakDuration(selectedEmployeeSummary.avgPausePerDay)}
                     </p>
                   </div>
                 </div>
@@ -759,8 +887,8 @@ const Reports = () => {
             </Card>
           )}
 
-          {/* Stats Cards - Show filtered stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Stats Cards - Updated with pause stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -781,7 +909,7 @@ const Reports = () => {
                   <div>
                     <p className="text-sm font-medium text-slate-600">Avg Total Hours</p>
                     <p className="text-3xl font-bold">{dailyStats.avgTotalHours}h</p>
-                    <p className="text-xs text-slate-400">excl. breaks</p>
+                    <p className="text-xs text-slate-400">excl. breaks & pauses</p>
                   </div>
                   <div className="p-3 rounded-full bg-green-100">
                     <Clock className="h-6 w-6 text-green-600" />
@@ -808,11 +936,39 @@ const Reports = () => {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600">Total Breaks Taken</p>
+                    <p className="text-sm font-medium text-slate-600">Breaks Taken</p>
                     <p className="text-3xl font-bold">{dailyStats.totalBreakCount}</p>
                   </div>
-                  <div className="p-3 rounded-full bg-purple-100">
-                    <Coffee className="h-6 w-6 text-purple-600" />
+                  <div className="p-3 rounded-full bg-orange-100">
+                    <Coffee className="h-6 w-6 text-orange-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">Total Pause Time</p>
+                    <p className="text-3xl font-bold">{formatBreakDuration(dailyStats.totalPauseTime)}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-cyan-100">
+                    <Pause className="h-6 w-6 text-cyan-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">Pauses Taken</p>
+                    <p className="text-3xl font-bold">{dailyStats.totalPauseCount}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-indigo-100">
+                    <Pause className="h-6 w-6 text-indigo-600" />
                   </div>
                 </div>
               </CardContent>
@@ -825,7 +981,7 @@ const Reports = () => {
                 <div>
                   <CardTitle className="text-lg">Daily Attendance Records</CardTitle>
                   <CardDescription>
-                    Detailed time tracking with multiple breaks (24-hour format)
+                    Detailed time tracking with breaks and pauses (24-hour format)
                     {selectedEmployee !== "all" && selectedEmployeeSummary && (
                       <span className="ml-2 text-blue-600">
                         — Showing {selectedEmployeeSummary.employee_name}'s records
@@ -856,7 +1012,9 @@ const Reports = () => {
                         <th className="text-left p-3 font-medium">Employee</th>
                         <th className="text-left p-3 font-medium">Clock In</th>
                         <th className="text-left p-3 font-medium">Breaks</th>
-                        <th className="text-left p-3 font-medium">Total Break</th>
+                        <th className="text-left p-3 font-medium">Break Time</th>
+                        <th className="text-left p-3 font-medium">Pauses</th>
+                        <th className="text-left p-3 font-medium">Pause Time</th>
                         <th className="text-left p-3 font-medium">Clock Out</th>
                         <th className="text-left p-3 font-medium">Total Hrs</th>
                         <th className="text-left p-3 font-medium">Status</th>
@@ -866,18 +1024,22 @@ const Reports = () => {
                       {filteredDailyAttendance.map((att, index) => {
                         const typedAtt = att as DailyAttendanceRecord;
                         const breaks = getBreaks(typedAtt);
+                        const pauses = getPauses(typedAtt);
                         const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
+                        const totalPauseMinutes = calculateTotalPauseMinutes(typedAtt);
                         const totalHours = calculateTotalHours(typedAtt);
                         const status = getWorkStatus(totalHours, typedAtt.clock_out);
                         const rowKey = `${typedAtt.user_id}-${typedAtt.clock_in}-${index}`;
                         const isExpanded = expandedRows.has(rowKey);
                         const hasMultipleBreaks = breaks.length > 1;
+                        const hasMultiplePauses = pauses.length > 1;
+                        const hasExpandableContent = hasMultipleBreaks || hasMultiplePauses;
 
                         return (
                           <Fragment key={rowKey}>
                             <tr className="border-b hover:bg-slate-50">
                               <td className="p-3">
-                                {hasMultipleBreaks && (
+                                {hasExpandableContent && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -902,7 +1064,7 @@ const Reports = () => {
                               <td className="p-3 text-green-600 font-mono">{formatTime24(typedAtt.clock_in)}</td>
                               <td className="p-3">
                                 {breaks.length === 0 ? (
-                                  <span className="text-slate-400">No breaks</span>
+                                  <span className="text-slate-400">-</span>
                                 ) : breaks.length === 1 ? (
                                   <span className="text-yellow-600 font-mono">
                                     {formatTime24(breaks[0].break_start)} - {formatTime24(breaks[0].break_end)}
@@ -914,8 +1076,25 @@ const Reports = () => {
                                   </Badge>
                                 )}
                               </td>
-                              <td className="p-3 font-medium">
+                              <td className="p-3 font-medium text-yellow-600">
                                 {totalBreakMinutes > 0 ? formatBreakDuration(totalBreakMinutes) : "-"}
+                              </td>
+                              <td className="p-3">
+                                {pauses.length === 0 ? (
+                                  <span className="text-slate-400">-</span>
+                                ) : pauses.length === 1 ? (
+                                  <span className="text-cyan-600 font-mono">
+                                    {formatTime24(pauses[0].pause_start)} - {formatTime24(pauses[0].pause_end)}
+                                  </span>
+                                ) : (
+                                  <Badge variant="outline" className="gap-1 border-cyan-300 text-cyan-600">
+                                    <Pause className="h-3 w-3" />
+                                    {pauses.length} pauses
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="p-3 font-medium text-cyan-600">
+                                {totalPauseMinutes > 0 ? formatBreakDuration(totalPauseMinutes) : "-"}
                               </td>
                               <td className="p-3 text-red-600 font-mono">{formatTime24(typedAtt.clock_out)}</td>
                               <td className="p-3 font-bold">
@@ -925,28 +1104,63 @@ const Reports = () => {
                                 <Badge variant={status.variant}>{status.label}</Badge>
                               </td>
                             </tr>
-                            {/* Expanded breaks detail row */}
-                            {hasMultipleBreaks && isExpanded && (
+                            {/* Expanded breaks and pauses detail row */}
+                            {hasExpandableContent && isExpanded && (
                               <tr className="bg-slate-50">
-                                <td colSpan={9} className="p-0">
-                                  <div className="px-12 py-3 border-b">
-                                    <p className="text-sm font-medium text-slate-600 mb-2">Break Details:</p>
-                                    <div className="space-y-1">
-                                      {breaks.map((brk, brkIndex) => (
-                                        <div
-                                          key={brkIndex}
-                                          className="flex items-center gap-4 text-sm bg-white p-2 rounded border"
-                                        >
-                                          <Badge variant="secondary" className="text-xs">
-                                            Break {brkIndex + 1}
-                                          </Badge>
-                                          <span className="text-yellow-600 font-mono">
-                                            {formatTime24(brk.break_start)} - {formatTime24(brk.break_end)}
-                                          </span>
-                                          <span className="text-slate-600">({brk.duration_minutes || 0} min)</span>
+                                <td colSpan={11} className="p-0">
+                                  <div className="px-12 py-3 border-b space-y-4">
+                                    {/* Breaks detail */}
+                                    {hasMultipleBreaks && (
+                                      <div>
+                                        <p className="text-sm font-medium text-slate-600 mb-2 flex items-center gap-2">
+                                          <Coffee className="h-4 w-4 text-yellow-600" />
+                                          Break Details:
+                                        </p>
+                                        <div className="space-y-1">
+                                          {breaks.map((brk, brkIndex) => (
+                                            <div
+                                              key={brkIndex}
+                                              className="flex items-center gap-4 text-sm bg-white p-2 rounded border"
+                                            >
+                                              <Badge variant="secondary" className="text-xs">
+                                                Break {brkIndex + 1}
+                                              </Badge>
+                                              <span className="text-yellow-600 font-mono">
+                                                {formatTime24(brk.break_start)} - {formatTime24(brk.break_end)}
+                                              </span>
+                                              <span className="text-slate-600">({brk.duration_minutes || 0} min)</span>
+                                            </div>
+                                          ))}
                                         </div>
-                                      ))}
-                                    </div>
+                                      </div>
+                                    )}
+                                    {/* Pauses detail */}
+                                    {hasMultiplePauses && (
+                                      <div>
+                                        <p className="text-sm font-medium text-slate-600 mb-2 flex items-center gap-2">
+                                          <Pause className="h-4 w-4 text-cyan-600" />
+                                          Pause Details:
+                                        </p>
+                                        <div className="space-y-1">
+                                          {pauses.map((pause, pauseIndex) => (
+                                            <div
+                                              key={pauseIndex}
+                                              className="flex items-center gap-4 text-sm bg-white p-2 rounded border"
+                                            >
+                                              <Badge variant="secondary" className="text-xs bg-cyan-100 text-cyan-700">
+                                                Pause {pauseIndex + 1}
+                                              </Badge>
+                                              <span className="text-cyan-600 font-mono">
+                                                {formatTime24(pause.pause_start)} - {formatTime24(pause.pause_end)}
+                                              </span>
+                                              <span className="text-slate-600">
+                                                ({pause.duration_minutes || 0} min)
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
