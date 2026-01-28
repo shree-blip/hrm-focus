@@ -23,7 +23,13 @@ import {
   Camera,
   Upload,
   X,
+  Cake,
+  PartyPopper,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format, parseISO } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const Profile = () => {
   const { user, profile, role, refreshProfile } = useAuth();
@@ -41,6 +47,8 @@ const Profile = () => {
     location: "",
     job_title: "",
     department: "",
+    date_of_birth: null as Date | null,
+    joining_date: null as Date | null,
   });
 
   // Sync form data with profile when profile changes or editing starts
@@ -53,6 +61,8 @@ const Profile = () => {
         location: profile.location || "",
         job_title: profile.job_title || "",
         department: profile.department || "",
+        date_of_birth: profile.date_of_birth ? parseISO(profile.date_of_birth) : null,
+        joining_date: profile.joining_date ? parseISO(profile.joining_date) : null,
       });
     }
   }, [profile, isEditing]);
@@ -214,6 +224,8 @@ const Profile = () => {
         last_name: formData.last_name.trim(),
         phone: formData.phone.trim() || null,
         location: formData.location.trim() || null,
+        date_of_birth: formData.date_of_birth ? format(formData.date_of_birth, "yyyy-MM-dd") : null,
+        joining_date: formData.joining_date ? format(formData.joining_date, "yyyy-MM-dd") : null,
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id);
@@ -249,6 +261,8 @@ const Profile = () => {
         location: profile.location || "",
         job_title: profile.job_title || "",
         department: profile.department || "",
+        date_of_birth: profile.date_of_birth ? parseISO(profile.date_of_birth) : null,
+        joining_date: profile.joining_date ? parseISO(profile.joining_date) : null,
       });
     }
   };
@@ -503,6 +517,103 @@ const Profile = () => {
                 </Label>
                 <Input value={profile?.status || "Active"} disabled className="bg-muted" />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Milestone Information Card */}
+          <Card className="animate-slide-up md:col-span-2" style={{ animationDelay: "300ms" }}>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <PartyPopper className="h-5 w-5 text-primary" />
+                Milestone Information
+              </CardTitle>
+              <CardDescription>Your birthday and work anniversary for celebrations</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Cake className="h-4 w-4 text-muted-foreground" />
+                    Date of Birth
+                  </Label>
+                  {isEditing ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !formData.date_of_birth && "text-muted-foreground"
+                          )}
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {formData.date_of_birth ? format(formData.date_of_birth, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={formData.date_of_birth || undefined}
+                          onSelect={(date) => setFormData((prev) => ({ ...prev, date_of_birth: date || null }))}
+                          disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <Input 
+                      value={formData.date_of_birth ? format(formData.date_of_birth, "MMMM d, yyyy") : "Not set"} 
+                      disabled 
+                      className="bg-muted" 
+                    />
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <PartyPopper className="h-4 w-4 text-muted-foreground" />
+                    Company Joining Date
+                  </Label>
+                  {isEditing ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !formData.joining_date && "text-muted-foreground"
+                          )}
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {formData.joining_date ? format(formData.joining_date, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={formData.joining_date || undefined}
+                          onSelect={(date) => setFormData((prev) => ({ ...prev, joining_date: date || null }))}
+                          disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <Input 
+                      value={formData.joining_date ? format(formData.joining_date, "MMMM d, yyyy") : "Not set"} 
+                      disabled 
+                      className="bg-muted" 
+                    />
+                  )}
+                </div>
+              </div>
+              {!isEditing && (
+                <p className="text-xs text-muted-foreground">
+                  These dates are used for birthday and work anniversary celebrations. Click "Edit Profile" to update.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

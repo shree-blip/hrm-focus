@@ -16,6 +16,8 @@ interface Profile {
   job_title?: string;
   location?: string;
   status?: string;
+  date_of_birth?: string;
+  joining_date?: string;
 }
 
 interface AuthContextType {
