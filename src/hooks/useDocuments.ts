@@ -33,9 +33,12 @@ export function useDocuments() {
 
   const fetchDocuments = async () => {
     if (!user) return;
-
+    
     setLoading(true);
-    const { data, error } = await supabase.from("documents").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("documents")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching documents:", error);
@@ -49,7 +52,7 @@ export function useDocuments() {
     }
 
     const allDocs = data || [];
-
+    
     // Filter private category documents - only show if user is uploader, admin, or VP
     const filteredDocs = allDocs.filter((doc) => {
       if (PRIVATE_CATEGORIES.includes(doc.category || "")) {
@@ -59,13 +62,13 @@ export function useDocuments() {
     });
 
     // Fetch uploader names for display
-    const uploaderIds = [...new Set(filteredDocs.map((d) => d.uploaded_by).filter(Boolean))];
+    const uploaderIds = [...new Set(filteredDocs.map(d => d.uploaded_by).filter(Boolean))];
     if (uploaderIds.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, first_name, last_name")
         .in("user_id", uploaderIds);
-
+      
       if (profiles) {
         const names: UploaderInfo = {};
         profiles.forEach((p) => {
@@ -90,7 +93,9 @@ export function useDocuments() {
     const fileName = `${user.id}/${Date.now()}-${file.name}`;
 
     // Upload to storage
-    const { error: uploadError } = await supabase.storage.from("documents").upload(fileName, file);
+    const { error: uploadError } = await supabase.storage
+      .from("documents")
+      .upload(fileName, file);
 
     if (uploadError) {
       toast({
@@ -133,17 +138,22 @@ export function useDocuments() {
   const deleteDocument = async (doc: Document) => {
     // Optimistically remove document from UI
     const previousDocuments = documents;
-    setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+    setDocuments(prev => prev.filter(d => d.id !== doc.id));
 
     // Delete from storage
-    const { error: storageError } = await supabase.storage.from("documents").remove([doc.file_path]);
+    const { error: storageError } = await supabase.storage
+      .from("documents")
+      .remove([doc.file_path]);
 
     if (storageError) {
       console.error("Storage delete error:", storageError);
     }
 
     // Delete record
-    const { error } = await supabase.from("documents").delete().eq("id", doc.id);
+    const { error } = await supabase
+      .from("documents")
+      .delete()
+      .eq("id", doc.id);
 
     if (error) {
       // Revert on error
@@ -190,7 +200,9 @@ export function useDocuments() {
 
   const getDownloadUrl = async (filePath: string) => {
     // Use signed URLs for private bucket - 1 hour expiry
-    const { data, error } = await supabase.storage.from("documents").createSignedUrl(filePath, 3600);
+    const { data, error } = await supabase.storage
+      .from("documents")
+      .createSignedUrl(filePath, 3600);
 
     if (error) {
       console.error("Error creating signed URL:", error);
@@ -202,7 +214,7 @@ export function useDocuments() {
 
   const downloadDocument = async (doc: Document) => {
     const url = await getDownloadUrl(doc.file_path);
-
+    
     // Create a link and trigger download
     const link = document.createElement("a");
     link.href = url;
