@@ -22,6 +22,10 @@ interface DailyAttendanceRecord {
   break_start: string | null;
   break_end: string | null;
   total_break_minutes: number | null;
+  // Pause fields
+  pause_start: string | null;
+  pause_end: string | null;
+  total_pause_minutes: number | null;
   hours_worked: number;
   date: string;
 }
@@ -114,7 +118,9 @@ export function useTeamAttendance(month?: Date) {
         const clockOut = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
         const pauseMinutes = log.total_pause_minutes || 0;
-        const hours = (clockOut.getTime() - clockIn.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000) / (1000 * 60 * 60);
+        const hours =
+          (clockOut.getTime() - clockIn.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000) /
+          (1000 * 60 * 60);
 
         const dayKey = clockIn.toISOString().split("T")[0];
 
@@ -138,7 +144,7 @@ export function useTeamAttendance(month?: Date) {
         hoursWorked = Math.max(0, (totalMinutes - breakMinutes - pauseMinutes) / 60);
       }
 
-      // Add to daily records
+      // Add to daily records with pause fields
       dailyRecords.push({
         id: log.id,
         user_id: userId,
@@ -150,6 +156,9 @@ export function useTeamAttendance(month?: Date) {
         break_start: log.break_start,
         break_end: log.break_end,
         total_break_minutes: log.total_break_minutes,
+        pause_start: log.pause_start,
+        pause_end: log.pause_end,
+        total_pause_minutes: log.total_pause_minutes,
         hours_worked: hoursWorked,
         date: log.clock_in.split("T")[0],
       });
