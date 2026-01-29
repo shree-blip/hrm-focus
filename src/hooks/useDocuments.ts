@@ -72,18 +72,14 @@ export function useDocuments() {
 
       // Step 3: Filter documents based on category and role
       const filteredDocs = allDocs.filter((doc) => {
-        // Leave Evidence - visible to uploader, admin, VP, or their manager/line manager
-        if (doc.category === LEAVE_EVIDENCE_CATEGORY) {
-          // User is the uploader
-          if (doc.uploaded_by === user.id) return true;
-          // User is admin or VP
-          if (isAdmin || isVP) return true;
-          // User is a manager/line manager of the uploader
-          if ((isManager || isLineManager) && managedEmployeeIds.includes(doc.uploaded_by)) {
-            return true;
-          }
-          return false;
-        }
+      // Leave Evidence - visible to uploader, admin, VP, manager, or line manager
+      if (doc.category === LEAVE_EVIDENCE_CATEGORY) {
+        // User is the uploader
+        if (doc.uploaded_by === user.id) return true;
+        // User is admin, VP, manager, or line manager (any management role can view)
+        if (isAdmin || isVP || isManager || isLineManager) return true;
+        return false;
+      }
 
         // Private categories (Contracts, Compliance) - only uploader, admin, VP
         if (PRIVATE_CATEGORIES.includes(doc.category || "")) {
