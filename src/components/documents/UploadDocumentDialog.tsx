@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, File, X } from "lucide-react";
+import { Upload, File, X, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface UploadDocumentDialogProps {
   open: boolean;
@@ -21,12 +22,19 @@ interface UploadDocumentDialogProps {
   }) => void;
 }
 
+const CATEGORY_INFO: Record<string, string> = {
+  Contracts: "Private - Only you and admins can view",
+  Policies: "Public - Visible to all employees",
+  Compliance: "Private - Only you and admins can view",
+  "Leave Evidence": "Restricted - Visible to you, your manager, line manager, VP, and admins",
+};
+
 export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDocumentDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const allowedTypes = [".pdf", ".doc", ".docx", ".xls", ".xlsx"];
+  const allowedTypes = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png"];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -36,7 +44,18 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
       if (!allowedTypes.includes(ext)) {
         toast({
           title: "Invalid File Type",
-          description: "Only PDF, DOC, DOCX, XLS, and XLSX files are allowed.",
+          description: "Only PDF, DOC, DOCX, XLS, XLSX, JPG, and PNG files are allowed.",
+          variant: "destructive",
+        });
+        e.target.value = "";
+        return;
+      }
+
+      // Check file size (10MB limit)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: "File size must be less than 10MB.",
           variant: "destructive",
         });
         e.target.value = "";
@@ -98,8 +117,14 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
     });
   };
 
+  const handleClose = () => {
+    setFile(null);
+    setCategory("");
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">Upload Document</DialogTitle>
@@ -116,7 +141,7 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
               type="file"
               onChange={handleFileChange}
               className="hidden"
-              accept=".pdf,.doc,.docx,.xls,.xlsx"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
             />
             {file ? (
               <div className="flex items-center justify-center gap-3">
@@ -142,7 +167,7 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
               <>
                 <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
                 <p className="font-medium">Click to upload a file</p>
-                <p className="text-sm text-muted-foreground mt-1">PDF, DOC, DOCX, XLS, XLSX up to 10MB</p>
+                <p className="text-sm text-muted-foreground mt-1">PDF, DOC, DOCX, XLS, XLSX, JPG, PNG up to 10MB</p>
               </>
             )}
           </div>
@@ -158,12 +183,21 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
                 <SelectItem value="Contracts">Contracts</SelectItem>
                 <SelectItem value="Policies">Policies</SelectItem>
                 <SelectItem value="Compliance">Compliance</SelectItem>
+                <SelectItem value="Leave Evidence">Leave Evidence</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
+          {/* Category Info Alert */}
+          {category && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>{CATEGORY_INFO[category]}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
             <Button type="submit">Upload Document</Button>
