@@ -531,6 +531,7 @@ const Profile = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Date of Birth */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Cake className="h-4 w-4 text-muted-foreground" />
@@ -557,6 +558,9 @@ const Profile = () => {
                           onSelect={(date) => setFormData((prev) => ({ ...prev, date_of_birth: date || null }))}
                           disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                           initialFocus
+                          captionLayout="dropdown-buttons"
+                          fromYear={1940}
+                          toYear={new Date().getFullYear()}
                           className={cn("p-3 pointer-events-auto")}
                         />
                       </PopoverContent>
@@ -570,6 +574,7 @@ const Profile = () => {
                   )}
                 </div>
 
+                {/* Company Joining Date */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <PartyPopper className="h-4 w-4 text-muted-foreground" />
@@ -596,6 +601,9 @@ const Profile = () => {
                           onSelect={(date) => setFormData((prev) => ({ ...prev, joining_date: date || null }))}
                           disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                           initialFocus
+                          captionLayout="dropdown-buttons"
+                          fromYear={2000}
+                          toYear={new Date().getFullYear()}
                           className={cn("p-3 pointer-events-auto")}
                         />
                       </PopoverContent>
