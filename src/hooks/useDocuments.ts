@@ -1,10 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
 // Private categories that only uploader and admin can see
 export const PRIVATE_CATEGORIES = ["Compliance", "Contracts"];
+
+// Leave evidence - visible to uploader, admin, VP, manager, line manager
+export const LEAVE_EVIDENCE_CATEGORY = "Leave Evidence";
 
 export interface Document {
   id: string;
@@ -26,65 +29,104 @@ export interface UploaderInfo {
 }
 
 export function useDocuments() {
-  const { user, isAdmin, isVP } = useAuth();
+  const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploaderNames, setUploaderNames] = useState<UploaderInfo>({});
   const [loading, setLoading] = useState(true);
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     if (!user) return;
-    
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("documents")
-      .select("*")
-      .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Error fetching documents:", error);
+    setLoading(true);
+
+    try {
+      // Step 1: Fetch managed employees first (if user is manager/line manager)
+      let managedEmployeeIds: string[] = [];
+
+      if (isManager || isLineManager) {
+        const { data: managedProfiles, error: managedError } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .or(`manager_id.eq.${user.id},line_manager_id.eq.${user.id}`);
+
+        if (!managedError && managedProfiles) {
+          managedEmployeeIds = managedProfiles.map((p) => p.user_id);
+        }
+      }
+
+      // Step 2: Fetch all documents
+      const { data, error } = await supabase.from("documents").select("*").order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching documents:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load documents",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      const allDocs = data || [];
+
+      // Step 3: Filter documents based on category and role
+      const filteredDocs = allDocs.filter((doc) => {
+        // Leave Evidence - visible to uploader, admin, VP, or their manager/line manager
+        if (doc.category === LEAVE_EVIDENCE_CATEGORY) {
+          // User is the uploader
+          if (doc.uploaded_by === user.id) return true;
+          // User is admin or VP
+          if (isAdmin || isVP) return true;
+          // User is a manager/line manager of the uploader
+          if ((isManager || isLineManager) && managedEmployeeIds.includes(doc.uploaded_by)) {
+            return true;
+          }
+          return false;
+        }
+
+        // Private categories (Contracts, Compliance) - only uploader, admin, VP
+        if (PRIVATE_CATEGORIES.includes(doc.category || "")) {
+          return doc.uploaded_by === user.id || isAdmin || isVP;
+        }
+
+        // All other documents are visible to everyone
+        return true;
+      });
+
+      // Step 4: Fetch uploader names for display
+      const uploaderIds = [...new Set(filteredDocs.map((d) => d.uploaded_by).filter(Boolean))];
+      if (uploaderIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name")
+          .in("user_id", uploaderIds);
+
+        if (profiles) {
+          const names: UploaderInfo = {};
+          profiles.forEach((p) => {
+            names[p.user_id] = `${p.first_name} ${p.last_name}`;
+          });
+          setUploaderNames(names);
+        }
+      }
+
+      setDocuments(filteredDocs);
+    } catch (err) {
+      console.error("Error in fetchDocuments:", err);
       toast({
         title: "Error",
         description: "Failed to load documents",
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const allDocs = data || [];
-    
-    // Filter private category documents - only show if user is uploader, admin, or VP
-    const filteredDocs = allDocs.filter((doc) => {
-      if (PRIVATE_CATEGORIES.includes(doc.category || "")) {
-        return doc.uploaded_by === user.id || isAdmin || isVP;
-      }
-      return true;
-    });
-
-    // Fetch uploader names for display
-    const uploaderIds = [...new Set(filteredDocs.map(d => d.uploaded_by).filter(Boolean))];
-    if (uploaderIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, first_name, last_name")
-        .in("user_id", uploaderIds);
-      
-      if (profiles) {
-        const names: UploaderInfo = {};
-        profiles.forEach((p) => {
-          names[p.user_id] = `${p.first_name} ${p.last_name}`;
-        });
-        setUploaderNames(names);
-      }
-    }
-
-    setDocuments(filteredDocs);
-    setLoading(false);
-  };
+  }, [user, isAdmin, isVP, isManager, isLineManager]);
 
   useEffect(() => {
     fetchDocuments();
-  }, [user]);
+  }, [fetchDocuments]);
 
   const uploadDocument = async (file: File, category: string) => {
     if (!user) return { error: new Error("Not authenticated") };
@@ -93,9 +135,7 @@ export function useDocuments() {
     const fileName = `${user.id}/${Date.now()}-${file.name}`;
 
     // Upload to storage
-    const { error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(fileName, file);
+    const { error: uploadError } = await supabase.storage.from("documents").upload(fileName, file);
 
     if (uploadError) {
       toast({
@@ -138,22 +178,17 @@ export function useDocuments() {
   const deleteDocument = async (doc: Document) => {
     // Optimistically remove document from UI
     const previousDocuments = documents;
-    setDocuments(prev => prev.filter(d => d.id !== doc.id));
+    setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
 
     // Delete from storage
-    const { error: storageError } = await supabase.storage
-      .from("documents")
-      .remove([doc.file_path]);
+    const { error: storageError } = await supabase.storage.from("documents").remove([doc.file_path]);
 
     if (storageError) {
       console.error("Storage delete error:", storageError);
     }
 
     // Delete record
-    const { error } = await supabase
-      .from("documents")
-      .delete()
-      .eq("id", doc.id);
+    const { error } = await supabase.from("documents").delete().eq("id", doc.id);
 
     if (error) {
       // Revert on error
@@ -199,10 +234,7 @@ export function useDocuments() {
   };
 
   const getDownloadUrl = async (filePath: string) => {
-    // Use signed URLs for private bucket - 1 hour expiry
-    const { data, error } = await supabase.storage
-      .from("documents")
-      .createSignedUrl(filePath, 3600);
+    const { data, error } = await supabase.storage.from("documents").createSignedUrl(filePath, 3600);
 
     if (error) {
       console.error("Error creating signed URL:", error);
@@ -214,8 +246,7 @@ export function useDocuments() {
 
   const downloadDocument = async (doc: Document) => {
     const url = await getDownloadUrl(doc.file_path);
-    
-    // Create a link and trigger download
+
     const link = document.createElement("a");
     link.href = url;
     link.download = doc.name;
@@ -237,9 +268,17 @@ export function useDocuments() {
     return PRIVATE_CATEGORIES.includes(category || "");
   };
 
+  const isLeaveEvidenceCategory = (category: string | null) => {
+    return category === LEAVE_EVIDENCE_CATEGORY;
+  };
+
+  const isRestrictedCategory = (category: string | null) => {
+    return isPrivateCategory(category) || isLeaveEvidenceCategory(category);
+  };
+
   const canAccessDocument = (doc: Document) => {
-    if (!isPrivateCategory(doc.category)) return true;
-    return doc.uploaded_by === user?.id || isAdmin || isVP;
+    // This is now handled in fetchDocuments, but keeping for external use
+    return true;
   };
 
   return {
@@ -252,6 +291,8 @@ export function useDocuments() {
     getDownloadUrl,
     getUploaderName,
     isPrivateCategory,
+    isLeaveEvidenceCategory,
+    isRestrictedCategory,
     canAccessDocument,
     refetch: fetchDocuments,
   };
