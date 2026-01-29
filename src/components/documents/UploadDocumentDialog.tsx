@@ -26,7 +26,7 @@ const CATEGORY_INFO: Record<string, string> = {
   Contracts: "Private - Only you and admins can view",
   Policies: "Public - Visible to all employees",
   Compliance: "Private - Only you and admins can view",
-  "Leave Evidence": "Restricted - Visible to you, your manager, line manager, VP, and admins",
+  "Leave Evidence": "Restricted - Visible to you, managers, line managers, VPs, and admins",
 };
 
 export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDocumentDialogProps) {
