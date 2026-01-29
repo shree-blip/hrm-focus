@@ -26,9 +26,11 @@ import {
   Loader2,
   Lock,
   User,
+  CalendarCheck,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useDocuments, Document, PRIVATE_CATEGORIES } from "@/hooks/useDocuments";
+import { useDocuments, Document, PRIVATE_CATEGORIES, LEAVE_EVIDENCE_CATEGORY } from "@/hooks/useDocuments";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
 import { DocumentViewDialog } from "@/components/documents/DocumentViewDialog";
 import { RenameDocumentDialog } from "@/components/documents/RenameDocumentDialog";
@@ -78,6 +80,19 @@ const mockDocuments = [
     uploaded_by: "",
     employee_id: null,
   },
+  {
+    id: "4",
+    name: "Medical Certificate - John Doe.pdf",
+    file_path: "",
+    file_type: "pdf",
+    file_size: 156000,
+    category: "Leave Evidence",
+    created_at: "2025-01-15",
+    updated_at: "2025-01-15",
+    status: "active",
+    uploaded_by: "",
+    employee_id: null,
+  },
 ];
 
 const categories = [
@@ -85,6 +100,7 @@ const categories = [
   { name: "Contracts", icon: FileText },
   { name: "Policies", icon: File },
   { name: "Compliance", icon: File },
+  { name: "Leave Evidence", icon: CalendarCheck },
 ];
 
 const getFileIcon = (type: string | null) => {
@@ -97,6 +113,10 @@ const getFileIcon = (type: string | null) => {
     case "doc":
     case "docx":
       return <File className="h-5 w-5 text-info" />;
+    case "jpg":
+    case "jpeg":
+    case "png":
+      return <FileImage className="h-5 w-5 text-purple-500" />;
     default:
       return <File className="h-5 w-5 text-muted-foreground" />;
   }
@@ -135,6 +155,8 @@ const Documents = () => {
     getDownloadUrl,
     getUploaderName,
     isPrivateCategory,
+    isLeaveEvidenceCategory,
+    isRestrictedCategory,
   } = useDocuments();
   const [selectedCategory, setSelectedCategory] = useState("All Documents");
   const [searchQuery, setSearchQuery] = useState("");
@@ -221,6 +243,16 @@ const Documents = () => {
     // Search happens automatically via filteredDocuments
   };
 
+  const getVisibilityTooltip = (category: string | null) => {
+    if (isLeaveEvidenceCategory(category)) {
+      return "Restricted - Visible to uploader, manager, line manager, VP, and admins";
+    }
+    if (isPrivateCategory(category)) {
+      return "Private - Only visible to uploader and admins";
+    }
+    return null;
+  };
+
   return (
     <DashboardLayout>
       {/* Page Header */}
@@ -248,6 +280,7 @@ const Documents = () => {
             {categories.map((category) => {
               const Icon = category.icon;
               const isSelected = selectedCategory === category.name;
+              const isRestricted = isRestrictedCategory(category.name);
               return (
                 <button
                   key={category.name}
@@ -260,6 +293,20 @@ const Documents = () => {
                   <div className="flex items-center gap-3">
                     <Icon className="h-4 w-4" />
                     <span>{category.name}</span>
+                    {isRestricted && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          {isLeaveEvidenceCategory(category.name) ? (
+                            <Users className="h-3 w-3 text-blue-500" />
+                          ) : (
+                            <Lock className="h-3 w-3 text-warning" />
+                          )}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{getVisibilityTooltip(category.name)}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                   <Badge variant={isSelected ? "secondary" : "outline"} className="text-xs">
                     {categoryCounts[category.name] || 0}
@@ -330,13 +377,17 @@ const Documents = () => {
                           <div className="flex items-center gap-3">
                             {getFileIcon(doc.file_type)}
                             <span className="font-medium">{doc.name}</span>
-                            {isPrivateCategory(doc.category) && (
+                            {isRestrictedCategory(doc.category) && (
                               <Tooltip>
                                 <TooltipTrigger>
-                                  <Lock className="h-3 w-3 text-warning" />
+                                  {isLeaveEvidenceCategory(doc.category) ? (
+                                    <Users className="h-3 w-3 text-blue-500" />
+                                  ) : (
+                                    <Lock className="h-3 w-3 text-warning" />
+                                  )}
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Private - Only visible to uploader and admins</p>
+                                  <p>{getVisibilityTooltip(doc.category)}</p>
                                 </TooltipContent>
                               </Tooltip>
                             )}
@@ -347,7 +398,12 @@ const Documents = () => {
                             <Badge variant="secondary" className="font-normal">
                               {doc.category || "Uncategorized"}
                             </Badge>
-                            {isPrivateCategory(doc.category) && <Lock className="h-3 w-3 text-muted-foreground" />}
+                            {isRestrictedCategory(doc.category) &&
+                              (isLeaveEvidenceCategory(doc.category) ? (
+                                <Users className="h-3 w-3 text-blue-500" />
+                              ) : (
+                                <Lock className="h-3 w-3 text-muted-foreground" />
+                              ))}
                           </div>
                         </TableCell>
                         <TableCell>
