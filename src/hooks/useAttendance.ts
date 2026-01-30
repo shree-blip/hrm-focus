@@ -136,6 +136,15 @@ export function useAttendance(weekStart?: Date) {
           .eq("id", currentLog.id);
 
         if (!error) {
+          // Create a notification in the database
+          await supabase.from("notifications").insert({
+            user_id: user.id,
+            title: "Auto Clock Out",
+            message: "You were automatically clocked out after 8 hours of work. If you are still working, please clock in again.",
+            type: "warning",
+            link: "/attendance",
+          });
+
           toast({
             title: "Auto Clock Out",
             description: "You were automatically clocked out after 8 hours. Please clock in again if still working.",
@@ -165,6 +174,15 @@ export function useAttendance(weekStart?: Date) {
         .eq("id", currentLog.id);
 
       if (!error) {
+        // Create a notification in the database
+        await supabase.from("notifications").insert({
+          user_id: user.id,
+          title: "Auto Clock Out",
+          message: "You were automatically clocked out after 8 hours of work. If you are still working, please clock in again.",
+          type: "warning",
+          link: "/attendance",
+        });
+
         toast({
           title: "Auto Clock Out",
           description: "You were automatically clocked out after 8 hours. Please clock in again if still working.",
