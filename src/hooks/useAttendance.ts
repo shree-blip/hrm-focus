@@ -112,6 +112,73 @@ export function useAttendance(weekStart?: Date) {
     fetchMonthlyLogs();
   }, [fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
 
+  // Auto clock-out after 8 hours - client-side timer
+  useEffect(() => {
+    if (!user || !currentLog || currentLog.clock_out) return;
+
+    const clockInTime = new Date(currentLog.clock_in).getTime();
+    const eightHoursMs = 8 * 60 * 60 * 1000;
+    const now = Date.now();
+    const timeElapsed = now - clockInTime;
+    
+    // If already past 8 hours, clock out immediately
+    if (timeElapsed >= eightHoursMs) {
+      const performAutoClockOut = async () => {
+        const clockOutTime = new Date(clockInTime + eightHoursMs);
+        
+        const { error } = await supabase
+          .from("attendance_logs")
+          .update({
+            clock_out: clockOutTime.toISOString(),
+            notes: "[Auto clocked out after 8 hours]",
+            status: "auto_clocked_out",
+          })
+          .eq("id", currentLog.id);
+
+        if (!error) {
+          toast({
+            title: "Auto Clock Out",
+            description: "You were automatically clocked out after 8 hours. Please clock in again if still working.",
+            variant: "destructive",
+          });
+          setCurrentLog(null);
+          fetchWeeklyLogs();
+          fetchMonthlyLogs();
+        }
+      };
+      performAutoClockOut();
+      return;
+    }
+
+    // Set a timer for remaining time until 8 hours
+    const remainingTime = eightHoursMs - timeElapsed;
+    const timer = setTimeout(async () => {
+      const clockOutTime = new Date(clockInTime + eightHoursMs);
+      
+      const { error } = await supabase
+        .from("attendance_logs")
+        .update({
+          clock_out: clockOutTime.toISOString(),
+          notes: "[Auto clocked out after 8 hours]",
+          status: "auto_clocked_out",
+        })
+        .eq("id", currentLog.id);
+
+      if (!error) {
+        toast({
+          title: "Auto Clock Out",
+          description: "You were automatically clocked out after 8 hours. Please clock in again if still working.",
+          variant: "destructive",
+        });
+        setCurrentLog(null);
+        fetchWeeklyLogs();
+        fetchMonthlyLogs();
+      }
+    }, remainingTime);
+
+    return () => clearTimeout(timer);
+  }, [user, currentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
+
   // Listen for real-time updates on attendance_logs (for auto clock-out)
   useEffect(() => {
     if (!user) return;
