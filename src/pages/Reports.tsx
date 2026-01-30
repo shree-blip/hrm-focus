@@ -84,6 +84,7 @@ const Reports = () => {
   const [searchDate, setSearchDate] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
 
   const loading = leaveLoading || attendanceLoading;
 
@@ -136,6 +137,17 @@ const Reports = () => {
       }
     });
     return Array.from(employeesMap.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name));
+  }, [dailyAttendance]);
+
+  // Filter employees list based on search query
+  const filteredEmployeesList = useMemo(() => {
+    if (!employeeSearchQuery.trim()) return employeesList;
+    const query = employeeSearchQuery.toLowerCase();
+    return employeesList.filter(
+      (emp) =>
+        emp.employee_name.toLowerCase().includes(query) ||
+        emp.email.toLowerCase().includes(query)
+    );
   }, [dailyAttendance]);
 
   // Filter daily attendance by search date and selected employee
@@ -417,11 +429,73 @@ const Reports = () => {
     const dateStr = formatDate(today.toISOString());
 
     if (type === "leave") {
-      csvContent = "Employee,Leave Type,Start Date,End Date,Days,Status,Reason\n";
+      // Group leave requests by employee and month
+      const employeeMonthlyLeave: Record<string, Record<string, number>> = {};
+      const employeeNames: Record<string, string> = {};
+      
+      // Get all months in the selected date range
+      const { start: rangeStart, end: rangeEnd } = getDateRangeFromType(dateRange);
+      const allMonths: string[] = [];
+      const currentMonth = new Date(rangeStart);
+      while (currentMonth <= rangeEnd) {
+        const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
+        allMonths.push(monthKey);
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+      }
+      
+      // Calculate monthly totals per employee
+      requests.forEach((r) => {
+        if (r.status !== "approved") return; // Only count approved leaves
+        const name = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown";
+        const startDate = new Date(r.start_date);
+        const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}`;
+        
+        if (!employeeMonthlyLeave[name]) {
+          employeeMonthlyLeave[name] = {};
+          employeeNames[name] = name;
+        }
+        employeeMonthlyLeave[name][monthKey] = (employeeMonthlyLeave[name][monthKey] || 0) + r.days;
+      });
+
+      // Build CSV - First section: Detailed leave requests
+      csvContent = "=== DETAILED LEAVE REQUESTS ===\n";
+      csvContent += "Employee,Leave Type,Start Date,End Date,Days,Status,Reason\n";
       requests.forEach((r) => {
         const name = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown";
         csvContent += `"${name}","${r.leave_type}","${r.start_date}","${r.end_date}",${r.days},"${r.status}","${r.reason || ""}"\n`;
       });
+      
+      // Build CSV - Second section: Monthly summary per employee
+      csvContent += "\n=== MONTHLY LEAVE SUMMARY (Approved Only) ===\n";
+      const monthHeaders = allMonths.map((m) => {
+        const [year, month] = m.split("-");
+        return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      });
+      csvContent += `Employee,${monthHeaders.join(",")},Total Leave Days\n`;
+      
+      // Sort employees by name
+      const sortedEmployees = Object.keys(employeeMonthlyLeave).sort();
+      let grandTotalPerMonth: Record<string, number> = {};
+      allMonths.forEach((m) => { grandTotalPerMonth[m] = 0; });
+      let grandTotal = 0;
+      
+      sortedEmployees.forEach((name) => {
+        const monthlyData = employeeMonthlyLeave[name];
+        let employeeTotal = 0;
+        const monthValues = allMonths.map((m) => {
+          const days = monthlyData[m] || 0;
+          employeeTotal += days;
+          grandTotalPerMonth[m] += days;
+          return days;
+        });
+        grandTotal += employeeTotal;
+        csvContent += `"${name}",${monthValues.join(",")},${employeeTotal}\n`;
+      });
+      
+      // Add aggregate totals row
+      const aggregateMonthValues = allMonths.map((m) => grandTotalPerMonth[m]);
+      csvContent += `"TOTAL (All Employees)",${aggregateMonthValues.join(",")},${grandTotal}\n`;
+      
       filename = `leave-report-${dateStr}.csv`;
     } else if (type === "attendance") {
       csvContent = "Employee,Email,Days Worked,Total Hours\n";
@@ -809,12 +883,25 @@ const Reports = () => {
                       <SelectValue placeholder="Select an employee" />
                     </SelectTrigger>
                     <SelectContent>
+                      <div className="p-2 sticky top-0 bg-background">
+                        <Input
+                          placeholder="Search employee..."
+                          value={employeeSearchQuery}
+                          onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
                       <SelectItem value="all">All Employees</SelectItem>
-                      {employeesList.map((emp) => (
+                      {filteredEmployeesList.map((emp) => (
                         <SelectItem key={emp.user_id} value={emp.user_id}>
                           {emp.employee_name}
                         </SelectItem>
                       ))}
+                      {filteredEmployeesList.length === 0 && employeeSearchQuery && (
+                        <div className="p-2 text-sm text-muted-foreground text-center">
+                          No employees found
+                        </div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
