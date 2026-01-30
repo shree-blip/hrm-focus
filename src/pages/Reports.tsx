@@ -148,7 +148,7 @@ const Reports = () => {
         emp.employee_name.toLowerCase().includes(query) ||
         emp.email.toLowerCase().includes(query)
     );
-  }, [dailyAttendance]);
+  }, [employeesList, employeeSearchQuery]);
 
   // Filter daily attendance by search date and selected employee
   const filteredDailyAttendance = useMemo(() => {
