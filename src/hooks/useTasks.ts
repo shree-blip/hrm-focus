@@ -183,6 +183,30 @@ export function useTasks() {
             variant: "destructive",
           });
         } else {
+          // Get the creator's name for notification message
+          const { data: creatorProfile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("user_id", userId)
+            .single();
+
+          const creatorName = creatorProfile
+            ? `${creatorProfile.first_name} ${creatorProfile.last_name}`
+            : "Someone";
+
+          // Create notifications for all assignees (except self)
+          for (const assigneeId of task.assignee_ids) {
+            if (assigneeId !== userId) {
+              await supabase.from("notifications").insert({
+                user_id: assigneeId,
+                title: "New Task Assigned",
+                message: `${creatorName} assigned you a new task: "${task.title}"`,
+                type: "task",
+                link: "/tasks",
+              });
+            }
+          }
+
           // Construct optimistically formatted assignees for immediate UI feedback
           createdAssignees = task.assignee_ids.map((id) => ({
             user_id: id,
@@ -255,6 +279,15 @@ export function useTasks() {
     if (!userId) return;
 
     try {
+      // Get existing assignees to determine new additions
+      const { data: existingAssignees } = await supabase
+        .from("task_assignees")
+        .select("user_id")
+        .eq("task_id", taskId);
+
+      const existingIds = new Set((existingAssignees || []).map((a) => a.user_id));
+      const newAssigneeIds = assigneeIds.filter((id) => !existingIds.has(id));
+
       // Delete existing assignees
       await supabase.from("task_assignees").delete().eq("task_id", taskId);
 
@@ -268,6 +301,38 @@ export function useTasks() {
 
         const { error } = await supabase.from("task_assignees").insert(assigneeInserts);
         if (error) throw error;
+
+        // Get task info and creator name for notification
+        if (newAssigneeIds.length > 0) {
+          const { data: taskData } = await supabase
+            .from("tasks")
+            .select("title")
+            .eq("id", taskId)
+            .single();
+
+          const { data: assignerProfile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("user_id", userId)
+            .single();
+
+          const assignerName = assignerProfile
+            ? `${assignerProfile.first_name} ${assignerProfile.last_name}`
+            : "Someone";
+
+          // Notify new assignees only
+          for (const assigneeId of newAssigneeIds) {
+            if (assigneeId !== userId) {
+              await supabase.from("notifications").insert({
+                user_id: assigneeId,
+                title: "Task Assigned",
+                message: `${assignerName} assigned you to a task: "${taskData?.title || 'Untitled'}"`,
+                type: "task",
+                link: "/tasks",
+              });
+            }
+          }
+        }
       }
 
       toast({ title: "Assignees Updated", description: "Task assignees have been updated." });
