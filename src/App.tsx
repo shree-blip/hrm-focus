@@ -24,6 +24,7 @@ import Reports from "./pages/Reports";
 import Announcements from "./pages/Announcements";
 import AccessControl from "./pages/AccessControl";
 import LogSheet from "./pages/LogSheet";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/announcements" element={<ProtectedRoute requiredRole="manager"><Announcements /></ProtectedRoute>} />
             <Route path="/access-control" element={<ProtectedRoute requiredRole="vp"><AccessControl /></ProtectedRoute>} />
             <Route path="/log-sheet" element={<ProtectedRoute><LogSheet /></ProtectedRoute>} />
+            <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
