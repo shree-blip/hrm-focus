@@ -116,6 +116,59 @@ export type Database = {
           },
         ]
       }
+      asset_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          description: string
+          id: string
+          org_id: string | null
+          rejection_reason: string | null
+          request_type: string
+          status: Database["public"]["Enums"]["request_status"] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          org_id?: string | null
+          rejection_reason?: string | null
+          request_type?: string
+          status?: Database["public"]["Enums"]["request_status"] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          org_id?: string | null
+          rejection_reason?: string | null
+          request_type?: string
+          status?: Database["public"]["Enums"]["request_status"] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_requests_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_logs: {
         Row: {
           break_end: string | null
@@ -207,6 +260,50 @@ export type Database = {
           },
           {
             foreignKeyName: "attendance_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bug_reports: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          org_id: string | null
+          screenshot_url: string | null
+          status: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          org_id?: string | null
+          screenshot_url?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          org_id?: string | null
+          screenshot_url?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bug_reports_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -2184,6 +2281,7 @@ export type Database = {
         Args: { _employee_id: string; _user_id: string }
         Returns: boolean
       }
+      is_it_team: { Args: { _user_id: string }; Returns: boolean }
       is_line_manager: { Args: { _user_id: string }; Returns: boolean }
       is_org_vp: {
         Args: { _org_id: string; _user_id: string }
@@ -2215,6 +2313,7 @@ export type Database = {
         | "employee"
         | "supervisor"
         | "line_manager"
+      request_status: "pending" | "approved" | "declined"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2350,6 +2449,7 @@ export const Constants = {
         "supervisor",
         "line_manager",
       ],
+      request_status: ["pending", "approved", "declined"],
     },
   },
 } as const
