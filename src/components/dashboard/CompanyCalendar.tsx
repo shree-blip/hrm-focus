@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
-import { useMilestones } from "@/hooks/useMilestones";
+import { useMilestones } from "@/hooks/UseMilestones";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { cn } from "@/lib/utils";
 
@@ -115,8 +115,6 @@ const calendarEntries: CalendarEntry[] = [
   { date: new Date(2026, 5, 22), name: "Texas Sales Tax Filing", type: "deadline" },
   { date: new Date(2026, 5, 24), name: "Q2 2nd Pre-Payment (CDTFA)", type: "deadline" },
   { date: new Date(2026, 5, 30), name: "Venture23 Payroll Day", type: "deadline" },
-
-  // TODO: Add Jul–Dec 2026 here
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -195,6 +193,69 @@ const typeConfig = {
     iconColor: "text-violet-600 dark:text-violet-400",
   },
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CUSTOM DAY CELL COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function CustomDayCell({ date }: { date: Date }) {
+  const entries = getEntriesForDate(date);
+  const isDayOff = isWeekend(date) || isNamedHoliday(date);
+  const isDeadline = isDeadlineDate(date);
+
+  const day = date.getDate();
+  const isToday = date.toDateString() === new Date().toDateString();
+
+  // Filter entries for this date
+  const deadlineEntries = entries.filter((e) => e.type === "deadline");
+  const holidayEntries = entries.filter((e) => e.type === "holiday" || e.type === "optional");
+
+  return (
+    <div
+      className={cn(
+        "relative h-full w-full flex flex-col items-center justify-center p-1",
+        isToday && "bg-accent text-accent-foreground",
+        isDayOff && !isToday && "bg-amber-50 dark:bg-amber-950/20",
+      )}
+    >
+      {/* Day number */}
+      <div className={cn("text-sm font-medium mb-0.5", isToday && "font-bold")}>{day}</div>
+
+      {/* Indicators */}
+      <div className="flex flex-col items-center gap-0.5 w-full max-w-full overflow-hidden">
+        {/* Holiday indicator */}
+        {holidayEntries.length > 0 && (
+          <div className="flex items-center gap-0.5 w-full justify-center">
+            <Star className="h-2.5 w-2.5 text-amber-500 flex-shrink-0" />
+            <span className="text-[8px] font-medium text-amber-700 dark:text-amber-400 truncate text-center">
+              {holidayEntries[0].name.replace("Deadline: ", "").substring(0, 15)}
+              {holidayEntries[0].name.length > 15 ? "..." : ""}
+            </span>
+          </div>
+        )}
+
+        {/* Deadline indicators */}
+        {deadlineEntries.slice(0, 2).map((entry, idx) => (
+          <div key={idx} className="flex items-center gap-0.5 w-full justify-center">
+            <div className="h-1.5 w-1.5 rounded-full bg-orange-500 flex-shrink-0" />
+            <span className="text-[8px] font-medium text-orange-700 dark:text-orange-400 truncate text-center">
+              {entry.name.replace("Deadline: ", "").substring(0, 15)}
+              {entry.name.length > 15 ? "..." : ""}
+            </span>
+          </div>
+        ))}
+
+        {/* More indicator */}
+        {deadlineEntries.length > 2 && (
+          <div className="text-[8px] text-muted-foreground">+{deadlineEntries.length - 2} more</div>
+        )}
+      </div>
+
+      {/* Deadline underline */}
+      {isDeadline && !isDayOff && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-b" />}
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SIGNED AVATAR
@@ -442,8 +503,8 @@ export function CompanyCalendar() {
             head_row: "flex w-full",
             head_cell: "text-muted-foreground rounded-md flex-1 font-medium text-[0.8rem] py-2 text-center",
             row: "flex w-full mt-1",
-            cell: "flex-1 text-center text-sm p-0.5 relative focus-within:relative focus-within:z-20",
-            day: "h-10 w-full rounded-md p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground",
+            cell: "flex-1 text-center text-sm p-0.5 relative focus-within:relative focus-within:z-20 h-24", // Increased height for more content
+            day: "h-full w-full rounded-md p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground",
             day_range_end: "day-range-end",
             day_selected:
               "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
@@ -455,6 +516,9 @@ export function CompanyCalendar() {
           }}
           modifiers={calendarModifiers}
           modifiersStyles={calendarModifierStyles}
+          components={{
+            Day: ({ date }) => <CustomDayCell date={date} />,
+          }}
         />
 
         {/* ── SELECTED DATE DETAIL WITH CLEAR BUTTON ── */}
@@ -555,6 +619,14 @@ export function CompanyCalendar() {
               style={{ backgroundColor: "hsl(142 71% 45% / 0.22)", border: "1px solid hsl(142 71% 45% / 0.35)" }}
             />
             Milestone
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Star className="h-3 w-3 text-amber-500" />
+            Holiday
+          </span>
+          <span className="flex items-center gap-1.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+            Work Due
           </span>
         </div>
 
