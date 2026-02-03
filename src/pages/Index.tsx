@@ -7,6 +7,7 @@ import { TeamWidget } from "@/components/dashboard/TeamWidget";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { AnnouncementsWidget } from "@/components/dashboard/AnnouncementsWidget";
 import { CompanyCalendar } from "@/components/dashboard/CompanyCalendar";
+import { DailyTimelineWidget } from "@/components/dashboard/DailyTimelineWidget";
 
 import { PersonalReportsWidget } from "@/components/dashboard/PersonalReportsWidget";
 import { TeamReportsWidget } from "@/components/dashboard/TeamReportsWidget";
@@ -16,12 +17,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { useTasks } from "@/hooks/useTasks";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useAttendance } from "@/hooks/useAttendance";
-import {
-  Users,
-  Clock,
-  Calendar,
-  CheckCircle2,
-} from "lucide-react";
+import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
 
 const Index = () => {
   const { profile, role, isManager } = useAuth();
@@ -32,13 +28,13 @@ const Index = () => {
   const { monthlyHours } = useAttendance();
 
   const firstName = profile?.first_name || "User";
-  const pendingTasks = tasks.filter(t => t.status !== "done").length;
-  const dueTodayTasks = tasks.filter(t => {
+  const pendingTasks = tasks.filter((t) => t.status !== "done").length;
+  const dueTodayTasks = tasks.filter((t) => {
     if (!t.due_date) return false;
     const today = new Date().toISOString().split("T")[0];
     return t.due_date === today && t.status !== "done";
   }).length;
-  const pendingLeaveRequests = requests.filter(r => r.status === "pending").length;
+  const pendingLeaveRequests = requests.filter((r) => r.status === "pending").length;
 
   // Role-based greeting
   const getRoleLabel = () => {
@@ -48,15 +44,21 @@ const Index = () => {
     return "";
   };
 
+  // Handler for viewing full calendar
+  const handleViewCalendar = () => {
+    // Scroll to calendar or navigate to calendar page
+    const calendarElement = document.getElementById("company-calendar");
+    if (calendarElement) {
+      calendarElement.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <DashboardLayout>
-
       {/* Page Header */}
       <div className="mb-8 animate-fade-in">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-display font-bold text-foreground">
-            Welcome back, {firstName}
-          </h1>
+          <h1 className="text-3xl font-display font-bold text-foreground">Welcome back, {firstName}</h1>
           {role && role !== "employee" && (
             <span className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary">
               {getRoleLabel()}
@@ -64,9 +66,7 @@ const Index = () => {
           )}
         </div>
         <p className="text-muted-foreground mt-1">
-          {isManager 
-            ? "Here's what's happening with your team today." 
-            : "Here's your personal dashboard overview."}
+          {isManager ? "Here's what's happening with your team today." : "Here's your personal dashboard overview."}
         </p>
       </div>
 
@@ -133,18 +133,22 @@ const Index = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* Custom Reports based on role */}
           {isManager ? <TeamReportsWidget /> : <PersonalReportsWidget />}
-          
+
           <PerformanceChart />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TasksWidget />
             <LeaveWidget />
+          </div>
+          <div id="company-calendar">
+            <CompanyCalendar />
           </div>
         </div>
 
         {/* Right Column - 1/3 width */}
         <div className="space-y-6">
           <ClockWidget />
-          <CompanyCalendar />
+          {/* Daily Timeline - New attention-grabbing widget */}
+          <DailyTimelineWidget onViewAll={handleViewCalendar} />
           <TeamWidget />
           <AnnouncementsWidget />
         </div>
