@@ -1,10 +1,11 @@
-import { Calendar as CalendarIcon, Briefcase, Star, Cake, Sparkles, AlertCircle, Clock, Flag } from "lucide-react";
+import { Calendar as CalendarIcon, Briefcase, Star, Cake, Sparkles, AlertCircle, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
-import { useMilestones } from "@/hooks/useMilestones";
+import { useMilestones } from "@/hooks/UseMilestones";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { cn } from "@/lib/utils";
 
@@ -399,6 +400,11 @@ export function CompanyCalendar() {
   const holidayTabCount = monthHolidays.length + monthDeadlines.length;
   const milestoneTabCount = monthMilestones.length;
 
+  // ── Clear selection handler ───────────────────────────────────────────
+  const handleClearSelection = () => {
+    setSelectedDate(undefined);
+  };
+
   // ════════════════════════════════════════════════════════════════════════
   // RENDER
   // ════════════════════════════════════════════════════════════════════════
@@ -416,20 +422,58 @@ export function CompanyCalendar() {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* ── CALENDAR ── */}
+        {/* ── CALENDAR - WIDER VERSION ── */}
         <Calendar
           mode="single"
           selected={selectedDate}
           onSelect={setSelectedDate}
           onMonthChange={setCalendarMonth}
-          className="rounded-lg border"
+          className="rounded-lg border p-3 w-full"
+          classNames={{
+            months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
+            month: "space-y-4 w-full",
+            caption: "flex justify-center pt-1 relative items-center px-2",
+            caption_label: "text-base font-medium",
+            nav: "space-x-1 flex items-center",
+            nav_button: "h-8 w-8 bg-transparent p-0 opacity-50 hover:opacity-100",
+            nav_button_previous: "absolute left-1",
+            nav_button_next: "absolute right-1",
+            table: "w-full border-collapse",
+            head_row: "flex w-full",
+            head_cell: "text-muted-foreground rounded-md flex-1 font-medium text-[0.8rem] py-2 text-center",
+            row: "flex w-full mt-1",
+            cell: "flex-1 text-center text-sm p-0.5 relative focus-within:relative focus-within:z-20",
+            day: "h-10 w-full rounded-md p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground",
+            day_range_end: "day-range-end",
+            day_selected:
+              "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+            day_today: "bg-accent text-accent-foreground",
+            day_outside:
+              "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+            day_disabled: "text-muted-foreground opacity-50",
+            day_hidden: "invisible",
+          }}
           modifiers={calendarModifiers}
           modifiersStyles={calendarModifierStyles}
         />
 
-        {/* ── SELECTED DATE DETAIL ── */}
-        {hasSelectedInfo && selectedDate && (
+        {/* ── SELECTED DATE DETAIL WITH CLEAR BUTTON ── */}
+        {selectedDate && (
           <div className="space-y-1.5">
+            {/* Selected date header with clear button */}
+            <div className="flex items-center justify-between px-1">
+              <p className="text-sm font-medium text-foreground">{formatDateFull(selectedDate)}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearSelection}
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5 mr-1" />
+                Clear
+              </Button>
+            </div>
+
             {/* Weekend badge */}
             {isSelectedWeekend && selectedEntries.filter((e) => e.type === "holiday").length === 0 && (
               <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 flex items-center gap-2.5">
@@ -482,6 +526,13 @@ export function CompanyCalendar() {
                 </div>
               </div>
             ))}
+
+            {/* Show "No events" if it's not a weekend and no entries/milestones */}
+            {!hasSelectedInfo && (
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50 text-center">
+                <p className="text-sm text-muted-foreground">No events on this date</p>
+              </div>
+            )}
           </div>
         )}
 
