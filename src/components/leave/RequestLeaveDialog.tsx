@@ -6,16 +6,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Info } from "lucide-react";
+import { CalendarIcon, Info, AlertTriangle, Layers, Clock } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
-// Leave type configurations
+// Main Leave type configurations
 const LEAVE_TYPES = {
   "Annual Leave": { days: 12, description: "Regular annual leave allocation" },
   "Special Leave": { days: null, description: "Select a category below" },
+  "Leave on Leave": { days: null, description: "Request additional leave while on existing leave" },
+} as const;
+
+// Leave on Leave subtypes
+const LEAVE_ON_LEAVE_SUBTYPES = {
+  "Extension Request": { days: null, description: "Extend your current leave period" },
+  "Medical Emergency": { days: null, description: "Unexpected medical situation during leave" },
+  "Family Emergency": { days: null, description: "Urgent family matter requiring extended time" },
+  "Travel Complications": { days: null, description: "Unable to return due to travel issues" },
+  "Other Emergency": { days: null, description: "Other urgent circumstances" },
 } as const;
 
 // Special leave subtypes with their allocated days
@@ -28,16 +40,34 @@ const SPECIAL_LEAVE_SUBTYPES = {
 
 type LeaveType = keyof typeof LEAVE_TYPES;
 type SpecialLeaveSubtype = keyof typeof SPECIAL_LEAVE_SUBTYPES;
+type LeaveOnLeaveSubtype = keyof typeof LEAVE_ON_LEAVE_SUBTYPES;
+
+interface CurrentLeave {
+  id: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  days: number;
+}
 
 interface RequestLeaveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (request: { type: string; startDate: Date; endDate: Date; reason: string }) => void;
+  isOnLeave?: boolean;
+  currentLeave?: CurrentLeave | null;
 }
 
-export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeaveDialogProps) {
+export function RequestLeaveDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  isOnLeave = false,
+  currentLeave = null,
+}: RequestLeaveDialogProps) {
   const [leaveType, setLeaveType] = useState<LeaveType | "">("");
   const [specialLeaveSubtype, setSpecialLeaveSubtype] = useState<SpecialLeaveSubtype | "">("");
+  const [leaveOnLeaveSubtype, setLeaveOnLeaveSubtype] = useState<LeaveOnLeaveSubtype | "">("");
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [reason, setReason] = useState("");
@@ -50,12 +80,35 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
     }
   }, [startDate, leaveType, specialLeaveSubtype]);
 
-  // Reset special leave subtype when leave type changes
+  // Reset subtypes when leave type changes
   useEffect(() => {
     if (leaveType !== "Special Leave") {
       setSpecialLeaveSubtype("");
     }
+    if (leaveType !== "Leave on Leave") {
+      setLeaveOnLeaveSubtype("");
+    }
   }, [leaveType]);
+
+  // Pre-fill start date for "Leave on Leave" when user is currently on leave
+  useEffect(() => {
+    if (leaveType === "Leave on Leave" && isOnLeave && currentLeave && open) {
+      const dayAfterCurrentLeave = addDays(new Date(currentLeave.end_date), 1);
+      setStartDate(dayAfterCurrentLeave);
+    }
+  }, [leaveType, isOnLeave, currentLeave, open]);
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setLeaveType("");
+      setSpecialLeaveSubtype("");
+      setLeaveOnLeaveSubtype("");
+      setStartDate(undefined);
+      setEndDate(undefined);
+      setReason("");
+    }
+  }, [open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +131,15 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
       return;
     }
 
+    if (leaveType === "Leave on Leave" && !leaveOnLeaveSubtype) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a reason for your leave on leave request.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (endDate < startDate) {
       toast({
         title: "Invalid Dates",
@@ -94,7 +156,12 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
     adjustedEndDate.setHours(12, 0, 0, 0);
 
     // Determine the actual leave type to submit
-    const actualLeaveType = leaveType === "Special Leave" ? specialLeaveSubtype : leaveType;
+    let actualLeaveType = leaveType;
+    if (leaveType === "Special Leave") {
+      actualLeaveType = specialLeaveSubtype as LeaveType;
+    } else if (leaveType === "Leave on Leave") {
+      actualLeaveType = `Leave on Leave - ${leaveOnLeaveSubtype}` as LeaveType;
+    }
 
     onSubmit({
       type: actualLeaveType,
@@ -106,14 +173,18 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
     // Reset form
     setLeaveType("");
     setSpecialLeaveSubtype("");
+    setLeaveOnLeaveSubtype("");
     setStartDate(undefined);
     setEndDate(undefined);
     setReason("");
     onOpenChange(false);
 
     toast({
-      title: "Leave Request Submitted",
-      description: "Your leave request has been submitted for approval.",
+      title: leaveType === "Leave on Leave" ? "Leave on Leave Request Submitted" : "Leave Request Submitted",
+      description:
+        leaveType === "Leave on Leave"
+          ? "Your leave on leave request has been submitted for priority review."
+          : "Your leave request has been submitted for approval.",
     });
   };
 
@@ -122,13 +193,13 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
     if (leaveType === "Special Leave" && specialLeaveSubtype) {
       return SPECIAL_LEAVE_SUBTYPES[specialLeaveSubtype].days;
     }
-    if (leaveType && LEAVE_TYPES[leaveType].days) {
-      return LEAVE_TYPES[leaveType].days;
+    if (leaveType === "Annual Leave") {
+      return LEAVE_TYPES["Annual Leave"].days;
     }
     return null;
   };
 
-  // Calculate days between dates for Annual Leave
+  // Calculate days between dates
   const getCalculatedDays = () => {
     if (startDate && endDate) {
       return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -136,47 +207,182 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
     return null;
   };
 
+  const isLeaveOnLeave = leaveType === "Leave on Leave";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Request Leave</DialogTitle>
-          <DialogDescription>Submit a new leave request for approval.</DialogDescription>
+          <DialogTitle className="font-display text-xl flex items-center gap-2">
+            {isLeaveOnLeave ? (
+              <>
+                <Layers className="h-5 w-5 text-orange-500" />
+                Leave on Leave Request
+              </>
+            ) : (
+              <>
+                <CalendarIcon className="h-5 w-5 text-primary" />
+                Request Leave
+              </>
+            )}
+          </DialogTitle>
+          <DialogDescription>
+            {isLeaveOnLeave
+              ? "Request additional time off while on existing approved leave."
+              : "Submit a new leave request for approval."}
+          </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          {/* Leave Type Selection */}
+          {/* Leave Type Selection - All 3 types always visible */}
           <div className="space-y-2">
             <Label htmlFor="leaveType">Leave Type</Label>
             <Select value={leaveType} onValueChange={(value) => setLeaveType(value as LeaveType)}>
-              <SelectTrigger>
+              <SelectTrigger className={cn(isLeaveOnLeave && "border-orange-500/50 ring-orange-500/20")}>
                 <SelectValue placeholder="Select leave type" />
               </SelectTrigger>
               <SelectContent>
+                {/* Annual Leave */}
                 <SelectItem value="Annual Leave">
                   <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-primary" />
                     <span>Annual Leave</span>
                     <Badge variant="secondary" className="text-xs">
                       12 days/year
                     </Badge>
                   </div>
                 </SelectItem>
+
+                {/* Special Leave */}
                 <SelectItem value="Special Leave">
                   <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-warning" />
                     <span>Special Leave</span>
                     <Badge variant="secondary" className="text-xs bg-warning/10 text-warning">
                       Category based
                     </Badge>
                   </div>
                 </SelectItem>
+
+                <Separator className="my-1" />
+
+                {/* Leave on Leave - Always visible */}
+                <SelectItem value="Leave on Leave" className="py-3">
+                  <div className="flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-orange-500" />
+                    <span className="font-medium">Leave on Leave</span>
+                    <Badge
+                      variant="secondary"
+                      className="text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                    >
+                      Priority
+                    </Badge>
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
-            {leaveType && (
+            {leaveType && leaveType !== "Leave on Leave" && leaveType !== "Special Leave" && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Info className="h-3 w-3" />
-                {LEAVE_TYPES[leaveType].description}
+                {LEAVE_TYPES[leaveType]?.description}
               </p>
             )}
           </div>
+
+          {/* Leave on Leave Subtype Selection */}
+          {leaveType === "Leave on Leave" && (
+            <div className="space-y-3 p-4 rounded-lg border-2 border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-amber-500/5">
+              <Label htmlFor="leaveOnLeaveSubtype" className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-orange-500" />
+                Reason for Leave on Leave
+              </Label>
+              <Select
+                value={leaveOnLeaveSubtype}
+                onValueChange={(value) => setLeaveOnLeaveSubtype(value as LeaveOnLeaveSubtype)}
+              >
+                <SelectTrigger className="border-orange-500/30">
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Extension Request">
+                    <div className="flex items-center gap-2">
+                      <span>Extension Request</span>
+                      <Badge variant="outline" className="text-xs">
+                        Common
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Medical Emergency">
+                    <div className="flex items-center gap-2">
+                      <span>Medical Emergency</span>
+                      <Badge variant="outline" className="text-xs bg-red-500/10 text-red-600 border-red-500/30">
+                        Urgent
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Family Emergency">
+                    <div className="flex items-center gap-2">
+                      <span>Family Emergency</span>
+                      <Badge variant="outline" className="text-xs bg-red-500/10 text-red-600 border-red-500/30">
+                        Urgent
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Travel Complications">
+                    <div className="flex items-center gap-2">
+                      <span>Travel Complications</span>
+                      <Badge variant="outline" className="text-xs">
+                        Logistics
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Other Emergency">
+                    <div className="flex items-center gap-2">
+                      <span>Other Emergency</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {leaveOnLeaveSubtype && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  {LEAVE_ON_LEAVE_SUBTYPES[leaveOnLeaveSubtype].description}
+                </p>
+              )}
+
+              {/* Info box for Leave on Leave */}
+              <div className="mt-2 p-2 rounded-md bg-orange-500/10 border border-orange-500/20">
+                <p className="text-xs text-orange-600 dark:text-orange-400 flex items-start gap-1">
+                  <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                  Leave on Leave requests are flagged for priority manager review. Please provide detailed
+                  justification.
+                </p>
+              </div>
+
+              {/* Show current leave info if user is on leave */}
+              {isOnLeave && currentLeave && (
+                <Alert className="mt-3 bg-orange-500/5 border-orange-500/20">
+                  <Clock className="h-4 w-4 text-orange-500" />
+                  <AlertTitle className="text-orange-600 dark:text-orange-400 text-sm font-semibold">
+                    Your Current Leave
+                  </AlertTitle>
+                  <AlertDescription className="text-xs mt-1">
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      <Badge variant="outline" className="bg-white/50 dark:bg-gray-800/50 text-xs">
+                        {currentLeave.leave_type}
+                      </Badge>
+                      <Badge variant="outline" className="bg-white/50 dark:bg-gray-800/50 text-xs">
+                        Until {format(new Date(currentLeave.end_date), "MMM d, yyyy")}
+                      </Badge>
+                      <Badge variant="outline" className="bg-white/50 dark:bg-gray-800/50 text-xs">
+                        {currentLeave.days} days
+                      </Badge>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
 
           {/* Special Leave Subtype Selection */}
           {leaveType === "Special Leave" && (
@@ -241,7 +447,11 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground",
+                      isLeaveOnLeave && "border-orange-500/30",
+                    )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {startDate ? format(startDate, "PPP") : "Pick a date"}
@@ -254,9 +464,22 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
                     onSelect={setStartDate}
                     initialFocus
                     className="pointer-events-auto"
+                    disabled={(date) => {
+                      // If Leave on Leave and user is on leave, must start after current leave ends
+                      if (isLeaveOnLeave && isOnLeave && currentLeave) {
+                        const dayAfterCurrentLeave = addDays(new Date(currentLeave.end_date), 1);
+                        return date < dayAfterCurrentLeave;
+                      }
+                      return date < new Date();
+                    }}
                   />
                 </PopoverContent>
               </Popover>
+              {isLeaveOnLeave && isOnLeave && currentLeave && (
+                <p className="text-xs text-orange-600 dark:text-orange-400">
+                  Starts after: {format(new Date(currentLeave.end_date), "MMM d, yyyy")}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -265,7 +488,11 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground",
+                      isLeaveOnLeave && "border-orange-500/30",
+                    )}
                     disabled={leaveType === "Special Leave" && !!specialLeaveSubtype && !!startDate}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -287,33 +514,83 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
           </div>
 
           {/* Days Summary */}
-          {startDate && (leaveType === "Annual Leave" ? endDate && getCalculatedDays() : getAllocatedDays()) && (
-            <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+          {startDate && endDate && getCalculatedDays() && (
+            <div
+              className={cn(
+                "p-3 rounded-lg border",
+                isLeaveOnLeave
+                  ? "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/20"
+                  : "bg-primary/5 border-primary/20",
+              )}
+            >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Leave Duration</span>
-                <Badge variant="secondary">
-                  {leaveType === "Annual Leave" ? getCalculatedDays() : getAllocatedDays()} day
-                  {(leaveType === "Annual Leave" ? getCalculatedDays() : getAllocatedDays()) !== 1 ? "s" : ""}
+                <span className="text-sm font-medium">
+                  {isLeaveOnLeave ? "Additional Leave Duration" : "Leave Duration"}
+                </span>
+                <Badge
+                  variant="secondary"
+                  className={cn(isLeaveOnLeave && "bg-orange-500/20 text-orange-600 dark:text-orange-400")}
+                >
+                  {getCalculatedDays()} day{getCalculatedDays() !== 1 ? "s" : ""}
                 </Badge>
               </div>
-              {endDate && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  From {format(startDate, "MMM d, yyyy")} to {format(endDate, "MMM d, yyyy")}
-                </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                From {format(startDate, "MMM d, yyyy")} to {format(endDate, "MMM d, yyyy")}
+              </p>
+
+              {/* Show total if Leave on Leave and user is on leave */}
+              {isLeaveOnLeave && isOnLeave && currentLeave && (
+                <div className="mt-2 pt-2 border-t border-orange-500/20">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Current leave:</span>
+                    <span className="font-medium">{currentLeave.days} days</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs mt-1">
+                    <span className="text-muted-foreground">Additional request:</span>
+                    <span className="font-medium text-orange-600 dark:text-orange-400">
+                      +{getCalculatedDays()} days
+                    </span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium">Total if approved:</span>
+                    <Badge className="bg-orange-500 text-white">
+                      {currentLeave.days + (getCalculatedDays() || 0)} days
+                    </Badge>
+                  </div>
+                </div>
               )}
             </div>
           )}
 
           {/* Reason */}
           <div className="space-y-2">
-            <Label htmlFor="reason">Reason</Label>
+            <Label htmlFor="reason" className="flex items-center gap-2">
+              Reason
+              {isLeaveOnLeave && (
+                <Badge variant="outline" className="text-xs bg-red-500/10 text-red-600 border-red-500/30">
+                  Required
+                </Badge>
+              )}
+            </Label>
             <Textarea
               id="reason"
-              placeholder="Please provide a reason for your leave request..."
+              placeholder={
+                isLeaveOnLeave
+                  ? "Please provide detailed justification for your leave on leave request. Include any relevant circumstances, documentation references, and expected return date..."
+                  : "Please provide a reason for your leave request..."
+              }
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              rows={3}
+              rows={isLeaveOnLeave ? 4 : 3}
+              className={cn(isLeaveOnLeave && "border-orange-500/30")}
             />
+            {isLeaveOnLeave && (
+              <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Detailed explanation required for Leave on Leave requests
+              </p>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -321,7 +598,15 @@ export function RequestLeaveDialog({ open, onOpenChange, onSubmit }: RequestLeav
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">Submit Request</Button>
+            <Button
+              type="submit"
+              className={cn(
+                isLeaveOnLeave &&
+                  "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white",
+              )}
+            >
+              {isLeaveOnLeave ? "Submit Leave on Leave" : "Submit Request"}
+            </Button>
           </div>
         </form>
       </DialogContent>
