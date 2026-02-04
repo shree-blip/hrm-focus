@@ -20,10 +20,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Clock, AlertCircle, Calendar, User, UserPlus } from "lucide-react";
+import { Clock, AlertCircle, Calendar, User, UserPlus, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/useEmployees";
+import { useClients } from "@/hooks/useClients";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface TaskAssignee {
@@ -38,6 +39,7 @@ interface Task {
   id: string;
   title: string;
   client: string;
+  clientId?: string;
   priority: "high" | "medium" | "low";
   dueDate: string;
   status: "todo" | "in-progress" | "review" | "done";
@@ -65,6 +67,7 @@ export function TaskDetailDialog({
   onUpdateAssignees,
 }: TaskDetailDialogProps) {
   const { employees } = useEmployees();
+  const { clients } = useClients();
   const { user, profile } = useAuth();
   
   const [isEditing, setIsEditing] = useState(false);
@@ -137,7 +140,7 @@ export function TaskDetailDialog({
     return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`.toUpperCase();
   };
 
-  // Build list of assignable users
+  // Build list of assignable users (everyone can assign everyone)
   const assignableUsers = [
     ...(user && profile ? [{
       id: user.id,
@@ -170,7 +173,36 @@ export function TaskDetailDialog({
               task.title
             )}
           </DialogTitle>
-          <DialogDescription>{task.client}</DialogDescription>
+          <DialogDescription className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            {isEditing ? (
+              <Select 
+                value={editedTask?.clientId || task.clientId || "internal"} 
+                onValueChange={(v) => {
+                  const client = clients.find(c => c.id === v);
+                  setEditedTask({ 
+                    ...(editedTask || task), 
+                    clientId: v === "internal" ? undefined : v,
+                    client: client?.name || "Internal"
+                  });
+                }}
+              >
+                <SelectTrigger className="w-[200px] h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Internal</SelectItem>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              task.client || "Internal"
+            )}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
@@ -204,17 +236,33 @@ export function TaskDetailDialog({
 
             <div className="flex-1">
               <Label className="text-xs text-muted-foreground mb-2 block">Priority</Label>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-sm py-1 px-3",
-                  currentTask.priority === "high" && "border-destructive/50 text-destructive",
-                  currentTask.priority === "medium" && "border-warning/50 text-warning",
-                  currentTask.priority === "low" && "border-muted-foreground/50"
-                )}
-              >
-                {currentTask.priority}
-              </Badge>
+              {isEditing ? (
+                <Select 
+                  value={editedTask?.priority || task.priority} 
+                  onValueChange={(v) => setEditedTask({ ...(editedTask || task), priority: v as "high" | "medium" | "low" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-sm py-1 px-3",
+                    currentTask.priority === "high" && "border-destructive/50 text-destructive",
+                    currentTask.priority === "medium" && "border-warning/50 text-warning",
+                    currentTask.priority === "low" && "border-muted-foreground/50"
+                  )}
+                >
+                  {currentTask.priority}
+                </Badge>
+              )}
             </div>
           </div>
 

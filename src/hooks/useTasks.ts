@@ -16,6 +16,7 @@ export interface Task {
   title: string;
   description: string | null;
   client_name: string | null;
+  client_id: string | null;
   assignee_id: string | null;
   created_by: string;
   created_by_name?: string;
@@ -77,6 +78,7 @@ export function useTasks() {
         title: task.title,
         description: task.description,
         client_name: task.client_name,
+        client_id: task.client_id,
         assignee_id: task.assignee_id,
         created_by: task.created_by,
         created_by_name: profileMap.get(task.created_by) || "Unknown",
@@ -116,6 +118,7 @@ export function useTasks() {
     title: string;
     description?: string;
     client_name?: string;
+    client_id?: string;
     assignee_ids?: string[];
     priority: "low" | "medium" | "high";
     status: "todo" | "in-progress" | "review" | "done";
@@ -142,6 +145,7 @@ export function useTasks() {
           title: task.title,
           description: task.description,
           client_name: task.client_name,
+          client_id: task.client_id || null,
           created_by: userId,
           priority: task.priority,
           status: task.status,
@@ -230,6 +234,7 @@ export function useTasks() {
         title: data.title,
         description: data.description,
         client_name: data.client_name,
+        client_id: data.client_id,
         assignee_id: data.assignee_id,
         created_by: data.created_by,
         priority: (data.priority as "low" | "medium" | "high") || "medium",
@@ -260,6 +265,7 @@ export function useTasks() {
         title: updates.title,
         description: updates.description,
         client_name: updates.client_name,
+        client_id: updates.client_id,
         priority: updates.priority,
         status: updates.status,
         due_date: updates.due_date,

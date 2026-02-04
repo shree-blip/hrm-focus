@@ -25,6 +25,7 @@ interface TaskUI {
   id: string;
   title: string;
   client: string;
+  clientId?: string;
   priority: "high" | "medium" | "low";
   dueDate: string;
   status: "todo" | "in-progress" | "review" | "done";
@@ -55,6 +56,7 @@ const Tasks = () => {
     id: task.id,
     title: task.title,
     client: task.client_name || "Internal",
+    clientId: task.client_id || undefined,
     priority: (task.priority as "high" | "medium" | "low") || "medium",
     dueDate: task.due_date ? format(new Date(task.due_date), "MMM d") : "No date",
     status: (task.status?.replace("_", "-") as TaskUI["status"]) || "todo",
@@ -73,6 +75,7 @@ const Tasks = () => {
   const handleAddTask = async (task: {
     title: string;
     client?: string;
+    clientId?: string;
     priority: "high" | "medium" | "low";
     dueDate: string;
     status: "todo" | "in-progress" | "review" | "done";
@@ -87,6 +90,7 @@ const Tasks = () => {
     await createTask({
       title: task.title,
       client_name: task.client,
+      client_id: task.clientId,
       priority: task.priority,
       due_date: dueDate,
       status: statusDbMap[task.status] || "todo",
@@ -100,6 +104,7 @@ const Tasks = () => {
     await updateTask(updatedTask.id, {
       title: updatedTask.title,
       client_name: updatedTask.client,
+      client_id: updatedTask.clientId,
       priority: updatedTask.priority,
       status: updatedTask.status,
       time_estimate: updatedTask.timeEstimate,
