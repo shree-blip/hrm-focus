@@ -26,10 +26,191 @@ import {
   Cake,
   PartyPopper,
 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, parseISO } from "date-fns";
-import { cn } from "@/lib/utils";
+
+// Helper arrays for the simple date picker
+const MONTHS = [
+  { value: "0", label: "January" },
+  { value: "1", label: "February" },
+  { value: "2", label: "March" },
+  { value: "3", label: "April" },
+  { value: "4", label: "May" },
+  { value: "5", label: "June" },
+  { value: "6", label: "July" },
+  { value: "7", label: "August" },
+  { value: "8", label: "September" },
+  { value: "9", label: "October" },
+  { value: "10", label: "November" },
+  { value: "11", label: "December" },
+];
+
+const getDaysInMonth = (month: number, year: number) => {
+  return new Date(year, month + 1, 0).getDate();
+};
+
+const generateYearOptions = (startYear: number, endYear: number) => {
+  const years = [];
+  for (let year = endYear; year >= startYear; year--) {
+    years.push(year);
+  }
+  return years;
+};
+
+// Simple Date Picker Component
+interface SimpleDatePickerProps {
+  value: Date | null;
+  onChange: (date: Date | null) => void;
+  minYear?: number;
+  maxYear?: number;
+  placeholder?: string;
+}
+
+const SimpleDatePicker = ({
+  value,
+  onChange,
+  minYear = 1940,
+  maxYear = new Date().getFullYear(),
+  placeholder = "Select date",
+}: SimpleDatePickerProps) => {
+  const [month, setMonth] = useState<string>("");
+  const [day, setDay] = useState<string>("");
+  const [year, setYear] = useState<string>("");
+
+  // Sync internal state with value prop
+  useEffect(() => {
+    if (value) {
+      setMonth(value.getMonth().toString());
+      setDay(value.getDate().toString());
+      setYear(value.getFullYear().toString());
+    } else {
+      setMonth("");
+      setDay("");
+      setYear("");
+    }
+  }, [value]);
+
+  const handleChange = (newMonth: string, newDay: string, newYear: string) => {
+    if (newMonth && newDay && newYear) {
+      const monthNum = parseInt(newMonth);
+      const dayNum = parseInt(newDay);
+      const yearNum = parseInt(newYear);
+
+      // Validate day is within month's range
+      const maxDays = getDaysInMonth(monthNum, yearNum);
+      const validDay = Math.min(dayNum, maxDays);
+
+      const newDate = new Date(yearNum, monthNum, validDay);
+      onChange(newDate);
+    }
+  };
+
+  const handleMonthChange = (newMonth: string) => {
+    setMonth(newMonth);
+    // Adjust day if it exceeds the new month's days
+    if (day && year) {
+      const maxDays = getDaysInMonth(parseInt(newMonth), parseInt(year));
+      if (parseInt(day) > maxDays) {
+        setDay(maxDays.toString());
+        handleChange(newMonth, maxDays.toString(), year);
+      } else {
+        handleChange(newMonth, day, year);
+      }
+    }
+  };
+
+  const handleDayChange = (newDay: string) => {
+    setDay(newDay);
+    handleChange(month, newDay, year);
+  };
+
+  const handleYearChange = (newYear: string) => {
+    setYear(newYear);
+    // Adjust day for leap year changes
+    if (month && day) {
+      const maxDays = getDaysInMonth(parseInt(month), parseInt(newYear));
+      if (parseInt(day) > maxDays) {
+        setDay(maxDays.toString());
+        handleChange(month, maxDays.toString(), newYear);
+      } else {
+        handleChange(month, day, newYear);
+      }
+    }
+  };
+
+  const handleClear = () => {
+    setMonth("");
+    setDay("");
+    setYear("");
+    onChange(null);
+  };
+
+  const currentMaxDays = month && year ? getDaysInMonth(parseInt(month), parseInt(year)) : 31;
+  const days = Array.from({ length: currentMaxDays }, (_, i) => i + 1);
+  const years = generateYearOptions(minYear, maxYear);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        {/* Month Select */}
+        <Select value={month} onValueChange={handleMonthChange}>
+          <SelectTrigger className="flex-1">
+            <SelectValue placeholder="Month" />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTHS.map((m) => (
+              <SelectItem key={m.value} value={m.value}>
+                {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Day Select */}
+        <Select value={day} onValueChange={handleDayChange}>
+          <SelectTrigger className="w-20">
+            <SelectValue placeholder="Day" />
+          </SelectTrigger>
+          <SelectContent>
+            {days.map((d) => (
+              <SelectItem key={d} value={d.toString()}>
+                {d}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Year Select */}
+        <Select value={year} onValueChange={handleYearChange}>
+          <SelectTrigger className="w-24">
+            <SelectValue placeholder="Year" />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map((y) => (
+              <SelectItem key={y} value={y.toString()}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Clear button when date is selected */}
+      {value && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+          onClick={handleClear}
+        >
+          <X className="h-3 w-3 mr-1" />
+          Clear date
+        </Button>
+      )}
+    </div>
+  );
+};
 
 const Profile = () => {
   const { user, profile, role, refreshProfile } = useAuth();
@@ -530,7 +711,7 @@ const Profile = () => {
               <CardDescription>Your birthday and work anniversary for celebrations</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {/* Date of Birth */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
@@ -538,33 +719,12 @@ const Profile = () => {
                     Date of Birth
                   </Label>
                   {isEditing ? (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !formData.date_of_birth && "text-muted-foreground",
-                          )}
-                        >
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {formData.date_of_birth ? format(formData.date_of_birth, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={formData.date_of_birth || undefined}
-                          onSelect={(date) => setFormData((prev) => ({ ...prev, date_of_birth: date || null }))}
-                          disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                          initialFocus
-                          captionLayout="dropdown-buttons"
-                          fromYear={1940}
-                          toYear={new Date().getFullYear()}
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <SimpleDatePicker
+                      value={formData.date_of_birth}
+                      onChange={(date) => setFormData((prev) => ({ ...prev, date_of_birth: date }))}
+                      minYear={1940}
+                      maxYear={new Date().getFullYear()}
+                    />
                   ) : (
                     <Input
                       value={formData.date_of_birth ? format(formData.date_of_birth, "MMMM d, yyyy") : "Not set"}
@@ -581,33 +741,12 @@ const Profile = () => {
                     Company Joining Date
                   </Label>
                   {isEditing ? (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !formData.joining_date && "text-muted-foreground",
-                          )}
-                        >
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {formData.joining_date ? format(formData.joining_date, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={formData.joining_date || undefined}
-                          onSelect={(date) => setFormData((prev) => ({ ...prev, joining_date: date || null }))}
-                          disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                          initialFocus
-                          captionLayout="dropdown-buttons"
-                          fromYear={2000}
-                          toYear={new Date().getFullYear()}
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <SimpleDatePicker
+                      value={formData.joining_date}
+                      onChange={(date) => setFormData((prev) => ({ ...prev, joining_date: date }))}
+                      minYear={2000}
+                      maxYear={new Date().getFullYear()}
+                    />
                   ) : (
                     <Input
                       value={formData.joining_date ? format(formData.joining_date, "MMMM d, yyyy") : "Not set"}
@@ -617,7 +756,25 @@ const Profile = () => {
                   )}
                 </div>
               </div>
-              {!isEditing && (
+
+              {/* Save button for milestone section */}
+              {isEditing ? (
+                <div className="flex justify-end pt-2">
+                  <Button onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
                 <p className="text-xs text-muted-foreground">
                   These dates are used for birthday and work anniversary celebrations. Click "Edit Profile" to update.
                 </p>
