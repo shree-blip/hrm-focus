@@ -38,6 +38,20 @@ const SPECIAL_LEAVE_TYPES: Record<string, number> = {
   "Paternity Leave": 22,
 };
 
+// Leave on Leave types (these don't have fixed days - user specifies)
+const LEAVE_ON_LEAVE_PREFIXES = [
+  "Leave on Leave - Extension Request",
+  "Leave on Leave - Medical Emergency",
+  "Leave on Leave - Family Emergency",
+  "Leave on Leave - Travel Complications",
+  "Leave on Leave - Other Emergency",
+];
+
+// Helper to check if a leave type is "Leave on Leave"
+const isLeaveOnLeaveType = (leaveType: string) => {
+  return leaveType.startsWith("Leave on Leave");
+};
+
 export function useLeaveRequests() {
   const { user, isManager } = useAuth();
   const [ownRequests, setOwnRequests] = useState<LeaveRequest[]>([]);
@@ -249,12 +263,15 @@ export function useLeaveRequests() {
 
     let days: number;
 
+    // Check if it's a special leave type with fixed days
     if (SPECIAL_LEAVE_TYPES[request.leave_type]) {
       days = SPECIAL_LEAVE_TYPES[request.leave_type];
     } else {
+      // For Annual Leave, Leave on Leave, and other types - calculate from dates
       days = Math.ceil((request.end_date.getTime() - request.start_date.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     }
 
+    // Only check balance for Annual Leave (not for Leave on Leave or Special Leave)
     if (request.leave_type === "Annual Leave") {
       const balanceForType = balances.find((b) => b.leave_type === request.leave_type);
       if (balanceForType) {
@@ -298,6 +315,9 @@ export function useLeaveRequests() {
 
     const userName = userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : "Employee";
 
+    // Determine if this is a Leave on Leave request for special handling
+    const isLeaveOnLeave = isLeaveOnLeaveType(request.leave_type);
+
     const { data: newRequest, error } = await supabase
       .from("leave_requests")
       .insert({
@@ -320,19 +340,24 @@ export function useLeaveRequests() {
       });
     } else {
       toast({
-        title: "Request Submitted",
-        description: "Your leave request is pending approval.",
+        title: isLeaveOnLeave ? "Leave on Leave Request Submitted" : "Request Submitted",
+        description: isLeaveOnLeave
+          ? "Your leave on leave request is pending priority approval."
+          : "Your leave request is pending approval.",
       });
 
+      // Create notification for user
       await createNotification(
         user.id,
-        "Leave Request Submitted",
-        `Your ${request.leave_type} request for ${days} day(s) has been submitted and is pending approval.`,
+        isLeaveOnLeave ? "Leave on Leave Request Submitted" : "Leave Request Submitted",
+        isLeaveOnLeave
+          ? `Your Leave on Leave request for ${days} day(s) has been submitted for priority review.`
+          : `Your ${request.leave_type} request for ${days} day(s) has been submitted and is pending approval.`,
         "leave",
         `/leave`,
       );
 
-      // Notify managers
+      // Notify managers - with priority flag for Leave on Leave
       const { data: managers } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -343,8 +368,10 @@ export function useLeaveRequests() {
           if (manager.user_id !== user.id) {
             await createNotification(
               manager.user_id,
-              "New Leave Request",
-              `${userName} submitted a ${request.leave_type} request for ${days} day(s) (${formatLocalDate(request.start_date)} to ${formatLocalDate(request.end_date)}).`,
+              isLeaveOnLeave ? "🚨 Priority: Leave on Leave Request" : "New Leave Request",
+              isLeaveOnLeave
+                ? `PRIORITY: ${userName} submitted a Leave on Leave request for ${days} day(s). Reason: ${request.leave_type.replace("Leave on Leave - ", "")}. Requires immediate attention.`
+                : `${userName} submitted a ${request.leave_type} request for ${days} day(s) (${formatLocalDate(request.start_date)} to ${formatLocalDate(request.end_date)}).`,
               "leave",
               `/leave`,
             );
@@ -400,15 +427,16 @@ export function useLeaveRequests() {
 
       const managerName = managerProfile ? `${managerProfile.first_name} ${managerProfile.last_name}` : "Manager";
       const userName = requestProfile ? `${requestProfile.first_name} ${requestProfile.last_name}` : "Employee";
+      const isLeaveOnLeave = isLeaveOnLeaveType(requestData.leave_type);
 
       toast({
         title: "Approved",
-        description: "Leave request has been approved.",
+        description: isLeaveOnLeave ? "Leave on Leave request has been approved." : "Leave request has been approved.",
       });
 
       await createNotification(
         requestData.user_id,
-        "Leave Request Approved",
+        isLeaveOnLeave ? "Leave on Leave Approved" : "Leave Request Approved",
         `Your ${requestData.leave_type} request for ${requestData.days} day(s) has been approved by ${managerName}.`,
         "leave",
         `/leave`,
@@ -416,7 +444,7 @@ export function useLeaveRequests() {
 
       await createNotification(
         user.id,
-        "Leave Request Approved",
+        isLeaveOnLeave ? "Leave on Leave Approved" : "Leave Request Approved",
         `You approved ${userName}'s ${requestData.leave_type} request for ${requestData.days} day(s).`,
         "leave",
         `/leave`,
@@ -473,16 +501,17 @@ export function useLeaveRequests() {
 
       const managerName = managerProfile ? `${managerProfile.first_name} ${managerProfile.last_name}` : "Manager";
       const userName = requestProfile ? `${requestProfile.first_name} ${requestProfile.last_name}` : "Employee";
+      const isLeaveOnLeave = isLeaveOnLeaveType(requestData.leave_type);
 
       toast({
         title: "Rejected",
-        description: "Leave request has been rejected.",
+        description: isLeaveOnLeave ? "Leave on Leave request has been rejected." : "Leave request has been rejected.",
         variant: "destructive",
       });
 
       await createNotification(
         requestData.user_id,
-        "Leave Request Rejected",
+        isLeaveOnLeave ? "Leave on Leave Rejected" : "Leave Request Rejected",
         `Your ${requestData.leave_type} request for ${requestData.days} day(s) has been rejected by ${managerName}. Reason: ${rejectionReason}`,
         "leave",
         `/leave`,
@@ -490,7 +519,7 @@ export function useLeaveRequests() {
 
       await createNotification(
         user.id,
-        "Leave Request Rejected",
+        isLeaveOnLeave ? "Leave on Leave Rejected" : "Leave Request Rejected",
         `You rejected ${userName}'s ${requestData.leave_type} request. Reason: ${rejectionReason}`,
         "leave",
         `/leave`,
