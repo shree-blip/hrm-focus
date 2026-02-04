@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { Users, Clock, Briefcase, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatTime12h, formatDuration } from "@/lib/timeFormat";
 
 interface LiveLog {
   id: string;
@@ -33,13 +34,7 @@ export function TeamRealtimeDashboard() {
   const [liveLogs, setLiveLogs] = useState<LiveLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const formatTime = (totalMinutes: number) => {
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
-  };
+  const formatTime = formatDuration;
 
   const fetchLiveLogs = async () => {
     try {
@@ -174,7 +169,7 @@ export function TeamRealtimeDashboard() {
                       <Clock className="h-3 w-3" />
                       {formatTime(log.time_spent_minutes)}
                     </span>
-                    {log.start_time && <span>Started: {log.start_time}</span>}
+                    {log.start_time && <span>Started: {formatTime12h(log.start_time)}</span>}
                   </div>
                 </div>
               </div>

@@ -84,21 +84,13 @@ const DEPARTMENTS = [
   "Product",
 ];
 
+import { formatTime12h, getCurrentTime24h, formatDuration } from "@/lib/timeFormat";
+
 /** Get current time as HH:mm */
-const getCurrentTime = (): string => {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-};
+const getCurrentTime = getCurrentTime24h;
 
 /** Format total minutes to human readable */
-const formatTime = (totalMinutes: number) => {
-  if (!totalMinutes || totalMinutes <= 0) return "0m";
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-};
+const formatTime = formatDuration;
 
 // ─── Client Combobox (reusable for both add-dialog and inline edit) ─────────
 interface ClientComboboxProps {
@@ -765,11 +757,11 @@ export default function LogSheet() {
                                 </div>
                                 {log.start_time && (
                                   <p className="text-[11px] text-muted-foreground mt-1 font-mono tabular-nums">
-                                    {log.start_time}
+                                    {formatTime12h(log.start_time)}
                                     {log.end_time ? (
                                       <>
                                         <span className="mx-0.5">→</span>
-                                        {log.end_time}
+                                        {formatTime12h(log.end_time)}
                                       </>
                                     ) : (
                                       <span className="text-green-600 ml-1">ongoing</span>
@@ -925,8 +917,8 @@ export default function LogSheet() {
                                 </Badge>
                                 {log.start_time && (
                                   <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
-                                    {log.start_time}
-                                    {log.end_time ? ` → ${log.end_time}` : " ongoing"}
+                                    {formatTime12h(log.start_time)}
+                                    {log.end_time ? ` → ${formatTime12h(log.end_time)}` : " ongoing"}
                                   </p>
                                 )}
                               </TableCell>
