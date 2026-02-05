@@ -219,7 +219,7 @@ const Leave = () => {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-success-foreground ">Team Members On Leave Today</h3>
+                      <h3 className="font-semibold text-black ">Team Members On Leave Today</h3>
                       <Badge className="bg-success text-success-foreground shadow-sm">
                         {teamLeaveCount} {teamLeaveCount === 1 ? "person" : "people"}
                       </Badge>
