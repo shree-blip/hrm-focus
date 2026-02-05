@@ -311,6 +311,41 @@ export type Database = {
           },
         ]
       }
+      chat_conversation_keys: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          encrypted_key: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          encrypted_key: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          encrypted_key?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversation_keys_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_conversations: {
         Row: {
           created_at: string
@@ -1729,6 +1764,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_encryption_keys: {
+        Row: {
+          created_at: string
+          id: string
+          public_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          public_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          public_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_permission_overrides: {
         Row: {
