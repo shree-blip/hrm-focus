@@ -35,20 +35,25 @@ export function useEncryption() {
   const [publicKey, setPublicKey] = useState<CryptoKey | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [conversationKeys, setConversationKeys] = useState<Map<string, CryptoKey>>(new Map());
+  const [initError, setInitError] = useState<string | null>(null);
 
   // Sync public key to server
   const syncPublicKey = useCallback(async (publicKeyStr: string) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('user_encryption_keys' as any)
-      .upsert(
-        { user_id: user.id, public_key: publicKeyStr, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id' }
-      );
+    try {
+      const { error } = await (supabase
+        .from('user_encryption_keys' as any)
+        .upsert(
+          { user_id: user.id, public_key: publicKeyStr, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        ) as any);
 
-    if (error) {
-      console.error('Error syncing public key:', error);
+      if (error) {
+        console.warn('Error syncing public key (non-critical):', error);
+      }
+    } catch (err) {
+      console.warn('Exception syncing public key (non-critical):', err);
     }
   }, [user]);
 
@@ -86,14 +91,21 @@ export function useEncryption() {
       }
       
       setIsInitialized(true);
+      setInitError(null);
     } catch (error) {
       console.error('Error initializing encryption keys:', error);
+      setInitError('Failed to initialize encryption');
+      // Still mark as initialized to allow fallback to unencrypted messaging
+      setIsInitialized(true);
     }
   }, [user, syncPublicKey]);
 
   // Get conversation key (fetch from server or create new)
   const getConversationKey = useCallback(async (conversationId: string): Promise<CryptoKey | null> => {
-    if (!user || !privateKey) return null;
+    if (!user || !privateKey) {
+      console.log('No user or private key available for conversation key');
+      return null;
+    }
 
     // Check cache first
     const cached = conversationKeys.get(conversationId);
@@ -101,12 +113,12 @@ export function useEncryption() {
 
     try {
       // Try to fetch existing key from server
-      const { data: keyData, error } = await supabase
+      const { data: keyData, error } = await (supabase
         .from('chat_conversation_keys' as any)
         .select('encrypted_key')
         .eq('conversation_id', conversationId)
         .eq('user_id', user.id)
-        .single();
+        .single() as any);
 
       const typedKeyData = keyData as unknown as EncryptedKeyRecord | null;
 
@@ -124,11 +136,11 @@ export function useEncryption() {
         const typedParticipant = participants as unknown as ParticipantRecord | null;
 
         if (typedParticipant) {
-          const { data: creatorKeyData } = await supabase
+          const { data: creatorKeyData } = await (supabase
             .from('user_encryption_keys' as any)
             .select('public_key')
             .eq('user_id', typedParticipant.user_id)
-            .single();
+            .single() as any);
 
           const typedCreatorKey = creatorKeyData as unknown as PublicKeyRecord | null;
 
@@ -159,7 +171,10 @@ export function useEncryption() {
     conversationId: string,
     participantUserIds: string[]
   ): Promise<CryptoKey | null> => {
-    if (!user || !privateKey || !publicKey) return null;
+    if (!user || !privateKey || !publicKey) {
+      console.log('Missing encryption keys, skipping conversation key creation');
+      return null;
+    }
 
     try {
       // Generate new symmetric key for conversation
@@ -168,11 +183,11 @@ export function useEncryption() {
       // For each participant, encrypt the key with shared secret
       for (const participantId of participantUserIds) {
         // Get participant's public key
-        const { data: pubKeyData } = await supabase
+        const { data: pubKeyData } = await (supabase
           .from('user_encryption_keys' as any)
           .select('public_key')
           .eq('user_id', participantId)
-          .single();
+          .single() as any);
 
         const typedPubKey = pubKeyData as unknown as PublicKeyRecord | null;
 
@@ -186,14 +201,16 @@ export function useEncryption() {
           const { encryptedKey, nonce } = await encryptKeyForUser(convKey, sharedKey);
           
           // Store encrypted key for this participant
-          await supabase
+          await (supabase
             .from('chat_conversation_keys' as any)
             .upsert({
               conversation_id: conversationId,
               user_id: participantId,
               encrypted_key: `${encryptedKey}:${nonce}`,
               updated_at: new Date().toISOString(),
-            }, { onConflict: 'conversation_id,user_id' });
+            }, { onConflict: 'conversation_id,user_id' }) as any);
+        } else {
+          console.log(`No public key found for participant ${participantId}, they may not have initialized encryption yet`);
         }
       }
 
@@ -211,10 +228,18 @@ export function useEncryption() {
     plaintext: string,
     conversationId: string
   ): Promise<{ ciphertext: string; nonce: string } | null> => {
-    const key = await getConversationKey(conversationId);
-    if (!key) return null;
+    try {
+      const key = await getConversationKey(conversationId);
+      if (!key) {
+        console.log('No conversation key available, message will be sent unencrypted');
+        return null;
+      }
 
-    return await encryptMessage(plaintext, key);
+      return await encryptMessage(plaintext, key);
+    } catch (error) {
+      console.error('Error encrypting message:', error);
+      return null;
+    }
   }, [getConversationKey]);
 
   // Decrypt a message
@@ -223,10 +248,19 @@ export function useEncryption() {
     nonce: string,
     conversationId: string
   ): Promise<string> => {
-    const key = await getConversationKey(conversationId);
-    if (!key) return '[Unable to decrypt - no key]';
+    try {
+      const key = await getConversationKey(conversationId);
+      if (!key) {
+        // Return the raw content if we can't decrypt
+        // This happens for messages sent before encryption was set up
+        return ciphertext;
+      }
 
-    return await decryptMessage(ciphertext, nonce, key);
+      return await decryptMessage(ciphertext, nonce, key);
+    } catch (error) {
+      console.error('Error decrypting message:', error);
+      return '[Decryption failed]';
+    }
   }, [getConversationKey]);
 
   // Initialize on mount
@@ -243,5 +277,6 @@ export function useEncryption() {
     getConversationKey,
     createConversationKey,
     publicKey,
+    initError,
   };
 }
