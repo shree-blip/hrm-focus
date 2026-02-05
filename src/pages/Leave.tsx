@@ -327,15 +327,17 @@ const Leave = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-orange-500/5 border-orange-500/20 hover:shadow-md transition-shadow">
+        <Card className="bg-success/5 border-success/20 hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Leave on Leave</p>
-                <p className="text-2xl font-bold mt-1">{getLeaveOnLeaveUsed()} days</p>
+                <p className="text-sm font-medium text-muted-foreground">Teams on Leave</p>
+                <p className="text-2xl font-bold mt-1">
+                  {teamLeaveCount} {teamLeaveCount === 1 ? "person" : "people"}
+                </p>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                <Layers className="h-6 w-6 text-orange-500" />
+              <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+                <Users className="h-6 w-6 text-success" />
               </div>
             </div>
           </CardContent>
