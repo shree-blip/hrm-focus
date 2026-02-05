@@ -144,10 +144,16 @@ export function useChat() {
       if (msg.is_encrypted && msg.encrypted_content && msg.nonce) {
         try {
           const decrypted = await decrypt(msg.encrypted_content, msg.nonce, msg.conversation_id);
-          return { ...msg, content: decrypted };
+          // If decryption returns the same ciphertext, show the unencrypted fallback
+          if (decrypted === msg.encrypted_content || decrypted === '[Decryption failed]') {
+            // Try to show content field as fallback (it might be "[Encrypted message]" placeholder)
+            return msg;
+          }
+          return { ...msg, content: decrypted || msg.content };
         } catch (error) {
           console.error("Error decrypting message:", error);
-          return { ...msg, content: "[Unable to decrypt message]" };
+          // Return original message content as fallback
+          return msg;
         }
       }
       return msg;
