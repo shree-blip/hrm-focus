@@ -60,8 +60,10 @@ interface NewHireData {
   role: string;
   department: string;
   startDate: string;
+  location: string;
   phone?: string;
   salary?: number;
+  payType?: string;
 }
 
 const DEFAULT_ONBOARDING_TASKS: Array<{
@@ -270,11 +272,13 @@ export function useOnboarding() {
           email: hireData.email.toLowerCase().trim(),
           job_title: hireData.role.trim(),
           department: hireData.department,
+          location: hireData.location || "US", // US or Nepal
           phone: hireData.phone?.trim() || null,
           status: "probation" as const, // New hires start in probation (valid: active, probation, inactive, on_leave)
           hire_date: hireData.startDate,
-          pay_type: "salary" as const, // Default to salary (valid: hourly, salary, contractor)
-          ...(hireData.salary && { salary: hireData.salary }),
+          pay_type: hireData.payType || "salary", // Valid: hourly, salary, contractor
+          ...(hireData.salary && hireData.payType === "hourly" ? { hourly_rate: hireData.salary } : {}),
+          ...(hireData.salary && hireData.payType !== "hourly" ? { salary: hireData.salary } : {}),
         };
 
         const { data: newEmployee, error: employeeError } = await supabase
@@ -550,13 +554,6 @@ export function useOnboarding() {
         const completedCount = allTasks.filter((t) => t.is_completed).length - 1;
         const newStatus = completedCount > 0 ? "in-progress" : "pending";
 
-        // Get current workflow status to check if it was completed
-        const { data: currentWorkflow } = await supabase
-          .from("onboarding_workflows")
-          .select("employee_id, status")
-          .eq("id", task.workflow_id)
-          .single();
-
         await supabase
           .from("onboarding_workflows")
           .update({
@@ -565,12 +562,20 @@ export function useOnboarding() {
           })
           .eq("id", task.workflow_id);
 
-        // If workflow was previously completed, revert employee status to probation
-        if (currentWorkflow && currentWorkflow.status === "completed") {
-          await supabase
-            .from("employees")
-            .update({ status: "probation" }) // Revert to probation
-            .eq("id", currentWorkflow.employee_id);
+        // If workflow was completed, revert employee status to probation
+        if (newStatus === "in-progress") {
+          const { data: workflow } = await supabase
+            .from("onboarding_workflows")
+            .select("employee_id")
+            .eq("id", task.workflow_id)
+            .single();
+
+          if (workflow) {
+            await supabase
+              .from("employees")
+              .update({ status: "probation" }) // Revert to probation
+              .eq("id", workflow.employee_id);
+          }
         }
       }
 
