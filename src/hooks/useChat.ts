@@ -330,8 +330,8 @@ export function useChat() {
       }
 
       try {
-        // Use RPC function to create conversation atomically
-        const { data: conversationId, error: rpcError } = await supabase.rpc("create_dm_conversation", {
+        // Use RPC function to create conversation atomically (type assertion needed for custom RPC)
+        const { data: conversationId, error: rpcError } = await (supabase.rpc as any)("create_dm_conversation", {
           _other_user_id: otherUserId,
         });
 
@@ -346,7 +346,7 @@ export function useChat() {
 
         // Create encryption key for this conversation
         try {
-          await createConversationKey(conversationId, [user.id, otherUserId]);
+          await createConversationKey(conversationId as string, [user.id, otherUserId]);
         } catch (encryptError) {
           console.warn("Could not create encryption key:", encryptError);
         }
@@ -355,7 +355,7 @@ export function useChat() {
         const { data: newConvData, error: fetchError } = await supabase
           .from("chat_conversations")
           .select("*")
-          .eq("id", conversationId)
+          .eq("id", conversationId as string)
           .single();
 
         if (fetchError) {
@@ -398,8 +398,8 @@ export function useChat() {
       if (!user) return null;
 
       try {
-        // Use RPC function to create group atomically
-        const { data: conversationId, error: rpcError } = await supabase.rpc("create_group_conversation", {
+        // Use RPC function to create group atomically (type assertion needed for custom RPC)
+        const { data: conversationId, error: rpcError } = await (supabase.rpc as any)("create_group_conversation", {
           _name: name,
           _member_ids: memberUserIds,
         });
@@ -416,7 +416,7 @@ export function useChat() {
         // Create encryption key for all members
         const allMembers = [user.id, ...memberUserIds];
         try {
-          await createConversationKey(conversationId, allMembers);
+          await createConversationKey(conversationId as string, allMembers);
         } catch (encryptError) {
           console.warn("Could not create encryption key:", encryptError);
         }
@@ -448,7 +448,8 @@ export function useChat() {
       if (!user) return false;
 
       try {
-        const { error: rpcError } = await supabase.rpc("add_group_member", {
+        // Type assertion needed for custom RPC function
+        const { error: rpcError } = await (supabase.rpc as any)("add_group_member", {
           _conversation_id: conversationId,
           _new_member_id: userId,
         });
@@ -520,7 +521,7 @@ export function useChat() {
           // Continue with unencrypted message
         }
 
-        const { error } = await supabase.from("chat_messages").insert(messageData);
+        const { error } = await supabase.from("chat_messages").insert(messageData as any);
 
         if (error) {
           console.error("Error inserting message:", error);
