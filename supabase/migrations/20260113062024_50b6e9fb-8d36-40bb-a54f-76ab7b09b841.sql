@@ -134,3 +134,21 @@ CREATE TRIGGER update_chat_messages_updated_at
 BEFORE UPDATE ON public.chat_messages
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Add encryption columns to chat_messages if they don't exist
+-- Run this AFTER the main chat_system_fix.sql
+
+-- Add encryption columns
+ALTER TABLE public.chat_messages 
+ADD COLUMN IF NOT EXISTS is_encrypted BOOLEAN DEFAULT false;
+
+ALTER TABLE public.chat_messages 
+ADD COLUMN IF NOT EXISTS encrypted_content TEXT;
+
+ALTER TABLE public.chat_messages 
+ADD COLUMN IF NOT EXISTS nonce TEXT;
+
+-- Create index for faster queries on encrypted messages
+CREATE INDEX IF NOT EXISTS idx_chat_messages_encrypted 
+ON public.chat_messages(is_encrypted) 
+WHERE is_encrypted = true;
