@@ -231,13 +231,18 @@ export function ChatWidget() {
                                 ? "bg-primary text-primary-foreground rounded-br-none" 
                                 : "bg-muted rounded-bl-none"
                             )}>
-                              {message.content}
+                            {message.content === '[Encrypted message]' && !message.is_encrypted 
+                              ? message.content 
+                              : message.content}
                             </div>
                             <p className={cn(
                               "text-[10px] text-muted-foreground",
                               isOwn && "text-right"
                             )}>
                               {format(new Date(message.created_at), 'HH:mm')}
+                            {message.is_encrypted && (
+                              <span className="ml-1" title="End-to-end encrypted">🔒</span>
+                            )}
                             </p>
                           </div>
                         </div>
