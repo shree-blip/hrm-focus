@@ -13,8 +13,10 @@ interface NewHireData {
   role: string;
   department: string;
   startDate: string;
+  location: string;
   phone?: string;
   salary?: number;
+  payType?: string;
 }
 
 interface NewHireDialogProps {
@@ -48,8 +50,10 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("");
   const [department, setDepartment] = useState("");
+  const [location, setLocation] = useState("");
   const [startDate, setStartDate] = useState("");
   const [salary, setSalary] = useState("");
+  const [payType, setPayType] = useState("salary");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -73,6 +77,9 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
     if (!department) {
       newErrors.department = "Department is required";
     }
+    if (!location) {
+      newErrors.location = "Location is required";
+    }
     if (!startDate) {
       newErrors.startDate = "Start date is required";
     }
@@ -88,8 +95,10 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
     setPhone("");
     setRole("");
     setDepartment("");
+    setLocation("");
     setStartDate("");
     setSalary("");
+    setPayType("salary");
     setErrors({});
   };
 
@@ -110,8 +119,10 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
         phone: phone.trim() || undefined,
         role: role.trim(),
         department,
+        location,
         startDate,
         salary: salary ? parseFloat(salary) : undefined,
+        payType,
       });
 
       // Only close and reset if successful (result is truthy)
@@ -242,8 +253,8 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
             {errors.role && <p className="text-xs text-destructive">{errors.role}</p>}
           </div>
 
-          {/* Department and Start Date Row */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Department, Location, and Start Date Row */}
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>
                 Department <span className="text-destructive">*</span>
@@ -271,6 +282,29 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
             </div>
 
             <div className="space-y-2">
+              <Label>
+                Location <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={location}
+                onValueChange={(value) => {
+                  setLocation(value);
+                  if (errors.location) setErrors((prev) => ({ ...prev, location: "" }));
+                }}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger className={errors.location ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="US">🇺🇸 United States</SelectItem>
+                  <SelectItem value="Nepal">🇳🇵 Nepal</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.location && <p className="text-xs text-destructive">{errors.location}</p>}
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="startDate">
                 Start Date <span className="text-destructive">*</span>
               </Label>
@@ -290,22 +324,38 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
             </div>
           </div>
 
-          {/* Salary (Optional) */}
-          <div className="space-y-2">
-            <Label htmlFor="salary">Annual Salary (Optional)</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-              <Input
-                id="salary"
-                type="number"
-                placeholder="50000"
-                value={salary}
-                onChange={(e) => setSalary(e.target.value)}
-                className="pl-7"
-                disabled={isSubmitting}
-                min="0"
-                step="1000"
-              />
+          {/* Pay Type and Salary Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Pay Type</Label>
+              <Select value={payType} onValueChange={setPayType} disabled={isSubmitting}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select pay type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="salary">Salary</SelectItem>
+                  <SelectItem value="hourly">Hourly</SelectItem>
+                  <SelectItem value="contractor">Contractor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="salary">{payType === "hourly" ? "Hourly Rate" : "Annual Salary"}</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  id="salary"
+                  type="number"
+                  placeholder={payType === "hourly" ? "25" : "50000"}
+                  value={salary}
+                  onChange={(e) => setSalary(e.target.value)}
+                  className="pl-7"
+                  disabled={isSubmitting}
+                  min="0"
+                  step={payType === "hourly" ? "0.5" : "1000"}
+                />
+              </div>
             </div>
           </div>
 
