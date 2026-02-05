@@ -1,162 +1,332 @@
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, UserPlus } from "lucide-react";
+
+interface NewHireData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  department: string;
+  startDate: string;
+  phone?: string;
+  salary?: number;
+}
 
 interface NewHireDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (hire: {
-    name: string;
-    initials: string;
-    role: string;
-    department: string;
-    startDate: string;
-    progress: number;
-    status: string;
-    tasks: { name: string; completed: boolean }[];
-  }) => void;
+  onSubmit: (hire: NewHireData) => Promise<any>;
 }
 
-export function NewHireDialog({
-  open,
-  onOpenChange,
-  onSubmit,
-}: NewHireDialogProps) {
-  const [name, setName] = useState("");
+const DEPARTMENTS = [
+  "Executive",
+  "Accounting",
+  "Tax",
+  "Operations",
+  "Marketing",
+  "IT",
+  "Human Resources",
+  "Sales",
+  "Customer Support",
+  "Finance",
+  "Legal",
+  "Engineering",
+  "Product",
+  "Design",
+  "Focus Data",
+];
+
+export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogProps) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [role, setRole] = useState("");
   const [department, setDepartment] = useState("");
   const [startDate, setStartDate] = useState("");
+  const [salary, setSalary] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!name || !role || !department || !startDate) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
+    if (!firstName.trim()) {
+      newErrors.firstName = "First name is required";
+    }
+    if (!lastName.trim()) {
+      newErrors.lastName = "Last name is required";
+    }
+    if (!email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = "Please enter a valid email address";
+    }
+    if (!role.trim()) {
+      newErrors.role = "Job title is required";
+    }
+    if (!department) {
+      newErrors.department = "Department is required";
+    }
+    if (!startDate) {
+      newErrors.startDate = "Start date is required";
     }
 
-    onSubmit({
-      name,
-      initials: getInitials(name),
-      role,
-      department,
-      startDate,
-      progress: 0,
-      status: "pending",
-      tasks: [
-        { name: "Send Offer Letter", completed: false },
-        { name: "Background Check", completed: false },
-        { name: "Sign NDA", completed: false },
-        { name: "IT Setup Request", completed: false },
-        { name: "Schedule Orientation", completed: false },
-      ],
-    });
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    // Reset form
-    setName("");
+  const resetForm = () => {
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setPhone("");
     setRole("");
     setDepartment("");
     setStartDate("");
-    onOpenChange(false);
-
-    toast({
-      title: "New Hire Added",
-      description: `${name} has been added to onboarding.`,
-    });
+    setSalary("");
+    setErrors({});
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const result = await onSubmit({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim() || undefined,
+        role: role.trim(),
+        department,
+        startDate,
+        salary: salary ? parseFloat(salary) : undefined,
+      });
+
+      // Only close and reset if successful (result is truthy)
+      if (result) {
+        resetForm();
+        onOpenChange(false);
+      }
+    } catch (error) {
+      console.error("Error submitting new hire:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!isSubmitting) {
+      resetForm();
+      onOpenChange(false);
+    }
+  };
+
+  // Set minimum date to today
+  const today = new Date().toISOString().split("T")[0];
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Add New Hire</DialogTitle>
+          <DialogTitle className="font-display text-xl flex items-center gap-2">
+            <UserPlus className="h-5 w-5" />
+            Add New Hire
+          </DialogTitle>
           <DialogDescription>
-            Enter details for the new employee to start onboarding.
+            Enter the new employee's details to start the onboarding process. An employee record will be created
+            automatically.
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          {/* Name Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">
+                First Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="firstName"
+                placeholder="John"
+                value={firstName}
+                onChange={(e) => {
+                  setFirstName(e.target.value);
+                  if (errors.firstName) setErrors((prev) => ({ ...prev, firstName: "" }));
+                }}
+                className={errors.firstName ? "border-destructive" : ""}
+                disabled={isSubmitting}
+              />
+              {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lastName">
+                Last Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="lastName"
+                placeholder="Doe"
+                value={lastName}
+                onChange={(e) => {
+                  setLastName(e.target.value);
+                  if (errors.lastName) setErrors((prev) => ({ ...prev, lastName: "" }));
+                }}
+                className={errors.lastName ? "border-destructive" : ""}
+                disabled={isSubmitting}
+              />
+              {errors.lastName && <p className="text-xs text-destructive">{errors.lastName}</p>}
+            </div>
+          </div>
+
+          {/* Email */}
           <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
+            <Label htmlFor="email">
+              Email Address <span className="text-destructive">*</span>
+            </Label>
             <Input
-              id="name"
-              placeholder="Enter full name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              id="email"
+              type="email"
+              placeholder="john.doe@company.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errors.email) setErrors((prev) => ({ ...prev, email: "" }));
+              }}
+              className={errors.email ? "border-destructive" : ""}
+              disabled={isSubmitting}
+            />
+            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+          </div>
+
+          {/* Phone */}
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone Number</Label>
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="+1 (555) 123-4567"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              disabled={isSubmitting}
             />
           </div>
 
+          {/* Role */}
           <div className="space-y-2">
-            <Label htmlFor="role">Role / Position</Label>
+            <Label htmlFor="role">
+              Job Title / Role <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="role"
-              placeholder="e.g., Staff Accountant"
+              placeholder="e.g., Software Engineer, Staff Accountant"
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(e) => {
+                setRole(e.target.value);
+                if (errors.role) setErrors((prev) => ({ ...prev, role: "" }));
+              }}
+              className={errors.role ? "border-destructive" : ""}
+              disabled={isSubmitting}
             />
+            {errors.role && <p className="text-xs text-destructive">{errors.role}</p>}
           </div>
 
+          {/* Department and Start Date Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>
+                Department <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={department}
+                onValueChange={(value) => {
+                  setDepartment(value);
+                  if (errors.department) setErrors((prev) => ({ ...prev, department: "" }));
+                }}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger className={errors.department ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEPARTMENTS.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.department && <p className="text-xs text-destructive">{errors.department}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="startDate">
+                Start Date <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="startDate"
+                type="date"
+                min={today}
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  if (errors.startDate) setErrors((prev) => ({ ...prev, startDate: "" }));
+                }}
+                className={errors.startDate ? "border-destructive" : ""}
+                disabled={isSubmitting}
+              />
+              {errors.startDate && <p className="text-xs text-destructive">{errors.startDate}</p>}
+            </div>
+          </div>
+
+          {/* Salary (Optional) */}
           <div className="space-y-2">
-            <Label>Department</Label>
-            <Select value={department} onValueChange={setDepartment}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Executive">Executive</SelectItem>
-                <SelectItem value="Accounting">Accounting</SelectItem>
-                <SelectItem value="Tax">Tax</SelectItem>
-                <SelectItem value="Operations">Operations</SelectItem>
-                <SelectItem value="Marketing">Marketing</SelectItem>
-                <SelectItem value="IT">IT</SelectItem>
-                <SelectItem value="Focus Data">Focus Data</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="salary">Annual Salary (Optional)</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <Input
+                id="salary"
+                type="number"
+                placeholder="50000"
+                value={salary}
+                onChange={(e) => setSalary(e.target.value)}
+                className="pl-7"
+                disabled={isSubmitting}
+                min="0"
+                step="1000"
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="startDate">Start Date</Label>
-            <Input
-              id="startDate"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">Add New Hire</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add New Hire
+                </>
+              )}
+            </Button>
           </div>
         </form>
       </DialogContent>
