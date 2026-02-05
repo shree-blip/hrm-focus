@@ -314,6 +314,7 @@ export type Database = {
       chat_conversations: {
         Row: {
           created_at: string
+          description: string | null
           id: string
           is_group: boolean
           name: string | null
@@ -322,6 +323,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           id?: string
           is_group?: boolean
           name?: string | null
@@ -330,6 +332,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           id?: string
           is_group?: boolean
           name?: string | null
@@ -351,8 +354,11 @@ export type Database = {
           content: string
           conversation_id: string
           created_at: string
+          encrypted_content: string | null
           id: string
+          is_encrypted: boolean | null
           is_read: boolean
+          nonce: string | null
           sender_id: string
           updated_at: string
         }
@@ -360,8 +366,11 @@ export type Database = {
           content: string
           conversation_id: string
           created_at?: string
+          encrypted_content?: string | null
           id?: string
+          is_encrypted?: boolean | null
           is_read?: boolean
+          nonce?: string | null
           sender_id: string
           updated_at?: string
         }
@@ -369,8 +378,11 @@ export type Database = {
           content?: string
           conversation_id?: string
           created_at?: string
+          encrypted_content?: string | null
           id?: string
+          is_encrypted?: boolean | null
           is_read?: boolean
+          nonce?: string | null
           sender_id?: string
           updated_at?: string
         }
@@ -2216,6 +2228,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_group_member: {
+        Args: { _conversation_id: string; _new_member_id: string }
+        Returns: boolean
+      }
       auto_clock_out_after_8_hours: { Args: never; Returns: number }
       can_create_employee: { Args: { _user_id: string }; Returns: boolean }
       can_manage_task: {
@@ -2236,6 +2252,14 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      create_dm_conversation: {
+        Args: { _other_user_id: string }
+        Returns: string
+      }
+      create_group_conversation: {
+        Args: { _member_ids: string[]; _name: string }
+        Returns: string
+      }
       get_all_user_ids_for_sharing: { Args: never; Returns: string[] }
       get_employee_id_for_user: { Args: { _user_id: string }; Returns: string }
       get_management_user_ids: { Args: never; Returns: string[] }
