@@ -2034,6 +2034,7 @@ export type Database = {
           start_time: string | null
           status: string | null
           task_description: string
+          task_id: string | null
           time_spent_minutes: number
           updated_at: string
           user_id: string
@@ -2051,6 +2052,7 @@ export type Database = {
           start_time?: string | null
           status?: string | null
           task_description: string
+          task_id?: string | null
           time_spent_minutes?: number
           updated_at?: string
           user_id: string
@@ -2068,6 +2070,7 @@ export type Database = {
           start_time?: string | null
           status?: string | null
           task_description?: string
+          task_id?: string | null
           time_spent_minutes?: number
           updated_at?: string
           user_id?: string
@@ -2106,6 +2109,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_logs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
