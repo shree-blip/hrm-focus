@@ -1,4 +1,4 @@
-import { Calendar as CalendarIcon, Briefcase, Star, Cake, Sparkles, AlertCircle, X, Plus, Bell, Clock } from "lucide-react";
+import { Calendar as CalendarIcon, Briefcase, Star, Cake, Sparkles, AlertCircle, X, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
 import { useMilestones } from "@/hooks/useMilestones";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { useCalendarEvents, CalendarEvent } from "@/hooks/useCalendarEvents";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { useAuth } from "@/contexts/AuthContext";
 import { AddCalendarEventDialog } from "@/components/dashboard/AddCalendarEventDialog";
@@ -192,7 +192,10 @@ const typeConfig = {
   },
 };
 
-const customEventTypeConfig: Record<string, { label: string; dot: string; badge: string; iconBg: string; iconColor: string; icon: typeof CalendarIcon }> = {
+const customEventTypeConfig: Record<
+  string,
+  { label: string; dot: string; badge: string; iconBg: string; iconColor: string; icon: typeof CalendarIcon }
+> = {
   event: {
     label: "Event",
     dot: "bg-blue-500",
@@ -201,21 +204,22 @@ const customEventTypeConfig: Record<string, { label: string; dot: string; badge:
     iconColor: "text-blue-600 dark:text-blue-400",
     icon: CalendarIcon,
   },
-  reminder: {
-    label: "Reminder",
-    dot: "bg-purple-500",
-    badge: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-800",
-    iconBg: "bg-purple-100 dark:bg-purple-950/40",
-    iconColor: "text-purple-600 dark:text-purple-400",
-    icon: Bell,
+  holiday: {
+    label: "Holiday",
+    dot: "bg-amber-500",
+    badge: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800",
+    iconBg: "bg-amber-100 dark:bg-amber-950/40",
+    iconColor: "text-amber-600 dark:text-amber-400",
+    icon: Star,
   },
   deadline: {
     label: "Deadline",
-    dot: "bg-red-500",
-    badge: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800",
-    iconBg: "bg-red-100 dark:bg-red-950/40",
-    iconColor: "text-red-600 dark:text-red-400",
-    icon: Clock,
+    dot: "bg-orange-500",
+    badge:
+      "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800",
+    iconBg: "bg-orange-100 dark:bg-orange-950/40",
+    iconColor: "text-orange-600 dark:text-orange-400",
+    icon: AlertCircle,
   },
 };
 
@@ -223,7 +227,7 @@ const customEventTypeConfig: Record<string, { label: string; dot: string; badge:
 // CUSTOM DAY CELL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function CustomDayCell({ date, hasCustomEvent }: { date: Date; hasCustomEvent: boolean }) {
+function CustomDayCell({ date, customEventsForDate }: { date: Date; customEventsForDate: CalendarEvent[] }) {
   const entries = getEntriesForDate(date);
   const isDayOff = isWeekend(date) || isNamedHoliday(date);
   const isDeadline = isDeadlineDate(date);
@@ -234,12 +238,17 @@ function CustomDayCell({ date, hasCustomEvent }: { date: Date; hasCustomEvent: b
   const deadlineEntries = entries.filter((e) => e.type === "deadline");
   const holidayEntries = entries.filter((e) => e.type === "holiday" || e.type === "optional");
 
+  // Check if there are custom events and deadlines
+  const hasCustomEvent = customEventsForDate.some((e) => e.event_type === "event");
+  const hasCustomHoliday = customEventsForDate.some((e) => e.event_type === "holiday");
+  const hasCustomDeadline = customEventsForDate.some((e) => e.event_type === "deadline");
+
   return (
     <div
       className={cn(
         "relative h-full w-full flex flex-col items-center justify-center p-1",
         isToday && "bg-accent text-accent-foreground",
-        isDayOff && !isToday && "bg-amber-50 dark:bg-amber-950/20",
+        (isDayOff || hasCustomHoliday) && !isToday && "bg-amber-50 dark:bg-amber-950/20",
       )}
     >
       <div className={cn("text-sm font-medium mb-0.5", isToday && "font-bold")}>{day}</div>
@@ -269,16 +278,47 @@ function CustomDayCell({ date, hasCustomEvent }: { date: Date; hasCustomEvent: b
           <div className="text-[8px] text-muted-foreground">+{deadlineEntries.length - 2} more</div>
         )}
 
-        {/* Custom event indicator */}
-        {hasCustomEvent && (
-          <div className="flex items-center gap-0.5 w-full justify-center">
-            <div className="h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-            <span className="text-[8px] font-medium text-blue-700 dark:text-blue-400">Custom</span>
-          </div>
+        {/* Custom events - show actual titles with proper colors */}
+        {customEventsForDate.slice(0, 2).map((event) => {
+          const eventTypeColors = {
+            event: "text-blue-700 dark:text-blue-400",
+            holiday: "text-amber-700 dark:text-amber-400",
+            deadline: "text-orange-700 dark:text-orange-400",
+          };
+          const dotColors = {
+            event: "bg-blue-500",
+            deadline: "bg-orange-500",
+          };
+          const colorClass = eventTypeColors[event.event_type as keyof typeof eventTypeColors] || eventTypeColors.event;
+          const dotClass = dotColors[event.event_type as keyof typeof dotColors] || dotColors.event;
+
+          return (
+            <div key={event.id} className="flex items-center gap-0.5 w-full justify-center">
+              {event.event_type === "holiday" ? (
+                <Star className="h-2.5 w-2.5 text-amber-500 flex-shrink-0" />
+              ) : (
+                <div className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", dotClass)} />
+              )}
+              <span className={cn("text-[8px] font-medium truncate text-center", colorClass)}>
+                {event.title.substring(0, 15)}
+                {event.title.length > 15 ? "..." : ""}
+              </span>
+            </div>
+          );
+        })}
+
+        {customEventsForDate.length > 2 && (
+          <div className="text-[8px] text-muted-foreground">+{customEventsForDate.length - 2} more</div>
         )}
       </div>
 
-      {isDeadline && !isDayOff && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-b" />}
+      {/* Bottom underlines for different event types */}
+      {(isDeadline || hasCustomDeadline) && !isDayOff && !hasCustomHoliday && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-b" />
+      )}
+      {hasCustomEvent && !isDeadline && !hasCustomDeadline && !isDayOff && !hasCustomHoliday && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-b" />
+      )}
     </div>
   );
 }
@@ -396,12 +436,21 @@ export function CompanyCalendar() {
     isCustomEventDate,
   } = useCalendarEvents();
 
+  // Helper to get custom events for a specific date
+  const getCustomEventsForDate = (date: Date) => {
+    return customEvents.filter((e) => {
+      const eventDate = new Date(e.event_date + "T00:00:00");
+      return eventDate.toDateString() === date.toDateString();
+    });
+  };
+
   // ── Selected date data ────────────────────────────────────────────────
   const selectedEntries = selectedDate ? getEntriesForDate(selectedDate) : [];
   const selectedMilestones = selectedDate ? getMilestonesForDate(selectedDate) : [];
   const selectedCustomEvents = selectedDate ? getEventsForDate(selectedDate) : [];
   const isSelectedWeekend = selectedDate ? isWeekend(selectedDate) : false;
-  const hasSelectedInfo = selectedEntries.length > 0 || selectedMilestones.length > 0 || isSelectedWeekend || selectedCustomEvents.length > 0;
+  const hasSelectedInfo =
+    selectedEntries.length > 0 || selectedMilestones.length > 0 || isSelectedWeekend || selectedCustomEvents.length > 0;
 
   // ── Month data ────────────────────────────────────────────────────────
   const monthEntries = getEntriesForMonth(calendarMonth);
@@ -420,7 +469,15 @@ export function CompanyCalendar() {
       date: Date;
       label: string;
       sublabel?: string;
-      kind: "holiday" | "deadline" | "optional" | "birthday" | "anniversary" | "custom-event" | "custom-reminder" | "custom-deadline";
+      kind:
+        | "holiday"
+        | "deadline"
+        | "optional"
+        | "birthday"
+        | "anniversary"
+        | "custom-event"
+        | "custom-holiday"
+        | "custom-deadline";
     }> = [];
 
     calendarEntries
@@ -457,7 +514,12 @@ export function CompanyCalendar() {
           date: eventDate,
           label: e.title,
           sublabel: e.description || undefined,
-          kind: e.event_type === "deadline" ? "custom-deadline" : e.event_type === "reminder" ? "custom-reminder" : "custom-event",
+          kind:
+            e.event_type === "deadline"
+              ? "custom-deadline"
+              : e.event_type === "holiday"
+                ? "custom-holiday"
+                : "custom-event",
         });
       });
 
@@ -474,9 +536,46 @@ export function CompanyCalendar() {
       dayOffMilestone: (date: Date) => (isWeekend(date) || isNamedHoliday(date)) && isMilestoneDate(date),
       deadlineMilestone: (date: Date) =>
         isDeadlineDate(date) && isMilestoneDate(date) && !isWeekend(date) && !isNamedHoliday(date),
-      customEvent: (date: Date) => isCustomEventDate(date) && !isMilestoneDate(date) && !isNamedHoliday(date) && !isDeadlineDate(date) && !isWeekend(date),
+      customEvent: (date: Date) => {
+        const events = customEvents.filter((e) => {
+          const eventDate = new Date(e.event_date + "T00:00:00");
+          return eventDate.toDateString() === date.toDateString();
+        });
+        return (
+          events.some((e) => e.event_type === "event") &&
+          !isMilestoneDate(date) &&
+          !isNamedHoliday(date) &&
+          !isDeadlineDate(date) &&
+          !isWeekend(date)
+        );
+      },
+      customHoliday: (date: Date) => {
+        const events = customEvents.filter((e) => {
+          const eventDate = new Date(e.event_date + "T00:00:00");
+          return eventDate.toDateString() === date.toDateString();
+        });
+        return (
+          events.some((e) => e.event_type === "holiday") &&
+          !isMilestoneDate(date) &&
+          !isNamedHoliday(date) &&
+          !isWeekend(date)
+        );
+      },
+      customDeadline: (date: Date) => {
+        const events = customEvents.filter((e) => {
+          const eventDate = new Date(e.event_date + "T00:00:00");
+          return eventDate.toDateString() === date.toDateString();
+        });
+        return (
+          events.some((e) => e.event_type === "deadline") &&
+          !isMilestoneDate(date) &&
+          !isNamedHoliday(date) &&
+          !isDeadlineDate(date) &&
+          !isWeekend(date)
+        );
+      },
     }),
-    [isMilestoneDate, isCustomEventDate],
+    [isMilestoneDate, customEvents],
   );
 
   const calendarModifierStyles = {
@@ -514,10 +613,21 @@ export function CompanyCalendar() {
       fontWeight: "600" as const,
       borderRadius: "6px",
     },
+    customHoliday: {
+      backgroundColor: "hsl(45 93% 47% / 0.15)",
+      color: "hsl(45 80% 28%)",
+      fontWeight: "bold" as const,
+      borderRadius: "6px",
+    },
+    customDeadline: {
+      borderBottom: "2.5px solid hsl(25 95% 53%)",
+      fontWeight: "600" as const,
+      borderRadius: "6px",
+    },
   };
 
   const upcomingCount = upcomingAll.length;
-  const holidayTabCount = monthHolidays.length + monthDeadlines.length;
+  const holidayTabCount = monthHolidays.length + monthDeadlines.length + monthCustomEvents.length;
   const milestoneTabCount = monthMilestones.length;
 
   // ── Handlers ──────────────────────────────────────────────────────────
@@ -593,7 +703,7 @@ export function CompanyCalendar() {
             modifiers={calendarModifiers}
             modifiersStyles={calendarModifierStyles}
             components={{
-              Day: ({ date }) => <CustomDayCell date={date} hasCustomEvent={isCustomEventDate(date)} />,
+              Day: ({ date }) => <CustomDayCell date={date} customEventsForDate={getCustomEventsForDate(date)} />,
             }}
           />
 
@@ -643,7 +753,9 @@ export function CompanyCalendar() {
                 const cfg = typeConfig[entry.type];
                 return (
                   <div key={`sel-${i}`} className={cn("p-2.5 rounded-lg border flex items-center gap-2.5", cfg.badge)}>
-                    <div className={cn("w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0", cfg.iconBg)}>
+                    <div
+                      className={cn("w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0", cfg.iconBg)}
+                    >
                       {entry.type === "deadline" ? (
                         <AlertCircle className={cn("h-3 w-3", cfg.iconColor)} />
                       ) : (
@@ -667,7 +779,9 @@ export function CompanyCalendar() {
                 const IconComp = cfg.icon;
                 return (
                   <div key={event.id} className={cn("p-2.5 rounded-lg border flex items-center gap-2.5", cfg.badge)}>
-                    <div className={cn("w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0", cfg.iconBg)}>
+                    <div
+                      className={cn("w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0", cfg.iconBg)}
+                    >
                       <IconComp className={cn("h-3 w-3", cfg.iconColor)} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -687,7 +801,11 @@ export function CompanyCalendar() {
                   key={m.id}
                   className="p-2.5 rounded-lg border bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 flex items-center gap-2.5"
                 >
-                  <MilestoneAvatar avatarPath={m.avatar_url} name={m.employee_name} isBirthday={m.type === "birthday"} />
+                  <MilestoneAvatar
+                    avatarPath={m.avatar_url}
+                    name={m.employee_name}
+                    isBirthday={m.type === "birthday"}
+                  />
                   <div className="min-w-0">
                     <p className="font-semibold text-sm text-emerald-800 dark:text-emerald-300 truncate">
                       {m.employee_name}
@@ -720,7 +838,7 @@ export function CompanyCalendar() {
                 className="w-2.5 h-2.5 rounded-sm"
                 style={{ backgroundColor: "hsl(45 93% 47% / 0.25)", border: "1px solid hsl(45 93% 47% / 0.4)" }}
               />
-              Day Off
+              Holiday
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-sm border-b-2" style={{ borderBottomColor: "hsl(25 95% 53%)" }} />
@@ -734,11 +852,8 @@ export function CompanyCalendar() {
               Milestone
             </span>
             <span className="flex items-center gap-1.5">
-              <span
-                className="w-2.5 h-2.5 rounded-sm"
-                style={{ backgroundColor: "hsl(217 91% 60% / 0.22)", border: "1px solid hsl(217 91% 60% / 0.35)" }}
-              />
-              Custom Event
+              <span className="w-2.5 h-2.5 rounded-sm border-b-2" style={{ borderBottomColor: "hsl(217 91% 60%)" }} />
+              Event
             </span>
           </div>
 
@@ -778,7 +893,8 @@ export function CompanyCalendar() {
                   upcomingAll.map((item) => {
                     const days = getDaysUntil(item.date);
                     const isToday = days === 0;
-                    const isUrgentDeadline = (item.kind === "deadline" || item.kind === "custom-deadline") && days >= 0 && days <= 3;
+                    const isUrgentDeadline =
+                      (item.kind === "deadline" || item.kind === "custom-deadline") && days >= 0 && days <= 3;
 
                     let iconEl: React.ReactNode;
                     let iconBg: string;
@@ -800,12 +916,12 @@ export function CompanyCalendar() {
                     } else if (item.kind === "custom-event") {
                       iconEl = <CalendarIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />;
                       iconBg = "bg-blue-100 dark:bg-blue-950/40";
-                    } else if (item.kind === "custom-reminder") {
-                      iconEl = <Bell className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />;
-                      iconBg = "bg-purple-100 dark:bg-purple-950/40";
+                    } else if (item.kind === "custom-holiday") {
+                      iconEl = <Star className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />;
+                      iconBg = "bg-amber-100 dark:bg-amber-950/40";
                     } else {
-                      iconEl = <Clock className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />;
-                      iconBg = "bg-red-100 dark:bg-red-950/40";
+                      iconEl = <AlertCircle className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />;
+                      iconBg = "bg-orange-100 dark:bg-orange-950/40";
                     }
 
                     return (
@@ -855,137 +971,192 @@ export function CompanyCalendar() {
             {/* ═══ HOLIDAYS TAB ═══ */}
             {activeTab === "holidays" && (
               <div className="space-y-3">
-                {monthHolidays.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
-                      <Star className="h-3 w-3" /> Days Off
-                    </p>
-                    {monthHolidays.map((entry, idx) => {
-                      const cfg = typeConfig[entry.type];
-                      const days = getDaysUntil(entry.date);
-                      const isPast = days < 0;
-                      return (
-                        <div
-                          key={`hol-${idx}`}
-                          className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 cursor-default group",
-                            isPast ? "opacity-40" : "hover:bg-accent/50",
-                          )}
-                        >
-                          <div className={cn("w-2 h-2 rounded-full flex-shrink-0", cfg.dot)} />
-                          <div className="flex-1 min-w-0">
-                            <p className={cn("text-[13px] font-medium truncate", isPast && "line-through")}>
-                              {entry.name}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5">
+                {/* Days Off Section - includes both static holidays and custom holidays */}
+                {(() => {
+                  const customHolidays = monthCustomEvents.filter((e) => e.event_type === "holiday");
+                  const allHolidays = [
+                    ...monthHolidays.map((e) => ({ ...e, isCustom: false, customId: undefined })),
+                    ...customHolidays.map((e) => {
+                      const eventDate = new Date(e.event_date + "T00:00:00");
+                      return {
+                        date: eventDate,
+                        name: e.title,
+                        type: "holiday" as const,
+                        isCustom: true,
+                        customId: e.id,
+                      };
+                    }),
+                  ].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+                  return allHolidays.length > 0 ? (
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
+                        <Star className="h-3 w-3" /> Days Off
+                      </p>
+                      {allHolidays.map((entry, idx) => {
+                        const cfg = typeConfig[entry.type];
+                        const days = getDaysUntil(entry.date);
+                        const isPast = days < 0;
+                        return (
+                          <div
+                            key={entry.isCustom ? `custom-hol-${entry.customId}` : `hol-${idx}`}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 cursor-default group",
+                              isPast ? "opacity-40" : "hover:bg-accent/50",
+                            )}
+                          >
+                            <div className={cn("w-2 h-2 rounded-full flex-shrink-0", cfg.dot)} />
+                            <div className="flex-1 min-w-0">
+                              <p className={cn("text-[13px] font-medium truncate", isPast && "line-through")}>
+                                {entry.name}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[11px] text-muted-foreground">
+                                  {formatDateShort(entry.date)} · {formatWeekday(entry.date)}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className={cn("text-[10px] px-1.5 py-0 h-4 border", cfg.badge)}
+                                >
+                                  {cfg.label}
+                                </Badge>
+                              </div>
+                            </div>
+                            {!isPast && (
+                              <span className="text-[11px] text-muted-foreground font-medium tabular-nums flex-shrink-0">
+                                {getDaysLabel(days)}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Deadlines Section - includes both static deadlines and custom deadlines */}
+                {(() => {
+                  const customDeadlines = monthCustomEvents.filter((e) => e.event_type === "deadline");
+                  const allDeadlines = [
+                    ...monthDeadlines.map((e) => ({ ...e, isCustom: false, customId: undefined })),
+                    ...customDeadlines.map((e) => {
+                      const eventDate = new Date(e.event_date + "T00:00:00");
+                      return {
+                        date: eventDate,
+                        name: e.title,
+                        type: "deadline" as const,
+                        isCustom: true,
+                        customId: e.id,
+                      };
+                    }),
+                  ].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+                  return allDeadlines.length > 0 ? (
+                    <div className="space-y-1">
+                      {(() => {
+                        const customHolidays = monthCustomEvents.filter((e) => e.event_type === "holiday");
+                        const totalHolidays = monthHolidays.length + customHolidays.length;
+                        return totalHolidays > 0 ? <div className="border-t border-border/40 my-1" /> : null;
+                      })()}
+                      <p className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
+                        <AlertCircle className="h-3 w-3" /> Deadlines
+                      </p>
+                      {allDeadlines.map((entry, idx) => {
+                        const days = getDaysUntil(entry.date);
+                        const isPast = days < 0;
+                        const isUrgent = days >= 0 && days <= 3;
+                        return (
+                          <div
+                            key={entry.isCustom ? `custom-dl-${entry.customId}` : `dl-${idx}`}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 cursor-default group",
+                              isPast ? "opacity-40" : "hover:bg-accent/50",
+                            )}
+                          >
+                            <div className="w-2 h-2 rounded-full flex-shrink-0 bg-orange-500" />
+                            <div className="flex-1 min-w-0">
+                              <p className={cn("text-[13px] font-medium truncate", isPast && "line-through")}>
+                                {entry.name}
+                              </p>
                               <span className="text-[11px] text-muted-foreground">
                                 {formatDateShort(entry.date)} · {formatWeekday(entry.date)}
                               </span>
-                              <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-4 border", cfg.badge)}>
-                                {cfg.label}
-                              </Badge>
                             </div>
+                            {!isPast && (
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[10px] px-1.5 py-0 h-5 flex-shrink-0 font-semibold tabular-nums",
+                                  isUrgent &&
+                                    "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800",
+                                )}
+                              >
+                                {getDaysLabel(days)}
+                              </Badge>
+                            )}
                           </div>
-                          {!isPast && (
-                            <span className="text-[11px] text-muted-foreground font-medium tabular-nums flex-shrink-0">
-                              {getDaysLabel(days)}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        );
+                      })}
+                    </div>
+                  ) : null;
+                })()}
 
-                {monthDeadlines.length > 0 && (
-                  <div className="space-y-1">
-                    {monthHolidays.length > 0 && <div className="border-t border-border/40 my-1" />}
-                    <p className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
-                      <AlertCircle className="h-3 w-3" /> Deadlines
-                    </p>
-                    {monthDeadlines.map((entry, idx) => {
-                      const days = getDaysUntil(entry.date);
-                      const isPast = days < 0;
-                      const isUrgent = days >= 0 && days <= 3;
-                      return (
-                        <div
-                          key={`dl-${idx}`}
-                          className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 cursor-default group",
-                            isPast ? "opacity-40" : "hover:bg-accent/50",
-                          )}
-                        >
-                          <div className="w-2 h-2 rounded-full flex-shrink-0 bg-orange-500" />
-                          <div className="flex-1 min-w-0">
-                            <p className={cn("text-[13px] font-medium truncate", isPast && "line-through")}>
-                              {entry.name}
-                            </p>
-                            <span className="text-[11px] text-muted-foreground">
-                              {formatDateShort(entry.date)} · {formatWeekday(entry.date)}
-                            </span>
-                          </div>
-                          {!isPast && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-[10px] px-1.5 py-0 h-5 flex-shrink-0 font-semibold tabular-nums",
-                                isUrgent &&
-                                  "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800",
-                              )}
-                            >
-                              {getDaysLabel(days)}
-                            </Badge>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Custom events for the month */}
-                {monthCustomEvents.length > 0 && (
-                  <div className="space-y-1">
-                    {(monthHolidays.length > 0 || monthDeadlines.length > 0) && <div className="border-t border-border/40 my-1" />}
-                    <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
-                      <CalendarIcon className="h-3 w-3" /> Custom Events
-                    </p>
-                    {monthCustomEvents.map((event) => {
-                      const eventDate = new Date(event.event_date + "T00:00:00");
-                      const days = getDaysUntil(eventDate);
-                      const isPast = days < 0;
-                      const cfg = customEventTypeConfig[event.event_type] || customEventTypeConfig.event;
-                      return (
-                        <div
-                          key={event.id}
-                          className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 cursor-default group",
-                            isPast ? "opacity-40" : "hover:bg-accent/50",
-                          )}
-                        >
-                          <div className={cn("w-2 h-2 rounded-full flex-shrink-0", cfg.dot)} />
-                          <div className="flex-1 min-w-0">
-                            <p className={cn("text-[13px] font-medium truncate", isPast && "line-through")}>
-                              {event.title}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[11px] text-muted-foreground">
-                                {formatDateShort(eventDate)} · {formatWeekday(eventDate)}
+                {/* General Events Section - only custom events with type "event" */}
+                {(() => {
+                  const generalEvents = monthCustomEvents.filter((e) => e.event_type === "event");
+                  return generalEvents.length > 0 ? (
+                    <div className="space-y-1">
+                      {(() => {
+                        const customHolidays = monthCustomEvents.filter((e) => e.event_type === "holiday");
+                        const customDeadlines = monthCustomEvents.filter((e) => e.event_type === "deadline");
+                        const totalOthers =
+                          monthHolidays.length + monthDeadlines.length + customHolidays.length + customDeadlines.length;
+                        return totalOthers > 0 ? <div className="border-t border-border/40 my-1" /> : null;
+                      })()}
+                      <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
+                        <CalendarIcon className="h-3 w-3" /> Events
+                      </p>
+                      {generalEvents.map((event) => {
+                        const eventDate = new Date(event.event_date + "T00:00:00");
+                        const days = getDaysUntil(eventDate);
+                        const isPast = days < 0;
+                        const cfg = customEventTypeConfig.event;
+                        return (
+                          <div
+                            key={event.id}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 cursor-default group",
+                              isPast ? "opacity-40" : "hover:bg-accent/50",
+                            )}
+                          >
+                            <div className={cn("w-2 h-2 rounded-full flex-shrink-0", cfg.dot)} />
+                            <div className="flex-1 min-w-0">
+                              <p className={cn("text-[13px] font-medium truncate", isPast && "line-through")}>
+                                {event.title}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[11px] text-muted-foreground">
+                                  {formatDateShort(eventDate)} · {formatWeekday(eventDate)}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className={cn("text-[10px] px-1.5 py-0 h-4 border", cfg.badge)}
+                                >
+                                  {cfg.label}
+                                </Badge>
+                              </div>
+                            </div>
+                            {!isPast && (
+                              <span className="text-[11px] text-muted-foreground font-medium tabular-nums flex-shrink-0">
+                                {getDaysLabel(days)}
                               </span>
-                              <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-4 border", cfg.badge)}>
-                                {cfg.label}
-                              </Badge>
-                            </div>
+                            )}
                           </div>
-                          {!isPast && (
-                            <span className="text-[11px] text-muted-foreground font-medium tabular-nums flex-shrink-0">
-                              {getDaysLabel(days)}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        );
+                      })}
+                    </div>
+                  ) : null;
+                })()}
 
                 {monthHolidays.length === 0 && monthDeadlines.length === 0 && monthCustomEvents.length === 0 && (
                   <EmptyState icon={<Star className="h-6 w-6" />} text="No events this month" />
