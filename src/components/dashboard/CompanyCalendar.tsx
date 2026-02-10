@@ -227,7 +227,17 @@ const customEventTypeConfig: Record<
 // CUSTOM DAY CELL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function CustomDayCell({ date, customEventsForDate }: { date: Date; customEventsForDate: CalendarEvent[] }) {
+function CustomDayCell({
+  date,
+  customEventsForDate,
+  isManager,
+  onAddClick,
+}: {
+  date: Date;
+  customEventsForDate: CalendarEvent[];
+  isManager?: boolean;
+  onAddClick?: (date: Date) => void;
+}) {
   const entries = getEntriesForDate(date);
   const isDayOff = isWeekend(date) || isNamedHoliday(date);
   const isDeadline = isDeadlineDate(date);
@@ -243,14 +253,40 @@ function CustomDayCell({ date, customEventsForDate }: { date: Date; customEvents
   const hasCustomHoliday = customEventsForDate.some((e) => e.event_type === "holiday");
   const hasCustomDeadline = customEventsForDate.some((e) => e.event_type === "deadline");
 
+  const handleAddClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onAddClick?.(date);
+  };
+
   return (
     <div
       className={cn(
-        "relative h-full w-full flex flex-col items-center justify-center p-1",
+        "relative h-full w-full flex flex-col items-center justify-center p-1 group/cell",
         isToday && "bg-accent text-accent-foreground",
         (isDayOff || hasCustomHoliday) && !isToday && "bg-amber-50 dark:bg-amber-950/20",
       )}
     >
+      {/* Add button overlay for managers */}
+      {isManager && (
+        <button
+          onClick={handleAddClick}
+          className={cn(
+            "absolute top-0.5 right-0.5 z-10",
+            "w-5 h-5 rounded-full",
+            "bg-primary/80 hover:bg-primary text-primary-foreground",
+            "flex items-center justify-center",
+            "opacity-0 group-hover/cell:opacity-100",
+            "transition-all duration-150",
+            "shadow-sm hover:shadow-md",
+            "transform scale-75 group-hover/cell:scale-100",
+          )}
+          title="Add event"
+        >
+          <Plus className="h-3 w-3" />
+        </button>
+      )}
+
       <div className={cn("text-sm font-medium mb-0.5", isToday && "font-bold")}>{day}</div>
 
       <div className="flex flex-col items-center gap-0.5 w-full max-w-full overflow-hidden">
@@ -643,6 +679,12 @@ export function CompanyCalendar() {
     }
   };
 
+  // Handler for adding event directly from date cell
+  const handleAddEventFromCell = (date: Date) => {
+    setSelectedDate(date);
+    setShowAddEventDialog(true);
+  };
+
   // ════════════════════════════════════════════════════════════════════════
   // RENDER
   // ════════════════════════════════════════════════════════════════════════
@@ -703,7 +745,14 @@ export function CompanyCalendar() {
             modifiers={calendarModifiers}
             modifiersStyles={calendarModifierStyles}
             components={{
-              Day: ({ date }) => <CustomDayCell date={date} customEventsForDate={getCustomEventsForDate(date)} />,
+              Day: ({ date }) => (
+                <CustomDayCell
+                  date={date}
+                  customEventsForDate={getCustomEventsForDate(date)}
+                  isManager={isManager}
+                  onAddClick={handleAddEventFromCell}
+                />
+              ),
             }}
           />
 
