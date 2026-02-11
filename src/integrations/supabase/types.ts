@@ -2233,10 +2233,13 @@ export type Database = {
           email: string | null
           employee_id: string | null
           first_name: string | null
+          gender: string | null
           hire_date: string | null
           hourly_rate: number | null
           id: string | null
+          include_dashain_bonus: boolean | null
           income_tax: number | null
+          insurance_premium: number | null
           job_title: string | null
           last_name: string | null
           line_manager_id: string | null
@@ -2258,10 +2261,13 @@ export type Database = {
           email?: string | null
           employee_id?: string | null
           first_name?: string | null
+          gender?: string | null
           hire_date?: string | null
           hourly_rate?: never
           id?: string | null
+          include_dashain_bonus?: boolean | null
           income_tax?: never
+          insurance_premium?: never
           job_title?: string | null
           last_name?: string | null
           line_manager_id?: string | null
@@ -2283,10 +2289,13 @@ export type Database = {
           email?: string | null
           employee_id?: string | null
           first_name?: string | null
+          gender?: string | null
           hire_date?: string | null
           hourly_rate?: never
           id?: string | null
+          include_dashain_bonus?: boolean | null
           income_tax?: never
+          insurance_premium?: never
           job_title?: string | null
           last_name?: string | null
           line_manager_id?: string | null
