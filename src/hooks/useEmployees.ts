@@ -22,10 +22,12 @@ interface Employee {
   social_security: number | null;
   provident_fund: number | null;
   profile_id: string | null;
-  user_id: string | null; // The actual auth user_id for task assignment
+  user_id: string | null;
   manager_id: string | null;
   line_manager_id: string | null;
-  // ✅ Added avatar support
+  gender: string | null;
+  insurance_premium: number | null;
+  include_dashain_bonus: boolean | null;
   profiles?: {
     avatar_url: string | null;
   };
@@ -77,11 +79,11 @@ export function useEmployees() {
           const employeesWithUserId = data.map((emp) => ({
             ...emp,
             user_id: emp.profile_id ? profileToUserMap.get(emp.profile_id) || null : null,
-            // ✅ Add avatar_url from profiles
+            gender: (emp as any).gender || null,
+            insurance_premium: (emp as any).insurance_premium || null,
+            include_dashain_bonus: (emp as any).include_dashain_bonus ?? null,
             profiles: emp.profile_id
-              ? {
-                  avatar_url: profileToAvatarMap.get(emp.profile_id) || null,
-                }
+              ? { avatar_url: profileToAvatarMap.get(emp.profile_id) || null }
               : undefined,
             avatar_url: emp.profile_id ? profileToAvatarMap.get(emp.profile_id) || null : null,
           }));
@@ -118,11 +120,11 @@ export function useEmployees() {
             user_id: emp.profile_id ? profileToUserMap.get(emp.profile_id) || null : null,
             manager_id: emp.manager_id,
             line_manager_id: emp.line_manager_id,
-            // ✅ Add avatar_url from profiles
+            gender: null,
+            insurance_premium: null,
+            include_dashain_bonus: null,
             profiles: emp.profile_id
-              ? {
-                  avatar_url: profileToAvatarMap.get(emp.profile_id) || null,
-                }
+              ? { avatar_url: profileToAvatarMap.get(emp.profile_id) || null }
               : undefined,
             avatar_url: emp.profile_id ? profileToAvatarMap.get(emp.profile_id) || null : null,
           }));

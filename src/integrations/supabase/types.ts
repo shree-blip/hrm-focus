@@ -782,10 +782,13 @@ export type Database = {
           email: string
           employee_id: string | null
           first_name: string
+          gender: string | null
           hire_date: string | null
           hourly_rate: number | null
           id: string
+          include_dashain_bonus: boolean | null
           income_tax: number | null
+          insurance_premium: number | null
           job_title: string | null
           last_name: string
           line_manager_id: string | null
@@ -808,10 +811,13 @@ export type Database = {
           email: string
           employee_id?: string | null
           first_name: string
+          gender?: string | null
           hire_date?: string | null
           hourly_rate?: number | null
           id?: string
+          include_dashain_bonus?: boolean | null
           income_tax?: number | null
+          insurance_premium?: number | null
           job_title?: string | null
           last_name: string
           line_manager_id?: string | null
@@ -834,10 +840,13 @@ export type Database = {
           email?: string
           employee_id?: string | null
           first_name?: string
+          gender?: string | null
           hire_date?: string | null
           hourly_rate?: number | null
           id?: string
+          include_dashain_bonus?: boolean | null
           income_tax?: number | null
+          insurance_premium?: number | null
           job_title?: string | null
           last_name?: string
           line_manager_id?: string | null

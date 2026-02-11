@@ -32,6 +32,7 @@ import {
   Globe,
   Edit,
   User,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -52,17 +53,20 @@ import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { PayslipsPreviewDialog } from "@/components/payroll/PayslipsPreviewDialog";
 import { EditEmployeeSalaryDialog } from "@/components/payroll/EditEmployeeSalaryDialog";
+import { NepalPayrollTable } from "@/components/payroll/NepalPayrollTable";
+import { SalaryBreakdownDialog } from "@/components/payroll/SalaryBreakdownDialog";
 
 const Payroll = () => {
-  const { isVP, isManager } = useAuth();
+  const { isVP, isManager, profile } = useAuth();
   const { payrollRuns, loading, region, setRegion, createPayrollRun, processPayroll, getTaxRates } = usePayroll();
   const { employees, updateEmployee, refetch: refetchEmployees } = useEmployees();
   const { teamAttendance, loading: attendanceLoading } = useTeamAttendance();
-  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "employees" | "contractor">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "employees" | "calculator" | "contractor">("overview");
   const [showPayslipsPreview, setShowPayslipsPreview] = useState(false);
   const [showEditSalary, setShowEditSalary] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<typeof employees[0] | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [showMyBreakdown, setShowMyBreakdown] = useState(false);
 
   // Filter employees by region (case-insensitive)
   const regionEmployees = employees.filter(e => 
@@ -318,9 +322,10 @@ const Payroll = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "overview" | "attendance" | "employees" | "contractor")} className="mb-6">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="mb-6">
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview">Payroll Overview</TabsTrigger>
+          <TabsTrigger value="calculator">Salary Calculator</TabsTrigger>
           <TabsTrigger value="attendance">Employee Attendance</TabsTrigger>
           {isVP && <TabsTrigger value="employees">Manage Salaries</TabsTrigger>}
           <TabsTrigger value="contractor">Contractor Portal</TabsTrigger>
@@ -773,7 +778,51 @@ const Payroll = () => {
             </div>
           </CardContent>
         </Card>
-      ) : (
+      ) : activeTab === "calculator" ? (
+        /* Nepal Salary Calculator Tab */
+        <div className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
+          {/* Employee: My Payslip button */}
+          {!isVP && (
+            <div className="mb-6">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-lg">My Salary Breakdown</h3>
+                      <p className="text-sm text-muted-foreground">View your detailed salary calculation with all deductions and taxes</p>
+                    </div>
+                    <Button 
+                      className="gap-2"
+                      onClick={() => {
+                        // Find current user's employee record
+                        const myEmployee = employees.find(e => {
+                          // Match by profile/user
+                          return e.email === profile?.email;
+                        });
+                        if (myEmployee && myEmployee.salary) {
+                          setSelectedEmployee(myEmployee);
+                          setShowMyBreakdown(true);
+                        } else {
+                          toast({ title: "No salary data", description: "Your salary information has not been set up yet.", variant: "destructive" });
+                        }
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                      View My Payslip
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <NepalPayrollTable
+            employees={regionEmployees as any}
+            isAdmin={isVP}
+            onUpdateEmployee={(employeeId, updates) => handleSaveEmployee(employeeId, updates as any)}
+          />
+        </div>
+      ) : activeTab === "contractor" ? (
         /* Contractor Portal */
         <Card className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
           <CardHeader>
@@ -791,7 +840,7 @@ const Payroll = () => {
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {/* Dialogs */}
       <PayslipsPreviewDialog
@@ -809,6 +858,13 @@ const Payroll = () => {
         employee={selectedEmployee}
         employees={employees}
         onSave={handleSaveEmployee}
+      />
+
+      <SalaryBreakdownDialog
+        open={showMyBreakdown}
+        onOpenChange={setShowMyBreakdown}
+        employee={selectedEmployee}
+        editable={false}
       />
     </DashboardLayout>
   );

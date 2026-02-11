@@ -21,6 +21,9 @@ interface Employee {
   income_tax: number | null;
   social_security: number | null;
   provident_fund: number | null;
+  gender?: string | null;
+  insurance_premium?: number | null;
+  include_dashain_bonus?: boolean | null;
 }
 
 interface EditEmployeeSalaryDialogProps {
@@ -46,6 +49,9 @@ export function EditEmployeeSalaryDialog({
   const [socialSecurity, setSocialSecurity] = useState<string>("");
   const [providentFund, setProvidentFund] = useState<string>("");
   const [validationError, setValidationError] = useState<string>("");
+  const [gender, setGender] = useState<string>("");
+  const [insurancePremium, setInsurancePremium] = useState<string>("0");
+  const [includeDashain, setIncludeDashain] = useState(false);
 
   useEffect(() => {
     if (employee) {
@@ -56,6 +62,9 @@ export function EditEmployeeSalaryDialog({
       setIncomeTax(employee.income_tax?.toString() || "0");
       setSocialSecurity(employee.social_security?.toString() || "0");
       setProvidentFund(employee.provident_fund?.toString() || "0");
+      setGender(employee.gender || "");
+      setInsurancePremium(employee.insurance_premium?.toString() || "0");
+      setIncludeDashain(employee.include_dashain_bonus ?? false);
       setValidationError("");
     }
   }, [employee]);
@@ -112,6 +121,9 @@ export function EditEmployeeSalaryDialog({
       income_tax: parseFloat(incomeTax) || 0,
       social_security: parseFloat(socialSecurity) || 0,
       provident_fund: parseFloat(providentFund) || 0,
+      gender: gender || null,
+      insurance_premium: parseFloat(insurancePremium) || 0,
+      include_dashain_bonus: includeDashain,
     };
 
     onSave(employee.id, updates);
@@ -245,6 +257,45 @@ export function EditEmployeeSalaryDialog({
               />
             </div>
           )}
+
+          {/* Nepal-specific fields */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Label>Gender</Label>
+              <Select value={gender || "unset"} onValueChange={(v) => setGender(v === "unset" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unset">Not Set</SelectItem>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Insurance (Annual)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={insurancePremium}
+                onChange={(e) => setInsurancePremium(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2 flex flex-col justify-end">
+              <Label className="text-xs">Dashain Bonus</Label>
+              <div className="flex items-center gap-2 h-10">
+                <input
+                  type="checkbox"
+                  checked={includeDashain}
+                  onChange={(e) => setIncludeDashain(e.target.checked)}
+                  className="h-4 w-4 rounded border-input"
+                />
+                <span className="text-sm text-muted-foreground">Include</span>
+              </div>
+            </div>
+          </div>
 
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
