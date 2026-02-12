@@ -10,7 +10,7 @@ export interface Notification {
   message: string;
   type: string | null;
   link: string | null;
-  is_read: boolean | null;
+  is_read: boolean;
   read_at: string | null;
   created_at: string;
 }
@@ -19,7 +19,9 @@ export function useNotifications() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Calculate unread count from notifications state (single source of truth)
+  const unreadCount = notifications.filter((n) => n.is_read === false).length;
 
   const fetchNotifications = useCallback(async () => {
     if (!user) {
@@ -40,8 +42,13 @@ export function useNotifications() {
         throw error;
       }
 
-      setNotifications(data || []);
-      setUnreadCount(data?.filter(n => !n.is_read).length || 0);
+      // Normalize is_read to boolean (handle null as false)
+      const normalizedData = (data || []).map((n) => ({
+        ...n,
+        is_read: n.is_read === true, // Convert null to false
+      }));
+
+      setNotifications(normalizedData);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     } finally {
@@ -50,35 +57,56 @@ export function useNotifications() {
   }, [user]);
 
   // Mark single notification as read
-  const markAsRead = async (notificationId: string) => {
-    if (!user) return;
+  const markAsRead = useCallback(
+    async (notificationId: string) => {
+      if (!user) return;
 
-    try {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq("id", notificationId)
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("Error marking notification as read:", error);
-        throw error;
+      // Find the notification first to check if it's already read
+      const notification = notifications.find((n) => n.id === notificationId);
+      if (!notification || notification.is_read) {
+        return; // Already read or doesn't exist
       }
 
-      // Update local state optimistically
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)
+      // Optimistic update - update state immediately
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)),
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error("Failed to mark notification as read:", error);
-      toast({ title: "Error", description: "Failed to mark notification as read", variant: "destructive" });
-    }
-  };
+
+      try {
+        const { error } = await supabase
+          .from("notifications")
+          .update({ is_read: true, read_at: new Date().toISOString() })
+          .eq("id", notificationId)
+          .eq("user_id", user.id);
+
+        if (error) {
+          console.error("Error marking notification as read:", error);
+          // Revert optimistic update on error
+          setNotifications((prev) =>
+            prev.map((n) => (n.id === notificationId ? { ...n, is_read: false, read_at: null } : n)),
+          );
+          throw error;
+        }
+      } catch (error) {
+        console.error("Failed to mark notification as read:", error);
+        toast({ title: "Error", description: "Failed to mark notification as read", variant: "destructive" });
+      }
+    },
+    [user, notifications],
+  );
 
   // Mark all notifications as read
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     if (!user) return;
+
+    const unreadNotifications = notifications.filter((n) => !n.is_read);
+    if (unreadNotifications.length === 0) return;
+
+    // Optimistic update - update state immediately
+    const previousNotifications = [...notifications];
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, is_read: true, read_at: n.read_at || new Date().toISOString() })),
+    );
 
     try {
       const { error } = await supabase
@@ -89,21 +117,17 @@ export function useNotifications() {
 
       if (error) {
         console.error("Error marking all notifications as read:", error);
+        // Revert optimistic update on error
+        setNotifications(previousNotifications);
         throw error;
       }
 
-      // Update local state
-      setNotifications(prev =>
-        prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() }))
-      );
-      setUnreadCount(0);
-      
       toast({ title: "Success", description: "All notifications marked as read" });
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error);
       toast({ title: "Error", description: "Failed to mark all notifications as read", variant: "destructive" });
     }
-  };
+  }, [user, notifications]);
 
   useEffect(() => {
     fetchNotifications();
@@ -114,70 +138,69 @@ export function useNotifications() {
     if (!user) return;
 
     console.log("Setting up notifications real-time subscription for user:", user.id);
-    
+
     const channel = supabase
       .channel(`notifications-realtime-${user.id}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
           console.log("New notification received:", payload);
           const newNotification = payload.new as Notification;
-          setNotifications(prev => {
+          // Normalize is_read
+          const normalized = {
+            ...newNotification,
+            is_read: newNotification.is_read === true,
+          };
+          setNotifications((prev) => {
             // Prevent duplicates
-            if (prev.some(n => n.id === newNotification.id)) return prev;
-            return [newNotification, ...prev];
+            if (prev.some((n) => n.id === normalized.id)) return prev;
+            return [normalized, ...prev];
           });
-          if (!newNotification.is_read) {
-            setUnreadCount(prev => prev + 1);
-          }
           // Show toast for new notification
           toast({
-            title: newNotification.title,
-            description: newNotification.message,
+            title: normalized.title,
+            description: normalized.message,
           });
-        }
+        },
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
           console.log("Notification updated:", payload);
           const updated = payload.new as Notification;
-          setNotifications(prev => {
-            const newList = prev.map(n => n.id === updated.id ? updated : n);
-            setUnreadCount(newList.filter(n => !n.is_read).length);
-            return newList;
-          });
-        }
+          // Normalize is_read
+          const normalized = {
+            ...updated,
+            is_read: updated.is_read === true,
+          };
+          setNotifications((prev) => prev.map((n) => (n.id === normalized.id ? normalized : n)));
+        },
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
+          event: "DELETE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
           console.log("Notification deleted:", payload);
           const deleted = payload.old as { id: string };
-          setNotifications(prev => {
-            const newList = prev.filter(n => n.id !== deleted.id);
-            setUnreadCount(newList.filter(n => !n.is_read).length);
-            return newList;
-          });
-        }
+          setNotifications((prev) => prev.filter((n) => n.id !== deleted.id));
+        },
       )
       .subscribe((status) => {
         console.log("Notifications subscription status:", status);
