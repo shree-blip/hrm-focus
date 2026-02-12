@@ -224,7 +224,7 @@ const customEventTypeConfig: Record<
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CUSTOM DAY CELL
+// CUSTOM DAY CELL - RESPONSIVE
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function CustomDayCell({
@@ -262,7 +262,8 @@ function CustomDayCell({
   return (
     <div
       className={cn(
-        "relative h-full w-full flex flex-col items-center justify-center p-1 group/cell",
+        "relative h-full w-full flex flex-col items-center p-0.5 sm:p-1 group/cell",
+        "justify-start pt-1 sm:justify-center sm:pt-0",
         isToday && "bg-accent text-accent-foreground",
         (isDayOff || hasCustomHoliday) && !isToday && "bg-amber-50 dark:bg-amber-950/20",
       )}
@@ -273,7 +274,7 @@ function CustomDayCell({
           onClick={handleAddClick}
           className={cn(
             "absolute top-0.5 right-0.5 z-10",
-            "w-5 h-5 rounded-full",
+            "w-4 h-4 sm:w-5 sm:h-5 rounded-full",
             "bg-primary/80 hover:bg-primary text-primary-foreground",
             "flex items-center justify-center",
             "opacity-0 group-hover/cell:opacity-100",
@@ -283,35 +284,54 @@ function CustomDayCell({
           )}
           title="Add event"
         >
-          <Plus className="h-3 w-3" />
+          <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
         </button>
       )}
 
-      <div className={cn("text-sm font-medium mb-0.5", isToday && "font-bold")}>{day}</div>
+      {/* Day number - responsive sizing */}
+      <div className={cn("text-xs sm:text-sm md:text-base font-medium", "leading-tight", isToday && "font-bold")}>
+        {day}
+      </div>
 
-      <div className="flex flex-col items-center gap-0.5 w-full max-w-full overflow-hidden">
+      {/* Mobile: Show dots indicator only */}
+      <div className="flex sm:hidden items-center justify-center gap-0.5 mt-0.5 flex-wrap max-w-full">
+        {holidayEntries.length > 0 && <div className="h-1 w-1 rounded-full bg-amber-500" />}
+        {deadlineEntries.length > 0 && <div className="h-1 w-1 rounded-full bg-orange-500" />}
+        {customEventsForDate.some((e) => e.event_type === "event") && (
+          <div className="h-1 w-1 rounded-full bg-blue-500" />
+        )}
+        {customEventsForDate.some((e) => e.event_type === "holiday") && !holidayEntries.length && (
+          <div className="h-1 w-1 rounded-full bg-amber-500" />
+        )}
+        {customEventsForDate.some((e) => e.event_type === "deadline") && !deadlineEntries.length && (
+          <div className="h-1 w-1 rounded-full bg-orange-500" />
+        )}
+      </div>
+
+      {/* Desktop: Show full event details */}
+      <div className="hidden sm:flex flex-col items-center gap-0.5 w-full max-w-full overflow-hidden mt-0.5">
         {holidayEntries.length > 0 && (
           <div className="flex items-center gap-0.5 w-full justify-center">
-            <Star className="h-2.5 w-2.5 text-amber-500 flex-shrink-0" />
-            <span className="text-[8px] font-medium text-amber-700 dark:text-amber-400 truncate text-center">
-              {holidayEntries[0].name.replace("Deadline: ", "").substring(0, 15)}
-              {holidayEntries[0].name.length > 15 ? "..." : ""}
+            <Star className="h-2 w-2 md:h-2.5 md:w-2.5 text-amber-500 flex-shrink-0" />
+            <span className="text-[6px] md:text-[8px] font-medium text-amber-700 dark:text-amber-400 truncate text-center">
+              {holidayEntries[0].name.replace("Deadline: ", "").substring(0, 12)}
+              {holidayEntries[0].name.length > 12 ? "…" : ""}
             </span>
           </div>
         )}
 
         {deadlineEntries.slice(0, 2).map((entry, idx) => (
           <div key={idx} className="flex items-center gap-0.5 w-full justify-center">
-            <div className="h-1.5 w-1.5 rounded-full bg-orange-500 flex-shrink-0" />
-            <span className="text-[8px] font-medium text-orange-700 dark:text-orange-400 truncate text-center">
-              {entry.name.replace("Deadline: ", "").substring(0, 15)}
-              {entry.name.length > 15 ? "..." : ""}
+            <div className="h-1 w-1 md:h-1.5 md:w-1.5 rounded-full bg-orange-500 flex-shrink-0" />
+            <span className="text-[6px] md:text-[8px] font-medium text-orange-700 dark:text-orange-400 truncate text-center">
+              {entry.name.replace("Deadline: ", "").substring(0, 12)}
+              {entry.name.length > 12 ? "…" : ""}
             </span>
           </div>
         ))}
 
         {deadlineEntries.length > 2 && (
-          <div className="text-[8px] text-muted-foreground">+{deadlineEntries.length - 2} more</div>
+          <div className="text-[6px] md:text-[8px] text-muted-foreground">+{deadlineEntries.length - 2}</div>
         )}
 
         {/* Custom events - show actual titles with proper colors */}
@@ -331,20 +351,20 @@ function CustomDayCell({
           return (
             <div key={event.id} className="flex items-center gap-0.5 w-full justify-center">
               {event.event_type === "holiday" ? (
-                <Star className="h-2.5 w-2.5 text-amber-500 flex-shrink-0" />
+                <Star className="h-2 w-2 md:h-2.5 md:w-2.5 text-amber-500 flex-shrink-0" />
               ) : (
-                <div className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", dotClass)} />
+                <div className={cn("h-1 w-1 md:h-1.5 md:w-1.5 rounded-full flex-shrink-0", dotClass)} />
               )}
-              <span className={cn("text-[8px] font-medium truncate text-center", colorClass)}>
-                {event.title.substring(0, 15)}
-                {event.title.length > 15 ? "..." : ""}
+              <span className={cn("text-[6px] md:text-[8px] font-medium truncate text-center", colorClass)}>
+                {event.title.substring(0, 12)}
+                {event.title.length > 12 ? "…" : ""}
               </span>
             </div>
           );
         })}
 
         {customEventsForDate.length > 2 && (
-          <div className="text-[8px] text-muted-foreground">+{customEventsForDate.length - 2} more</div>
+          <div className="text-[6px] md:text-[8px] text-muted-foreground">+{customEventsForDate.length - 2}</div>
         )}
       </div>
 
@@ -717,21 +737,22 @@ export function CompanyCalendar() {
             selected={selectedDate}
             onSelect={handleDateSelect}
             onMonthChange={setCalendarMonth}
-            className="rounded-lg border p-3 w-full"
+            className="rounded-lg border p-2 sm:p-3 w-full"
             classNames={{
               months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
               month: "space-y-4 w-full",
               caption: "flex justify-center pt-1 relative items-center px-2",
-              caption_label: "text-base font-medium",
+              caption_label: "text-sm sm:text-base font-medium",
               nav: "space-x-1 flex items-center",
-              nav_button: "h-8 w-8 bg-transparent p-0 opacity-50 hover:opacity-100",
+              nav_button: "h-7 w-7 sm:h-8 sm:w-8 bg-transparent p-0 opacity-50 hover:opacity-100",
               nav_button_previous: "absolute left-1",
               nav_button_next: "absolute right-1",
               table: "w-full border-collapse",
               head_row: "flex w-full",
-              head_cell: "text-muted-foreground rounded-md flex-1 font-medium text-[0.8rem] py-2 text-center",
-              row: "flex w-full mt-1",
-              cell: "flex-1 text-center text-sm p-0.5 relative focus-within:relative focus-within:z-20 h-24",
+              head_cell:
+                "text-muted-foreground rounded-md flex-1 font-medium text-[0.65rem] sm:text-[0.8rem] py-1 sm:py-2 text-center",
+              row: "flex w-full mt-0.5 sm:mt-1",
+              cell: "flex-1 text-center text-sm p-0 sm:p-0.5 relative focus-within:relative focus-within:z-20 h-10 sm:h-16 md:h-24",
               day: "h-full w-full rounded-md p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground",
               day_range_end: "day-range-end",
               day_selected:
@@ -881,27 +902,33 @@ export function CompanyCalendar() {
           )}
 
           {/* ── LEGEND ── */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground px-0.5">
-            <span className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 text-[10px] sm:text-[11px] text-muted-foreground px-0.5">
+            <span className="flex items-center gap-1 sm:gap-1.5">
               <span
-                className="w-2.5 h-2.5 rounded-sm"
+                className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-sm"
                 style={{ backgroundColor: "hsl(45 93% 47% / 0.25)", border: "1px solid hsl(45 93% 47% / 0.4)" }}
               />
               Holiday
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm border-b-2" style={{ borderBottomColor: "hsl(25 95% 53%)" }} />
+            <span className="flex items-center gap-1 sm:gap-1.5">
+              <span
+                className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-sm border-b-2"
+                style={{ borderBottomColor: "hsl(25 95% 53%)" }}
+              />
               Deadline
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1 sm:gap-1.5">
               <span
-                className="w-2.5 h-2.5 rounded-sm"
+                className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-sm"
                 style={{ backgroundColor: "hsl(142 71% 45% / 0.22)", border: "1px solid hsl(142 71% 45% / 0.35)" }}
               />
               Milestone
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm border-b-2" style={{ borderBottomColor: "hsl(217 91% 60%)" }} />
+            <span className="flex items-center gap-1 sm:gap-1.5">
+              <span
+                className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-sm border-b-2"
+                style={{ borderBottomColor: "hsl(217 91% 60%)" }}
+              />
               Event
             </span>
           </div>
