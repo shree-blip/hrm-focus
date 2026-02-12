@@ -4,9 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calculator, Eye, Download, TrendingUp, TrendingDown, Users } from "lucide-react";
+import { Calculator, Eye, Download, TrendingUp, Info } from "lucide-react";
 import { calculateNepalPayroll, formatNPR } from "@/lib/nepalPayroll";
 import { SalaryBreakdownDialog } from "./SalaryBreakdownDialog";
 import { toast } from "@/hooks/use-toast";
@@ -36,9 +35,9 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [globalDashain, setGlobalDashain] = useState(false);
 
-  const nepalEmployees = employees.filter(e => e.salary && e.salary > 0);
+  const nepalEmployees = employees.filter((e) => e.salary && e.salary > 0);
 
-  const calculations = nepalEmployees.map(emp => {
+  const calculations = nepalEmployees.map((emp) => {
     const breakdown = calculateNepalPayroll({
       annualSalary: emp.salary!,
       gender: (emp.gender as "male" | "female") || null,
@@ -50,13 +49,14 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
 
   const totals = calculations.reduce(
     (acc, { breakdown }) => ({
+      monthlyCTC: acc.monthlyCTC + breakdown.monthlyCTC,
       monthlyGross: acc.monthlyGross + breakdown.monthlyGross,
       monthlySSF: acc.monthlySSF + breakdown.monthlyEmployeeSSF,
       monthlyTDS: acc.monthlyTDS + breakdown.monthlyTDS,
       monthlyNet: acc.monthlyNet + breakdown.monthlyNetSalary,
-      employerSSF: acc.employerSSF + breakdown.employerSSF / 12,
+      employerSSF: acc.employerSSF + breakdown.monthlyEmployerSSF,
     }),
-    { monthlyGross: 0, monthlySSF: 0, monthlyTDS: 0, monthlyNet: 0, employerSSF: 0 }
+    { monthlyCTC: 0, monthlyGross: 0, monthlySSF: 0, monthlyTDS: 0, monthlyNet: 0, employerSSF: 0 },
   );
 
   const handleViewBreakdown = (emp: Employee) => {
@@ -64,7 +64,10 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
     setShowBreakdown(true);
   };
 
-  const handleSaveOptions = (employeeId: string, updates: { insurance_premium: number; include_dashain_bonus: boolean }) => {
+  const handleSaveOptions = (
+    employeeId: string,
+    updates: { insurance_premium: number; include_dashain_bonus: boolean },
+  ) => {
     if (onUpdateEmployee) {
       onUpdateEmployee(employeeId, updates);
       toast({ title: "Saved", description: "Employee payroll options updated" });
@@ -73,23 +76,39 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
 
   const handleExportCSV = () => {
     const headers = [
-      "Employee", "Department", "Gender", "Annual Salary",
-      "Monthly Gross", "Basic (60%)", "Allowance (40%)",
-      "SSF (11%)", "TDS", "Insurance", "Monthly Net",
+      "Employee",
+      "Department",
+      "Gender",
+      "Annual CTC",
+      "Monthly CTC",
+      "Monthly Gross",
+      "Basic (60%)",
+      "Allowance (40%)",
+      "Employer SSF (20%)",
+      "Employee SSF (11%)",
+      "Taxable Income",
+      "TDS",
+      "Insurance",
+      "Monthly Net",
     ];
-    const rows = calculations.map(({ employee: emp, breakdown: b }) => [
-      `"${emp.first_name} ${emp.last_name}"`,
-      emp.department || "",
-      emp.gender || "N/A",
-      emp.salary,
-      b.monthlyGross.toFixed(0),
-      b.monthlyBasicSalary.toFixed(0),
-      b.monthlyAllowance.toFixed(0),
-      b.monthlyEmployeeSSF.toFixed(0),
-      b.monthlyTDS.toFixed(0),
-      b.monthlyInsurance.toFixed(0),
-      b.monthlyNetSalary.toFixed(0),
-    ].join(","));
+    const rows = calculations.map(({ employee: emp, breakdown: b }) =>
+      [
+        `"${emp.first_name} ${emp.last_name}"`,
+        emp.department || "",
+        emp.gender || "N/A",
+        emp.salary,
+        b.monthlyCTC.toFixed(0),
+        b.monthlyGross.toFixed(0),
+        b.monthlyBasicSalary.toFixed(0),
+        b.monthlyAllowance.toFixed(0),
+        b.monthlyEmployerSSF.toFixed(0),
+        b.monthlyEmployeeSSF.toFixed(0),
+        b.taxableIncome.toFixed(0),
+        b.monthlyTDS.toFixed(0),
+        b.monthlyInsurance.toFixed(0),
+        b.monthlyNetSalary.toFixed(0),
+      ].join(","),
+    );
 
     const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -105,6 +124,16 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
   return (
     <>
       <div className="space-y-6">
+        {/* Info Banner */}
+        <div className="flex items-start gap-2 p-3 bg-info/10 border border-info/20 rounded-lg text-sm text-info">
+          <Info className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>
+            <strong>Nepal Payroll (FY 2081/82):</strong> Salary entered is <strong>CTC</strong> (includes employer's 20%
+            SSF). Employee gross = CTC ÷ 1.12. The 1% Social Security Tax on first Rs. 5L is covered by SSF. TDS only
+            applies to taxable income <strong>exceeding Rs. 5 Lakh</strong>.
+          </div>
+        </div>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <Card>
@@ -115,13 +144,14 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
           </Card>
           <Card>
             <CardContent className="pt-4 pb-3">
-              <p className="text-xs text-muted-foreground">Monthly Gross</p>
-              <p className="text-xl font-bold text-foreground">{formatNPR(totals.monthlyGross)}</p>
+              <p className="text-xs text-muted-foreground">Monthly CTC</p>
+              <p className="text-xl font-bold text-foreground">{formatNPR(totals.monthlyCTC)}</p>
+              <p className="text-[10px] text-muted-foreground">incl. employer SSF</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4 pb-3">
-              <p className="text-xs text-muted-foreground">Total SSF (Employee)</p>
+              <p className="text-xs text-muted-foreground">Employee SSF (11%)</p>
               <p className="text-xl font-bold text-destructive">{formatNPR(totals.monthlySSF)}</p>
             </CardContent>
           </Card>
@@ -157,7 +187,7 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Calculator className="h-5 w-5 text-primary" />
-              Nepal Payroll — Auto Calculated
+              Nepal Payroll — Auto Calculated (FY 2081/82)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -168,8 +198,8 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
                     <TableHead>Employee</TableHead>
                     <TableHead>Dept</TableHead>
                     <TableHead>Gender</TableHead>
-                    <TableHead className="text-right">Monthly Gross</TableHead>
-                    <TableHead className="text-right">Basic (60%)</TableHead>
+                    <TableHead className="text-right">CTC</TableHead>
+                    <TableHead className="text-right">Gross</TableHead>
                     <TableHead className="text-right">SSF (11%)</TableHead>
                     <TableHead className="text-right">TDS</TableHead>
                     <TableHead className="text-right">Net Salary</TableHead>
@@ -187,23 +217,41 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
                     calculations.map(({ employee: emp, breakdown: b }, index) => (
                       <TableRow key={emp.id} className="animate-fade-in" style={{ animationDelay: `${index * 30}ms` }}>
                         <TableCell className="font-medium">
-                          {emp.first_name} {emp.last_name}
+                          <div>
+                            {emp.first_name} {emp.last_name}
+                          </div>
+                          {b.taxableAboveExemption <= 0 && (
+                            <span className="text-[10px] text-success">No TDS (Below 5L)</span>
+                          )}
                         </TableCell>
                         <TableCell>{emp.department || "-"}</TableCell>
                         <TableCell>
                           {emp.gender ? (
-                            <Badge variant="outline" className="capitalize text-xs">{emp.gender}</Badge>
+                            <Badge variant="outline" className="capitalize text-xs">
+                              {emp.gender}
+                            </Badge>
                           ) : (
                             <span className="text-muted-foreground text-xs">N/A</span>
                           )}
                         </TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatNPR(b.monthlyCTC)}</TableCell>
                         <TableCell className="text-right">{formatNPR(b.monthlyGross)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{formatNPR(b.monthlyBasicSalary)}</TableCell>
-                        <TableCell className="text-right text-destructive">-{formatNPR(b.monthlyEmployeeSSF)}</TableCell>
-                        <TableCell className="text-right text-destructive">-{formatNPR(b.monthlyTDS)}</TableCell>
-                        <TableCell className="text-right font-bold text-success">{formatNPR(b.monthlyNetSalary)}</TableCell>
+                        <TableCell className="text-right text-destructive">
+                          -{formatNPR(b.monthlyEmployeeSSF)}
+                        </TableCell>
+                        <TableCell className="text-right text-destructive">
+                          {b.monthlyTDS > 0 ? `-${formatNPR(b.monthlyTDS)}` : "Rs. 0"}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-success">
+                          {formatNPR(b.monthlyNetSalary)}
+                        </TableCell>
                         <TableCell>
-                          <Button size="sm" variant="ghost" onClick={() => handleViewBreakdown(emp)} title="View full breakdown">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleViewBreakdown(emp)}
+                            title="View full breakdown"
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -213,8 +261,8 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
                   {calculations.length > 0 && (
                     <TableRow className="font-bold bg-muted/50">
                       <TableCell colSpan={3}>Total ({calculations.length} employees)</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{formatNPR(totals.monthlyCTC)}</TableCell>
                       <TableCell className="text-right">{formatNPR(totals.monthlyGross)}</TableCell>
-                      <TableCell className="text-right">—</TableCell>
                       <TableCell className="text-right text-destructive">-{formatNPR(totals.monthlySSF)}</TableCell>
                       <TableCell className="text-right text-destructive">-{formatNPR(totals.monthlyTDS)}</TableCell>
                       <TableCell className="text-right text-success">{formatNPR(totals.monthlyNet)}</TableCell>
@@ -236,8 +284,8 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
                   <TrendingUp className="h-5 w-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Monthly Employer Cost (incl. 20% Employer SSF)</p>
-                  <p className="text-2xl font-bold">{formatNPR(totals.monthlyGross + totals.employerSSF)}</p>
+                  <p className="text-sm text-muted-foreground">Total Monthly CTC (Already includes 20% Employer SSF)</p>
+                  <p className="text-2xl font-bold">{formatNPR(totals.monthlyCTC)}</p>
                 </div>
               </div>
             </CardContent>
