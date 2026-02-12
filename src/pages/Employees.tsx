@@ -232,7 +232,7 @@ const Employees = () => {
         </div>
 
         <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder="Department" />
           </SelectTrigger>
@@ -250,7 +250,7 @@ const Employees = () => {
         </Select>
 
         <Select value={locationFilter} onValueChange={setLocationFilter}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-full sm:w-[140px]">
             <MapPin className="h-4 w-4 mr-2" />
             <SelectValue placeholder="Location" />
           </SelectTrigger>

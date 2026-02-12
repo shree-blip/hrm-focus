@@ -240,13 +240,13 @@ const Approvals = () => {
 
       <Card className="animate-slide-up" style={{ animationDelay: "300ms" }}>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <CardTitle className="font-display text-lg flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
               Leave Requests
             </CardTitle>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
+              <TabsList className="flex-wrap h-auto gap-1">
                 <TabsTrigger value="pending" className="gap-2">
                   <Clock className="h-4 w-4" />
                   Pending ({pendingRequests.length})

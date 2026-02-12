@@ -410,8 +410,8 @@ export default function AccessControl() {
             </CardHeader>
 
             <CardContent>
-              <div className="max-h-[600px] overflow-y-auto">
-                <Table>
+              <div className="max-h-[600px] overflow-auto">
+                <Table className="min-w-[700px]">
                   <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                       <TableHead>Employee</TableHead>

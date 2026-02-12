@@ -153,7 +153,7 @@ const Onboarding = () => {
             <h1 className="text-3xl font-display font-bold text-foreground">Onboarding</h1>
             <p className="text-muted-foreground mt-1">Manage new hire onboarding and employee offboarding</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" onClick={refetch}>
@@ -162,11 +162,11 @@ const Onboarding = () => {
               </TooltipTrigger>
               <TooltipContent>Refresh data</TooltipContent>
             </Tooltip>
-            <Button variant="outline" className="gap-2" onClick={() => setOffboardingDialogOpen(true)}>
+            <Button variant="outline" className="gap-2 text-sm" onClick={() => setOffboardingDialogOpen(true)}>
               <UserMinus className="h-4 w-4" />
-              Start Offboarding
+              <span className="hidden sm:inline">Start</span> Offboarding
             </Button>
-            <Button className="gap-2 shadow-md" onClick={() => setNewHireDialogOpen(true)}>
+            <Button className="gap-2 shadow-md text-sm" onClick={() => setNewHireDialogOpen(true)}>
               <UserPlus className="h-4 w-4" />
               New Hire
             </Button>
@@ -196,7 +196,7 @@ const Onboarding = () => {
 
         {activeTab === "onboarding" ? (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-8">
               <Card
                 className="animate-slide-up opacity-0"
                 style={{ animationDelay: "100ms", animationFillMode: "forwards" }}

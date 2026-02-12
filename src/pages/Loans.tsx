@@ -110,8 +110,8 @@ export default function Loans() {
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> Audit Trail</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <Table>
+                <CardContent className="overflow-x-auto">
+                  <Table className="min-w-[600px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Time</TableHead>
@@ -144,11 +144,11 @@ export default function Loans() {
                 <CardHeader>
                   <CardTitle className="text-base">Default Events & Compliance</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="overflow-x-auto">
                   {defaultEvents.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">No default events recorded</p>
                   ) : (
-                    <Table>
+                    <Table className="min-w-[600px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Date</TableHead>
