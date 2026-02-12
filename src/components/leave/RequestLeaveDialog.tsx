@@ -217,7 +217,7 @@ export function RequestLeaveDialog({
             {isLeaveOnLeave ? (
               <>
                 <Layers className="h-5 w-5 text-orange-500" />
-                Leave on Leave Request
+                Leave on Lieu Request
               </>
             ) : (
               <>
@@ -270,7 +270,7 @@ export function RequestLeaveDialog({
                 <SelectItem value="Leave on Leave" className="py-3">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-orange-500" />
-                    <span className="font-medium">Leave on Leave</span>
+                    <span className="font-medium">Leave on Lieu</span>
                     <Badge
                       variant="secondary"
                       className="text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30"
@@ -294,7 +294,7 @@ export function RequestLeaveDialog({
             <div className="space-y-3 p-4 rounded-lg border-2 border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-amber-500/5">
               <Label htmlFor="leaveOnLeaveSubtype" className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-orange-500" />
-                Reason for Leave on Leave
+                Reason for Leave on Lieu
               </Label>
               <Select
                 value={leaveOnLeaveSubtype}
@@ -354,8 +354,7 @@ export function RequestLeaveDialog({
               <div className="mt-2 p-2 rounded-md bg-orange-500/10 border border-orange-500/20">
                 <p className="text-xs text-orange-600 dark:text-orange-400 flex items-start gap-1">
                   <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                  Leave on Leave requests are flagged for priority manager review. Please provide detailed
-                  justification.
+                  Leave on Lieu requests are flagged for priority manager review. Please provide detailed justification.
                 </p>
               </div>
 
@@ -577,7 +576,7 @@ export function RequestLeaveDialog({
               id="reason"
               placeholder={
                 isLeaveOnLeave
-                  ? "Please provide detailed justification for your leave on leave request. Include any relevant circumstances, documentation references, and expected return date..."
+                  ? "Please provide detailed justification for your leave on lieu request. Include any relevant circumstances, documentation references, and expected return date..."
                   : "Please provide a reason for your leave request..."
               }
               value={reason}
@@ -588,7 +587,7 @@ export function RequestLeaveDialog({
             {isLeaveOnLeave && (
               <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" />
-                Detailed explanation required for Leave on Leave requests
+                Detailed explanation required for Leave on Lieu requests
               </p>
             )}
           </div>
@@ -605,7 +604,7 @@ export function RequestLeaveDialog({
                   "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white",
               )}
             >
-              {isLeaveOnLeave ? "Submit Leave on Leave" : "Submit Request"}
+              {isLeaveOnLeave ? "Submit Leave on Lieu" : "Submit Request"}
             </Button>
           </div>
         </form>
