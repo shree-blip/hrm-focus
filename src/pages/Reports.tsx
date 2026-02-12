@@ -660,7 +660,7 @@ const Reports = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 sm:w-auto lg:w-[600px] h-auto gap-1">
           <TabsTrigger value="leave" className="gap-2">
             <Calendar className="h-4 w-4" />
             Leave Reports
@@ -844,21 +844,23 @@ const Reports = () => {
               {teamAttendance.length === 0 ? (
                 <p className="text-center py-8 text-slate-600">No attendance data available for this period</p>
               ) : (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-4 gap-4 p-3 bg-slate-100 rounded-lg text-sm font-medium">
-                    <span>Employee</span>
-                    <span>Email</span>
-                    <span>Days Worked</span>
-                    <span>Total Hours</span>
-                  </div>
-                  {teamAttendance.slice(0, 10).map((emp) => (
-                    <div key={emp.user_id} className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-slate-50 text-sm">
-                      <span>{emp.employee_name}</span>
-                      <span className="text-slate-600">{emp.email}</span>
-                      <span>{emp.days_worked}</span>
-                      <span>{emp.total_hours}h</span>
+                <div className="overflow-x-auto">
+                  <div className="min-w-[600px] space-y-2">
+                    <div className="grid grid-cols-4 gap-4 p-3 bg-slate-100 rounded-lg text-sm font-medium">
+                      <span>Employee</span>
+                      <span>Email</span>
+                      <span>Days Worked</span>
+                      <span>Total Hours</span>
                     </div>
-                  ))}
+                    {teamAttendance.slice(0, 10).map((emp) => (
+                      <div key={emp.user_id} className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-slate-50 text-sm">
+                        <span>{emp.employee_name}</span>
+                        <span className="text-slate-600">{emp.email}</span>
+                        <span>{emp.days_worked}</span>
+                        <span>{emp.total_hours}h</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -944,40 +946,40 @@ const Reports = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                  <div className="bg-white p-4 rounded-lg border">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 overflow-x-auto pb-2">
+                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
                     <p className="text-sm text-slate-600">Days Worked</p>
                     <p className="text-2xl font-bold text-blue-600">{selectedEmployeeSummary.totalDaysWorked}</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border">
+                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
                     <p className="text-sm text-slate-600">Total Hours</p>
                     <p className="text-2xl font-bold text-green-600">{selectedEmployeeSummary.totalHoursWorked}h</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border">
+                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
                     <p className="text-sm text-slate-600">Avg Hours/Day</p>
                     <p className="text-2xl font-bold">{selectedEmployeeSummary.avgHoursPerDay}h</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border">
+                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
                     <p className="text-sm text-slate-600">Total Breaks</p>
                     <p className="text-2xl font-bold text-yellow-600">{selectedEmployeeSummary.totalBreaks}</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border">
+                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
                     <p className="text-sm text-slate-600">Break Time</p>
                     <p className="text-2xl font-bold text-orange-600">
                       {formatBreakDuration(selectedEmployeeSummary.totalBreakMinutes)}
                     </p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border">
+                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
                     <p className="text-sm text-slate-600">Total Pauses</p>
                     <p className="text-2xl font-bold text-cyan-600">{selectedEmployeeSummary.totalPauses}</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border">
+                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
                     <p className="text-sm text-slate-600">Pause Time</p>
                     <p className="text-2xl font-bold text-indigo-600">
                       {formatBreakDuration(selectedEmployeeSummary.totalPauseMinutes)}
                     </p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border">
+                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
                     <p className="text-sm text-slate-600">Avg Pause/Day</p>
                     <p className="text-2xl font-bold text-purple-600">
                       {formatBreakDuration(selectedEmployeeSummary.avgPausePerDay)}

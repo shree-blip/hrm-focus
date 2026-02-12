@@ -311,20 +311,20 @@ const Performance = () => {
                     </div>
                     <p className="text-sm text-muted-foreground">{member.role}</p>
                   </div>
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-3 sm:gap-6 flex-wrap sm:flex-nowrap">
                     <div className="text-center">
-                      <p className="text-sm text-muted-foreground">Utilization</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Utilization</p>
                       <div className="flex items-center gap-2">
-                        <Progress value={member.utilization} className="w-20 h-2" />
+                        <Progress value={member.utilization} className="w-16 sm:w-20 h-2" />
                         <span className="text-sm font-medium">{member.utilization}%</span>
                       </div>
                     </div>
                     <div className="text-center">
-                      <p className="text-sm text-muted-foreground">Tasks</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Tasks</p>
                       <p className="font-medium">{member.tasks}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-sm text-muted-foreground">Rating</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Rating</p>
                       <p className="font-medium flex items-center gap-1">
                         {member.rating}
                         <Star className="h-3 w-3 text-warning fill-warning" />

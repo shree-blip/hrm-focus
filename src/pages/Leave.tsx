@@ -345,7 +345,7 @@ const Leave = () => {
       </div>
 
       {/* Balance Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {/* Annual Leave Card */}
         <Card
           className="animate-slide-up opacity-0 hover:shadow-md transition-shadow"
