@@ -781,6 +781,7 @@ export type Database = {
           department: string | null
           email: string
           employee_id: string | null
+          employment_type: string | null
           first_name: string
           gender: string | null
           hire_date: string | null
@@ -797,6 +798,8 @@ export type Database = {
           org_id: string | null
           pay_type: string | null
           phone: string | null
+          position_level: string | null
+          probation_completed: boolean | null
           profile_id: string | null
           provident_fund: number | null
           salary: number | null
@@ -810,6 +813,7 @@ export type Database = {
           department?: string | null
           email: string
           employee_id?: string | null
+          employment_type?: string | null
           first_name: string
           gender?: string | null
           hire_date?: string | null
@@ -826,6 +830,8 @@ export type Database = {
           org_id?: string | null
           pay_type?: string | null
           phone?: string | null
+          position_level?: string | null
+          probation_completed?: boolean | null
           profile_id?: string | null
           provident_fund?: number | null
           salary?: number | null
@@ -839,6 +845,7 @@ export type Database = {
           department?: string | null
           email?: string
           employee_id?: string | null
+          employment_type?: string | null
           first_name?: string
           gender?: string | null
           hire_date?: string | null
@@ -855,6 +862,8 @@ export type Database = {
           org_id?: string | null
           pay_type?: string | null
           phone?: string | null
+          position_level?: string | null
+          probation_completed?: boolean | null
           profile_id?: string | null
           provident_fund?: number | null
           salary?: number | null
@@ -1021,6 +1030,628 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_agreements: {
+        Row: {
+          agreement_doc_path: string | null
+          agreement_text: string | null
+          ceo_signature: string | null
+          ceo_signed_at: string | null
+          created_at: string
+          disbursement_amount: number | null
+          disbursement_date: string | null
+          disbursement_sla_deadline: string | null
+          employee_signature: string | null
+          employee_signed_at: string | null
+          first_deduction_month: string
+          hr_signature: string | null
+          hr_signed_at: string | null
+          id: string
+          interest_rate: number
+          loan_request_id: string
+          monthly_installment: number
+          principal: number
+          repayment_schedule: Json
+          sla_alert_sent: boolean | null
+          status: string
+          term_months: number
+          updated_at: string
+        }
+        Insert: {
+          agreement_doc_path?: string | null
+          agreement_text?: string | null
+          ceo_signature?: string | null
+          ceo_signed_at?: string | null
+          created_at?: string
+          disbursement_amount?: number | null
+          disbursement_date?: string | null
+          disbursement_sla_deadline?: string | null
+          employee_signature?: string | null
+          employee_signed_at?: string | null
+          first_deduction_month: string
+          hr_signature?: string | null
+          hr_signed_at?: string | null
+          id?: string
+          interest_rate?: number
+          loan_request_id: string
+          monthly_installment: number
+          principal: number
+          repayment_schedule: Json
+          sla_alert_sent?: boolean | null
+          status?: string
+          term_months: number
+          updated_at?: string
+        }
+        Update: {
+          agreement_doc_path?: string | null
+          agreement_text?: string | null
+          ceo_signature?: string | null
+          ceo_signed_at?: string | null
+          created_at?: string
+          disbursement_amount?: number | null
+          disbursement_date?: string | null
+          disbursement_sla_deadline?: string | null
+          employee_signature?: string | null
+          employee_signed_at?: string | null
+          first_deduction_month?: string
+          hr_signature?: string | null
+          hr_signed_at?: string | null
+          id?: string
+          interest_rate?: number
+          loan_request_id?: string
+          monthly_installment?: number
+          principal?: number
+          repayment_schedule?: Json
+          sla_alert_sent?: boolean | null
+          status?: string
+          term_months?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_agreements_loan_request_id_fkey"
+            columns: ["loan_request_id"]
+            isOneToOne: false
+            referencedRelation: "loan_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_approvals: {
+        Row: {
+          approval_step: string
+          budget_available: boolean | null
+          cashflow_approved: boolean | null
+          ceo_decision_notes: string | null
+          created_at: string
+          decision: string | null
+          eligibility_verified: boolean | null
+          finalized_installment: number | null
+          finalized_schedule: Json | null
+          hr_recommendation: string | null
+          id: string
+          loan_request_id: string
+          notes: string | null
+          outstanding_checked: boolean | null
+          position_verified: boolean | null
+          prioritization_applied: boolean | null
+          repayment_finalized: boolean | null
+          reviewer_id: string
+          updated_at: string
+        }
+        Insert: {
+          approval_step: string
+          budget_available?: boolean | null
+          cashflow_approved?: boolean | null
+          ceo_decision_notes?: string | null
+          created_at?: string
+          decision?: string | null
+          eligibility_verified?: boolean | null
+          finalized_installment?: number | null
+          finalized_schedule?: Json | null
+          hr_recommendation?: string | null
+          id?: string
+          loan_request_id: string
+          notes?: string | null
+          outstanding_checked?: boolean | null
+          position_verified?: boolean | null
+          prioritization_applied?: boolean | null
+          repayment_finalized?: boolean | null
+          reviewer_id: string
+          updated_at?: string
+        }
+        Update: {
+          approval_step?: string
+          budget_available?: boolean | null
+          cashflow_approved?: boolean | null
+          ceo_decision_notes?: string | null
+          created_at?: string
+          decision?: string | null
+          eligibility_verified?: boolean | null
+          finalized_installment?: number | null
+          finalized_schedule?: Json | null
+          hr_recommendation?: string | null
+          id?: string
+          loan_request_id?: string
+          notes?: string | null
+          outstanding_checked?: boolean | null
+          position_verified?: boolean | null
+          prioritization_applied?: boolean | null
+          repayment_finalized?: boolean | null
+          reviewer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_approvals_loan_request_id_fkey"
+            columns: ["loan_request_id"]
+            isOneToOne: false
+            referencedRelation: "loan_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          document_accessed: string | null
+          id: string
+          loan_request_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          document_accessed?: string | null
+          id?: string
+          loan_request_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          document_accessed?: string | null
+          id?: string
+          loan_request_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_audit_logs_loan_request_id_fkey"
+            columns: ["loan_request_id"]
+            isOneToOne: false
+            referencedRelation: "loan_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_default_events: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_type: string
+          flagged_for_hr: boolean | null
+          id: string
+          loan_request_id: string
+          repayment_id: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_type: string
+          flagged_for_hr?: boolean | null
+          id?: string
+          loan_request_id: string
+          repayment_id?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_type?: string
+          flagged_for_hr?: boolean | null
+          id?: string
+          loan_request_id?: string
+          repayment_id?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_default_events_loan_request_id_fkey"
+            columns: ["loan_request_id"]
+            isOneToOne: false
+            referencedRelation: "loan_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_default_events_repayment_id_fkey"
+            columns: ["repayment_id"]
+            isOneToOne: false
+            referencedRelation: "loan_repayments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_monthly_budgets: {
+        Row: {
+          allocated_amount: number
+          created_at: string
+          id: string
+          month: number
+          notes: string | null
+          org_id: string | null
+          set_by: string
+          total_budget: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          allocated_amount?: number
+          created_at?: string
+          id?: string
+          month: number
+          notes?: string | null
+          org_id?: string | null
+          set_by: string
+          total_budget: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          allocated_amount?: number
+          created_at?: string
+          id?: string
+          month?: number
+          notes?: string | null
+          org_id?: string | null
+          set_by?: string
+          total_budget?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_monthly_budgets_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_officer_roles: {
+        Row: {
+          created_at: string
+          id: string
+          loan_role: string
+          org_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          loan_role: string
+          org_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          loan_role?: string
+          org_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_officer_roles_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_repayments: {
+        Row: {
+          agreement_id: string | null
+          created_at: string
+          deducted_at: string | null
+          due_date: string
+          employee_id: string | null
+          id: string
+          interest_amount: number
+          loan_request_id: string
+          month_number: number
+          payroll_export_id: string | null
+          principal_amount: number
+          remaining_balance: number
+          status: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agreement_id?: string | null
+          created_at?: string
+          deducted_at?: string | null
+          due_date: string
+          employee_id?: string | null
+          id?: string
+          interest_amount: number
+          loan_request_id: string
+          month_number: number
+          payroll_export_id?: string | null
+          principal_amount: number
+          remaining_balance: number
+          status?: string
+          total_amount: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agreement_id?: string | null
+          created_at?: string
+          deducted_at?: string | null
+          due_date?: string
+          employee_id?: string | null
+          id?: string
+          interest_amount?: number
+          loan_request_id?: string
+          month_number?: number
+          payroll_export_id?: string | null
+          principal_amount?: number
+          remaining_balance?: number
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_repayments_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "loan_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_repayments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_repayments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_repayments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_repayments_loan_request_id_fkey"
+            columns: ["loan_request_id"]
+            isOneToOne: false
+            referencedRelation: "loan_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_request_confidential: {
+        Row: {
+          created_at: string
+          explanation: string | null
+          id: string
+          loan_request_id: string
+          reason_details: string | null
+          supporting_doc_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          loan_request_id: string
+          reason_details?: string | null
+          supporting_doc_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          loan_request_id?: string
+          reason_details?: string | null
+          supporting_doc_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_request_confidential_loan_request_id_fkey"
+            columns: ["loan_request_id"]
+            isOneToOne: false
+            referencedRelation: "loan_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_requests: {
+        Row: {
+          amount: number
+          auto_deduction_consent: boolean
+          created_at: string
+          declaration_signed: boolean
+          e_signature: string | null
+          employee_id: string | null
+          estimated_monthly_installment: number | null
+          has_prior_outstanding: boolean | null
+          id: string
+          interest_rate: number
+          max_eligible_amount: number | null
+          org_id: string | null
+          position_level: string | null
+          prior_outstanding_amount: number | null
+          reason_type: string
+          signed_at: string | null
+          status: string
+          submitted_at: string | null
+          term_months: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          auto_deduction_consent?: boolean
+          created_at?: string
+          declaration_signed?: boolean
+          e_signature?: string | null
+          employee_id?: string | null
+          estimated_monthly_installment?: number | null
+          has_prior_outstanding?: boolean | null
+          id?: string
+          interest_rate?: number
+          max_eligible_amount?: number | null
+          org_id?: string | null
+          position_level?: string | null
+          prior_outstanding_amount?: number | null
+          reason_type: string
+          signed_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          term_months: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          auto_deduction_consent?: boolean
+          created_at?: string
+          declaration_signed?: boolean
+          e_signature?: string | null
+          employee_id?: string | null
+          estimated_monthly_installment?: number | null
+          has_prior_outstanding?: boolean | null
+          id?: string
+          interest_rate?: number
+          max_eligible_amount?: number | null
+          org_id?: string | null
+          position_level?: string | null
+          prior_outstanding_amount?: number | null
+          reason_type?: string
+          signed_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          term_months?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_requests_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_waiting_list: {
+        Row: {
+          created_at: string
+          deferred_month: number | null
+          deferred_year: number | null
+          hire_date: string | null
+          id: string
+          loan_request_id: string
+          priority_score: number
+          reason_type: string | null
+          reconfirm_required: boolean | null
+          reconfirmed: boolean | null
+          reconfirmed_at: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deferred_month?: number | null
+          deferred_year?: number | null
+          hire_date?: string | null
+          id?: string
+          loan_request_id: string
+          priority_score?: number
+          reason_type?: string | null
+          reconfirm_required?: boolean | null
+          reconfirmed?: boolean | null
+          reconfirmed_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deferred_month?: number | null
+          deferred_year?: number | null
+          hire_date?: string | null
+          id?: string
+          loan_request_id?: string
+          priority_score?: number
+          reason_type?: string | null
+          reconfirm_required?: boolean | null
+          reconfirmed?: boolean | null
+          reconfirmed_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_waiting_list_loan_request_id_fkey"
+            columns: ["loan_request_id"]
+            isOneToOne: false
+            referencedRelation: "loan_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -2433,6 +3064,10 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string[]
       }
+      has_loan_officer_role: {
+        Args: { _loan_role: string; _user_id: string }
+        Returns: boolean
+      }
       has_permission: {
         Args: { _permission: string; _user_id: string }
         Returns: boolean
@@ -2454,6 +3089,7 @@ export type Database = {
       }
       is_it_team: { Args: { _user_id: string }; Returns: boolean }
       is_line_manager: { Args: { _user_id: string }; Returns: boolean }
+      is_loan_officer: { Args: { _user_id: string }; Returns: boolean }
       is_org_vp: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
