@@ -16,6 +16,7 @@ import {
   UserPlus,
   ClipboardList,
   Bug,
+  Landmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -36,6 +37,7 @@ const employeeMenuItems: MenuItem[] = [
   { icon: CheckSquare, label: "Tasks", href: "/tasks" },
   { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet" },
   { icon: FileText, label: "Documents", href: "/documents" },
+  { icon: Landmark, label: "Loans", href: "/loans" },
   { icon: Bug, label: "Support", href: "/support" },
   { icon: Users, label: "Profile", href: "/profile" },
 ];
@@ -49,6 +51,7 @@ const managerMenuItems: MenuItem[] = [
   { icon: CheckSquare, label: "Tasks", href: "/tasks" },
   { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet" },
   { icon: FileText, label: "Documents", href: "/documents" },
+  { icon: Landmark, label: "Loans", href: "/loans" },
   { icon: Bug, label: "Support", href: "/support" },
 ];
 
@@ -63,6 +66,7 @@ const vpMenuItems: MenuItem[] = [
   { icon: Users, label: "People", href: "/employees" },
   { icon: UserPlus, label: "Onboarding", href: "/onboarding" },
   { icon: Wallet, label: "Payroll", href: "/payroll" },
+  { icon: Landmark, label: "Loans", href: "/loans" },
   { icon: Settings, label: "Access Control", href: "/access-control" },
 ];
 
