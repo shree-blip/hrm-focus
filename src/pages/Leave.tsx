@@ -427,7 +427,7 @@ const Leave = () => {
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                 <Layers className="h-4 w-4 text-orange-500" />
-                Leave on Leave
+                Leave on Lieu
               </p>
               <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 dark:text-orange-400">
                 Priority
@@ -596,7 +596,7 @@ const Leave = () => {
                                 className="text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 flex items-center gap-1"
                               >
                                 <Layers className="h-3 w-3" />
-                                Leave on Leave
+                                Leave on Lieu
                               </Badge>
                             )}
                             <Badge
