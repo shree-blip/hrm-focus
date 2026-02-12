@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,12 +33,12 @@ const Notifications = () => {
   const [filter, setFilter] = useState("all");
 
   // Combine notifications and announcements (announcements as notification items)
-  const announcementNotifications = announcements.map(a => ({
+  const announcementNotifications = announcements.map((a) => ({
     id: `announcement-${a.id}`,
     title: a.title,
     message: a.content,
-    type: "announcement",
-    is_read: false, // Announcements are always shown as unread
+    type: "announcement" as const,
+    is_read: false, // Announcements are always shown as unread style
     created_at: a.created_at,
     isAnnouncement: true,
     isPinned: a.is_pinned,
@@ -46,23 +46,34 @@ const Notifications = () => {
   }));
 
   const allItems = [
-    ...announcementNotifications.filter(a => a.isPinned),
-    ...notifications.map(n => ({ ...n, isAnnouncement: false, isPinned: false })),
-    ...announcementNotifications.filter(a => !a.isPinned),
+    ...announcementNotifications.filter((a) => a.isPinned),
+    ...notifications.map((n) => ({
+      ...n,
+      isAnnouncement: false,
+      isPinned: false,
+      publisher_name: undefined,
+    })),
+    ...announcementNotifications.filter((a) => !a.isPinned),
   ];
 
   const filteredNotifications = allItems.filter((n) => {
     if (filter === "all") return true;
-    if (filter === "unread") return !n.is_read;
+    if (filter === "unread") return n.is_read === false;
     if (filter === "announcements") return n.isAnnouncement;
     return true;
   });
 
-  const handleMarkAsRead = async (id: string, isAnnouncement: boolean) => {
-    if (!isAnnouncement) {
+  const handleMarkAsRead = useCallback(
+    async (id: string, isAnnouncement: boolean) => {
+      if (isAnnouncement) return;
       await markAsRead(id);
-    }
-  };
+    },
+    [markAsRead],
+  );
+
+  const handleMarkAllAsRead = useCallback(async () => {
+    await markAllAsRead();
+  }, [markAllAsRead]);
 
   const formatTime = (dateString: string) => {
     try {
@@ -89,16 +100,12 @@ const Notifications = () => {
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
             Notifications
-            {unreadCount > 0 && (
-              <Badge className="bg-destructive">{unreadCount} new</Badge>
-            )}
+            {unreadCount > 0 && <Badge className="bg-destructive">{unreadCount} new</Badge>}
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Stay updated with your team's activities
-          </p>
+          <p className="text-muted-foreground mt-1">Stay updated with your team's activities</p>
         </div>
         {unreadCount > 0 && (
-          <Button variant="outline" className="gap-2" onClick={markAllAsRead}>
+          <Button variant="outline" className="gap-2" onClick={handleMarkAllAsRead}>
             <CheckCheck className="h-4 w-4" />
             Mark all as read
           </Button>
@@ -143,67 +150,74 @@ const Notifications = () => {
               <p>No notifications to show</p>
             </div>
           ) : (
-            filteredNotifications.map((notification, index) => (
-              <div
-                key={notification.id}
-                className={cn(
-                  "flex items-start gap-4 p-4 rounded-lg border border-border transition-all cursor-pointer hover:bg-accent/50",
-                  !notification.is_read && "bg-primary/5 border-primary/20",
-                  notification.isAnnouncement && notification.isPinned && "bg-warning/5 border-warning/20",
-                  "animate-fade-in"
-                )}
-                style={{ animationDelay: `${200 + index * 50}ms` }}
-                onClick={() => handleMarkAsRead(notification.id, notification.isAnnouncement)}
-              >
-                <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                  {getNotificationIcon(notification.type)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className={cn("font-medium", !notification.is_read && "text-primary")}>
-                          {notification.title}
-                        </p>
-                        {notification.isAnnouncement && (
-                          <Badge variant="outline" className="text-xs border-warning text-warning">
-                            Announcement
-                          </Badge>
-                        )}
-                        {notification.isPinned && (
-                          <Badge variant="outline" className="text-xs border-destructive text-destructive">
-                            Pinned
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
-                        {'publisher_name' in notification && notification.publisher_name && (
-                          <span className="font-medium text-foreground/80">By {notification.publisher_name}: </span>
-                        )}
-                        {notification.message}
-                      </p>
-                    </div>
-                    {!notification.is_read && !notification.isAnnouncement && (
-                      <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-2" />
-                    )}
+            filteredNotifications.map((notification, index) => {
+              const isUnread = notification.is_read === false;
+
+              return (
+                <div
+                  key={notification.id}
+                  className={cn(
+                    "flex items-start gap-4 p-4 rounded-lg border border-border transition-all cursor-pointer hover:bg-accent/50",
+                    isUnread && !notification.isAnnouncement && "bg-primary/5 border-primary/20",
+                    notification.isAnnouncement && notification.isPinned && "bg-warning/5 border-warning/20",
+                    notification.isAnnouncement &&
+                      !notification.isPinned &&
+                      "bg-blue-50/50 dark:bg-blue-950/20 border-blue-200/50 dark:border-blue-800/30",
+                    "animate-fade-in",
+                  )}
+                  style={{ animationDelay: `${200 + index * 50}ms` }}
+                  onClick={() => handleMarkAsRead(notification.id, notification.isAnnouncement)}
+                >
+                  <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                    {getNotificationIcon(notification.type)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">{formatTime(notification.created_at)}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className={cn("font-medium", isUnread && !notification.isAnnouncement && "text-primary")}>
+                            {notification.title}
+                          </p>
+                          {notification.isAnnouncement && (
+                            <Badge variant="outline" className="text-xs border-warning text-warning">
+                              Announcement
+                            </Badge>
+                          )}
+                          {notification.isPinned && (
+                            <Badge variant="outline" className="text-xs border-destructive text-destructive">
+                              Pinned
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+                          {notification.publisher_name && (
+                            <span className="font-medium text-foreground/80">By {notification.publisher_name}: </span>
+                          )}
+                          {notification.message}
+                        </p>
+                      </div>
+                      {isUnread && !notification.isAnnouncement && (
+                        <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-2" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">{formatTime(notification.created_at)}</p>
+                  </div>
+                  {isUnread && !notification.isAnnouncement && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMarkAsRead(notification.id, notification.isAnnouncement);
+                      }}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-                {!notification.is_read && !notification.isAnnouncement && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMarkAsRead(notification.id, notification.isAnnouncement);
-                    }}
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
         </CardContent>
       </Card>
