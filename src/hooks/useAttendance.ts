@@ -114,131 +114,7 @@ export function useAttendance(weekStart?: Date) {
     fetchMonthlyLogs();
   }, [fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
 
-  // Auto clock-out after 8 hours - client-side timer
-  useEffect(() => {
-    if (!user || !currentLog || currentLog.clock_out) return;
 
-    const clockInTime = new Date(currentLog.clock_in).getTime();
-    const eightHoursMs = 8 * 60 * 60 * 1000;
-    const now = Date.now();
-    const timeElapsed = now - clockInTime;
-
-    // If already past 8 hours, clock out immediately
-    if (timeElapsed >= eightHoursMs) {
-      const performAutoClockOut = async () => {
-        const clockOutTime = new Date(clockInTime + eightHoursMs);
-
-        const { error } = await supabase
-          .from("attendance_logs")
-          .update({
-            clock_out: clockOutTime.toISOString(),
-            notes: "[Auto clocked out after 8 hours]",
-            status: "auto_clocked_out",
-          })
-          .eq("id", currentLog.id);
-
-        if (!error) {
-          // Create a notification in the database
-          await supabase.from("notifications").insert({
-            user_id: user.id,
-            title: "Auto Clock Out",
-            message:
-              "You were automatically clocked out after 8 hours of work. If you are still working, please clock in again.",
-            type: "warning",
-            link: "/attendance",
-          });
-
-          toast({
-            title: "Auto Clock Out",
-            description: "You were automatically clocked out after 8 hours. Please clock in again if still working.",
-            variant: "destructive",
-          });
-          setCurrentLog(null);
-          fetchWeeklyLogs();
-          fetchMonthlyLogs();
-        }
-      };
-      performAutoClockOut();
-      return;
-    }
-
-    // Set a timer for remaining time until 8 hours
-    const remainingTime = eightHoursMs - timeElapsed;
-    const timer = setTimeout(async () => {
-      const clockOutTime = new Date(clockInTime + eightHoursMs);
-
-      const { error } = await supabase
-        .from("attendance_logs")
-        .update({
-          clock_out: clockOutTime.toISOString(),
-          notes: "[Auto clocked out after 8 hours]",
-          status: "auto_clocked_out",
-        })
-        .eq("id", currentLog.id);
-
-      if (!error) {
-        // Create a notification in the database
-        await supabase.from("notifications").insert({
-          user_id: user.id,
-          title: "Auto Clock Out",
-          message:
-            "You were automatically clocked out after 8 hours of work. If you are still working, please clock in again.",
-          type: "warning",
-          link: "/attendance",
-        });
-
-        toast({
-          title: "Auto Clock Out",
-          description: "You were automatically clocked out after 8 hours. Please clock in again if still working.",
-          variant: "destructive",
-        });
-        setCurrentLog(null);
-        fetchWeeklyLogs();
-        fetchMonthlyLogs();
-      }
-    }, remainingTime);
-
-    return () => clearTimeout(timer);
-  }, [user, currentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
-
-  // Listen for real-time updates on attendance_logs (for auto clock-out)
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel("attendance-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "attendance_logs",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const updated = payload.new as AttendanceLog;
-          // Check if this was an auto clock-out
-          if (updated.status === "auto_clocked_out") {
-            toast({
-              title: "Auto Clock Out",
-              description: "You were automatically clocked out after 8 hours. Please clock in again if still working.",
-              variant: "destructive",
-            });
-            setCurrentLog(null);
-            fetchWeeklyLogs();
-            fetchMonthlyLogs();
-          } else {
-            // Normal update
-            fetchCurrentLog();
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
 
   const clockIn = async (type: "payroll" | "billable" = "payroll") => {
     if (!user) return;
@@ -399,7 +275,7 @@ export function useAttendance(weekStart?: Date) {
     return "in";
   };
 
-  // Calculate monthly hours (excluding breaks and pauses)
+  // Calculate monthly hours (excluding breaks only, NOT pauses)
   const getMonthlyHours = () => {
     let totalMinutes = 0;
     monthlyLogs.forEach((log) => {
@@ -407,8 +283,7 @@ export function useAttendance(weekStart?: Date) {
         const start = new Date(log.clock_in);
         const end = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
-        const pauseMinutes = (log as AttendanceLog).total_pause_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
+        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
