@@ -79,6 +79,9 @@ export function TimesheetDialog({ employee, open, onOpenChange }: TimesheetDialo
       }
 
       if (!userId) {
+        console.log("No user_id found for employee:", employee);
+        setWeeklyLogs([]);
+        setMonthlyLogs([]);
         setLoading(false);
         return;
       }
@@ -94,13 +97,17 @@ export function TimesheetDialog({ employee, open, onOpenChange }: TimesheetDialo
       weekEnd.setHours(23, 59, 59, 999);
 
       // Fetch weekly logs
-      const { data: weekData } = await supabase
+      const { data: weekData, error: weekError } = await supabase
         .from("attendance_logs")
         .select("*")
         .eq("user_id", userId)
         .gte("clock_in", weekStart.toISOString())
         .lte("clock_in", weekEnd.toISOString())
         .order("clock_in", { ascending: true });
+
+      if (weekError) {
+        console.error("Error fetching weekly logs:", weekError);
+      }
 
       // Calculate month range
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -109,16 +116,31 @@ export function TimesheetDialog({ employee, open, onOpenChange }: TimesheetDialo
       monthEnd.setHours(23, 59, 59, 999);
 
       // Fetch monthly logs
-      const { data: monthData } = await supabase
+      const { data: monthData, error: monthError } = await supabase
         .from("attendance_logs")
         .select("*")
         .eq("user_id", userId)
         .gte("clock_in", monthStart.toISOString())
         .lte("clock_in", monthEnd.toISOString())
-        .order("clock_in", { ascending: true });
+        .order("clock_in", { ascending: false });
 
-      setWeeklyLogs((weekData as AttendanceLog[]) || []);
-      setMonthlyLogs((monthData as AttendanceLog[]) || []);
+      if (monthError) {
+        console.error("Error fetching monthly logs:", monthError);
+      }
+
+      const weekLogs = (weekData as AttendanceLog[]) || [];
+      const monthLogs = (monthData as AttendanceLog[]) || [];
+
+      console.log("Fetched attendance data:", {
+        userId,
+        weekLogs: weekLogs.length,
+        monthLogs: monthLogs.length,
+        weekRange: `${weekStart.toISOString()} to ${weekEnd.toISOString()}`,
+        monthRange: `${monthStart.toISOString()} to ${monthEnd.toISOString()}`,
+      });
+
+      setWeeklyLogs(weekLogs);
+      setMonthlyLogs(monthLogs);
       setLoading(false);
     };
 
@@ -217,6 +239,15 @@ export function TimesheetDialog({ employee, open, onOpenChange }: TimesheetDialo
     return `${weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${weekEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
   };
 
+  // Get current month display
+  const getCurrentMonthDisplay = () => {
+    const today = new Date();
+    return today.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
+
+  // Check if employee has any attendance data at all
+  const hasAnyAttendanceData = weeklyLogs.length > 0 || monthlyLogs.length > 0;
+
   const exportToCSV = () => {
     const logs = activeTab === "week" ? weeklyLogs : monthlyLogs;
     const period =
@@ -272,6 +303,19 @@ export function TimesheetDialog({ employee, open, onOpenChange }: TimesheetDialo
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : !hasAnyAttendanceData ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
+            <div className="p-4 rounded-full bg-muted">
+              <Clock className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">No Attendance Records</h3>
+              <p className="text-sm text-muted-foreground mt-1">{employee.name} hasn't clocked in yet.</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Attendance data will appear here once they start tracking time.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -420,6 +464,14 @@ export function TimesheetDialog({ employee, open, onOpenChange }: TimesheetDialo
 
               {/* Monthly View */}
               <TabsContent value="month" className="space-y-4 mt-4">
+                {/* Month Display */}
+                <div className="flex items-center justify-center">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{getCurrentMonthDisplay()}</span>
+                  </div>
+                </div>
+
                 {/* Monthly Summary Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card>
@@ -462,7 +514,7 @@ export function TimesheetDialog({ employee, open, onOpenChange }: TimesheetDialo
                 {/* Monthly Timesheet Table */}
                 <div className="rounded-lg border max-h-[400px] overflow-y-auto">
                   <Table>
-                    <TableHeader className="sticky top-0 bg-background">
+                    <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
                         <TableHead>Date</TableHead>
                         <TableHead>Clock In</TableHead>
@@ -487,7 +539,7 @@ export function TimesheetDialog({ employee, open, onOpenChange }: TimesheetDialo
                       {monthlyLogs.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                            No attendance records for this month
+                            No attendance records for {getCurrentMonthDisplay()}
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -519,6 +571,14 @@ export function TimesheetDialog({ employee, open, onOpenChange }: TimesheetDialo
                     </TableBody>
                   </Table>
                 </div>
+
+                {/* Debug info - shows total records */}
+                {monthlyLogs.length > 0 && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Showing {monthlyLogs.length} attendance record{monthlyLogs.length !== 1 ? "s" : ""} for{" "}
+                    {getCurrentMonthDisplay()}
+                  </p>
+                )}
               </TabsContent>
             </Tabs>
           </div>
