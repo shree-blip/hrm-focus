@@ -59,13 +59,14 @@ const Attendance = () => {
 
   const clockStatus = getClockStatus();
 
-  // Calculate time worked today (excluding breaks only, NOT pauses)
+  // Calculate time worked today (excluding breaks and pauses)
   const getTimeWorked = () => {
     if (!currentLog || !currentLog.clock_in) return "0h 0m";
     const start = new Date(currentLog.clock_in);
     const end = currentLog.clock_out ? new Date(currentLog.clock_out) : new Date();
     const breakMinutes = currentLog.total_break_minutes || 0;
-    const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000;
+    const pauseMinutes = (currentLog as any).total_pause_minutes || 0;
+    const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
     const hours = Math.floor(Math.max(0, diffMs) / (1000 * 60 * 60));
     const minutes = Math.floor((Math.max(0, diffMs) % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${minutes}m`;
@@ -75,7 +76,7 @@ const Attendance = () => {
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
 
-  // Calculate hours per day from weekly logs (excluding breaks only, NOT pauses)
+  // Calculate hours per day from weekly logs (excluding breaks and pauses)
   const getHoursForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     const dayLogs = weeklyLogs.filter((log) => {
@@ -89,7 +90,8 @@ const Attendance = () => {
         const start = new Date(log.clock_in);
         const end = log.clock_out ? new Date(log.clock_out) : new Date();
         const breakMinutes = log.total_break_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000;
+        const pauseMinutes = (log as any).total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
@@ -131,7 +133,7 @@ const Attendance = () => {
       const pauseMinutes = (log as any).total_pause_minutes || 0;
       let hours = "-";
       if (clockOut) {
-        const diffMs = clockOut.getTime() - clockIn.getTime() - breakMinutes * 60 * 1000;
+        const diffMs = clockOut.getTime() - clockIn.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
         hours = (Math.max(0, diffMs) / (1000 * 60 * 60)).toFixed(2);
       }
       return [
@@ -432,17 +434,17 @@ const Attendance = () => {
                 weeklyLogs.map((log, index) => {
                   const clockInDate = new Date(log.clock_in);
                   const clockOutDate = log.clock_out ? new Date(log.clock_out) : null;
-                  const breakMinutes = log.total_break_minutes || 0;
-                  const pauseMinutes = (log as any).total_pause_minutes || 0;
+                   const breakMinutes = log.total_break_minutes || 0;
+                   const pauseMinutes = (log as any).total_pause_minutes || 0;
 
-                  let hours = "-";
-                  if (clockOutDate) {
-                    const diffMs =
-                      clockOutDate.getTime() -
-                      clockInDate.getTime() -
-                      breakMinutes * 60 * 1000;
-                    hours = `${(Math.max(0, diffMs) / (1000 * 60 * 60)).toFixed(2)}h`;
-                  }
+                   let hours = "-";
+                   if (clockOutDate) {
+                     const diffMs =
+                       clockOutDate.getTime() -
+                       clockInDate.getTime() -
+                       (breakMinutes + pauseMinutes) * 60 * 1000;
+                     hours = `${(Math.max(0, diffMs) / (1000 * 60 * 60)).toFixed(2)}h`;
+                   }
 
                   return (
                     <TableRow
