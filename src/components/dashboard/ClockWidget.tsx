@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
-import { Clock, Play, Square, Coffee, Loader2, Briefcase, Pause, Target, Home, Building2 } from "lucide-react";
+import { Clock, Play, Square, Coffee, Loader2, Briefcase, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useAttendance } from "@/hooks/useAttendance";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 
+// Extended type for attendance log with pause support
 interface AttendanceLogWithPause {
   id: string;
   clock_in: string;
@@ -21,9 +21,6 @@ interface AttendanceLogWithPause {
   pause_end: string | null;
   total_pause_minutes: number;
 }
-
-const TARGET_WORK_HOURS = 8;
-const TARGET_WORK_MINUTES = TARGET_WORK_HOURS * 60;
 
 export function ClockWidget() {
   const {
@@ -43,81 +40,52 @@ export function ClockWidget() {
   } = useAttendance();
 
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
-  const [workMinutes, setWorkMinutes] = useState(0);
 
+  // Cast currentLog to include pause fields
   const typedCurrentLog = currentLog as AttendanceLogWithPause | null;
 
-  // Calculate current break time (ongoing + completed)
-  const getCurrentBreakMinutes = () => {
-    if (!typedCurrentLog) return 0;
-    let total = typedCurrentLog.total_break_minutes || 0;
-
-    if (clockStatus === "break" && typedCurrentLog.break_start) {
-      const breakStart = new Date(typedCurrentLog.break_start);
-      total += Math.floor((new Date().getTime() - breakStart.getTime()) / 60000);
-    }
-    return total;
-  };
-
-  // Calculate current pause time (for display only)
-  const getCurrentPauseMinutes = () => {
-    if (!typedCurrentLog) return 0;
-    let total = typedCurrentLog.total_pause_minutes || 0;
-
-    if (clockStatus === "paused" && typedCurrentLog.pause_start) {
-      const pauseStart = new Date(typedCurrentLog.pause_start);
-      total += Math.floor((new Date().getTime() - pauseStart.getTime()) / 60000);
-    }
-    return total;
-  };
-
-  // Update elapsed WORK time every second
+  // Update elapsed time every second
   useEffect(() => {
     if (clockStatus === "out" || !typedCurrentLog) {
       setElapsedTime("00:00:00");
-      setWorkMinutes(0);
       return;
     }
 
     const updateElapsed = () => {
       const now = new Date();
       const clockInTime = new Date(typedCurrentLog.clock_in);
-
-      // Start with total elapsed time
       let elapsed = now.getTime() - clockInTime.getTime();
 
-      // Subtract completed pause time (clock was stopped)
+      // Subtract total break time
+      const totalBreakMs = (typedCurrentLog.total_break_minutes || 0) * 60 * 1000;
+      elapsed -= totalBreakMs;
+
+      // Subtract total pause time (completed pauses)
       const totalPauseMs = (typedCurrentLog.total_pause_minutes || 0) * 60 * 1000;
       elapsed -= totalPauseMs;
 
-      // Subtract current ongoing pause
+      // If currently on break, subtract current break time
+      if (clockStatus === "break" && typedCurrentLog.break_start) {
+        const breakStart = new Date(typedCurrentLog.break_start);
+        elapsed -= now.getTime() - breakStart.getTime();
+      }
+
+      // If currently paused, subtract current pause time
       if (clockStatus === "paused" && typedCurrentLog.pause_start) {
         const pauseStart = new Date(typedCurrentLog.pause_start);
         elapsed -= now.getTime() - pauseStart.getTime();
       }
 
-      // Now elapsed = active clock time
-      // Subtract break time to get work time
-      const totalBreakMs = (typedCurrentLog.total_break_minutes || 0) * 60 * 1000;
-      let workTime = elapsed - totalBreakMs;
+      // Ensure we don't show negative time
+      elapsed = Math.max(0, elapsed);
 
-      // Subtract current ongoing break
-      if (clockStatus === "break" && typedCurrentLog.break_start) {
-        const breakStart = new Date(typedCurrentLog.break_start);
-        workTime -= now.getTime() - breakStart.getTime();
-      }
-
-      workTime = Math.max(0, workTime);
-
-      const hours = Math.floor(workTime / (1000 * 60 * 60));
-      const minutes = Math.floor((workTime % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((workTime % (1000 * 60)) / 1000);
+      const hours = Math.floor(elapsed / (1000 * 60 * 60));
+      const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
 
       setElapsedTime(
         `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`,
       );
-
-      setWorkMinutes(Math.floor(workTime / 60000));
     };
 
     updateElapsed();
@@ -149,13 +117,7 @@ export function ClockWidget() {
     }
   };
 
-  const formatMinutes = (minutes: number): string => {
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  };
-
+  // Calculate today's hours from logs (excluding breaks and pauses)
   const getTodayHours = () => {
     const today = format(new Date(), "yyyy-MM-dd");
     const todayLogs = weeklyLogs.filter((log) => {
@@ -168,13 +130,10 @@ export function ClockWidget() {
       const typedLog = log as AttendanceLogWithPause;
       const start = new Date(typedLog.clock_in);
       const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
-      const pauseMinutes = typedLog.total_pause_minutes || 0;
       const breakMinutes = typedLog.total_break_minutes || 0;
-      // Active time minus breaks = work time
-      const elapsedMs = end.getTime() - start.getTime();
-      const activeMs = elapsedMs - pauseMinutes * 60 * 1000;
-      const workMs = activeMs - breakMinutes * 60 * 1000;
-      totalMinutes += Math.max(0, workMs / (1000 * 60));
+      const pauseMinutes = typedLog.total_pause_minutes || 0;
+      const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
+      totalMinutes += Math.max(0, diffMs / (1000 * 60));
     });
 
     const hours = Math.floor(totalMinutes / 60);
@@ -182,6 +141,7 @@ export function ClockWidget() {
     return `${hours}h ${mins}m`;
   };
 
+  // Calculate weekly hours (excluding breaks and pauses)
   const getWeeklyHours = () => {
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -194,12 +154,10 @@ export function ClockWidget() {
       if (logDate >= weekStart && logDate <= weekEnd) {
         const start = new Date(typedLog.clock_in);
         const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
-        const pauseMinutes = typedLog.total_pause_minutes || 0;
         const breakMinutes = typedLog.total_break_minutes || 0;
-        const elapsedMs = end.getTime() - start.getTime();
-        const activeMs = elapsedMs - pauseMinutes * 60 * 1000;
-        const workMs = activeMs - breakMinutes * 60 * 1000;
-        totalMinutes += Math.max(0, workMs / (1000 * 60));
+        const pauseMinutes = typedLog.total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
+        totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
 
@@ -208,14 +166,29 @@ export function ClockWidget() {
     return `${hours}h ${mins}m`;
   };
 
-  const getProgressPercent = () => {
-    return Math.min(100, Math.round((workMinutes / TARGET_WORK_MINUTES) * 100));
-  };
+  // Calculate utilization (assuming 8h target per day, 40h per week)
+  const getUtilization = () => {
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
-  const getRemainingTime = () => {
-    const remaining = TARGET_WORK_MINUTES - workMinutes;
-    if (remaining <= 0) return "Complete!";
-    return formatMinutes(remaining);
+    let totalMinutes = 0;
+    weeklyLogs.forEach((log) => {
+      const typedLog = log as AttendanceLogWithPause;
+      const logDate = new Date(typedLog.clock_in);
+      if (logDate >= weekStart && logDate <= weekEnd) {
+        const start = new Date(typedLog.clock_in);
+        const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
+        const breakMinutes = typedLog.total_break_minutes || 0;
+        const pauseMinutes = typedLog.total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
+        totalMinutes += Math.max(0, diffMs / (1000 * 60));
+      }
+    });
+
+    const targetMinutes = 40 * 60; // 40 hours per week
+    const utilization = Math.round((totalMinutes / targetMinutes) * 100);
+    return Math.min(utilization, 100);
   };
 
   if (loading) {
@@ -232,9 +205,6 @@ export function ClockWidget() {
   }
 
   const clockInTime = typedCurrentLog ? new Date(typedCurrentLog.clock_in) : null;
-  const currentBreakMinutes = getCurrentBreakMinutes();
-  const currentPauseMinutes = getCurrentPauseMinutes();
-  const progressPercent = getProgressPercent();
 
   return (
     <Card
@@ -257,7 +227,7 @@ export function ClockWidget() {
               clockStatus === "paused" && "border-info text-info bg-info/10",
             )}
           >
-            {clockStatus === "in" && "Working"}
+            {clockStatus === "in" && (typedCurrentLog?.clock_type === "billable" ? "Billable" : "Active")}
             {clockStatus === "out" && "Not Clocked In"}
             {clockStatus === "break" && "On Break"}
             {clockStatus === "paused" && "Paused"}
@@ -275,23 +245,24 @@ export function ClockWidget() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="payroll">Payroll Time</SelectItem>
+                {/* <SelectItem value="billable">Billable Time</SelectItem> */}
               </SelectContent>
             </Select>
           </div>
         )}
 
         {/* Timer Display */}
-        <div className="text-center py-4 rounded-lg bg-secondary/50">
-          <p className="text-4xl sm:text-5xl font-display font-bold tracking-wider text-foreground">{elapsedTime}</p>
-          <p className="text-xs text-muted-foreground mt-1">Work Time (breaks deducted)</p>
+        <div className="text-center py-6 rounded-lg bg-secondary/50">
+          <p className="text-5xl font-display font-bold tracking-wider text-foreground">{elapsedTime}</p>
           {clockInTime && (
             <p className="text-sm text-muted-foreground mt-2">
               Clocked in at {clockInTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+              {typedCurrentLog?.clock_type === "billable" && " (Billable)"}
             </p>
           )}
+          {/* Show pause info if paused */}
           {clockStatus === "paused" && typedCurrentLog?.pause_start && (
-            <p className="text-xs text-info mt-1 flex items-center justify-center gap-1">
-              <Home className="h-3 w-3" />
+            <p className="text-xs text-info mt-1">
               Paused since{" "}
               {new Date(typedCurrentLog.pause_start).toLocaleTimeString("en-US", {
                 hour: "2-digit",
@@ -299,138 +270,47 @@ export function ClockWidget() {
               })}
             </p>
           )}
-          {clockStatus === "break" && typedCurrentLog?.break_start && (
-            <p className="text-xs text-warning mt-1 flex items-center justify-center gap-1">
-              <Coffee className="h-3 w-3" />
-              Break started at{" "}
-              {new Date(typedCurrentLog.break_start).toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
-          )}
         </div>
 
-        {/* Progress toward 8-hour target */}
-        {clockStatus !== "out" && (
-          <div className="space-y-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                <span className="font-medium">Daily Target (8h)</span>
-              </div>
-              <span className="font-semibold text-primary">{progressPercent}%</span>
-            </div>
-            <Progress value={progressPercent} className="h-2" />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{formatMinutes(workMinutes)} worked</span>
-              <span>
-                {getRemainingTime()} {progressPercent < 100 ? "remaining" : ""}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Break & Pause Info - Only show when relevant */}
-        {clockStatus !== "out" &&
-          (currentBreakMinutes > 0 ||
-            currentPauseMinutes > 0 ||
-            clockStatus === "break" ||
-            clockStatus === "paused") && (
-            <div className="grid grid-cols-2 gap-2">
-              {/* Break Time (deducted from work) */}
-              <div
-                className={cn(
-                  "p-3 rounded-lg border",
-                  clockStatus === "break" ? "bg-warning/10 border-warning/30" : "bg-accent/50 border-border",
-                )}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Coffee
-                    className={cn("h-4 w-4", clockStatus === "break" ? "text-warning" : "text-muted-foreground")}
-                  />
-                  <span className="text-xs font-medium">Break</span>
-                </div>
-                <p className={cn("text-lg font-bold", clockStatus === "break" ? "text-warning" : "text-foreground")}>
-                  {formatMinutes(currentBreakMinutes)}
-                </p>
-                <p className="text-[10px] text-muted-foreground">Deducted from work</p>
-              </div>
-
-              {/* Pause Time (clock stopped) */}
-              <div
-                className={cn(
-                  "p-3 rounded-lg border",
-                  clockStatus === "paused" ? "bg-info/10 border-info/30" : "bg-accent/50 border-border",
-                )}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Pause className={cn("h-4 w-4", clockStatus === "paused" ? "text-info" : "text-muted-foreground")} />
-                  <span className="text-xs font-medium">Paused</span>
-                </div>
-                <p className={cn("text-lg font-bold", clockStatus === "paused" ? "text-info" : "text-foreground")}>
-                  {formatMinutes(currentPauseMinutes)}
-                </p>
-                <p className="text-[10px] text-muted-foreground">Clock stopped</p>
-              </div>
-            </div>
-          )}
-
         {/* Action Buttons */}
-        <div className="space-y-2">
+        <div className="flex gap-2 flex-wrap">
           {clockStatus === "out" ? (
-            <Button onClick={handleClockIn} className="w-full gap-2" size="lg">
+            <Button onClick={handleClockIn} className="flex-1 gap-2" size="lg">
               <Play className="h-4 w-4" />
               Clock In
             </Button>
           ) : (
             <>
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleBreak}
-                  variant={clockStatus === "break" ? "default" : "secondary"}
-                  className={cn("flex-1 gap-2", clockStatus === "break" && "bg-warning hover:bg-warning/90")}
-                  size="lg"
-                  disabled={clockStatus === "paused"}
-                >
-                  <Coffee className="h-4 w-4" />
-                  {clockStatus === "break" ? "End Break" : "Break"}
-                </Button>
-                <Button
-                  onClick={handlePause}
-                  variant={clockStatus === "paused" ? "default" : "outline"}
-                  className={cn(
-                    "flex-1 gap-2",
-                    clockStatus === "paused" && "bg-info hover:bg-info/90 text-info-foreground",
-                  )}
-                  size="lg"
-                  disabled={clockStatus === "break"}
-                >
-                  {clockStatus === "paused" ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                  {clockStatus === "paused" ? "Resume" : "Pause"}
-                </Button>
-              </div>
-              <Button onClick={handleClockOut} variant="destructive" className="w-full gap-2" size="lg">
+              <Button
+                onClick={handleBreak}
+                variant={clockStatus === "break" ? "default" : "secondary"}
+                className="flex-1 gap-2"
+                size="lg"
+                disabled={clockStatus === "paused"}
+              >
+                <Coffee className="h-4 w-4" />
+                {clockStatus === "break" ? "Resume" : "Break"}
+              </Button>
+              <Button
+                onClick={handlePause}
+                variant={clockStatus === "paused" ? "default" : "outline"}
+                className={cn(
+                  "flex-1 gap-2",
+                  clockStatus === "paused" && "bg-info hover:bg-info/90 text-info-foreground",
+                )}
+                size="lg"
+                disabled={clockStatus === "break"}
+              >
+                <Pause className="h-4 w-4" />
+                {clockStatus === "paused" ? "Resume" : "Pause"}
+              </Button>
+              <Button onClick={handleClockOut} variant="destructive" className="flex-1 gap-2" size="lg">
                 <Square className="h-4 w-4" />
                 Clock Out
               </Button>
             </>
           )}
         </div>
-
-        {/* Explanation text for pause/break */}
-        {clockStatus !== "out" && (
-          <div className="text-[10px] text-muted-foreground text-center space-y-1 pt-2 border-t">
-            <p>
-              <Coffee className="h-3 w-3 inline mr-1" />
-              <strong>Break:</strong> Lunch/rest - time deducted from work hours
-            </p>
-            <p>
-              <Pause className="h-3 w-3 inline mr-1" />
-              <strong>Pause:</strong> Stop clock (office → home) - resume when ready
-            </p>
-          </div>
-        )}
 
         {/* Today's Summary */}
         <div className="grid grid-cols-3 gap-3 pt-2">
