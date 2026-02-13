@@ -68,7 +68,11 @@ interface DailyAttendanceRecord {
 const getDateRangeLabel = (rangeType: DateRangeType): string => {
   const { start, end } = getDateRangeFromType(rangeType);
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
   return `${formatDate(start)} - ${formatDate(end)}`;
 };
@@ -144,9 +148,7 @@ const Reports = () => {
     if (!employeeSearchQuery.trim()) return employeesList;
     const query = employeeSearchQuery.toLowerCase();
     return employeesList.filter(
-      (emp) =>
-        emp.employee_name.toLowerCase().includes(query) ||
-        emp.email.toLowerCase().includes(query)
+      (emp) => emp.employee_name.toLowerCase().includes(query) || emp.email.toLowerCase().includes(query),
     );
   }, [employeesList, employeeSearchQuery]);
 
@@ -175,12 +177,11 @@ const Reports = () => {
 
   // Helper function to get breaks from attendance record (handles both legacy and new format)
   const getBreaks = (att: DailyAttendanceRecord): BreakRecord[] => {
-    // If breaks array exists and has data, use it
     if (att.breaks && att.breaks.length > 0) {
       return att.breaks;
     }
 
-    // Legacy support: if single break_start/break_end exists, convert to array
+    // Legacy handling for single break
     if (att.break_start) {
       return [
         {
@@ -285,12 +286,17 @@ const Reports = () => {
     // Calculate total time in milliseconds
     const totalTimeMs = clockOut - clockIn;
 
-    // Convert to hours and subtract break and pause time
+    // Convert to hours
     const totalHours = totalTimeMs / (1000 * 60 * 60);
+
+    // Calculate break time in hours (to subtract)
     const breakHours = totalBreakMinutes / 60;
+
+    // Do NOT subtract pause time (pause time should be included)
     const pauseHours = totalPauseMinutes / 60;
 
-    return Math.max(0, totalHours - breakHours - pauseHours);
+    // The final total work hours should include pauses but exclude breaks
+    return Math.max(0, totalHours - breakHours);
   };
 
   // Calculate daily attendance stats based on filtered data
@@ -432,7 +438,7 @@ const Reports = () => {
       // Group leave requests by employee and month
       const employeeMonthlyLeave: Record<string, Record<string, number>> = {};
       const employeeNames: Record<string, string> = {};
-      
+
       // Get all months in the selected date range
       const { start: rangeStart, end: rangeEnd } = getDateRangeFromType(dateRange);
       const allMonths: string[] = [];
@@ -442,14 +448,14 @@ const Reports = () => {
         allMonths.push(monthKey);
         currentMonth.setMonth(currentMonth.getMonth() + 1);
       }
-      
+
       // Calculate monthly totals per employee
       requests.forEach((r) => {
         if (r.status !== "approved") return; // Only count approved leaves
         const name = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown";
         const startDate = new Date(r.start_date);
         const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}`;
-        
+
         if (!employeeMonthlyLeave[name]) {
           employeeMonthlyLeave[name] = {};
           employeeNames[name] = name;
@@ -464,21 +470,26 @@ const Reports = () => {
         const name = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown";
         csvContent += `"${name}","${r.leave_type}","${r.start_date}","${r.end_date}",${r.days},"${r.status}","${r.reason || ""}"\n`;
       });
-      
+
       // Build CSV - Second section: Monthly summary per employee
       csvContent += "\n=== MONTHLY LEAVE SUMMARY (Approved Only) ===\n";
       const monthHeaders = allMonths.map((m) => {
         const [year, month] = m.split("-");
-        return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+        return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+        });
       });
       csvContent += `Employee,${monthHeaders.join(",")},Total Leave Days\n`;
-      
+
       // Sort employees by name
       const sortedEmployees = Object.keys(employeeMonthlyLeave).sort();
       let grandTotalPerMonth: Record<string, number> = {};
-      allMonths.forEach((m) => { grandTotalPerMonth[m] = 0; });
+      allMonths.forEach((m) => {
+        grandTotalPerMonth[m] = 0;
+      });
       let grandTotal = 0;
-      
+
       sortedEmployees.forEach((name) => {
         const monthlyData = employeeMonthlyLeave[name];
         let employeeTotal = 0;
@@ -491,11 +502,11 @@ const Reports = () => {
         grandTotal += employeeTotal;
         csvContent += `"${name}",${monthValues.join(",")},${employeeTotal}\n`;
       });
-      
+
       // Add aggregate totals row
       const aggregateMonthValues = allMonths.map((m) => grandTotalPerMonth[m]);
       csvContent += `"TOTAL (All Employees)",${aggregateMonthValues.join(",")},${grandTotal}\n`;
-      
+
       filename = `leave-report-${dateStr}.csv`;
     } else if (type === "attendance") {
       csvContent = "Employee,Email,Days Worked,Total Hours\n";
@@ -853,7 +864,10 @@ const Reports = () => {
                       <span>Total Hours</span>
                     </div>
                     {teamAttendance.slice(0, 10).map((emp) => (
-                      <div key={emp.user_id} className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-slate-50 text-sm">
+                      <div
+                        key={emp.user_id}
+                        className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-slate-50 text-sm"
+                      >
                         <span>{emp.employee_name}</span>
                         <span className="text-slate-600">{emp.email}</span>
                         <span>{emp.days_worked}</span>
@@ -900,9 +914,7 @@ const Reports = () => {
                         </SelectItem>
                       ))}
                       {filteredEmployeesList.length === 0 && employeeSearchQuery && (
-                        <div className="p-2 text-sm text-muted-foreground text-center">
-                          No employees found
-                        </div>
+                        <div className="p-2 text-sm text-muted-foreground text-center">No employees found</div>
                       )}
                     </SelectContent>
                   </Select>
@@ -1185,6 +1197,7 @@ const Reports = () => {
                                   </Badge>
                                 )}
                               </td>
+
                               <td className="p-3 font-medium text-yellow-600">
                                 {totalBreakMinutes > 0 ? formatBreakDuration(totalBreakMinutes) : "-"}
                               </td>
