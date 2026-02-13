@@ -386,7 +386,7 @@ const Employees = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className={cn("grid gap-3", isManager ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-1")}>
                 <Button
                   variant="outline"
                   className="flex-col h-24 gap-2"
