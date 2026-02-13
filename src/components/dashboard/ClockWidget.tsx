@@ -56,11 +56,11 @@ export function ClockWidget() {
       const clockInTime = new Date(typedCurrentLog.clock_in);
       let elapsed = now.getTime() - clockInTime.getTime();
 
-      // Subtract total break time
+      // Subtract total break time and total pause time
       const totalBreakMs = (typedCurrentLog.total_break_minutes || 0) * 60 * 1000;
+      const totalPauseMs = (typedCurrentLog.total_pause_minutes || 0) * 60 * 1000;
       elapsed -= totalBreakMs;
-
-      // Pause time does NOT reduce total hours (but live timer freezes during active pause below)
+      elapsed -= totalPauseMs;
 
       // If currently on break, subtract current break time
       if (clockStatus === "break" && typedCurrentLog.break_start) {
@@ -129,7 +129,8 @@ export function ClockWidget() {
       const start = new Date(typedLog.clock_in);
       const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
       const breakMinutes = typedLog.total_break_minutes || 0;
-      const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000;
+      const pauseMinutes = typedLog.total_pause_minutes || 0;
+      const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
       totalMinutes += Math.max(0, diffMs / (1000 * 60));
     });
 
@@ -152,7 +153,8 @@ export function ClockWidget() {
         const start = new Date(typedLog.clock_in);
         const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
         const breakMinutes = typedLog.total_break_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000;
+        const pauseMinutes = typedLog.total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
@@ -176,7 +178,8 @@ export function ClockWidget() {
         const start = new Date(typedLog.clock_in);
         const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
         const breakMinutes = typedLog.total_break_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000;
+        const pauseMinutes = typedLog.total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
