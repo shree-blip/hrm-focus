@@ -1,9 +1,10 @@
-import { useState, Fragment } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -16,13 +17,9 @@ import {
   ChevronRight,
   Download,
   Loader2,
+  Briefcase,
   DollarSign,
   Pause,
-  Target,
-  Timer,
-  ChevronDown,
-  ChevronUp,
-  Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAttendance } from "@/hooks/useAttendance";
@@ -30,19 +27,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 
-const TARGET_WORK_HOURS = 8;
-const TARGET_WORK_MINUTES = TARGET_WORK_HOURS * 60;
-
 const Attendance = () => {
-  const { user } = useAuth();
+  const { user, isManager } = useAuth();
   const [clockType, setClockType] = useState<"payroll" | "billable">("payroll");
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const currentDate = new Date();
 
   const {
     currentLog,
     weeklyLogs,
+    monthlyLogs,
     loading,
     clockIn,
     clockOut,
@@ -51,8 +45,10 @@ const Attendance = () => {
     startPause,
     endPause,
     monthlyHours,
+    refetch,
   } = useAttendance(currentWeekStart);
 
+  // Calculate clock status
   const getClockStatus = () => {
     if (!currentLog) return "out";
     if (currentLog.clock_out) return "out";
@@ -63,79 +59,24 @@ const Attendance = () => {
 
   const clockStatus = getClockStatus();
 
-  // Calculate work time (elapsed - pauses - breaks)
-  const getWorkTimeMs = () => {
-    if (!currentLog || !currentLog.clock_in) return 0;
-    const now = new Date();
-    const clockInTime = new Date(currentLog.clock_in).getTime();
-
-    let elapsed = now.getTime() - clockInTime;
-
-    // Subtract pauses (clock stopped time)
-    const pauseMinutes = (currentLog as any).total_pause_minutes || 0;
-    elapsed -= pauseMinutes * 60 * 1000;
-
-    if (clockStatus === "paused" && (currentLog as any).pause_start) {
-      const pauseStart = new Date((currentLog as any).pause_start).getTime();
-      elapsed -= now.getTime() - pauseStart;
-    }
-
-    // Subtract breaks
-    const breakMinutes = currentLog.total_break_minutes || 0;
-    elapsed -= breakMinutes * 60 * 1000;
-
-    if (clockStatus === "break" && currentLog.break_start) {
-      const breakStart = new Date(currentLog.break_start).getTime();
-      elapsed -= now.getTime() - breakStart;
-    }
-
-    return Math.max(0, elapsed);
-  };
-
+  // Calculate time worked today (excluding breaks and pauses)
   const getTimeWorked = () => {
-    const workMs = getWorkTimeMs();
-    const hours = Math.floor(workMs / (1000 * 60 * 60));
-    const minutes = Math.floor((workMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (!currentLog || !currentLog.clock_in) return "0h 0m";
+    const start = new Date(currentLog.clock_in);
+    const end = currentLog.clock_out ? new Date(currentLog.clock_out) : new Date();
+    const breakMinutes = currentLog.total_break_minutes || 0;
+    const pauseMinutes = (currentLog as any).total_pause_minutes || 0;
+    const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
+    const hours = Math.floor(Math.max(0, diffMs) / (1000 * 60 * 60));
+    const minutes = Math.floor((Math.max(0, diffMs) % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${minutes}m`;
   };
 
-  const getProgressPercent = () => {
-    const workMs = getWorkTimeMs();
-    const workMinutes = Math.floor(workMs / 60000);
-    return Math.min(100, Math.round((workMinutes / TARGET_WORK_MINUTES) * 100));
-  };
-
-  const formatMinutes = (minutes: number): string => {
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  };
-
-  const getCurrentBreakMinutes = () => {
-    if (!currentLog) return 0;
-    let total = currentLog.total_break_minutes || 0;
-    if (clockStatus === "break" && currentLog.break_start) {
-      const breakStart = new Date(currentLog.break_start);
-      total += Math.floor((new Date().getTime() - breakStart.getTime()) / 60000);
-    }
-    return total;
-  };
-
-  const getCurrentPauseMinutes = () => {
-    if (!currentLog) return 0;
-    let total = (currentLog as any).total_pause_minutes || 0;
-    if (clockStatus === "paused" && (currentLog as any).pause_start) {
-      const pauseStart = new Date((currentLog as any).pause_start);
-      total += Math.floor((new Date().getTime() - pauseStart.getTime()) / 60000);
-    }
-    return total;
-  };
-
+  // Generate week days
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
 
-  // Calculate hours per day (work time = elapsed - pauses - breaks)
+  // Calculate hours per day from weekly logs (excluding breaks and pauses)
   const getHoursForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     const dayLogs = weeklyLogs.filter((log) => {
@@ -148,64 +89,61 @@ const Attendance = () => {
       if (log.clock_in) {
         const start = new Date(log.clock_in);
         const end = log.clock_out ? new Date(log.clock_out) : new Date();
-        const pauseMinutes = (log as any).total_pause_minutes || 0;
         const breakMinutes = log.total_break_minutes || 0;
-        const elapsedMs = end.getTime() - start.getTime();
-        const activeMs = elapsedMs - pauseMinutes * 60 * 1000;
-        const workMs = activeMs - breakMinutes * 60 * 1000;
-        totalMinutes += Math.max(0, workMs / (1000 * 60));
+        const pauseMinutes = (log as any).total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
+        totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
 
-    return Math.round((totalMinutes / 60) * 10) / 10;
+    return Math.round((totalMinutes / 60) * 10) / 10; // Round to 1 decimal
   };
 
-  const handleClockIn = async () => await clockIn(clockType);
-  const handleClockOut = async () => await clockOut();
-  const handleBreak = async () => (clockStatus === "break" ? await endBreak() : await startBreak());
-  const handlePause = async () => (clockStatus === "paused" ? await endPause() : await startPause());
+  const handleClockIn = async () => {
+    await clockIn(clockType);
+  };
+
+  const handleClockOut = async () => {
+    await clockOut();
+  };
+
+  const handleBreak = async () => {
+    if (clockStatus === "break") {
+      await endBreak();
+    } else {
+      await startBreak();
+    }
+  };
+
+  const handlePause = async () => {
+    if (clockStatus === "paused") {
+      await endPause();
+    } else {
+      await startPause();
+    }
+  };
 
   const handleExport = () => {
-    const headers = [
-      "Date",
-      "Clock In",
-      "Breaks",
-      "Break Time (min)",
-      "Paused Time (min)",
-      "Clock Out",
-      "Work Hours",
-      "Status",
-    ];
-
+    // Generate CSV with pause data
+    const headers = ["Date", "Clock In", "Clock Out", "Break (min)", "Pause (min)", "Total Hours", "Type"];
     const rows = weeklyLogs.map((log) => {
       const clockIn = new Date(log.clock_in);
       const clockOut = log.clock_out ? new Date(log.clock_out) : null;
       const breakMinutes = log.total_break_minutes || 0;
       const pauseMinutes = (log as any).total_pause_minutes || 0;
-
       let hours = "-";
-      let status = "In Progress";
       if (clockOut) {
-        const elapsedMs = clockOut.getTime() - clockIn.getTime();
-        const activeMs = elapsedMs - pauseMinutes * 60 * 1000;
-        const workMs = activeMs - breakMinutes * 60 * 1000;
-        const workHours = Math.max(0, workMs) / (1000 * 60 * 60);
-        hours = workHours.toFixed(2);
-
-        if (workHours >= 8.5) status = "Overtime";
-        else if (workHours >= 7.5) status = "Complete";
-        else status = "Short Time";
+        const diffMs = clockOut.getTime() - clockIn.getTime() - breakMinutes * 60 * 1000 - pauseMinutes * 60 * 1000;
+        hours = (Math.max(0, diffMs) / (1000 * 60 * 60)).toFixed(2);
       }
-
       return [
         format(clockIn, "yyyy-MM-dd"),
         format(clockIn, "hh:mm a"),
-        breakMinutes > 0 ? "Yes" : "No",
+        clockOut ? format(clockOut, "hh:mm a") : "-",
         breakMinutes,
         pauseMinutes,
-        clockOut ? format(clockOut, "hh:mm a") : "-",
         hours,
-        status,
+        log.clock_type || "payroll",
       ].join(",");
     });
 
@@ -214,59 +152,16 @@ const Attendance = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `my-attendance-${format(currentWeekStart, "yyyy-MM-dd")}.csv`;
+    a.download = `attendance-${format(currentWeekStart, "yyyy-MM-dd")}.csv`;
     a.click();
 
-    toast({ title: "Export Complete", description: "Your attendance report has been downloaded." });
+    toast({ title: "Export Complete", description: "Attendance report downloaded." });
   };
 
+  // Calculate weekly totals
   const weeklyTotal = weekDays.reduce((acc, day) => acc + getHoursForDay(day), 0);
   const targetHours = 40;
   const targetMet = Math.round((weeklyTotal / targetHours) * 100);
-
-  const formatTime12 = (dateString: string | null) => {
-    if (!dateString) return "-";
-    return format(new Date(dateString), "hh:mm a");
-  };
-
-  const getWorkStatus = (log: any) => {
-    if (!log.clock_out) return { label: "In Progress", variant: "secondary" as const };
-
-    const clockIn = new Date(log.clock_in);
-    const clockOut = new Date(log.clock_out);
-    const pauseMinutes = log.total_pause_minutes || 0;
-    const breakMinutes = log.total_break_minutes || 0;
-    const elapsedMs = clockOut.getTime() - clockIn.getTime();
-    const activeMs = elapsedMs - pauseMinutes * 60 * 1000;
-    const workMs = activeMs - breakMinutes * 60 * 1000;
-    const totalHours = Math.max(0, workMs) / (1000 * 60 * 60);
-
-    if (totalHours >= 8.5) return { label: "Overtime", variant: "default" as const };
-    if (totalHours >= 7.5) return { label: "Complete", variant: "default" as const };
-    return { label: "Short Time", variant: "destructive" as const };
-  };
-
-  const calculateTotalHours = (log: any) => {
-    if (!log.clock_out) return null;
-
-    const clockIn = new Date(log.clock_in);
-    const clockOut = new Date(log.clock_out);
-    const pauseMinutes = log.total_pause_minutes || 0;
-    const breakMinutes = log.total_break_minutes || 0;
-    const elapsedMs = clockOut.getTime() - clockIn.getTime();
-    const activeMs = elapsedMs - pauseMinutes * 60 * 1000;
-    const workMs = activeMs - breakMinutes * 60 * 1000;
-    return Math.max(0, workMs / (1000 * 60 * 60));
-  };
-
-  const toggleRowExpanded = (rowKey: string) => {
-    setExpandedRows((prev) => {
-      const next = new Set(prev);
-      if (next.has(rowKey)) next.delete(rowKey);
-      else next.add(rowKey);
-      return next;
-    });
-  };
 
   if (loading) {
     return (
@@ -278,16 +173,13 @@ const Attendance = () => {
     );
   }
 
-  const progressPercent = getProgressPercent();
-  const currentBreakMinutes = getCurrentBreakMinutes();
-  const currentPauseMinutes = getCurrentPauseMinutes();
-
   return (
     <DashboardLayout>
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">My Attendance</h1>
-          <p className="text-muted-foreground mt-1">Track your time and view detailed records</p>
+          <h1 className="text-3xl font-display font-bold text-foreground">Attendance</h1>
+          <p className="text-muted-foreground mt-1">Track time and manage attendance records</p>
         </div>
         <Button variant="outline" className="gap-2" onClick={handleExport}>
           <Download className="h-4 w-4" />
@@ -308,6 +200,7 @@ const Attendance = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Clock Type Selector - only show when not clocked in */}
             {clockStatus === "out" && (
               <div className="flex items-center gap-2">
                 <Select value={clockType} onValueChange={(v) => setClockType(v as "payroll" | "billable")}>
@@ -321,17 +214,30 @@ const Attendance = () => {
                         Payroll Time
                       </div>
                     </SelectItem>
+                    <SelectItem value="billable">
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4" />
+                        Billable Time
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
 
-            <div className="text-center py-6 rounded-xl bg-secondary/50 border border-border">
+            <div className="text-center py-8 rounded-xl bg-secondary/50 border border-border">
               <p className="text-5xl font-display font-bold tracking-wider">
-                {currentDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                {currentDate.toLocaleTimeString("en-US", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </p>
               <p className="text-muted-foreground mt-2">
-                {currentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                {currentDate.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}
               </p>
               <Badge
                 variant="outline"
@@ -350,123 +256,44 @@ const Attendance = () => {
               </Badge>
             </div>
 
-            {/* Progress toward 8-hour target */}
-            {clockStatus !== "out" && (
-              <div className="space-y-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-4 w-4 text-primary" />
-                    <span className="font-medium">Daily Target (8h)</span>
-                  </div>
-                  <span className="font-semibold text-primary">{progressPercent}%</span>
-                </div>
-                <Progress value={progressPercent} className="h-2" />
-                <p className="text-xs text-muted-foreground text-center">
-                  {progressPercent >= 100
-                    ? "Target achieved! 🎉"
-                    : `${formatMinutes(TARGET_WORK_MINUTES - Math.floor(getWorkTimeMs() / 60000))} remaining`}
-                </p>
-              </div>
-            )}
-
-            {/* Break & Pause Display */}
-            {clockStatus !== "out" &&
-              (currentBreakMinutes > 0 ||
-                currentPauseMinutes > 0 ||
-                clockStatus === "break" ||
-                clockStatus === "paused") && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div
-                    className={cn(
-                      "p-3 rounded-lg border text-center",
-                      clockStatus === "break" ? "bg-warning/10 border-warning/30" : "bg-accent/50",
-                    )}
-                  >
-                    <Coffee
-                      className={cn(
-                        "h-4 w-4 mx-auto mb-1",
-                        clockStatus === "break" ? "text-warning" : "text-muted-foreground",
-                      )}
-                    />
-                    <p className={cn("text-lg font-bold", clockStatus === "break" ? "text-warning" : "")}>
-                      {formatMinutes(currentBreakMinutes)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">Break (deducted)</p>
-                  </div>
-                  <div
-                    className={cn(
-                      "p-3 rounded-lg border text-center",
-                      clockStatus === "paused" ? "bg-info/10 border-info/30" : "bg-accent/50",
-                    )}
-                  >
-                    <Pause
-                      className={cn(
-                        "h-4 w-4 mx-auto mb-1",
-                        clockStatus === "paused" ? "text-info" : "text-muted-foreground",
-                      )}
-                    />
-                    <p className={cn("text-lg font-bold", clockStatus === "paused" ? "text-info" : "")}>
-                      {formatMinutes(currentPauseMinutes)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">Paused (stopped)</p>
-                  </div>
-                </div>
-              )}
-
-            <div className="space-y-2">
+            <div className="flex gap-2 flex-wrap">
               {clockStatus === "out" ? (
-                <Button onClick={handleClockIn} className="w-full gap-2" size="lg">
+                <Button onClick={handleClockIn} className="flex-1 gap-2" size="lg">
                   <Play className="h-4 w-4" />
                   Clock In
                 </Button>
               ) : (
                 <>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleBreak}
-                      variant={clockStatus === "break" ? "default" : "secondary"}
-                      className={cn("flex-1 gap-2", clockStatus === "break" && "bg-warning hover:bg-warning/90")}
-                      size="lg"
-                      disabled={clockStatus === "paused"}
-                    >
-                      <Coffee className="h-4 w-4" />
-                      {clockStatus === "break" ? "End Break" : "Break"}
-                    </Button>
-                    <Button
-                      onClick={handlePause}
-                      variant={clockStatus === "paused" ? "default" : "outline"}
-                      className={cn(
-                        "flex-1 gap-2",
-                        clockStatus === "paused" && "bg-info hover:bg-info/90 text-info-foreground",
-                      )}
-                      size="lg"
-                      disabled={clockStatus === "break"}
-                    >
-                      {clockStatus === "paused" ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                      {clockStatus === "paused" ? "Resume" : "Pause"}
-                    </Button>
-                  </div>
-                  <Button onClick={handleClockOut} variant="destructive" className="w-full gap-2" size="lg">
+                  <Button
+                    onClick={handleBreak}
+                    variant={clockStatus === "break" ? "default" : "secondary"}
+                    className="flex-1 gap-2"
+                    size="lg"
+                    disabled={clockStatus === "paused"}
+                  >
+                    <Coffee className="h-4 w-4" />
+                    {clockStatus === "break" ? "Resume" : "Break"}
+                  </Button>
+                  <Button
+                    onClick={handlePause}
+                    variant={clockStatus === "paused" ? "default" : "outline"}
+                    className={cn(
+                      "flex-1 gap-2",
+                      clockStatus === "paused" && "bg-info hover:bg-info/90 text-info-foreground",
+                    )}
+                    size="lg"
+                    disabled={clockStatus === "break"}
+                  >
+                    <Pause className="h-4 w-4" />
+                    {clockStatus === "paused" ? "Resume" : "Pause"}
+                  </Button>
+                  <Button onClick={handleClockOut} variant="destructive" className="flex-1 gap-2" size="lg">
                     <Square className="h-4 w-4" />
                     Clock Out
                   </Button>
                 </>
               )}
             </div>
-
-            {/* Help text */}
-            {clockStatus !== "out" && (
-              <div className="text-[10px] text-muted-foreground text-center space-y-1 pt-2 border-t">
-                <p>
-                  <Coffee className="h-3 w-3 inline mr-1" />
-                  <strong>Break:</strong> Lunch/rest - deducted from work time
-                </p>
-                <p>
-                  <Pause className="h-3 w-3 inline mr-1" />
-                  <strong>Pause:</strong> Stop clock (office↔home) - resume anytime
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -486,7 +313,10 @@ const Attendance = () => {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => setCurrentWeekStart(subWeeks(currentWeekStart, 1))}
+                  onClick={() => {
+                    const newWeek = subWeeks(currentWeekStart, 1);
+                    setCurrentWeekStart(newWeek);
+                  }}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -497,7 +327,10 @@ const Attendance = () => {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => setCurrentWeekStart(addWeeks(currentWeekStart, 1))}
+                  onClick={() => {
+                    const newWeek = addWeeks(currentWeekStart, 1);
+                    setCurrentWeekStart(newWeek);
+                  }}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -508,6 +341,7 @@ const Attendance = () => {
             <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {weekDays.map((day, index) => {
                 const hours = getHoursForDay(day);
+                const dayName = format(day, "EEE");
                 const isWeekend = index >= 5;
 
                 return (
@@ -549,7 +383,7 @@ const Attendance = () => {
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
               <div className="text-center">
                 <p className="text-2xl font-display font-bold">{weeklyTotal.toFixed(1)}h</p>
-                <p className="text-sm text-muted-foreground">Work Hours</p>
+                <p className="text-sm text-muted-foreground">Total Hours</p>
               </div>
               <div className="text-center">
                 <p
@@ -571,130 +405,72 @@ const Attendance = () => {
         </Card>
       </div>
 
-      {/* Detailed Weekly Logs Table */}
+      {/* Weekly Logs Table */}
       <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms", animationFillMode: "forwards" }}>
         <CardHeader>
-          <CardTitle className="font-display text-lg flex items-center gap-2">
-            <Timer className="h-5 w-5 text-primary" />
-            Detailed Attendance Logs
-          </CardTitle>
-          <CardDescription>Your records with breaks, pauses, and work hours</CardDescription>
+          <CardTitle className="font-display text-lg">This Week's Logs</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          <Table className="min-w-[800px]">
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-8"></TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Clock In</TableHead>
-                <TableHead>Break Time</TableHead>
-                <TableHead>Paused Time</TableHead>
                 <TableHead>Clock Out</TableHead>
-                <TableHead>Work Hours</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Break</TableHead>
+                <TableHead>Pause</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Hours Worked</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {weeklyLogs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No attendance logs for this week
                   </TableCell>
                 </TableRow>
               ) : (
                 weeklyLogs.map((log, index) => {
                   const clockInDate = new Date(log.clock_in);
+                  const clockOutDate = log.clock_out ? new Date(log.clock_out) : null;
                   const breakMinutes = log.total_break_minutes || 0;
                   const pauseMinutes = (log as any).total_pause_minutes || 0;
-                  const totalHours = calculateTotalHours(log);
-                  const status = getWorkStatus(log);
-                  const rowKey = `${log.id}-${index}`;
-                  const isExpanded = expandedRows.has(rowKey);
 
-                  const hasBreakDetails = breakMinutes > 0 && log.break_start;
-                  const hasPauseDetails = pauseMinutes > 0 && (log as any).pause_start;
-                  const hasExpandableContent = hasBreakDetails || hasPauseDetails;
+                  let hours = "-";
+                  if (clockOutDate) {
+                    const diffMs =
+                      clockOutDate.getTime() -
+                      clockInDate.getTime() -
+                      breakMinutes * 60 * 1000 -
+                      pauseMinutes * 60 * 1000;
+                    hours = `${(Math.max(0, diffMs) / (1000 * 60 * 60)).toFixed(2)}h`;
+                  }
 
                   return (
-                    <Fragment key={log.id}>
-                      <TableRow
-                        className="animate-fade-in hover:bg-accent/50"
-                        style={{ animationDelay: `${400 + index * 50}ms` }}
-                      >
-                        <TableCell>
-                          {hasExpandableContent && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              onClick={() => toggleRowExpanded(rowKey)}
-                            >
-                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                            </Button>
+                    <TableRow
+                      key={log.id}
+                      className="animate-fade-in"
+                      style={{ animationDelay: `${400 + index * 50}ms` }}
+                    >
+                      <TableCell className="font-medium">{format(clockInDate, "EEE, MMM d")}</TableCell>
+                      <TableCell>{format(clockInDate, "hh:mm a")}</TableCell>
+                      <TableCell>{clockOutDate ? format(clockOutDate, "hh:mm a") : "-"}</TableCell>
+                      <TableCell>{breakMinutes > 0 ? `${breakMinutes}m` : "-"}</TableCell>
+                      <TableCell>{pauseMinutes > 0 ? `${pauseMinutes}m` : "-"}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            log.clock_type === "billable" && "border-info text-info bg-info/10",
+                            log.clock_type === "payroll" && "border-primary text-primary bg-primary/10",
                           )}
-                        </TableCell>
-                        <TableCell className="font-medium">{format(clockInDate, "EEE, MMM d")}</TableCell>
-                        <TableCell className="text-success font-mono">{formatTime12(log.clock_in)}</TableCell>
-                        <TableCell>
-                          {breakMinutes > 0 ? (
-                            <div className="flex items-center gap-2">
-                              <Coffee className="h-4 w-4 text-warning" />
-                              <span className="font-medium text-warning">{formatMinutes(breakMinutes)}</span>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {pauseMinutes > 0 ? (
-                            <div className="flex items-center gap-2">
-                              <Pause className="h-4 w-4 text-info" />
-                              <span className="font-medium text-info">{formatMinutes(pauseMinutes)}</span>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-destructive font-mono">{formatTime12(log.clock_out)}</TableCell>
-                        <TableCell className="font-bold">
-                          {totalHours !== null ? `${totalHours.toFixed(2)}h` : "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={status.variant}>{status.label}</Badge>
-                        </TableCell>
-                      </TableRow>
-
-                      {hasExpandableContent && isExpanded && (
-                        <TableRow className="bg-accent/30">
-                          <TableCell colSpan={8} className="p-0">
-                            <div className="px-12 py-3 space-y-2">
-                              {hasBreakDetails && (
-                                <div className="flex items-center gap-4 text-sm">
-                                  <Coffee className="h-4 w-4 text-warning" />
-                                  <span className="font-medium">Break:</span>
-                                  <span className="text-warning font-mono">
-                                    {formatTime12(log.break_start)} - {formatTime12(log.break_end)}
-                                  </span>
-                                  <span className="text-muted-foreground">
-                                    ({breakMinutes}m deducted from work time)
-                                  </span>
-                                </div>
-                              )}
-                              {hasPauseDetails && (
-                                <div className="flex items-center gap-4 text-sm">
-                                  <Home className="h-4 w-4 text-info" />
-                                  <span className="font-medium">Paused:</span>
-                                  <span className="text-info font-mono">
-                                    {formatTime12((log as any).pause_start)} - {formatTime12((log as any).pause_end)}
-                                  </span>
-                                  <span className="text-muted-foreground">({pauseMinutes}m clock stopped)</span>
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </Fragment>
+                        >
+                          {log.clock_type || "payroll"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{hours}</TableCell>
+                    </TableRow>
                   );
                 })
               )}
