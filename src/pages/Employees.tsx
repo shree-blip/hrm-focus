@@ -6,13 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Search, Plus, Filter, MoreHorizontal, Mail, MapPin, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Search, Plus, Filter, Mail, MapPin, Loader2, User, Edit, Clock, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
 import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
@@ -50,6 +45,7 @@ const Employees = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
+  const [clickedEmployee, setClickedEmployee] = useState<any | null>(null);
 
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -276,14 +272,13 @@ const Employees = () => {
               <TableHead className="font-semibold">Location</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Contact</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
             {filteredEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   No employees found
                 </TableCell>
               </TableRow>
@@ -293,6 +288,7 @@ const Employees = () => {
                   key={employee.id}
                   className="group cursor-pointer animate-fade-in"
                   style={{ animationDelay: `${300 + index * 50}ms` }}
+                  onClick={() => setClickedEmployee(employee)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -346,38 +342,6 @@ const Employees = () => {
                       </Button>
                     </div>
                   </TableCell>
-
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewProfile(employee)}>View Profile</DropdownMenuItem>
-
-                        {isManager && (
-                          <>
-                            <DropdownMenuItem onClick={() => handleEditDetails(employee)}>
-                              Edit Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleViewTimesheet(employee)}>
-                              View Timesheet
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeactivate(employee)}>
-                              Deactivate
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -398,6 +362,85 @@ const Employees = () => {
             <span>🇺🇸 {filteredEmployees.filter((e) => e.location === "US").length} US</span>
             <span>🇳🇵 {filteredEmployees.filter((e) => e.location === "Nepal").length} Nepal</span>
           </div>
+        </div>
+      )}
+
+      {/* Action Popup Overlay */}
+      {clickedEmployee && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in duration-200"
+          onClick={() => setClickedEmployee(null)}
+        >
+          <Card
+            className="w-full max-w-3xl mx-4 shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4 mb-6">
+                <EmployeeAvatar employee={clickedEmployee} />
+                <div>
+                  <h3 className="font-semibold text-lg">
+                    {clickedEmployee.first_name} {clickedEmployee.last_name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{clickedEmployee.job_title || "Employee"}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-col h-24 gap-2"
+                  onClick={() => {
+                    handleViewProfile(clickedEmployee);
+                    setClickedEmployee(null);
+                  }}
+                >
+                  <User className="h-6 w-6" />
+                  <span className="text-sm font-medium">View Profile</span>
+                </Button>
+
+                {isManager && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="flex-col h-24 gap-2"
+                      onClick={() => {
+                        handleEditDetails(clickedEmployee);
+                        setClickedEmployee(null);
+                      }}
+                    >
+                      <Edit className="h-6 w-6" />
+                      <span className="text-sm font-medium">Edit Details</span>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="flex-col h-24 gap-2"
+                      onClick={() => {
+                        handleViewTimesheet(clickedEmployee);
+                        setClickedEmployee(null);
+                      }}
+                    >
+                      <Clock className="h-6 w-6" />
+                      <span className="text-sm font-medium">View Timesheet</span>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="flex-col h-24 gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                      onClick={() => {
+                        handleDeactivate(clickedEmployee);
+                        setClickedEmployee(null);
+                      }}
+                    >
+                      <UserX className="h-6 w-6" />
+                      <span className="text-sm font-medium">Deactivate</span>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
