@@ -114,8 +114,6 @@ export function useAttendance(weekStart?: Date) {
     fetchMonthlyLogs();
   }, [fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
 
-
-
   const clockIn = async (type: "payroll" | "billable" = "payroll") => {
     if (!user) return;
 
@@ -275,7 +273,7 @@ export function useAttendance(weekStart?: Date) {
     return "in";
   };
 
-  // Calculate monthly hours (excluding breaks and pauses)
+  // Calculate monthly hours (ONLY excluding breaks, NOT pauses)
   const getMonthlyHours = () => {
     let totalMinutes = 0;
     monthlyLogs.forEach((log) => {
@@ -283,8 +281,8 @@ export function useAttendance(weekStart?: Date) {
         const start = new Date(log.clock_in);
         const end = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
-        const pauseMinutes = log.total_pause_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
+        // NOTE: We DO NOT subtract pause minutes - pauses are included in work time
+        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
