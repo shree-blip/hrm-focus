@@ -16,13 +16,15 @@ export function useTeamPresence() {
     // Fetch all active attendance logs (clocked in, not clocked out)
     const { data, error } = await supabase
       .from("attendance_logs")
-      .select(`
+      .select(
+        `
         id,
         user_id,
         employee_id,
         clock_in,
         status
-      `)
+      `,
+      )
       .is("clock_out", null)
       .in("status", ["active", "break"]);
 
@@ -33,7 +35,7 @@ export function useTeamPresence() {
     }
 
     const statusMap = new Map<string, TeamMemberStatus>();
-    
+
     data?.forEach((log) => {
       if (log.employee_id) {
         statusMap.set(log.employee_id, {
@@ -76,7 +78,7 @@ export function useTeamPresence() {
                 clock_in: string;
                 clock_out: string | null;
               };
-              
+
               if (record.employee_id && !record.clock_out) {
                 updated.set(record.employee_id, {
                   employee_id: record.employee_id,
@@ -125,7 +127,7 @@ export function useTeamPresence() {
 
             return updated;
           });
-        }
+        },
       )
       .subscribe();
 
