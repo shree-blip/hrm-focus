@@ -1,4 +1,5 @@
 // Loan calculation utilities - 5% annual interest, reducing balance amortization
+// UPDATED: Removed probation restrictions - all active employees are eligible
 
 export const ANNUAL_INTEREST_RATE = 5;
 export const MAX_TERM_MONTHS = 6;
@@ -11,25 +12,35 @@ export const POSITION_CAPS: Record<string, { min: number; max: number }> = {
 };
 
 export const LOAN_STATUSES = [
-  'draft', 'submitted', 'hr_review', 'finance_check', 'ceo_review',
-  'approved', 'rejected', 'deferred', 'agreement_signing', 'disbursed', 'repaying', 'closed',
+  "draft",
+  "submitted",
+  "hr_review",
+  "finance_check",
+  "ceo_review",
+  "approved",
+  "rejected",
+  "deferred",
+  "agreement_signing",
+  "disbursed",
+  "repaying",
+  "closed",
 ] as const;
 
-export type LoanStatus = typeof LOAN_STATUSES[number];
+export type LoanStatus = (typeof LOAN_STATUSES)[number];
 
 export const STATUS_LABELS: Record<string, string> = {
-  draft: 'Draft',
-  submitted: 'Submitted',
-  hr_review: 'HR Review',
-  finance_check: 'Finance Check',
-  ceo_review: 'CEO Review',
-  approved: 'Approved',
-  rejected: 'Rejected',
-  deferred: 'Deferred',
-  agreement_signing: 'Agreement Signing',
-  disbursed: 'Disbursed',
-  repaying: 'Repaying',
-  closed: 'Closed',
+  draft: "Draft",
+  submitted: "Submitted",
+  hr_review: "HR Review",
+  finance_check: "Finance Check",
+  ceo_review: "CEO Review",
+  approved: "Approved",
+  rejected: "Rejected",
+  deferred: "Deferred",
+  agreement_signing: "Agreement Signing",
+  disbursed: "Disbursed",
+  repaying: "Repaying",
+  closed: "Closed",
 };
 
 export interface AmortizationRow {
@@ -44,8 +55,8 @@ export interface AmortizationRow {
 export function calculateEMI(principal: number, annualRate: number, termMonths: number): number {
   const monthlyRate = annualRate / 100 / 12;
   if (monthlyRate === 0) return principal / termMonths;
-  const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, termMonths) /
-    (Math.pow(1 + monthlyRate, termMonths) - 1);
+  const emi =
+    (principal * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / (Math.pow(1 + monthlyRate, termMonths) - 1);
   return Math.round(emi * 100) / 100;
 }
 
@@ -95,6 +106,13 @@ export function getMinLoanAmount(positionLevel: string): number {
   return POSITION_CAPS[positionLevel]?.min ?? 0;
 }
 
+/**
+ * Check employee eligibility for loan
+ * UPDATED: All employees are now eligible for loans
+ * - Removed probation_completed requirement
+ * - Removed employment_type restriction
+ * - Only blocks terminated/resigned employees
+ */
 export function checkEligibility(employee: {
   employment_type?: string;
   probation_completed?: boolean;
@@ -103,17 +121,15 @@ export function checkEligibility(employee: {
 }): { eligible: boolean; reasons: string[]; maxAmount: number } {
   const reasons: string[] = [];
 
-  if (employee.employment_type !== 'full_time') {
-    reasons.push('Must be a full-time employee');
-  }
-  if (!employee.probation_completed) {
-    reasons.push('Probation period must be completed');
-  }
-  if (employee.status !== 'active') {
-    reasons.push('Employee must be active');
+  // Only block if employee is explicitly terminated or resigned
+  if (employee.status === "terminated" || employee.status === "resigned" || employee.status === "inactive") {
+    reasons.push("Employee must be active");
   }
 
-  const maxAmount = getMaxLoanAmount(employee.position_level || 'entry');
+  // REMOVED: employment_type check - all employment types can now apply
+  // REMOVED: probation_completed check - probation employees can now apply
+
+  const maxAmount = getMaxLoanAmount(employee.position_level || "entry");
 
   return {
     eligible: reasons.length === 0,
