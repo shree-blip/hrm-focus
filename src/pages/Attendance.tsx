@@ -413,7 +413,7 @@ const Attendance = () => {
                 >
                   {targetMet}%
                 </p>
-                <p className="text-sm text-muted-foreground">Target Met</p>
+                <p className="text-sm text-muted-foreground">Performance Metrics</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-display font-bold">{Math.max(0, targetHours - weeklyTotal).toFixed(1)}h</p>
