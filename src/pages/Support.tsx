@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bug, Package } from "lucide-react";
+import { Bug, Package, MessageSquareWarning } from "lucide-react";
 import { BugReportsSection } from "@/components/support/BugReportsSection";
 import { AssetRequestsSection } from "@/components/support/AssetRequestsSection";
+import { GrievanceSection } from "@/components/support/GrievanceSection";
 
 const Support = () => {
   const [activeTab, setActiveTab] = useState("bugs");
@@ -23,7 +24,7 @@ const Support = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-lg grid-cols-3">
             <TabsTrigger value="bugs" className="flex items-center gap-2">
               <Bug className="h-4 w-4" />
               Bug Reports
@@ -31,6 +32,10 @@ const Support = () => {
             <TabsTrigger value="assets" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               Request Assets
+            </TabsTrigger>
+            <TabsTrigger value="grievances" className="flex items-center gap-2">
+              <MessageSquareWarning className="h-4 w-4" />
+              Grievances
             </TabsTrigger>
           </TabsList>
 
@@ -40,6 +45,10 @@ const Support = () => {
 
           <TabsContent value="assets" className="space-y-6">
             <AssetRequestsSection />
+          </TabsContent>
+
+          <TabsContent value="grievances" className="space-y-6">
+            <GrievanceSection />
           </TabsContent>
         </Tabs>
       </div>
