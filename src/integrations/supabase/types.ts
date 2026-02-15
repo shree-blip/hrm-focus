@@ -931,6 +931,165 @@ export type Database = {
           },
         ]
       }
+      grievance_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          grievance_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          grievance_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          grievance_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grievance_attachments_grievance_id_fkey"
+            columns: ["grievance_id"]
+            isOneToOne: false
+            referencedRelation: "grievances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grievance_comments: {
+        Row: {
+          content: string
+          created_at: string
+          grievance_id: string
+          id: string
+          is_internal: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          grievance_id: string
+          id?: string
+          is_internal?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          grievance_id?: string
+          id?: string
+          is_internal?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grievance_comments_grievance_id_fkey"
+            columns: ["grievance_id"]
+            isOneToOne: false
+            referencedRelation: "grievances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grievances: {
+        Row: {
+          anonymous_visibility: string
+          assigned_to: string | null
+          category: string
+          created_at: string
+          details: string
+          employee_id: string | null
+          id: string
+          is_anonymous: boolean
+          org_id: string | null
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anonymous_visibility?: string
+          assigned_to?: string | null
+          category: string
+          created_at?: string
+          details: string
+          employee_id?: string | null
+          id?: string
+          is_anonymous?: boolean
+          org_id?: string | null
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anonymous_visibility?: string
+          assigned_to?: string | null
+          category?: string
+          created_at?: string
+          details?: string
+          employee_id?: string | null
+          id?: string
+          is_anonymous?: boolean
+          org_id?: string | null
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grievances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grievances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grievances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grievances_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_balances: {
         Row: {
           created_at: string
@@ -3004,6 +3163,10 @@ export type Database = {
       can_create_employee: { Args: { _user_id: string }; Returns: boolean }
       can_manage_task: {
         Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_view_grievance: {
+        Args: { _grievance_id: string; _user_id: string }
         Returns: boolean
       }
       can_view_salary: {
