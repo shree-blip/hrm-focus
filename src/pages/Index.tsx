@@ -1,6 +1,6 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { ClockWidget } from "@/components/dashboard/ClockWidget";
+import ClockWidget from "@/components/dashboard/ClockWidget";
 import { TasksWidget } from "@/components/dashboard/TasksWidget";
 import { LeaveWidget } from "@/components/dashboard/LeaveWidget";
 import { TeamWidget } from "@/components/dashboard/TeamWidget";
