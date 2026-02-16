@@ -51,6 +51,8 @@ export function Header({ isMobile }: HeaderProps = {}) {
       case "admin": return "Admin";
       case "vp": return "VP";
       case "manager": return "Manager";
+      case "supervisor": return "Supervisor";
+      case "line_manager": return "Line Manager";
       default: return "Employee";
     }
   };
@@ -60,6 +62,8 @@ export function Header({ isMobile }: HeaderProps = {}) {
       case "admin": return "bg-destructive text-destructive-foreground";
       case "vp": return "bg-primary text-primary-foreground";
       case "manager": return "bg-info text-info-foreground";
+      case "supervisor": return "bg-accent text-accent-foreground";
+      case "line_manager": return "bg-primary/80 text-primary-foreground";
       default: return "bg-secondary text-secondary-foreground";
     }
   };
