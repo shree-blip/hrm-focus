@@ -98,10 +98,18 @@ interface ClientComboboxProps {
   value: string;
   onChange: (clientId: string) => void;
   onAddNew: () => void;
+  canAddClient?: boolean;
   compact?: boolean;
 }
 
-function ClientCombobox({ clients, value, onChange, onAddNew, compact = false }: ClientComboboxProps) {
+function ClientCombobox({
+  clients,
+  value,
+  onChange,
+  onAddNew,
+  canAddClient = false,
+  compact = false,
+}: ClientComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -121,91 +129,95 @@ function ClientCombobox({ clients, value, onChange, onAddNew, compact = false }:
   }, [value, clients]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn(
-            "justify-between font-normal",
-            compact ? "h-9 text-sm w-full" : "w-full",
-            !display && "text-muted-foreground",
-          )}
-        >
-          <span className="truncate">{display || "Select client..."}</span>
-          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[320px] p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput placeholder="Search name or ID..." value={query} onValueChange={setQuery} />
-          <CommandList>
-            <CommandEmpty>
-              <div className="py-3 text-center text-sm">
-                <p className="text-muted-foreground">No clients found</p>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="mt-1 text-primary"
-                  onClick={() => {
-                    onAddNew();
-                    setOpen(false);
-                  }}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add New Client
-                </Button>
-              </div>
-            </CommandEmpty>
-            <CommandGroup>
-              <CommandItem
-                value="__none__"
-                onSelect={() => {
-                  onChange("");
-                  setOpen(false);
-                  setQuery("");
-                }}
-              >
-                <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
-                <span className="text-muted-foreground italic">No client</span>
-              </CommandItem>
-              {filtered.map((client) => (
+    <div className="flex items-center gap-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn(
+              "justify-between font-normal flex-1",
+              compact ? "h-9 text-sm" : "",
+              !display && "text-muted-foreground",
+            )}
+          >
+            <span className="truncate">{display || "Select client..."}</span>
+            <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[320px] p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput placeholder="Search name or ID..." value={query} onValueChange={setQuery} />
+            <CommandList>
+              <CommandEmpty>
+                <div className="py-3 text-center text-sm">
+                  <p className="text-muted-foreground">No clients found</p>
+                  {canAddClient && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="mt-1 text-primary"
+                      onClick={() => {
+                        onAddNew();
+                        setOpen(false);
+                      }}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Add New Client
+                    </Button>
+                  )}
+                </div>
+              </CommandEmpty>
+              <CommandGroup>
                 <CommandItem
-                  key={client.id}
-                  value={client.id}
+                  value="__none__"
                   onSelect={() => {
-                    onChange(client.id);
+                    onChange("");
                     setOpen(false);
                     setQuery("");
                   }}
                 >
-                  <Check className={cn("mr-2 h-4 w-4", value === client.id ? "opacity-100" : "opacity-0")} />
-                  <div className="flex flex-col min-w-0">
-                    <span className="truncate">{client.name}</span>
-                    {client.client_id && <span className="text-xs text-muted-foreground">ID: {client.client_id}</span>}
-                  </div>
+                  <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                  <span className="text-muted-foreground italic">No client</span>
                 </CommandItem>
-              ))}
-            </CommandGroup>
-            <CommandSeparator />
-            <CommandGroup>
-              <CommandItem
-                value="__add_new__"
-                onSelect={() => {
-                  onAddNew();
-                  setOpen(false);
-                }}
-                className="text-primary"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add New Client
-              </CommandItem>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                {filtered.map((client) => (
+                  <CommandItem
+                    key={client.id}
+                    value={client.id}
+                    onSelect={() => {
+                      onChange(client.id);
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                  >
+                    <Check className={cn("mr-2 h-4 w-4", value === client.id ? "opacity-100" : "opacity-0")} />
+                    <div className="flex flex-col min-w-0">
+                      <span className="truncate">{client.name}</span>
+                      {client.client_id && (
+                        <span className="text-xs text-muted-foreground">ID: {client.client_id}</span>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {canAddClient && (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn("shrink-0", compact ? "h-9 w-9" : "h-10 w-10")}
+          onClick={onAddNew}
+          title="Add New Client"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -228,7 +240,10 @@ export default function LogSheet() {
   } = useWorkLogs();
   const { clients, loading: clientsLoading, refetch: refetchClients } = useClients();
   const { fetchAlertsForClient } = useClientAlerts();
-  const { isManager, isVP } = useAuth();
+  const { isManager, isVP, isLineManager, isAdmin } = useAuth();
+
+  // Check if user can add clients (line_manager, manager, vp, admin only - not employees)
+  const canAddClient = isLineManager || isManager || isVP || isAdmin;
 
   // ── Dialog / overlay state ────────────────────────────────────────────
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -578,6 +593,7 @@ export default function LogSheet() {
                                     if (id) handleClientSelectWithAlerts(id);
                                   }}
                                   onAddNew={() => setAddClientDialogOpen(true)}
+                                  canAddClient={canAddClient}
                                   compact
                                 />
                               </div>
@@ -997,6 +1013,7 @@ export default function LogSheet() {
                     if (id) handleClientSelectWithAlerts(id);
                   }}
                   onAddNew={() => setAddClientDialogOpen(true)}
+                  canAddClient={canAddClient}
                 />
               </div>
 
