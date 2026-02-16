@@ -49,7 +49,6 @@ export function MyTeamSection() {
         .from("employees")
         .select("id, first_name, last_name, email, department, job_title, location, status, hire_date")
         .eq("line_manager_id", employeeId)
-        .eq("status", "active")
         .order("first_name", { ascending: true });
 
       if (!error && data) {
