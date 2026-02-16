@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useChat } from '@/hooks/useChat';
@@ -36,9 +36,27 @@ export function ChatWidget() {
   const [showUserList, setShowUserList] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const chatRef = useRef<HTMLDivElement>(null);
+
+  // Close chat when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (chatRef.current && !chatRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, setIsOpen]);
 
   const onlineCount = useMemo(
     () => profiles.filter((p) => onlineUsers.has(p.user_id)).length,
+    [profiles, onlineUsers]
+  );
+
+  const onlineProfiles = useMemo(
+    () => profiles.filter((p) => onlineUsers.has(p.user_id)),
     [profiles, onlineUsers]
   );
 
@@ -58,7 +76,7 @@ export function ChatWidget() {
   if (!user) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-4 right-4 z-50" ref={chatRef}>
       {/* Chat Button */}
       {!isOpen && (
         <Button
@@ -136,6 +154,34 @@ export function ChatWidget() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
+
+              {/* Online Users Strip */}
+              {onlineProfiles.length > 0 && (
+                <div className="px-3 py-2 border-b border-border bg-muted/30">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">Online now</p>
+                  <div className="flex gap-2 overflow-x-auto scrollbar-none">
+                    {onlineProfiles.map((profile) => (
+                      <button
+                        key={profile.user_id}
+                        onClick={() => handleStartChat(profile.user_id)}
+                        className="flex flex-col items-center gap-0.5 flex-shrink-0 group"
+                        title={`${profile.first_name} ${profile.last_name}`}
+                      >
+                        <div className="relative">
+                          <div className="h-9 w-9 rounded-full bg-primary/10 text-primary text-xs font-medium flex items-center justify-center group-hover:ring-2 ring-primary/30 transition-all">
+                            {profile.first_name?.[0]}{profile.last_name?.[0]}
+                          </div>
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-card" />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground truncate max-w-[48px]">
+                          {profile.first_name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <ChatConversationList
                 conversations={conversations}
                 loading={loading}
