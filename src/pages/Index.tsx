@@ -36,7 +36,6 @@ const Index = () => {
   }).length;
   const pendingLeaveRequests = requests.filter((r) => r.status === "pending").length;
 
-  // Role-based greeting
   const getRoleLabel = () => {
     if (role === "vp") return "VP";
     if (role === "admin") return "Admin";
@@ -44,9 +43,7 @@ const Index = () => {
     return "";
   };
 
-  // Handler for viewing full calendar
   const handleViewCalendar = () => {
-    // Scroll to calendar or navigate to calendar page
     const calendarElement = document.getElementById("company-calendar");
     if (calendarElement) {
       calendarElement.scrollIntoView({ behavior: "smooth" });
@@ -69,7 +66,6 @@ const Index = () => {
           {isManager ? "Here's what's happening with your team today." : "Here's your personal dashboard overview."}
         </p>
       </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {isManager ? (
@@ -127,13 +123,17 @@ const Index = () => {
         />
       </div>
 
+      {/* Mobile-Only: Clock & Timeline at Top */}
+      <div className="lg:hidden space-y-6 mb-6">
+        <ClockWidget />
+        <DailyTimelineWidget onViewAll={handleViewCalendar} />
+      </div>
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - 2/3 width */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Custom Reports based on role */}
           {isManager ? <TeamReportsWidget /> : <PersonalReportsWidget />}
-
           <PerformanceChart />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TasksWidget />
@@ -144,11 +144,15 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Right Column - 1/3 width */}
+        {/* Right Column - 1/3 width (Desktop only for Clock & Timeline) */}
         <div className="space-y-6">
-          <ClockWidget />
-          {/* Daily Timeline - New attention-grabbing widget */}
-          <DailyTimelineWidget onViewAll={handleViewCalendar} />
+          {/* Hidden on mobile since we show them at top */}
+          <div className="hidden lg:block">
+            <ClockWidget />
+          </div>
+          <div className="hidden lg:block">
+            <DailyTimelineWidget onViewAll={handleViewCalendar} />
+          </div>
           <TeamWidget />
           <AnnouncementsWidget />
         </div>
