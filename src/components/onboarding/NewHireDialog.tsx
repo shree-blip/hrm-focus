@@ -147,6 +147,18 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
   // Set minimum date to today
   const today = new Date().toISOString().split("T")[0];
 
+  // Get salary label and placeholder based on pay type
+  const getSalaryLabel = () => {
+    if (payType === "hourly") return "Hourly Rate";
+    if (payType === "contractor") return "Contract Rate";
+    return "Annual Salary";
+  };
+
+  const getSalaryPlaceholder = () => {
+    if (payType === "hourly") return "500";
+    return "600000";
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[550px]">
@@ -227,7 +239,7 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
             <Input
               id="phone"
               type="tel"
-              placeholder="+1 (555) 123-4567"
+              placeholder="+977 98XXXXXXXX"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               disabled={isSubmitting}
@@ -341,21 +353,26 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="salary">{payType === "hourly" ? "Hourly Rate" : "Annual Salary"}</Label>
+              <Label htmlFor="salary">{getSalaryLabel()} (NPR)</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+                  रू
+                </span>
                 <Input
                   id="salary"
                   type="number"
-                  placeholder={payType === "hourly" ? "25" : "50000"}
+                  placeholder={getSalaryPlaceholder()}
                   value={salary}
                   onChange={(e) => setSalary(e.target.value)}
-                  className="pl-7"
+                  className="pl-8"
                   disabled={isSubmitting}
                   min="0"
-                  step={payType === "hourly" ? "0.5" : "1000"}
+                  step={payType === "hourly" ? "10" : "1000"}
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                {payType === "hourly" ? "Per hour rate in Nepali Rupees" : "Annual amount in Nepali Rupees"}
+              </p>
             </div>
           </div>
 
