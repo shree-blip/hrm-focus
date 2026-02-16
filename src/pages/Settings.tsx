@@ -349,14 +349,14 @@ const Settings = () => {
             <CardContent className="space-y-6">
               <div className="flex items-center gap-6">
                 <div className="relative group">
-                  <Avatar className="h-20 w-20 cursor-pointer" onClick={handleChangePhoto}>
+                  <Avatar className="h-20 w-20 cursor-pointer overflow-hidden rounded-full" onClick={handleChangePhoto}>
                     {isUploadingAvatar ? (
                       <div className="h-full w-full flex items-center justify-center bg-muted">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
                     ) : (
                       <>
-                        <AvatarImage src={displayAvatarUrl} />
+                        <AvatarImage src={displayAvatarUrl} className="h-full w-full object-cover" />
                         <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-semibold">
                           {getInitials()}
                         </AvatarFallback>
