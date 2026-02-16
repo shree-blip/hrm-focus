@@ -45,15 +45,26 @@ export function MyTeamSection() {
     });
 
     if (employeeId) {
-      const { data, error } = await supabase
+      // Fetch employees where current user is line_manager_id OR manager_id
+      const { data: lineReports } = await supabase
         .from("employees")
         .select("id, first_name, last_name, email, department, job_title, location, status, hire_date")
         .eq("line_manager_id", employeeId)
         .order("first_name", { ascending: true });
 
-      if (!error && data) {
-        setTeamMembers(data);
-      }
+      const { data: managerReports } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name, email, department, job_title, location, status, hire_date")
+        .eq("manager_id", employeeId)
+        .order("first_name", { ascending: true });
+
+      // Merge and deduplicate
+      const allReports = [...(lineReports || []), ...(managerReports || [])];
+      const uniqueReports = allReports.filter(
+        (emp, index, self) => self.findIndex((e) => e.id === emp.id) === index
+      );
+      uniqueReports.sort((a, b) => a.first_name.localeCompare(b.first_name));
+      setTeamMembers(uniqueReports);
     }
     setLoading(false);
   }, [user]);
