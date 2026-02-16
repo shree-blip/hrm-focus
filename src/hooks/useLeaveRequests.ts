@@ -132,16 +132,25 @@ export function useLeaveRequests() {
     
     // For supervisor/line_manager - get their direct reports
     if (isSupervisor || isLineManager) {
-      // Get the employee record for this user to find their employee ID
+      // Step 1: Get the current user's profile id
+      const { data: myProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!myProfile) return [];
+
+      // Step 2: Get the employee record for this user
       const { data: myEmployee } = await supabase
         .from("employees")
         .select("id")
-        .eq("profile_id", (await supabase.from("profiles").select("id").eq("user_id", user.id).single()).data?.id || "")
+        .eq("profile_id", myProfile.id)
         .single();
 
       if (!myEmployee) return [];
 
-      // Get employees where this user is line_manager or manager
+      // Step 3: Get employees where this user is line_manager or manager
       const { data: teamMembers } = await supabase
         .from("employees")
         .select("profile_id")
@@ -149,8 +158,10 @@ export function useLeaveRequests() {
 
       if (!teamMembers || teamMembers.length === 0) return [];
 
-      // Get user_ids from profiles
+      // Step 4: Get user_ids from profiles
       const profileIds = teamMembers.map(e => e.profile_id).filter(Boolean);
+      if (profileIds.length === 0) return [];
+
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id")
