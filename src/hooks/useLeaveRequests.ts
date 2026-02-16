@@ -53,11 +53,12 @@ const isLeaveOnLeaveType = (leaveType: string) => {
 };
 
 export function useLeaveRequests() {
-  const { user, isManager } = useAuth();
+  const { user, isManager, isLineManager, isSupervisor, isVP, isAdmin, role } = useAuth();
   const [ownRequests, setOwnRequests] = useState<LeaveRequest[]>([]);
   const [teamLeaves, setTeamLeaves] = useState<LeaveRequest[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teamMemberUserIds, setTeamMemberUserIds] = useState<string[]>([]);
 
   const createNotification = async (
     userId: string,
@@ -122,7 +123,46 @@ export function useLeaveRequests() {
     return data || [];
   }, [user]);
 
-  // Fetch pending requests for managers to approve
+  // Fetch team member user IDs for supervisors/line managers
+  const fetchTeamMemberUserIds = useCallback(async (): Promise<string[]> => {
+    if (!user) return [];
+    
+    // For admin/vp/manager - they see all, no filtering needed
+    if (role === 'admin' || role === 'vp' || role === 'manager') return [];
+    
+    // For supervisor/line_manager - get their direct reports
+    if (isSupervisor || isLineManager) {
+      // Get the employee record for this user to find their employee ID
+      const { data: myEmployee } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("profile_id", (await supabase.from("profiles").select("id").eq("user_id", user.id).single()).data?.id || "")
+        .single();
+
+      if (!myEmployee) return [];
+
+      // Get employees where this user is line_manager or manager
+      const { data: teamMembers } = await supabase
+        .from("employees")
+        .select("profile_id")
+        .or(`line_manager_id.eq.${myEmployee.id},manager_id.eq.${myEmployee.id}`);
+
+      if (!teamMembers || teamMembers.length === 0) return [];
+
+      // Get user_ids from profiles
+      const profileIds = teamMembers.map(e => e.profile_id).filter(Boolean);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .in("id", profileIds as string[]);
+
+      return profiles?.map(p => p.user_id) || [];
+    }
+
+    return [];
+  }, [user, role, isSupervisor, isLineManager]);
+
+  // Fetch pending requests for managers/supervisors/line_managers to approve
   const fetchPendingForManager = useCallback(async () => {
     if (!user || !isManager) return [];
 
@@ -138,8 +178,51 @@ export function useLeaveRequests() {
       return [];
     }
 
+    // For supervisor/line_manager - filter to only their team members
+    if ((isSupervisor || isLineManager) && role !== 'admin' && role !== 'vp' && role !== 'manager') {
+      const teamIds = await fetchTeamMemberUserIds();
+      if (teamIds.length > 0) {
+        return (data || []).filter(r => teamIds.includes(r.user_id));
+      }
+      return [];
+    }
+
     return data || [];
-  }, [user, isManager]);
+  }, [user, isManager, isSupervisor, isLineManager, role, fetchTeamMemberUserIds]);
+
+  // Fetch all team requests (all statuses) for supervisors/line_managers
+  const fetchAllTeamRequests = useCallback(async () => {
+    if (!user || !isManager) return [];
+    
+    // For admin/vp/manager - fetch all requests
+    if (role === 'admin' || role === 'vp' || role === 'manager') {
+      const { data, error } = await supabase
+        .from("leave_requests")
+        .select("*")
+        .neq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return data || [];
+    }
+    
+    // For supervisor/line_manager - fetch all statuses but filter to team
+    if (isSupervisor || isLineManager) {
+      const { data, error } = await supabase
+        .from("leave_requests")
+        .select("*")
+        .neq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      
+      const teamIds = await fetchTeamMemberUserIds();
+      if (teamIds.length > 0) {
+        return (data || []).filter(r => teamIds.includes(r.user_id));
+      }
+      return [];
+    }
+    
+    return [];
+  }, [user, isManager, isSupervisor, isLineManager, role, fetchTeamMemberUserIds]);
 
   const fetchRequests = useCallback(async () => {
     if (!user) return;
@@ -150,14 +233,14 @@ export function useLeaveRequests() {
     // Fetch team leaves (approved) for calendar
     const approvedTeamLeaves = await fetchTeamLeaves();
 
-    // Fetch pending requests if manager
-    const pendingRequests = isManager ? await fetchPendingForManager() : [];
+    // Fetch all team requests if manager/supervisor/line_manager (for Approvals page)
+    const allTeamRequests = isManager ? await fetchAllTeamRequests() : [];
 
-    // Combine own requests with pending requests for managers
+    // Combine own requests with team requests for managers
     const allManageableRequests = [...ownRequestsData];
 
-    // Add pending requests from others (for managers)
-    pendingRequests.forEach((req) => {
+    // Add team requests from others
+    allTeamRequests.forEach((req) => {
       if (!allManageableRequests.find((r) => r.id === req.id)) {
         allManageableRequests.push(req);
       }
@@ -191,7 +274,7 @@ export function useLeaveRequests() {
 
     setOwnRequests(ownRequestsWithProfiles);
     setTeamLeaves(teamLeavesWithProfiles);
-  }, [user, isManager, fetchOwnRequests, fetchTeamLeaves, fetchPendingForManager]);
+  }, [user, isManager, fetchOwnRequests, fetchTeamLeaves, fetchAllTeamRequests]);
 
   const fetchBalances = useCallback(async () => {
     if (!user) return;
@@ -357,25 +440,64 @@ export function useLeaveRequests() {
         `/leave`,
       );
 
-      // Notify managers - with priority flag for Leave on Leave
+      // Notify managers, supervisors, and line managers
       const { data: managers } = await supabase
         .from("user_roles")
         .select("user_id")
-        .in("role", ["manager", "admin", "vp"]);
+        .in("role", ["manager", "admin", "vp", "supervisor", "line_manager"]);
 
-      if (managers && Array.isArray(managers)) {
-        for (const manager of managers) {
-          if (manager.user_id !== user.id) {
-            await createNotification(
-              manager.user_id,
-              isLeaveOnLeave ? "🚨 Priority: Leave on Leave Request" : "New Leave Request",
-              isLeaveOnLeave
-                ? `PRIORITY: ${userName} submitted a Leave on Leave request for ${days} day(s). Reason: ${request.leave_type.replace("Leave on Leave - ", "")}. Requires immediate attention.`
-                : `${userName} submitted a ${request.leave_type} request for ${days} day(s) (${formatLocalDate(request.start_date)} to ${formatLocalDate(request.end_date)}).`,
-              "leave",
-              `/leave`,
-            );
+      // Also get the user's direct line manager/supervisor via employee record
+      const { data: userProfile2 } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      let lineManagerUserIds: string[] = [];
+      if (userProfile2) {
+        const { data: empRecord } = await supabase
+          .from("employees")
+          .select("line_manager_id, manager_id")
+          .eq("profile_id", userProfile2.id)
+          .single();
+
+        if (empRecord) {
+          const managerEmpIds = [empRecord.line_manager_id, empRecord.manager_id].filter(Boolean);
+          if (managerEmpIds.length > 0) {
+            const { data: managerProfiles } = await supabase
+              .from("employees")
+              .select("profile_id")
+              .in("id", managerEmpIds as string[]);
+
+            if (managerProfiles) {
+              const profileIds = managerProfiles.map(m => m.profile_id).filter(Boolean);
+              const { data: mgrUsers } = await supabase
+                .from("profiles")
+                .select("user_id")
+                .in("id", profileIds as string[]);
+              lineManagerUserIds = mgrUsers?.map(p => p.user_id) || [];
+            }
           }
+        }
+      }
+
+      // Combine and deduplicate
+      const allNotifyIds = new Set([
+        ...(managers?.map(m => m.user_id) || []),
+        ...lineManagerUserIds,
+      ]);
+
+      for (const managerId of allNotifyIds) {
+        if (managerId !== user.id) {
+          await createNotification(
+            managerId,
+            isLeaveOnLeave ? "🚨 Priority: Leave on Leave Request" : "New Leave Request",
+            isLeaveOnLeave
+              ? `PRIORITY: ${userName} submitted a Leave on Leave request for ${days} day(s). Reason: ${request.leave_type.replace("Leave on Leave - ", "")}. Requires immediate attention.`
+              : `${userName} submitted a ${request.leave_type} request for ${days} day(s) (${formatLocalDate(request.start_date)} to ${formatLocalDate(request.end_date)}).`,
+            "leave",
+            `/approvals`,
+          );
         }
       }
 
