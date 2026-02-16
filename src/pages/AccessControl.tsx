@@ -287,6 +287,8 @@ export default function AccessControl() {
       toast({ title: "Error", description: "Failed to update role: " + error.message, variant: "destructive" });
     } else {
       toast({ title: "Role Updated", description: `Role changed to ${ROLE_LABELS[newRole]}.` });
+      // Immediately refresh the users list to reflect the new role
+      await fetchUsers();
     }
 
     setSaving(null);
