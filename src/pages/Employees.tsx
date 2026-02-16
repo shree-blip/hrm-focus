@@ -40,7 +40,7 @@ const EmployeeAvatar = ({ employee }: { employee: any }) => {
 
 const Employees = () => {
   const { employees, loading, createEmployee, updateEmployee, deactivateEmployee } = useEmployees();
-  const { isManager, isVP, isLineManager, canCreateEmployee } = useAuth();
+  const { isManager, isVP, isLineManager, isSupervisor, canCreateEmployee } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -209,8 +209,8 @@ const Employees = () => {
         )}
       </div>
 
-      {/* My Team Section - for Line Managers */}
-      {isLineManager && !isVP && <MyTeamSection />}
+      {/* My Team Section - for Line Managers and Supervisors */}
+      {(isLineManager || isSupervisor) && !isVP && <MyTeamSection />}
 
       {/* Filters */}
       <div
