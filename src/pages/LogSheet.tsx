@@ -82,6 +82,8 @@ const DEPARTMENTS = [
   "Customer Support",
   "Legal",
   "Product",
+  "Tax",
+  "Other",
 ];
 
 import { formatTime12h, getCurrentTime24h, formatDuration } from "@/lib/timeFormat";
