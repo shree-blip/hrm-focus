@@ -516,7 +516,9 @@ const Profile = () => {
               {/* Avatar Section */}
               <div className="relative group">
                 <Avatar
-                  className={`h-28 w-28 border-4 border-background shadow-lg ${isEditing ? "cursor-pointer" : ""}`}
+                  className={`h-28 w-28 overflow-hidden rounded-full border-4 border-background shadow-lg ${
+                    isEditing ? "cursor-pointer" : ""
+                  }`}
                   onClick={handleAvatarClick}
                 >
                   {isUploadingAvatar ? (
@@ -525,7 +527,7 @@ const Profile = () => {
                     </div>
                   ) : (
                     <>
-                      <AvatarImage src={displayAvatarUrl} />
+                      <AvatarImage src={displayAvatarUrl} className="h-full w-full object-cover" />
                       <AvatarFallback className="text-2xl font-bold bg-primary text-primary-foreground">
                         {initials}
                       </AvatarFallback>
