@@ -66,6 +66,13 @@ const Index = () => {
           {isManager ? "Here's what's happening with your team today." : "Here's your personal dashboard overview."}
         </p>
       </div>
+
+      {/* Mobile-Only: Clock & Timeline at Top */}
+      <div className="lg:hidden space-y-6 mb-6">
+        <ClockWidget />
+        <DailyTimelineWidget onViewAll={handleViewCalendar} />
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {isManager ? (
@@ -122,13 +129,6 @@ const Index = () => {
           onClick={() => navigate("/leave")}
         />
       </div>
-
-      {/* Mobile-Only: Clock & Timeline at Top */}
-      <div className="lg:hidden space-y-6 mb-6">
-        <ClockWidget />
-        <DailyTimelineWidget onViewAll={handleViewCalendar} />
-      </div>
-
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - 2/3 width */}
