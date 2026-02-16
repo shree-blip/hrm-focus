@@ -30,7 +30,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Mobile Header with Hamburger */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center h-14 px-4 border-b border-border bg-card/95 backdrop-blur-md">
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center h-14 px-4 border-b border-border backdrop-blur-md text-primary-foreground bg-primary">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="mr-2">
@@ -59,6 +59,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Chat Widget */}
       <ChatWidget />
-    </div>
-  );
+    </div>);
+
 }
