@@ -270,6 +270,17 @@ export function ClockWidget() {
           )}
         </div>
 
+        {/* Clock out button only visible when active (status "in") */}
+        {status === "in" && (
+          <button
+            onClick={handleClockOut}
+            className="px-4 py-3 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl font-bold transition-all active:scale-[0.98] animate-in fade-in zoom-in-95 duration-200"
+            title="Clock Out"
+          >
+            <Square className="h-5 w-5 fill-current" />
+          </button>
+        )}
+
         {/* Action Buttons */}
         <div className="flex gap-2 flex-wrap">
           {clockStatus === "out" ? (
