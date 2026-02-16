@@ -180,11 +180,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchLineManagerStatus = async (userId: string) => {
-    // Check if user is a line manager
+    // Check if user is a line manager via RPC (job_title based) OR via role
     const { data: lineManagerCheck } = await supabase.rpc('is_line_manager', {
       _user_id: userId
     });
-    setIsLineManager(!!lineManagerCheck);
+    
+    // Also check if the user has the line_manager role in user_roles
+    const { data: roleCheck } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "line_manager")
+      .maybeSingle();
+    
+    setIsLineManager(!!lineManagerCheck || !!roleCheck);
 
     // Check if user can create employees
     const { data: createCheck } = await supabase.rpc('can_create_employee', {
