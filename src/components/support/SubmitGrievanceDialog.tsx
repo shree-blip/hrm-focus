@@ -1,34 +1,20 @@
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  useGrievances,
-  GRIEVANCE_CATEGORIES,
-  GRIEVANCE_PRIORITIES,
-} from "@/hooks/useGrievances";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useGrievances, GRIEVANCE_CATEGORIES, GRIEVANCE_PRIORITIES } from "@/hooks/useGrievances";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void; // Added callback for successful submission
 }
 
-export function SubmitGrievanceDialog({ open, onOpenChange }: Props) {
+export function SubmitGrievanceDialog({ open, onOpenChange, onSuccess }: Props) {
   const { createGrievance, uploadAttachment } = useGrievances();
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -61,7 +47,12 @@ export function SubmitGrievanceDialog({ open, onOpenChange }: Props) {
     setSubmitting(false);
     if (result) {
       resetForm();
-      onOpenChange(false);
+      // Call onSuccess callback if provided, otherwise just close the dialog
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        onOpenChange(false);
+      }
     }
   };
 
@@ -102,7 +93,9 @@ export function SubmitGrievanceDialog({ open, onOpenChange }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   {GRIEVANCE_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -116,7 +109,9 @@ export function SubmitGrievanceDialog({ open, onOpenChange }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   {GRIEVANCE_PRIORITIES.map((p) => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -143,21 +138,13 @@ export function SubmitGrievanceDialog({ open, onOpenChange }: Props) {
               onChange={(e) => setFiles(Array.from(e.target.files || []))}
               className="mt-1"
             />
-            {files.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {files.length} file(s) selected
-              </p>
-            )}
+            {files.length > 0 && <p className="text-xs text-muted-foreground mt-1">{files.length} file(s) selected</p>}
           </div>
 
           <div className="border rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="anonymous-toggle">Submit Anonymously</Label>
-              <Switch
-                id="anonymous-toggle"
-                checked={isAnonymous}
-                onCheckedChange={setIsAnonymous}
-              />
+              <Switch id="anonymous-toggle" checked={isAnonymous} onCheckedChange={setIsAnonymous} />
             </div>
 
             {isAnonymous && (
@@ -181,10 +168,7 @@ export function SubmitGrievanceDialog({ open, onOpenChange }: Props) {
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!title || !category || !details || submitting}
-            >
+            <Button onClick={handleSubmit} disabled={!title || !category || !details || submitting}>
               {submitting ? "Submitting..." : "Submit Grievance"}
             </Button>
           </div>
