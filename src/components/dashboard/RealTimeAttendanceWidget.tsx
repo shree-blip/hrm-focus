@@ -5,10 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Users, Briefcase, Coffee, Pause, LogOut, RefreshCw,
-  Clock, Activity, Circle, X,
-} from "lucide-react";
+import { Users, Briefcase, Coffee, Pause, LogOut, RefreshCw, Clock, Activity, Circle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow, startOfDay, endOfDay } from "date-fns";
 
@@ -63,7 +60,13 @@ const FILTER_LABELS: Record<FilterType, string> = {
   out: "Clocked Out",
 };
 
-const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
 export function RealTimeAttendanceWidget() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -78,8 +81,22 @@ export function RealTimeAttendanceWidget() {
   useEffect(() => {
     const updateClocks = () => {
       const now = new Date();
-      setNptTime(now.toLocaleTimeString("en-US", { timeZone: "Asia/Kathmandu", hour: "numeric", minute: "2-digit", hour12: true }));
-      setPstTime(now.toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "2-digit", hour12: true }));
+      setNptTime(
+        now.toLocaleTimeString("en-US", {
+          timeZone: "Asia/Kathmandu",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        }),
+      );
+      setPstTime(
+        now.toLocaleTimeString("en-US", {
+          timeZone: "America/Los_Angeles",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        }),
+      );
     };
     updateClocks();
     const clockInterval = setInterval(updateClocks, 1000);
@@ -108,7 +125,7 @@ export function RealTimeAttendanceWidget() {
     // Map logs by employee/user
     const logMap = new Map<string, any>();
     const userLogMap = new Map<string, any>();
-    logs?.forEach(log => {
+    logs?.forEach((log) => {
       if (log.employee_id && !logMap.has(log.employee_id)) logMap.set(log.employee_id, log);
       if (log.user_id && !userLogMap.has(log.user_id)) userLogMap.set(log.user_id, log);
     });
@@ -126,8 +143,10 @@ export function RealTimeAttendanceWidget() {
         else status = "IN";
       }
 
-      const times = log ? [log.clock_out, log.pause_end, log.pause_start, log.break_end, log.break_start, log.clock_in].filter(Boolean) : [];
-      const lastAction = times.length > 0 ? times.reduce((a, b) => new Date(b) > new Date(a) ? b : a) : null;
+      const times = log
+        ? [log.clock_out, log.pause_end, log.pause_start, log.break_end, log.break_start, log.clock_in].filter(Boolean)
+        : [];
+      const lastAction = times.length > 0 ? times.reduce((a, b) => (new Date(b) > new Date(a) ? b : a)) : null;
 
       return {
         id: e.id,
@@ -149,10 +168,10 @@ export function RealTimeAttendanceWidget() {
     setEmployees(empList);
 
     // Calculate summary
-    const working = empList.filter(e => ["IN", "BRE", "CONT"].includes(e.status)).length;
-    const onBreak = empList.filter(e => e.status === "BRS").length;
-    const paused = empList.filter(e => e.status === "PAUSE").length;
-    const out = empList.filter(e => e.status === "OUT").length;
+    const working = empList.filter((e) => ["IN", "BRE", "CONT"].includes(e.status)).length;
+    const onBreak = empList.filter((e) => e.status === "BRS").length;
+    const paused = empList.filter((e) => e.status === "PAUSE").length;
+    const out = empList.filter((e) => e.status === "OUT").length;
 
     setSummary({ total: empList.length, working, break: onBreak, paused, out });
 
@@ -161,7 +180,7 @@ export function RealTimeAttendanceWidget() {
     const userEmpMap = new Map((emps || []).map((e: any) => [e.profiles?.user_id, e]));
     const evts: Event[] = [];
 
-    logs?.forEach(log => {
+    logs?.forEach((log) => {
       const emp = empMap.get(log.employee_id) || userEmpMap.get(log.user_id);
       const name = emp ? `${emp.first_name} ${emp.last_name}`.trim() : "Unknown";
 
@@ -185,11 +204,14 @@ export function RealTimeAttendanceWidget() {
       .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, fetchData)
       .subscribe();
     const interval = setInterval(fetchData, 30000);
-    return () => { supabase.removeChannel(channel); clearInterval(interval); };
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [fetchData]);
 
   // Filter employees based on active filter
-  const filteredEmployees = employees.filter(emp => {
+  const filteredEmployees = employees.filter((emp) => {
     if (!activeFilter || activeFilter === "all") return true;
     if (activeFilter === "working") return ["IN", "BRE", "CONT"].includes(emp.status);
     if (activeFilter === "break") return emp.status === "BRS";
@@ -229,12 +251,6 @@ export function RealTimeAttendanceWidget() {
             </div>
           </CardTitle>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
-              <span>🕒</span>
-              <span>{nptTime} (NPT)</span>
-              <span className="text-muted-foreground/50">|</span>
-              <span>{pstTime} PST</span>
-            </div>
             <Button variant="ghost" size="icon" onClick={fetchData} className="h-8 w-8">
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -246,18 +262,59 @@ export function RealTimeAttendanceWidget() {
         {/* Clickable Summary Stats */}
         <div className="grid grid-cols-5 gap-2">
           {[
-            { key: "all" as FilterType, label: "Total", value: summary.total, icon: Users, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800", activeBg: "bg-slate-200 dark:bg-slate-700 ring-2 ring-slate-400" },
-            { key: "working" as FilterType, label: "Working", value: summary.working, icon: Briefcase, color: "text-emerald-600", bg: "bg-emerald-100 dark:bg-emerald-900/40", activeBg: "bg-emerald-200 dark:bg-emerald-800 ring-2 ring-emerald-500", pulse: true },
-            { key: "break" as FilterType, label: "Break", value: summary.break, icon: Coffee, color: "text-amber-600", bg: "bg-amber-100 dark:bg-amber-900/40", activeBg: "bg-amber-200 dark:bg-amber-800 ring-2 ring-amber-500" },
-            { key: "paused" as FilterType, label: "Paused", value: summary.paused, icon: Pause, color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-900/40", activeBg: "bg-blue-200 dark:bg-blue-800 ring-2 ring-blue-500" },
-            { key: "out" as FilterType, label: "Out", value: summary.out, icon: LogOut, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800", activeBg: "bg-slate-200 dark:bg-slate-700 ring-2 ring-slate-400" },
+            {
+              key: "all" as FilterType,
+              label: "Total",
+              value: summary.total,
+              icon: Users,
+              color: "text-slate-600",
+              bg: "bg-slate-100 dark:bg-slate-800",
+              activeBg: "bg-slate-200 dark:bg-slate-700 ring-2 ring-slate-400",
+            },
+            {
+              key: "working" as FilterType,
+              label: "Working",
+              value: summary.working,
+              icon: Briefcase,
+              color: "text-emerald-600",
+              bg: "bg-emerald-100 dark:bg-emerald-900/40",
+              activeBg: "bg-emerald-200 dark:bg-emerald-800 ring-2 ring-emerald-500",
+              pulse: true,
+            },
+            {
+              key: "break" as FilterType,
+              label: "Break",
+              value: summary.break,
+              icon: Coffee,
+              color: "text-amber-600",
+              bg: "bg-amber-100 dark:bg-amber-900/40",
+              activeBg: "bg-amber-200 dark:bg-amber-800 ring-2 ring-amber-500",
+            },
+            {
+              key: "paused" as FilterType,
+              label: "Paused",
+              value: summary.paused,
+              icon: Pause,
+              color: "text-blue-600",
+              bg: "bg-blue-100 dark:bg-blue-900/40",
+              activeBg: "bg-blue-200 dark:bg-blue-800 ring-2 ring-blue-500",
+            },
+            {
+              key: "out" as FilterType,
+              label: "Out",
+              value: summary.out,
+              icon: LogOut,
+              color: "text-slate-500",
+              bg: "bg-slate-100 dark:bg-slate-800",
+              activeBg: "bg-slate-200 dark:bg-slate-700 ring-2 ring-slate-400",
+            },
           ].map(({ key, label, value, icon: Icon, color, bg, activeBg, pulse }) => (
             <button
               key={key}
               onClick={() => handleFilterClick(key)}
               className={cn(
                 "rounded-lg p-2 text-center transition-all cursor-pointer hover:scale-105",
-                activeFilter === key ? activeBg : bg
+                activeFilter === key ? activeBg : bg,
               )}
             >
               <Icon className={cn("h-4 w-4 mx-auto mb-1", color, pulse && !activeFilter && "animate-pulse")} />
@@ -278,12 +335,10 @@ export function RealTimeAttendanceWidget() {
             </div>
             <ScrollArea className="h-[180px]">
               {filteredEmployees.length === 0 ? (
-                <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-                  No employees
-                </div>
+                <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">No employees</div>
               ) : (
                 <div className="divide-y">
-                  {filteredEmployees.map(emp => {
+                  {filteredEmployees.map((emp) => {
                     const cfg = STATUS[emp.status];
                     const Icon = cfg.icon;
                     return (
@@ -297,7 +352,8 @@ export function RealTimeAttendanceWidget() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{emp.name}</p>
                           <p className="text-[10px] text-muted-foreground">
-                            {emp.department || "No Dept"} • {emp.lastAction ? formatDistanceToNow(new Date(emp.lastAction), { addSuffix: true }) : "—"}
+                            {emp.department || "No Dept"} •{" "}
+                            {emp.lastAction ? formatDistanceToNow(new Date(emp.lastAction), { addSuffix: true }) : "—"}
                           </p>
                         </div>
                         <Badge variant="outline" className={cn("text-[10px] gap-1", cfg.bg, cfg.color)}>
@@ -327,29 +383,32 @@ export function RealTimeAttendanceWidget() {
                     <Clock className="h-8 w-8 mb-2 opacity-40" />
                     <p className="text-sm">No activity today</p>
                   </div>
-                ) : events.map(evt => {
-                  const cfg = STATUS[evt.type];
-                  const Icon = cfg.icon;
-                  return (
-                    <div key={evt.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
-                      <div className={cn("p-1.5 rounded", cfg.bg)}>
-                        <Icon className={cn("h-3 w-3", cfg.color)} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium truncate">{evt.name}</span>
-                          <span className="text-xs text-muted-foreground">{EVENT_LABELS[evt.type]}</span>
+                ) : (
+                  events.map((evt) => {
+                    const cfg = STATUS[evt.type];
+                    const Icon = cfg.icon;
+                    return (
+                      <div key={evt.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
+                        <div className={cn("p-1.5 rounded", cfg.bg)}>
+                          <Icon className={cn("h-3 w-3", cfg.color)} />
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                          {format(new Date(evt.time), "hh:mm a")} • {formatDistanceToNow(new Date(evt.time), { addSuffix: true })}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium truncate">{evt.name}</span>
+                            <span className="text-xs text-muted-foreground">{EVENT_LABELS[evt.type]}</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            {format(new Date(evt.time), "hh:mm a")} •{" "}
+                            {formatDistanceToNow(new Date(evt.time), { addSuffix: true })}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={cn("text-[10px] px-1.5", cfg.bg, cfg.color)}>
+                          {evt.type}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className={cn("text-[10px] px-1.5", cfg.bg, cfg.color)}>
-                        {evt.type}
-                      </Badge>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </ScrollArea>
           </div>
