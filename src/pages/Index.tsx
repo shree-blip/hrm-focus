@@ -71,8 +71,8 @@ const Index = () => {
       {/* Mobile-Only: Clock & Timeline at Top */}
       <div className="lg:hidden space-y-6 mb-6">
         <ClockWidget />
-        <DailyTimelineWidget onViewAll={handleViewCalendar} />
         <RealTimeAttendanceWidget />
+        <DailyTimelineWidget onViewAll={handleViewCalendar} />
       </div>
 
       {/* Stats Grid */}
