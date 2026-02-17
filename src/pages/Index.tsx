@@ -8,6 +8,7 @@ import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { AnnouncementsWidget } from "@/components/dashboard/AnnouncementsWidget";
 import { CompanyCalendar } from "@/components/dashboard/CompanyCalendar";
 import { DailyTimelineWidget } from "@/components/dashboard/DailyTimelineWidget";
+import { RealTimeAttendanceWidget } from "@/components/dashboard/RealTimeAttendanceWidget";
 
 import { PersonalReportsWidget } from "@/components/dashboard/PersonalReportsWidget";
 import { TeamReportsWidget } from "@/components/dashboard/TeamReportsWidget";
@@ -71,6 +72,7 @@ const Index = () => {
       <div className="lg:hidden space-y-6 mb-6">
         <ClockWidget />
         <DailyTimelineWidget onViewAll={handleViewCalendar} />
+        <RealTimeAttendanceWidget />
       </div>
 
       {/* Stats Grid */}
@@ -153,6 +155,7 @@ const Index = () => {
           <div className="hidden lg:block">
             <DailyTimelineWidget onViewAll={handleViewCalendar} />
           </div>
+          <RealTimeAttendanceWidget />
           <TeamWidget />
           <AnnouncementsWidget />
         </div>
