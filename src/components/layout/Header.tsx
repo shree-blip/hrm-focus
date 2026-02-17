@@ -159,7 +159,7 @@ export function Header({ isMobile }: HeaderProps = {}) {
   // Combine notifications with pinned announcements for the dropdown
   const recentNotifications = notifications.slice(0, 3);
   const pinnedAnnouncements = announcements.filter((a) => a.is_pinned).slice(0, 2);
-  const totalUnread = unreadCount;
+  const totalUnread = unreadCount; // Remove pinnedAnnouncements.length
 
   return (
     <header
@@ -193,7 +193,17 @@ export function Header({ isMobile }: HeaderProps = {}) {
           </span>
         </div>
 
-        <DropdownMenu>
+        <DropdownMenu
+          onOpenChange={(open) => {
+            if (open && unreadCount > 0) {
+              notifications.forEach((notification) => {
+                if (!notification.is_read) {
+                  markAsRead(notification.id);
+                }
+              });
+            }
+          }}
+        >
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
