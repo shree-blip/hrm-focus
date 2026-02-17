@@ -39,12 +39,22 @@ export function Header({ isMobile }: HeaderProps = {}) {
     return () => clearInterval(timer);
   }, []);
 
-  const formatTime = (date: Date) =>
+  const formatNepalTime = (date: Date) =>
     date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
+      timeZone: "Asia/Kathmandu",
     });
+
+  const formatCaliforniaTime = (date: Date) =>
+    date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "America/Los_Angeles",
+    });
+
   const formatDate = (date: Date) =>
     date.toLocaleDateString("en-US", {
       weekday: "long",
@@ -178,9 +188,9 @@ export function Header({ isMobile }: HeaderProps = {}) {
       <div className="flex items-center gap-4">
         <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4" />
-          <span className="font-medium">{formatTime(currentTime)}</span>
-          <span className="text-muted-foreground/60">•</span>
-          <span>{formatDate(currentTime)}</span>
+          <span className="text-sm font-medium">
+            {formatNepalTime(currentTime)} NPT | {formatCaliforniaTime(currentTime)} PST • {formatDate(currentTime)}
+          </span>
         </div>
 
         <DropdownMenu>
