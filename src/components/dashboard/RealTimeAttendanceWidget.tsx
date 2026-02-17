@@ -197,18 +197,88 @@ export function RealTimeAttendanceWidget() {
     setLoading(false);
   }, []);
 
+  // Process realtime payload locally for instant updates
+  const handleRealtimeChange = useCallback((payload: any) => {
+    const log = payload.new || payload.old;
+    if (!log) {
+      fetchData();
+      return;
+    }
+
+    setEmployees(prev => {
+      const updated = prev.map(emp => {
+        // Match by employee_id
+        if (log.employee_id && emp.id === log.employee_id) {
+          let status: Status = "—";
+          if (log.clock_out) status = "OUT";
+          else if (log.pause_start && !log.pause_end) status = "PAUSE";
+          else if (log.break_start && !log.break_end) status = "BRS";
+          else if (log.clock_in) status = "IN";
+
+          const times = [log.clock_out, log.pause_end, log.pause_start, log.break_end, log.break_start, log.clock_in].filter(Boolean);
+          const lastAction = times.length > 0 ? times.reduce((a: string, b: string) => (new Date(b) > new Date(a) ? b : a)) : emp.lastAction;
+
+          return { ...emp, status, lastAction };
+        }
+        return emp;
+      });
+
+      updated.sort((a, b) => {
+        if (!a.lastAction && !b.lastAction) return 0;
+        if (!a.lastAction) return 1;
+        if (!b.lastAction) return -1;
+        return new Date(b.lastAction).getTime() - new Date(a.lastAction).getTime();
+      });
+
+      return updated;
+    });
+
+    // Update summary from new employee list
+    setEmployees(prev => {
+      const working = prev.filter(e => ["IN", "BRE", "CONT"].includes(e.status)).length;
+      const onBreak = prev.filter(e => e.status === "BRS").length;
+      const paused = prev.filter(e => e.status === "PAUSE").length;
+      const out = prev.filter(e => e.status === "OUT").length;
+      setSummary({ total: prev.length, working, break: onBreak, paused, out });
+
+      // Also update events inline
+      const evtName = prev.find(e => e.id === log.employee_id)?.name || "Unknown";
+      setEvents(prevEvts => {
+        const newEvts = [...prevEvts];
+        // Add new event entries from the log
+        const addEvt = (type: Status, time: string) => {
+          const id = `${log.id}-${type.toLowerCase()}`;
+          if (!newEvts.find(e => e.id === id)) {
+            newEvts.unshift({ id, name: evtName, type, time });
+          }
+        };
+        if (log.clock_in) addEvt("IN", log.clock_in);
+        if (log.break_start) addEvt("BRS", log.break_start);
+        if (log.break_end) addEvt("BRE", log.break_end);
+        if (log.pause_start) addEvt("PAUSE", log.pause_start);
+        if (log.pause_end) addEvt("CONT", log.pause_end);
+        if (log.clock_out) addEvt("OUT", log.clock_out);
+
+        newEvts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+        return newEvts.slice(0, 20);
+      });
+
+      return prev;
+    });
+  }, [fetchData]);
+
   useEffect(() => {
     fetchData();
     const channel = supabase
       .channel("live-attendance")
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, handleRealtimeChange)
       .subscribe();
-    const interval = setInterval(fetchData, 30000);
+    const interval = setInterval(fetchData, 60000);
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [fetchData]);
+  }, [fetchData, handleRealtimeChange]);
 
   // Filter employees based on active filter
   const filteredEmployees = employees.filter((emp) => {
