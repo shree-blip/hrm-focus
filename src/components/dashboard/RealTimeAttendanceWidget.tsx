@@ -71,6 +71,20 @@ export function RealTimeAttendanceWidget() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterType | null>(null);
+  const [nptTime, setNptTime] = useState("");
+  const [pstTime, setPstTime] = useState("");
+
+  // Live clock for NPT and PST
+  useEffect(() => {
+    const updateClocks = () => {
+      const now = new Date();
+      setNptTime(now.toLocaleTimeString("en-US", { timeZone: "Asia/Kathmandu", hour: "numeric", minute: "2-digit", hour12: true }));
+      setPstTime(now.toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "2-digit", hour12: true }));
+    };
+    updateClocks();
+    const clockInterval = setInterval(updateClocks, 1000);
+    return () => clearInterval(clockInterval);
+  }, []);
 
   const fetchData = useCallback(async () => {
     const today = new Date();
@@ -170,7 +184,7 @@ export function RealTimeAttendanceWidget() {
       .channel("live-attendance")
       .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, fetchData)
       .subscribe();
-    const interval = setInterval(fetchData, 60000);
+    const interval = setInterval(fetchData, 30000);
     return () => { supabase.removeChannel(channel); clearInterval(interval); };
   }, [fetchData]);
 
@@ -202,7 +216,7 @@ export function RealTimeAttendanceWidget() {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" />
             Live Attendance
@@ -214,9 +228,17 @@ export function RealTimeAttendanceWidget() {
               <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Live</span>
             </div>
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={fetchData} className="h-8 w-8">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+              <span>🕒</span>
+              <span>{nptTime} (NPT)</span>
+              <span className="text-muted-foreground/50">|</span>
+              <span>{pstTime} PST</span>
+            </div>
+            <Button variant="ghost" size="icon" onClick={fetchData} className="h-8 w-8">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
