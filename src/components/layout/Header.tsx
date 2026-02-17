@@ -159,7 +159,7 @@ export function Header({ isMobile }: HeaderProps = {}) {
   // Combine notifications with pinned announcements for the dropdown
   const recentNotifications = notifications.slice(0, 3);
   const pinnedAnnouncements = announcements.filter((a) => a.is_pinned).slice(0, 2);
-  const totalUnread = unreadCount + pinnedAnnouncements.length;
+  const totalUnread = unreadCount;
 
   return (
     <header
