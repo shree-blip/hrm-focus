@@ -207,20 +207,20 @@ export function RealTimeAttendanceWidget() {
 
     setEmployees(prev => {
       const updated = prev.map(emp => {
-        // Match by employee_id
-        if (log.employee_id && emp.id === log.employee_id) {
-          let status: Status = "—";
-          if (log.clock_out) status = "OUT";
-          else if (log.pause_start && !log.pause_end) status = "PAUSE";
-          else if (log.break_start && !log.break_end) status = "BRS";
-          else if (log.clock_in) status = "IN";
+        // Match by employee_id or try user_id via profile lookup
+        const isMatch = (log.employee_id && emp.id === log.employee_id);
+        if (!isMatch) return emp;
 
-          const times = [log.clock_out, log.pause_end, log.pause_start, log.break_end, log.break_start, log.clock_in].filter(Boolean);
-          const lastAction = times.length > 0 ? times.reduce((a: string, b: string) => (new Date(b) > new Date(a) ? b : a)) : emp.lastAction;
+        let status: Status = "—";
+        if (log.clock_out) status = "OUT";
+        else if (log.pause_start && !log.pause_end) status = "PAUSE";
+        else if (log.break_start && !log.break_end) status = "BRS";
+        else if (log.clock_in) status = "IN";
 
-          return { ...emp, status, lastAction };
-        }
-        return emp;
+        const times = [log.clock_out, log.pause_end, log.pause_start, log.break_end, log.break_start, log.clock_in].filter(Boolean);
+        const lastAction = times.length > 0 ? times.reduce((a: string, b: string) => (new Date(b) > new Date(a) ? b : a)) : emp.lastAction;
+
+        return { ...emp, status, lastAction };
       });
 
       updated.sort((a, b) => {
@@ -230,22 +230,17 @@ export function RealTimeAttendanceWidget() {
         return new Date(b.lastAction).getTime() - new Date(a.lastAction).getTime();
       });
 
-      return updated;
-    });
+      // Update summary
+      const working = updated.filter(e => ["IN", "BRE", "CONT"].includes(e.status)).length;
+      const onBreak = updated.filter(e => e.status === "BRS").length;
+      const paused = updated.filter(e => e.status === "PAUSE").length;
+      const out = updated.filter(e => e.status === "OUT").length;
+      setSummary({ total: updated.length, working, break: onBreak, paused, out });
 
-    // Update summary from new employee list
-    setEmployees(prev => {
-      const working = prev.filter(e => ["IN", "BRE", "CONT"].includes(e.status)).length;
-      const onBreak = prev.filter(e => e.status === "BRS").length;
-      const paused = prev.filter(e => e.status === "PAUSE").length;
-      const out = prev.filter(e => e.status === "OUT").length;
-      setSummary({ total: prev.length, working, break: onBreak, paused, out });
-
-      // Also update events inline
-      const evtName = prev.find(e => e.id === log.employee_id)?.name || "Unknown";
+      // Update events
+      const evtName = updated.find(e => e.id === log.employee_id)?.name || "Unknown";
       setEvents(prevEvts => {
         const newEvts = [...prevEvts];
-        // Add new event entries from the log
         const addEvt = (type: Status, time: string) => {
           const id = `${log.id}-${type.toLowerCase()}`;
           if (!newEvts.find(e => e.id === id)) {
@@ -258,12 +253,11 @@ export function RealTimeAttendanceWidget() {
         if (log.pause_start) addEvt("PAUSE", log.pause_start);
         if (log.pause_end) addEvt("CONT", log.pause_end);
         if (log.clock_out) addEvt("OUT", log.clock_out);
-
         newEvts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
         return newEvts.slice(0, 20);
       });
 
-      return prev;
+      return updated;
     });
   }, [fetchData]);
 
