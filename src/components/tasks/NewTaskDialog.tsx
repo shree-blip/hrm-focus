@@ -1,21 +1,9 @@
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
@@ -42,16 +30,11 @@ interface NewTaskDialogProps {
   defaultStatus?: "todo" | "in-progress" | "review" | "done";
 }
 
-export function NewTaskDialog({
-  open,
-  onOpenChange,
-  onSubmit,
-  defaultStatus = "todo",
-}: NewTaskDialogProps) {
+export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "todo" }: NewTaskDialogProps) {
   const { employees, loading: employeesLoading } = useEmployees();
   const { clients, loading: clientsLoading, refetch: refetchClients } = useClients();
   const { user, profile } = useAuth();
-  
+
   const [title, setTitle] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [priority, setPriority] = useState<"high" | "medium" | "low">("medium");
@@ -86,7 +69,7 @@ export function NewTaskDialog({
       return;
     }
 
-    const selectedClient = clients.find(c => c.id === selectedClientId);
+    const selectedClient = clients.find((c) => c.id === selectedClientId);
 
     onSubmit({
       title,
@@ -103,11 +86,7 @@ export function NewTaskDialog({
   };
 
   const toggleAssignee = (userId: string) => {
-    setSelectedAssignees(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
+    setSelectedAssignees((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
   };
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -121,18 +100,22 @@ export function NewTaskDialog({
 
   // Build list of assignable users (current user + employees with user_id)
   const assignableUsers = [
-    ...(user && profile ? [{
-      id: user.id,
-      name: `${profile.first_name} ${profile.last_name} (Me)`,
-      initials: getInitials(profile.first_name, profile.last_name),
-    }] : []),
+    ...(user && profile
+      ? [
+          {
+            id: user.id,
+            name: `${profile.first_name} ${profile.last_name} (Me)`,
+            initials: getInitials(profile.first_name, profile.last_name),
+          },
+        ]
+      : []),
     ...employees
-      .filter(emp => emp.user_id && emp.user_id !== user?.id)
-      .map(emp => ({
+      .filter((emp) => emp.user_id && emp.user_id !== user?.id)
+      .map((emp) => ({
         id: emp.user_id!,
         name: `${emp.first_name} ${emp.last_name}`,
         initials: getInitials(emp.first_name, emp.last_name),
-      }))
+      })),
   ];
 
   return (
@@ -141,13 +124,13 @@ export function NewTaskDialog({
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="font-display text-xl">Create New Task</DialogTitle>
-            <DialogDescription>
-              Add a new task to the board.
-            </DialogDescription>
+            <DialogDescription>Add a new task to the board.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Task Title <span className="text-destructive">*</span></Label>
+              <Label htmlFor="title">
+                Task Title <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="title"
                 placeholder="Enter task title"
@@ -166,7 +149,7 @@ export function NewTaskDialog({
                       {selectedClientId && (
                         <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4 text-muted-foreground" />
-                          {clients.find(c => c.id === selectedClientId)?.name || "Select client"}
+                          {clients.find((c) => c.id === selectedClientId)?.name || "Select client"}
                         </div>
                       )}
                     </SelectValue>
@@ -179,7 +162,9 @@ export function NewTaskDialog({
                       </div>
                     </SelectItem>
                     {clientsLoading ? (
-                      <SelectItem value="loading" disabled>Loading...</SelectItem>
+                      <SelectItem value="loading" disabled>
+                        Loading...
+                      </SelectItem>
                     ) : (
                       clients.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
@@ -195,12 +180,7 @@ export function NewTaskDialog({
                     )}
                   </SelectContent>
                 </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setShowAddClientDialog(true)}
-                >
+                <Button type="button" variant="outline" size="icon" onClick={() => setShowAddClientDialog(true)}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -223,7 +203,10 @@ export function NewTaskDialog({
 
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select value={status} onValueChange={(v) => setStatus(v as "todo" | "in-progress" | "review" | "done")}>
+                <Select
+                  value={status}
+                  onValueChange={(v) => setStatus(v as "todo" | "in-progress" | "review" | "done")}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -240,12 +223,7 @@ export function NewTaskDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="dueDate">Due Date</Label>
-                <Input
-                  id="dueDate"
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                />
+                <Input id="dueDate" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </div>
 
               <div className="space-y-2">
@@ -271,14 +249,33 @@ export function NewTaskDialog({
                     {assignableUsers.map((assignee) => (
                       <div
                         key={assignee.id}
-                        className="flex items-center gap-3 p-2 rounded-md hover:bg-accent cursor-pointer"
-                        onClick={() => toggleAssignee(assignee.id)}
+                        className="flex items-center gap-3 p-2 rounded-md hover:bg-accent cursor-pointer select-none"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleAssignee(assignee.id);
+                        }}
                       >
-                        <Checkbox
-                          checked={selectedAssignees.includes(assignee.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          onCheckedChange={() => toggleAssignee(assignee.id)}
-                        />
+                        {/* Custom checkbox - no Radix/button involved */}
+                        <div
+                          className={`h-4 w-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                            selectedAssignees.includes(assignee.id)
+                              ? "bg-primary border-primary"
+                              : "border-muted-foreground bg-background"
+                          }`}
+                        >
+                          {selectedAssignees.includes(assignee.id) && (
+                            <svg
+                              className="h-3 w-3 text-white"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={3}
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="bg-primary/10 text-primary text-xs">
                             {assignee.initials}
