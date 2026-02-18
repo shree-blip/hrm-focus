@@ -11,11 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, Clock, Mail, Phone } from "lucide-react";
+import { Users, Clock, Mail, UserPlus, UserMinus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { TeamMemberAttendanceDialog } from "./TeamMemberAttendanceDialog";
+import { AddToTeamDialog } from "./AddToTeamDialog";
+import { toast } from "@/hooks/use-toast";
 
 interface TeamMember {
   id: string;
@@ -35,17 +37,16 @@ export function MyTeamSection() {
   const [loading, setLoading] = useState(true);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
+  const [addToTeamOpen, setAddToTeamOpen] = useState(false);
 
   const fetchTeamMembers = useCallback(async () => {
     if (!user) return;
 
-    // Get the current user's employee ID
     const { data: employeeId } = await supabase.rpc('get_employee_id_for_user', {
       _user_id: user.id
     });
 
     if (employeeId) {
-      // Fetch employees where current user is line_manager_id OR manager_id
       const { data: lineReports } = await supabase
         .from("employees")
         .select("id, first_name, last_name, email, department, job_title, location, status, hire_date")
@@ -58,7 +59,6 @@ export function MyTeamSection() {
         .eq("manager_id", employeeId)
         .order("first_name", { ascending: true });
 
-      // Merge and deduplicate
       const allReports = [...(lineReports || []), ...(managerReports || [])];
       const uniqueReports = allReports.filter(
         (emp, index, self) => self.findIndex((e) => e.id === emp.id) === index
@@ -82,11 +82,28 @@ export function MyTeamSection() {
     setAttendanceDialogOpen(true);
   };
 
-  if (loading) {
-    return null;
-  }
+  const handleRemoveFromTeam = async (member: TeamMember) => {
+    const { error } = await supabase
+      .from("employees")
+      .update({ line_manager_id: null })
+      .eq("id", member.id);
 
-  if (teamMembers.length === 0) {
+    if (!error) {
+      toast({
+        title: "Removed from Team",
+        description: `${member.first_name} ${member.last_name} has been removed from your team.`,
+      });
+      fetchTeamMembers();
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to remove employee from team.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
     return null;
   }
 
@@ -94,81 +111,108 @@ export function MyTeamSection() {
     <>
       <Card className="mb-6 animate-fade-in">
         <CardHeader className="pb-3">
-          <CardTitle className="font-display text-lg flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            My Team ({teamMembers.length} members)
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="font-display text-lg flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              My Team ({teamMembers.length} members)
+            </CardTitle>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setAddToTeamOpen(true)}
+            >
+              <UserPlus className="h-4 w-4" />
+              Add to Team
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border overflow-x-auto">
-            <Table className="min-w-[600px]">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-semibold">Employee</TableHead>
-                  <TableHead className="font-semibold">Role</TableHead>
-                  <TableHead className="font-semibold">Department</TableHead>
-                  <TableHead className="font-semibold">Status</TableHead>
-                  <TableHead className="font-semibold">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {teamMembers.map((member) => (
-                  <TableRow key={member.id} className="group">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarFallback className="bg-primary/10 text-primary font-medium text-sm">
-                            {getInitials(member.first_name, member.last_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{member.first_name} {member.last_name}</p>
-                          <p className="text-sm text-muted-foreground">{member.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{member.job_title || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-normal">
-                        {member.department || "-"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          member.status === "active" && "border-success/50 text-success bg-success/10"
-                        )}
-                      >
-                        {member.status || "active"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1"
-                          onClick={() => handleViewAttendance(member)}
-                        >
-                          <Clock className="h-3 w-3" />
-                          Attendance
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => window.open(`mailto:${member.email}`, '_blank')}
-                        >
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    </TableCell>
+          {teamMembers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p className="text-sm font-medium">No team members yet</p>
+              <p className="text-xs mt-1">Click "Add to Team" to assign employees to your team.</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border overflow-x-auto">
+              <Table className="min-w-[600px]">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="font-semibold">Employee</TableHead>
+                    <TableHead className="font-semibold">Role</TableHead>
+                    <TableHead className="font-semibold">Department</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {teamMembers.map((member) => (
+                    <TableRow key={member.id} className="group">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9">
+                            <AvatarFallback className="bg-primary/10 text-primary font-medium text-sm">
+                              {getInitials(member.first_name, member.last_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{member.first_name} {member.last_name}</p>
+                            <p className="text-sm text-muted-foreground">{member.email}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{member.job_title || "-"}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal">
+                          {member.department || "-"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            member.status === "active" && "border-success/50 text-success bg-success/10"
+                          )}
+                        >
+                          {member.status || "active"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => handleViewAttendance(member)}
+                          >
+                            <Clock className="h-3 w-3" />
+                            Attendance
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => window.open(`mailto:${member.email}`, '_blank')}
+                          >
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRemoveFromTeam(member)}
+                            title="Remove from team"
+                          >
+                            <UserMinus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -176,6 +220,13 @@ export function MyTeamSection() {
         employee={selectedMember}
         open={attendanceDialogOpen}
         onOpenChange={setAttendanceDialogOpen}
+      />
+
+      <AddToTeamDialog
+        open={addToTeamOpen}
+        onOpenChange={setAddToTeamOpen}
+        currentTeamMemberIds={teamMembers.map((m) => m.id)}
+        onAdded={fetchTeamMembers}
       />
     </>
   );
