@@ -131,6 +131,8 @@ export function AddToTeamDialog({
         description: "Failed to assign employees. Please try again.",
         variant: "destructive",
       });
+      // Also trigger parent error display
+      onAdded();
     }
 
     setSaving(false);
