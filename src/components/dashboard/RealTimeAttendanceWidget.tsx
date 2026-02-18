@@ -103,6 +103,9 @@ export function RealTimeAttendanceWidget() {
     return () => clearInterval(clockInterval);
   }, []);
 
+  // Map from user_id to employee id for realtime matching
+  const [userToEmpMap, setUserToEmpMap] = useState<Map<string, string>>(new Map());
+
   const fetchData = useCallback(async () => {
     const today = new Date();
     const dayStart = startOfDay(today).toISOString();
@@ -121,6 +124,14 @@ export function RealTimeAttendanceWidget() {
       .gte("clock_in", dayStart)
       .lte("clock_in", dayEnd)
       .order("clock_in", { ascending: false });
+
+    // Build user_id → employee_id map
+    const uToE = new Map<string, string>();
+    (emps || []).forEach((e: any) => {
+      const userId = e.profiles?.user_id;
+      if (userId) uToE.set(userId, e.id);
+    });
+    setUserToEmpMap(uToE);
 
     // Map logs by employee/user
     const logMap = new Map<string, any>();
@@ -205,11 +216,18 @@ export function RealTimeAttendanceWidget() {
       return;
     }
 
+    // Resolve the employee_id from the log — either directly or via user_id map
+    const resolvedEmpId = log.employee_id || userToEmpMap.get(log.user_id);
+
+    if (!resolvedEmpId) {
+      // Can't match to an employee, do a full refetch
+      fetchData();
+      return;
+    }
+
     setEmployees(prev => {
       const updated = prev.map(emp => {
-        // Match by employee_id or try user_id via profile lookup
-        const isMatch = (log.employee_id && emp.id === log.employee_id);
-        if (!isMatch) return emp;
+        if (emp.id !== resolvedEmpId) return emp;
 
         let status: Status = "—";
         if (log.clock_out) status = "OUT";
@@ -238,7 +256,7 @@ export function RealTimeAttendanceWidget() {
       setSummary({ total: updated.length, working, break: onBreak, paused, out });
 
       // Update events
-      const evtName = updated.find(e => e.id === log.employee_id)?.name || "Unknown";
+      const evtName = updated.find(e => e.id === resolvedEmpId)?.name || "Unknown";
       setEvents(prevEvts => {
         const newEvts = [...prevEvts];
         const addEvt = (type: Status, time: string) => {
@@ -259,7 +277,7 @@ export function RealTimeAttendanceWidget() {
 
       return updated;
     });
-  }, [fetchData]);
+  }, [fetchData, userToEmpMap]);
 
   useEffect(() => {
     fetchData();
