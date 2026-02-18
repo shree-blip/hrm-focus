@@ -26,12 +26,24 @@ import { useAttendance } from "@/hooks/useAttendance";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
 import { toast } from "@/hooks/use-toast";
+import { AlertTriangle, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Attendance = () => {
   const { user, isManager } = useAuth();
   const [clockType, setClockType] = useState<"payroll" | "billable">("payroll");
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const currentDate = new Date();
+  const [showClockOutDialog, setShowClockOutDialog] = useState(false);
 
   const {
     currentLog,
@@ -104,6 +116,15 @@ const Attendance = () => {
   };
 
   const handleClockOut = async () => {
+    await clockOut();
+  };
+  //handle clock out with confirmation dialog
+  const handleClockOutClick = () => {
+    setShowClockOutDialog(true);
+  };
+
+  const handleConfirmClockOut = async () => {
+    setShowClockOutDialog(false);
     await clockOut();
   };
 
@@ -304,13 +325,52 @@ const Attendance = () => {
                     <Pause className="h-4 w-4" />
                     {clockStatus === "paused" ? "Resume" : "Pause"}
                   </Button>
-                  <Button onClick={handleClockOut} variant="destructive" className="flex-1 gap-2" size="lg">
+                  <Button onClick={handleClockOutClick} variant="destructive" className="flex-1 gap-2" size="lg">
                     <Square className="h-4 w-4" />
                     Clock Out
                   </Button>
                 </>
               )}
             </div>
+            {/* Clock Out Confirmation Dialog */}
+            <AlertDialog open={showClockOutDialog} onOpenChange={setShowClockOutDialog}>
+              <AlertDialogContent className="max-w-md">
+                <AlertDialogHeader className="space-y-4">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+                    <AlertTriangle className="h-7 w-7 text-amber-600" />
+                  </div>
+                  <AlertDialogTitle className="text-center text-xl">End Your Workday?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-center space-y-3">
+                    <p className="text-base">
+                      You are about to <span className="font-semibold text-foreground">Clock Out</span>, which will
+                      permanently end your shift for today.
+                    </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left">
+                      <div className="flex items-start gap-2">
+                        <Pause className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-blue-800">
+                          If you are taking a short break or switching location, please use <strong>Pause</strong>{" "}
+                          instead.
+                        </p>
+                      </div>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+                  <AlertDialogCancel className="flex-1 gap-2">
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleConfirmClockOut}
+                    className="flex-1 gap-2 bg-rose-600 hover:bg-rose-700 text-white"
+                  >
+                    <Square className="h-4 w-4 fill-current" />
+                    Confirm Clock Out
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
 
