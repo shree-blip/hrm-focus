@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,12 +17,22 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
   const [clientId, setClientId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Function to capitalize the first letter of each word
+  const capitalizeWords = (str: string) => {
+    return str
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
+    const capitalizedName = capitalizeWords(name.trim()); // Capitalize the name
+
     setIsSubmitting(true);
-    const client = await addClient({ name: name.trim(), client_id: clientId.trim() || undefined });
+    const client = await addClient({ name: capitalizedName, client_id: clientId.trim() || undefined });
     setIsSubmitting(false);
 
     if (client) {
