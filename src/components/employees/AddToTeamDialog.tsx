@@ -31,7 +31,7 @@ interface AddToTeamDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentTeamMemberIds: string[];
-  onAdded: () => void;
+  onAdded: (success: boolean, count: number) => void;
 }
 
 export function AddToTeamDialog({
@@ -119,20 +119,11 @@ export function AddToTeamDialog({
     }
 
     if (successCount > 0) {
-      toast({
-        title: "Team Updated",
-        description: `${successCount} employee${successCount > 1 ? "s" : ""} added to your team.`,
-      });
-      onAdded();
       onOpenChange(false);
+      await onAdded(true, successCount);
     } else {
-      toast({
-        title: "Error",
-        description: "Failed to assign employees. Please try again.",
-        variant: "destructive",
-      });
-      // Also trigger parent error display
-      onAdded();
+      onOpenChange(false);
+      await onAdded(false, 0);
     }
 
     setSaving(false);

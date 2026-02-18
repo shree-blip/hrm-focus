@@ -89,9 +89,13 @@ export function MyTeamSection() {
     setTimeout(() => setStatusMessage(null), 5000);
   };
 
-  const handleTeamAdded = async () => {
+  const handleTeamAdded = async (success: boolean, count: number) => {
     await fetchTeamMembers();
-    showStatus("success", "Employee(s) successfully added to your team.");
+    if (success) {
+      showStatus("success", `${count} employee${count > 1 ? "s" : ""} successfully added to your team.`);
+    } else {
+      showStatus("error", "Failed to assign employees. Please try again.");
+    }
   };
 
   const handleRemoveFromTeam = async (member: TeamMember) => {
