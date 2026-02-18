@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -11,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, Clock, Mail, UserPlus, UserMinus } from "lucide-react";
+import { Users, Clock, Mail, UserPlus, UserMinus, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ export function MyTeamSection() {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [addToTeamOpen, setAddToTeamOpen] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const fetchTeamMembers = useCallback(async () => {
     if (!user) return;
@@ -82,6 +84,16 @@ export function MyTeamSection() {
     setAttendanceDialogOpen(true);
   };
 
+  const showStatus = (type: "success" | "error", text: string) => {
+    setStatusMessage({ type, text });
+    setTimeout(() => setStatusMessage(null), 5000);
+  };
+
+  const handleTeamAdded = async () => {
+    await fetchTeamMembers();
+    showStatus("success", "Employee(s) successfully added to your team.");
+  };
+
   const handleRemoveFromTeam = async (member: TeamMember) => {
     const { error } = await supabase
       .from("employees")
@@ -93,13 +105,10 @@ export function MyTeamSection() {
         title: "Removed from Team",
         description: `${member.first_name} ${member.last_name} has been removed from your team.`,
       });
-      fetchTeamMembers();
+      await fetchTeamMembers();
+      showStatus("success", `${member.first_name} ${member.last_name} removed from your team.`);
     } else {
-      toast({
-        title: "Error",
-        description: "Failed to remove employee from team.",
-        variant: "destructive",
-      });
+      showStatus("error", "Failed to remove employee from team. Please try again.");
     }
   };
 
@@ -127,6 +136,24 @@ export function MyTeamSection() {
           </div>
         </CardHeader>
         <CardContent>
+          {statusMessage && (
+            <Alert
+              variant={statusMessage.type === "error" ? "destructive" : "default"}
+              className={`mb-4 ${statusMessage.type === "success" ? "border-green-500/50 text-green-700 bg-green-50 dark:text-green-400 dark:bg-green-950/30" : ""}`}
+            >
+              {statusMessage.type === "success" ? (
+                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+              ) : (
+                <AlertCircle className="h-4 w-4" />
+              )}
+              <AlertDescription className="flex items-center justify-between">
+                <span>{statusMessage.text}</span>
+                <Button variant="ghost" size="icon" className="h-5 w-5 -mr-1" onClick={() => setStatusMessage(null)}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
           {teamMembers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
@@ -226,7 +253,7 @@ export function MyTeamSection() {
         open={addToTeamOpen}
         onOpenChange={setAddToTeamOpen}
         currentTeamMemberIds={teamMembers.map((m) => m.id)}
-        onAdded={fetchTeamMembers}
+        onAdded={handleTeamAdded}
       />
     </>
   );
