@@ -273,7 +273,11 @@ export function useAttendance(weekStart?: Date) {
     return "in";
   };
 
-  // Calculate monthly hours (ONLY excluding breaks, NOT pauses)
+  /**
+   * Calculates net work hours for the month.
+   * Formula: (clock_out - clock_in) - total_break_minutes - total_pause_minutes
+   * Both breaks (lunch/rest) and pauses (hybrid commute transitions) are non-working states.
+   */
   const getMonthlyHours = () => {
     let totalMinutes = 0;
     monthlyLogs.forEach((log) => {
@@ -281,12 +285,40 @@ export function useAttendance(weekStart?: Date) {
         const start = new Date(log.clock_in);
         const end = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
-        // NOTE: We DO NOT subtract pause minutes - pauses are included in work time
-        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000;
+        const pauseMinutes = log.total_pause_minutes || 0;
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
     return Math.round((totalMinutes / 60) * 10) / 10;
+  };
+
+  /**
+   * Returns a detailed breakdown for admin/reporting:
+   * net_work_hours, total_break_time (min), total_pause_time (min)
+   */
+  const getTimeBreakdown = (logs: AttendanceLog[]) => {
+    let workMs = 0;
+    let breakMinTotal = 0;
+    let pauseMinTotal = 0;
+
+    logs.forEach((log) => {
+      if (!log.clock_in) return;
+      const start = new Date(log.clock_in);
+      const end = log.clock_out ? new Date(log.clock_out) : new Date();
+      const breakMin = log.total_break_minutes || 0;
+      const pauseMin = log.total_pause_minutes || 0;
+      const netMs = end.getTime() - start.getTime() - (breakMin + pauseMin) * 60 * 1000;
+      workMs += Math.max(0, netMs);
+      breakMinTotal += breakMin;
+      pauseMinTotal += pauseMin;
+    });
+
+    return {
+      net_work_hours: Math.round((workMs / (1000 * 60 * 60)) * 10) / 10,
+      total_break_time: breakMinTotal,
+      total_pause_time: pauseMinTotal,
+    };
   };
 
   return {
@@ -304,6 +336,8 @@ export function useAttendance(weekStart?: Date) {
     endPause,
     status: getStatus(),
     monthlyHours: getMonthlyHours(),
+    /** Returns net_work_hours, total_break_time (min), total_pause_time (min) for any log array */
+    getTimeBreakdown,
     refetch: () => {
       fetchCurrentLog();
       fetchWeeklyLogs();
