@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,17 +7,45 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Plus, Filter, Mail, MapPin, Loader2, User, Edit, Clock, UserX } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import {
+  Search,
+  Plus,
+  Filter,
+  Mail,
+  MapPin,
+  Loader2,
+  User,
+  Edit,
+  Clock,
+  UserX,
+  Users,
+  UserPlus,
+  UserMinus,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
 import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
 import { TimesheetDialog } from "@/components/employees/TimesheetDialog";
 import { DeactivateDialog } from "@/components/employees/DeactivateDialog";
 import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
+import { AddToTeamDialog } from "@/components/employees/AddToTeamDialog";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useAuth } from "@/contexts/AuthContext";
 import { MyTeamSection } from "@/components/employees/MyTeamSection";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+
+interface ClickedEmployeeTeamMember {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  department: string | null;
+  job_title: string | null;
+  status: string | null;
+}
 
 // Component to handle individual employee avatar with signed URL
 const EmployeeAvatar = ({ employee }: { employee: any }) => {
@@ -47,6 +75,14 @@ const Employees = () => {
   const [locationFilter, setLocationFilter] = useState("all");
   const [clickedEmployee, setClickedEmployee] = useState<any | null>(null);
 
+  // Team members for the clicked employee in popup
+  const [clickedEmployeeTeam, setClickedEmployeeTeam] = useState<ClickedEmployeeTeamMember[]>([]);
+  const [loadingClickedTeam, setLoadingClickedTeam] = useState(false);
+
+  // Add to team dialog for managing another employee's team (VP/admin)
+  const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
+  const [managingEmployeeId, setManagingEmployeeId] = useState<string | null>(null);
+
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
@@ -55,8 +91,107 @@ const Employees = () => {
   const [timesheetOpen, setTimesheetOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
 
+  // If user is a line manager/supervisor (not VP), only show My Team — hide full directory
+  const showFullDirectory = isVP || (!isLineManager && !isSupervisor);
+
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
+  };
+
+  // Fetch team for clicked employee
+  const fetchClickedEmployeeTeam = async (employeeId: string) => {
+    setLoadingClickedTeam(true);
+    try {
+      const { data: lineReports } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name, email, department, job_title, status")
+        .eq("line_manager_id", employeeId)
+        .order("first_name", { ascending: true });
+
+      const { data: managerReports } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name, email, department, job_title, status")
+        .eq("manager_id", employeeId)
+        .order("first_name", { ascending: true });
+
+      const allReports = [...(lineReports || []), ...(managerReports || [])];
+      const uniqueReports = allReports.filter((emp, index, self) => self.findIndex((e) => e.id === emp.id) === index);
+      uniqueReports.sort((a, b) => a.first_name.localeCompare(b.first_name));
+      setClickedEmployeeTeam(uniqueReports);
+    } catch (err) {
+      console.error("Failed to fetch team:", err);
+      setClickedEmployeeTeam([]);
+    }
+    setLoadingClickedTeam(false);
+  };
+
+  // When clicked employee changes, fetch their team
+  useEffect(() => {
+    if (clickedEmployee?.id) {
+      fetchClickedEmployeeTeam(String(clickedEmployee.id));
+    } else {
+      setClickedEmployeeTeam([]);
+    }
+  }, [clickedEmployee?.id]);
+
+  const handleRemoveFromClickedTeam = async (member: ClickedEmployeeTeamMember) => {
+    if (!clickedEmployee) return;
+
+    // Remove both line_manager_id and manager_id references to the clicked employee
+    const updates: any = {};
+    // We need to check which field links this member to the clicked employee
+    const { data: memberData } = await supabase
+      .from("employees")
+      .select("line_manager_id, manager_id")
+      .eq("id", member.id)
+      .single();
+
+    if (memberData) {
+      if (memberData.line_manager_id === String(clickedEmployee.id)) {
+        updates.line_manager_id = null;
+      }
+      if (memberData.manager_id === String(clickedEmployee.id)) {
+        updates.manager_id = null;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      updates.line_manager_id = null;
+    }
+
+    const { error } = await supabase.from("employees").update(updates).eq("id", member.id);
+
+    if (!error) {
+      toast({
+        title: "Removed from Team",
+        description: `${member.first_name} ${member.last_name} has been removed from ${clickedEmployee.first_name}'s team.`,
+      });
+      fetchClickedEmployeeTeam(String(clickedEmployee.id));
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to remove employee from team.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleManageTeam = () => {
+    if (!clickedEmployee) return;
+    setManagingEmployeeId(String(clickedEmployee.id));
+    setManageTeamDialogOpen(true);
+  };
+
+  const handleTeamMembersAdded = async (success: boolean, count: number) => {
+    if (clickedEmployee) {
+      await fetchClickedEmployeeTeam(String(clickedEmployee.id));
+    }
+    if (success) {
+      toast({
+        title: "Team Updated",
+        description: `${count} employee${count > 1 ? "s" : ""} added to ${clickedEmployee?.first_name}'s team.`,
+      });
+    }
   };
 
   const filteredEmployees = employees.filter((emp) => {
@@ -195,10 +330,14 @@ const Employees = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">
-            {isManager ? "Employees" : "Employee Directory"}
+            {(isLineManager || isSupervisor) && !isVP ? "My Team" : isManager ? "Employees" : "Employee Directory"}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {isManager ? "Manage your team members and their roles" : "View your colleagues"}
+            {(isLineManager || isSupervisor) && !isVP
+              ? "Manage your direct reports"
+              : isManager
+                ? "Manage your team members and their roles"
+                : "View your colleagues"}
           </p>
         </div>
         {canCreateEmployee && (
@@ -212,157 +351,165 @@ const Employees = () => {
       {/* My Team Section - for Line Managers and Supervisors */}
       {(isLineManager || isSupervisor) && !isVP && <MyTeamSection />}
 
-      {/* Filters */}
-      <div
-        className="flex flex-col sm:flex-row gap-4 mb-6 animate-slide-up opacity-0"
-        style={{ animationDelay: "100ms", animationFillMode: "forwards" }}
-      >
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search employees..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+      {/* Filters & Employee Table - Only shown if NOT a line manager/supervisor-only role */}
+      {showFullDirectory && (
+        <>
+          {/* Filters */}
+          <div
+            className="flex flex-col sm:flex-row gap-4 mb-6 animate-slide-up opacity-0"
+            style={{ animationDelay: "100ms", animationFillMode: "forwards" }}
+          >
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search employees..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
 
-        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Department" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Departments</SelectItem>
-            <SelectItem value="Executive">Executive</SelectItem>
-            <SelectItem value="Accounting">Accounting</SelectItem>
-            <SelectItem value="Tax">Tax</SelectItem>
-            <SelectItem value="Operations">Operations</SelectItem>
-            <SelectItem value="Marketing">Marketing</SelectItem>
-            <SelectItem value="IT">IT</SelectItem>
-            <SelectItem value="Healthcare">Healthcare</SelectItem>
-            <SelectItem value="Focus Data">Focus Data</SelectItem>
-          </SelectContent>
-        </Select>
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                <SelectItem value="Executive">Executive</SelectItem>
+                <SelectItem value="Accounting">Accounting</SelectItem>
+                <SelectItem value="Tax">Tax</SelectItem>
+                <SelectItem value="Operations">Operations</SelectItem>
+                <SelectItem value="Marketing">Marketing</SelectItem>
+                <SelectItem value="IT">IT</SelectItem>
+                <SelectItem value="Healthcare">Healthcare</SelectItem>
+                <SelectItem value="Focus Data">Focus Data</SelectItem>
+              </SelectContent>
+            </Select>
 
-        <Select value={locationFilter} onValueChange={setLocationFilter}>
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <MapPin className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Location" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Locations</SelectItem>
-            <SelectItem value="US">United States</SelectItem>
-            <SelectItem value="Nepal">Nepal</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Employee Table */}
-      <div
-        className="rounded-xl border border-border bg-card shadow-sm animate-slide-up opacity-0 overflow-x-auto"
-        style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
-      >
-        <Table className="min-w-[800px]">
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="font-semibold">Employee</TableHead>
-              <TableHead className="font-semibold">Role</TableHead>
-              <TableHead className="font-semibold">Department</TableHead>
-              <TableHead className="font-semibold">Location</TableHead>
-              <TableHead className="font-semibold">Status</TableHead>
-              <TableHead className="font-semibold">Contact</TableHead>
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            {filteredEmployees.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  No employees found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredEmployees.map((employee, index) => (
-                <TableRow
-                  key={employee.id}
-                  className="group cursor-pointer animate-fade-in"
-                  style={{ animationDelay: `${300 + index * 50}ms` }}
-                  onClick={() => setClickedEmployee(employee)}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <EmployeeAvatar employee={employee} />
-                      <div>
-                        <p className="font-medium">
-                          {employee.first_name} {employee.last_name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{employee.email}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-
-                  <TableCell>{employee.job_title || "-"}</TableCell>
-
-                  <TableCell>
-                    <Badge variant="secondary" className="font-normal">
-                      {employee.department || "-"}
-                    </Badge>
-                  </TableCell>
-
-                  <TableCell>
-                    <div className="flex items-center font-bold gap-2">{employee.location === "US" ? " US" : "NP"}</div>
-                  </TableCell>
-
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        employee.status === "active" && "border-success/50 text-success bg-success/10",
-                        employee.status === "probation" && "border-warning/50 text-warning bg-warning/10",
-                        employee.status === "inactive" && "border-destructive/50 text-destructive bg-destructive/10",
-                      )}
-                    >
-                      {employee.status || "active"}
-                    </Badge>
-                  </TableCell>
-
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(`mailto:${employee.email}`, "_blank");
-                        }}
-                      >
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Stats Footer */}
-      {isManager && (
-        <div
-          className="flex items-center justify-between mt-6 text-sm text-muted-foreground animate-fade-in"
-          style={{ animationDelay: "500ms" }}
-        >
-          <p>
-            Showing {filteredEmployees.length} of {employees.length} employees
-          </p>
-          <div className="flex items-center gap-4">
-            <span>🇺🇸 {filteredEmployees.filter((e) => e.location === "US").length} US</span>
-            <span>🇳🇵 {filteredEmployees.filter((e) => e.location === "Nepal").length} Nepal</span>
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-full sm:w-[140px]">
+                <MapPin className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                <SelectItem value="US">United States</SelectItem>
+                <SelectItem value="Nepal">Nepal</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
+
+          {/* Employee Table */}
+          <div
+            className="rounded-xl border border-border bg-card shadow-sm animate-slide-up opacity-0 overflow-x-auto"
+            style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
+          >
+            <Table className="min-w-[800px]">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-semibold">Employee</TableHead>
+                  <TableHead className="font-semibold">Role</TableHead>
+                  <TableHead className="font-semibold">Department</TableHead>
+                  <TableHead className="font-semibold">Location</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold">Contact</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {filteredEmployees.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No employees found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredEmployees.map((employee, index) => (
+                    <TableRow
+                      key={employee.id}
+                      className="group cursor-pointer animate-fade-in"
+                      style={{ animationDelay: `${300 + index * 50}ms` }}
+                      onClick={() => setClickedEmployee(employee)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <EmployeeAvatar employee={employee} />
+                          <div>
+                            <p className="font-medium">
+                              {employee.first_name} {employee.last_name}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{employee.email}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>{employee.job_title || "-"}</TableCell>
+
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal">
+                          {employee.department || "-"}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex items-center font-bold gap-2">
+                          {employee.location === "US" ? " US" : "NP"}
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            employee.status === "active" && "border-success/50 text-success bg-success/10",
+                            employee.status === "probation" && "border-warning/50 text-warning bg-warning/10",
+                            employee.status === "inactive" &&
+                              "border-destructive/50 text-destructive bg-destructive/10",
+                          )}
+                        >
+                          {employee.status || "active"}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`mailto:${employee.email}`, "_blank");
+                            }}
+                          >
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Stats Footer */}
+          {isManager && (
+            <div
+              className="flex items-center justify-between mt-6 text-sm text-muted-foreground animate-fade-in"
+              style={{ animationDelay: "500ms" }}
+            >
+              <p>
+                Showing {filteredEmployees.length} of {employees.length} employees
+              </p>
+              <div className="flex items-center gap-4">
+                <span>🇺🇸 {filteredEmployees.filter((e) => e.location === "US").length} US</span>
+                <span>🇳🇵 {filteredEmployees.filter((e) => e.location === "Nepal").length} Nepal</span>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Action Popup Overlay */}
@@ -372,10 +519,11 @@ const Employees = () => {
           onClick={() => setClickedEmployee(null)}
         >
           <Card
-            className="w-full max-w-3xl mx-4 shadow-2xl animate-in zoom-in-95 duration-200"
+            className="w-full max-w-3xl mx-4 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <CardContent className="p-6">
+              {/* Employee Header */}
               <div className="flex items-center gap-4 mb-6">
                 <EmployeeAvatar employee={clickedEmployee} />
                 <div>
@@ -386,6 +534,7 @@ const Employees = () => {
                 </div>
               </div>
 
+              {/* Action Buttons */}
               <div className={cn("grid gap-3", isManager ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-1")}>
                 <Button
                   variant="outline"
@@ -439,6 +588,109 @@ const Employees = () => {
                   </>
                 )}
               </div>
+
+              {/* Team Section - shown below action buttons for managers/VP/admin */}
+              {isManager && (
+                <>
+                  <Separator className="my-5" />
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" />
+                        {clickedEmployee.first_name}'s Team
+                        {!loadingClickedTeam && (
+                          <Badge variant="secondary" className="ml-1 font-normal">
+                            {clickedEmployeeTeam.length} member{clickedEmployeeTeam.length !== 1 ? "s" : ""}
+                          </Badge>
+                        )}
+                      </h4>
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={handleManageTeam}>
+                        <UserPlus className="h-3.5 w-3.5" />
+                        Add to Team
+                      </Button>
+                    </div>
+
+                    {loadingClickedTeam ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : clickedEmployeeTeam.length === 0 ? (
+                      <div className="text-center py-6 text-muted-foreground bg-muted/30 rounded-lg">
+                        <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                        <p className="text-sm">No team members assigned</p>
+                        <p className="text-xs mt-1">Click "Add to Team" to assign employees.</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                              <TableHead className="font-semibold text-xs">Employee</TableHead>
+                              <TableHead className="font-semibold text-xs">Role</TableHead>
+                              <TableHead className="font-semibold text-xs">Department</TableHead>
+                              <TableHead className="font-semibold text-xs">Status</TableHead>
+                              <TableHead className="font-semibold text-xs w-[60px]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {clickedEmployeeTeam.map((member) => (
+                              <TableRow key={member.id}>
+                                <TableCell className="py-2">
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-7 w-7">
+                                      <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">
+                                        {getInitials(member.first_name, member.last_name)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="font-medium text-sm">
+                                        {member.first_name} {member.last_name}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">{member.email}</p>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-2 text-sm">{member.job_title || "-"}</TableCell>
+                                <TableCell className="py-2">
+                                  <Badge variant="secondary" className="font-normal text-xs">
+                                    {member.department || "-"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="py-2">
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "text-xs",
+                                      member.status === "active" && "border-success/50 text-success bg-success/10",
+                                      member.status === "probation" && "border-warning/50 text-warning bg-warning/10",
+                                      member.status === "inactive" &&
+                                        "border-destructive/50 text-destructive bg-destructive/10",
+                                    )}
+                                  >
+                                    {member.status || "active"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="py-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleRemoveFromClickedTeam(member)}
+                                    title="Remove from team"
+                                  >
+                                    <UserMinus className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -464,6 +716,20 @@ const Employees = () => {
         onOpenChange={setDeactivateOpen}
         onConfirm={handleConfirmDeactivate}
       />
+
+      {/* Add to Team Dialog - for VP/admin managing another employee's team */}
+      {managingEmployeeId && (
+        <AddToTeamDialog
+          open={manageTeamDialogOpen}
+          onOpenChange={(open) => {
+            setManageTeamDialogOpen(open);
+            if (!open) setManagingEmployeeId(null);
+          }}
+          currentTeamMemberIds={clickedEmployeeTeam.map((m) => m.id)}
+          onAdded={handleTeamMembersAdded}
+          targetEmployeeId={managingEmployeeId}
+        />
+      )}
     </DashboardLayout>
   );
 };
