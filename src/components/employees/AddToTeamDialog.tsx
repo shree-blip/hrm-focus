@@ -1,11 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -32,6 +26,8 @@ interface AddToTeamDialogProps {
   onOpenChange: (open: boolean) => void;
   currentTeamMemberIds: string[];
   onAdded: (success: boolean, count: number) => void;
+  /** Optional: if provided, assigns employees to this employee's team instead of the logged-in user's team */
+  targetEmployeeId?: string;
 }
 
 export function AddToTeamDialog({
@@ -39,6 +35,7 @@ export function AddToTeamDialog({
   onOpenChange,
   currentTeamMemberIds,
   onAdded,
+  targetEmployeeId,
 }: AddToTeamDialogProps) {
   const { user } = useAuth();
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
@@ -68,6 +65,9 @@ export function AddToTeamDialog({
     });
     setMyEmployeeId(empId);
 
+    // The ID to exclude from the list (target employee or self)
+    const excludeId = targetEmployeeId || empId;
+
     // Fetch all active employees
     const { data: employees } = await supabase
       .from("employees")
@@ -76,10 +76,8 @@ export function AddToTeamDialog({
       .order("first_name", { ascending: true });
 
     if (employees) {
-      // Filter out current team members and self
-      const available = employees.filter(
-        (e) => !currentTeamMemberIds.includes(e.id) && e.id !== empId
-      );
+      // Filter out current team members and the target/self
+      const available = employees.filter((e) => !currentTeamMemberIds.includes(e.id) && e.id !== excludeId);
       setAllEmployees(available);
     }
 
@@ -99,21 +97,18 @@ export function AddToTeamDialog({
   });
 
   const toggleSelection = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const handleAssign = async () => {
-    if (!myEmployeeId || selectedIds.length === 0) return;
+    // Use targetEmployeeId if provided, otherwise use logged-in user's employee ID
+    const assignToId = targetEmployeeId || myEmployeeId;
+    if (!assignToId || selectedIds.length === 0) return;
     setSaving(true);
 
     let successCount = 0;
     for (const empId of selectedIds) {
-      const { error } = await supabase
-        .from("employees")
-        .update({ line_manager_id: myEmployeeId })
-        .eq("id", empId);
+      const { error } = await supabase.from("employees").update({ line_manager_id: assignToId }).eq("id", empId);
 
       if (!error) successCount++;
     }
@@ -135,10 +130,10 @@ export function AddToTeamDialog({
         <DialogHeader>
           <DialogTitle className="font-display text-xl flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
-            Add to My Team
+            {targetEmployeeId ? "Add to Team" : "Add to My Team"}
           </DialogTitle>
           <DialogDescription>
-            Select employees to assign to your team as direct reports.
+            Select employees to assign {targetEmployeeId ? "to this person's team" : "to your team"} as direct reports.
           </DialogDescription>
         </DialogHeader>
 
@@ -159,9 +154,7 @@ export function AddToTeamDialog({
             </div>
           ) : filteredEmployees.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
-              {searchQuery
-                ? "No matching employees found"
-                : "No unassigned employees available"}
+              {searchQuery ? "No matching employees found" : "No unassigned employees available"}
             </div>
           ) : (
             <div className="space-y-1">
@@ -171,9 +164,7 @@ export function AddToTeamDialog({
                   <div
                     key={emp.id}
                     className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
-                      isSelected
-                        ? "bg-primary/10 border border-primary/20"
-                        : "hover:bg-accent/50"
+                      isSelected ? "bg-primary/10 border border-primary/20" : "hover:bg-accent/50"
                     }`}
                     onClick={() => toggleSelection(emp.id)}
                   >
@@ -208,16 +199,8 @@ export function AddToTeamDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={handleAssign}
-            disabled={selectedIds.length === 0 || saving}
-            className="gap-2"
-          >
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <UserPlus className="h-4 w-4" />
-            )}
+          <Button onClick={handleAssign} disabled={selectedIds.length === 0 || saving} className="gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
             {saving ? "Assigning..." : `Add to Team (${selectedIds.length})`}
           </Button>
         </div>
