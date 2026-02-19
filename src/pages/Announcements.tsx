@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,7 @@ const Announcements = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [permanentDeleteId, setPermanentDeleteId] = useState<string | null>(null);
+  const [isPublisher, setIsPublisher] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -67,7 +68,21 @@ const Announcements = () => {
     expiresAtLocal: "",
   });
 
-  const canManage = role === "admin" || role === "vp" || role === "manager";
+  // Check if user is an announcement publisher
+  useEffect(() => {
+    if (!user) return;
+    const checkPublisher = async () => {
+      const { data } = await supabase
+        .from("announcement_publishers")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setIsPublisher(!!data);
+    };
+    checkPublisher();
+  }, [user]);
+
+  const canManage = role === "admin" || role === "vp" || role === "manager" || isPublisher;
 
   const stats = useMemo(() => {
     const pinned = announcements.filter((a) => a.is_pinned).length;

@@ -69,6 +69,27 @@ export type Database = {
           },
         ]
       }
+      announcement_publishers: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           content: string
@@ -3161,6 +3182,7 @@ export type Database = {
       }
       auto_clock_out_after_8_hours: { Args: never; Returns: number }
       can_create_employee: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_announcements: { Args: { _user_id: string }; Returns: boolean }
       can_manage_task: {
         Args: { _task_id: string; _user_id: string }
         Returns: boolean
