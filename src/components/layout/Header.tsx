@@ -55,6 +55,14 @@ export function Header({ isMobile }: HeaderProps = {}) {
       timeZone: "America/Los_Angeles",
     });
 
+  const formatCSTTime = (date: Date) =>
+    date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "America/Chicago",
+    });
+
   const formatDate = (date: Date) =>
     date.toLocaleDateString("en-US", {
       weekday: "long",
@@ -189,7 +197,8 @@ export function Header({ isMobile }: HeaderProps = {}) {
         <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4" />
           <span className="text-sm font-medium">
-            {formatNepalTime(currentTime)} NPT | {formatCaliforniaTime(currentTime)} PST • {formatDate(currentTime)}
+            {formatNepalTime(currentTime)} NPT | {formatCSTTime(currentTime)} CST | {formatCaliforniaTime(currentTime)}{" "}
+            PST • {formatDate(currentTime)}
           </span>
         </div>
 
