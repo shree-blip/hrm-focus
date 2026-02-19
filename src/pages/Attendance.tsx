@@ -71,13 +71,17 @@ const Attendance = () => {
 
   const clockStatus = getClockStatus();
 
-  // Calculate time worked today (excluding breaks and pauses)
+  /**
+   * Net time worked today: elapsed - breaks - pauses.
+   * Both break and pause are inactive (non-working) states.
+   */
   const getTimeWorked = () => {
     if (!currentLog || !currentLog.clock_in) return "0h 0m";
     const start = new Date(currentLog.clock_in);
     const end = currentLog.clock_out ? new Date(currentLog.clock_out) : new Date();
     const breakMinutes = currentLog.total_break_minutes || 0;
     const pauseMinutes = (currentLog as any).total_pause_minutes || 0;
+    // Subtract both break and pause — neither counts as active work time
     const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
     const hours = Math.floor(Math.max(0, diffMs) / (1000 * 60 * 60));
     const minutes = Math.floor((Math.max(0, diffMs) % (1000 * 60 * 60)) / (1000 * 60));
@@ -88,7 +92,10 @@ const Attendance = () => {
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
 
-  // Calculate hours per day from weekly logs (excluding breaks, including pauses)
+  /**
+   * Net hours worked in a day: elapsed - breaks - pauses.
+   * Pause (hybrid commute) is treated as non-working, same as break.
+   */
   const getHoursForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     const dayLogs = weeklyLogs.filter((log) => {
@@ -103,12 +110,13 @@ const Attendance = () => {
         const end = log.clock_out ? new Date(log.clock_out) : new Date();
         const breakMinutes = log.total_break_minutes || 0;
         const pauseMinutes = (log as any).total_pause_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - breakMinutes * 60 * 1000; // Subtract break time, but include pause time
+        // Subtract both break and pause durations — both are inactive states
+        const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
         totalMinutes += Math.max(0, diffMs / (1000 * 60));
       }
     });
 
-    return Math.round((totalMinutes / 60) * 10) / 10; // Round to 1 decimal
+    return Math.round((totalMinutes / 60) * 10) / 10;
   };
 
   const handleClockIn = async () => {
@@ -146,7 +154,7 @@ const Attendance = () => {
 
   const handleExport = () => {
     // Generate CSV with pause data
-    const headers = ["Date", "Clock In", "Clock Out", "Break (min)", "Pause (min)", "Total Hours", "Type"];
+    const headers = ["Date", "Clock In", "Clock Out", "Break (min)", "Pause (min)", "Net Hours Worked", "Type"];
     const rows = weeklyLogs.map((log) => {
       const clockIn = new Date(log.clock_in);
       const clockOut = log.clock_out ? new Date(log.clock_out) : null;
@@ -154,17 +162,10 @@ const Attendance = () => {
       const pauseMinutes = (log as any).total_pause_minutes || 0;
       let hours = "-";
       if (clockOut) {
-        // Calculate the total time in milliseconds between clock-in and clock-out
         const diffMs = clockOut.getTime() - clockIn.getTime();
-
-        // Calculate the break time in milliseconds (to subtract)
-        const breakMs = breakMinutes * 60 * 1000;
-
-        // Calculate total work time (subtracting only break time, not pause time)
-        const totalWorkMs = diffMs - breakMs;
-
-        // Convert total work time to hours and round to two decimal places
-        hours = `${(Math.max(0, totalWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
+        // Subtract both break and pause — both are inactive (non-working) states
+        const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
+        hours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
       }
       return [
         format(clockIn, "yyyy-MM-dd"),
@@ -191,9 +192,9 @@ const Attendance = () => {
     });
   };
 
-  // Calculate weekly totals, now including pause time
+  // Net weekly total = sum of (elapsed - breaks - pauses) per day
   const weeklyTotal = weekDays.reduce(
-    (acc, day) => acc + getHoursForDay(day), // Calculate daily total excluding breaks, including pauses
+    (acc, day) => acc + getHoursForDay(day),
     0,
   );
 
@@ -518,11 +519,10 @@ const Attendance = () => {
 
                   let hours = "-";
                   if (clockOutDate) {
-                    // Use the updated logic here for total hours
                     const diffMs = clockOutDate.getTime() - clockInDate.getTime();
-                    const breakMs = breakMinutes * 60 * 1000; // Only subtract break time
-                    const totalWorkMs = diffMs - breakMs;
-                    hours = `${(Math.max(0, totalWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`; // Include pause time
+                    // Subtract both break and pause — both are inactive (non-working) states
+                    const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
+                    hours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
                   }
 
                   return (
