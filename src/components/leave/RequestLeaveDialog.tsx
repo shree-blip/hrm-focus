@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Info, AlertTriangle, Layers, Clock } from "lucide-react";
-import { format, addDays } from "date-fns";
+import { format, addDays, isWeekend, isSaturday, isSunday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,57 @@ interface RequestLeaveDialogProps {
   currentLeave?: CurrentLeave | null;
 }
 
+/**
+ * Count business days (excluding Saturday & Sunday) between two dates (inclusive).
+ * Example: Feb 20 (Thu) to Feb 23 (Sun) = 2 business days (Thu + Fri)
+ */
+function getBusinessDaysBetween(start: Date, end: Date): number {
+  let count = 0;
+  const current = new Date(start);
+  current.setHours(0, 0, 0, 0);
+  const endDate = new Date(end);
+  endDate.setHours(0, 0, 0, 0);
+
+  while (current <= endDate) {
+    const day = current.getDay();
+    // 0 = Sunday, 6 = Saturday
+    if (day !== 0 && day !== 6) {
+      count++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}
+
+/**
+ * Add N business days to a start date, skipping weekends.
+ * Returns the end date (the Nth business day from start, inclusive of start).
+ * Example: addBusinessDays(Monday, 5) => Friday (same week)
+ */
+function addBusinessDays(start: Date, businessDays: number): Date {
+  const result = new Date(start);
+  // We already count the start date as day 1 (if it's a weekday)
+  let remaining = businessDays;
+
+  // If start is a weekend, move to next Monday first
+  while (result.getDay() === 0 || result.getDay() === 6) {
+    result.setDate(result.getDate() + 1);
+  }
+
+  // Start date counts as day 1
+  remaining--;
+
+  while (remaining > 0) {
+    result.setDate(result.getDate() + 1);
+    const day = result.getDay();
+    if (day !== 0 && day !== 6) {
+      remaining--;
+    }
+  }
+
+  return result;
+}
+
 export function RequestLeaveDialog({
   open,
   onOpenChange,
@@ -72,11 +123,12 @@ export function RequestLeaveDialog({
   const [endDate, setEndDate] = useState<Date>();
   const [reason, setReason] = useState("");
 
-  // Auto-calculate end date based on leave type selection
+  // Auto-calculate end date based on leave type selection (using business days)
   useEffect(() => {
     if (startDate && leaveType === "Special Leave" && specialLeaveSubtype) {
-      const daysToAdd = SPECIAL_LEAVE_SUBTYPES[specialLeaveSubtype].days - 1;
-      setEndDate(addDays(startDate, daysToAdd));
+      const allocatedDays = SPECIAL_LEAVE_SUBTYPES[specialLeaveSubtype].days;
+      const calculatedEndDate = addBusinessDays(startDate, allocatedDays);
+      setEndDate(calculatedEndDate);
     }
   }, [startDate, leaveType, specialLeaveSubtype]);
 
@@ -149,6 +201,18 @@ export function RequestLeaveDialog({
       return;
     }
 
+    // Validate that the selected range has at least 1 business day
+    const businessDays = getBusinessDaysBetween(startDate, endDate);
+    if (businessDays === 0) {
+      toast({
+        title: "Invalid Date Range",
+        description:
+          "Your selected dates fall entirely on weekends. Please select dates that include at least one working day.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Create dates at noon to avoid timezone issues
     const adjustedStartDate = new Date(startDate);
     adjustedStartDate.setHours(12, 0, 0, 0);
@@ -199,10 +263,10 @@ export function RequestLeaveDialog({
     return null;
   };
 
-  // Calculate days between dates
+  // Calculate business days between dates (excluding Sat & Sun)
   const getCalculatedDays = () => {
     if (startDate && endDate) {
-      return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      return getBusinessDaysBetween(startDate, endDate);
     }
     return null;
   };
@@ -464,6 +528,8 @@ export function RequestLeaveDialog({
                     initialFocus
                     className="pointer-events-auto"
                     disabled={(date) => {
+                      // Disable weekends
+                      if (date.getDay() === 0 || date.getDay() === 6) return true;
                       // If Leave on Leave and user is on leave, must start after current leave ends
                       if (isLeaveOnLeave && isOnLeave && currentLeave) {
                         const dayAfterCurrentLeave = addDays(new Date(currentLeave.end_date), 1);
@@ -505,15 +571,24 @@ export function RequestLeaveDialog({
                     onSelect={setEndDate}
                     initialFocus
                     className="pointer-events-auto"
-                    disabled={(date) => (startDate ? date < startDate : false)}
+                    disabled={(date) => {
+                      if (startDate && date < startDate) return true;
+                      return false;
+                    }}
                   />
                 </PopoverContent>
               </Popover>
             </div>
           </div>
 
+          {/* Weekend notice */}
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Info className="h-3 w-3" />
+            Saturdays and Sundays are not counted as leave days.
+          </p>
+
           {/* Days Summary */}
-          {startDate && endDate && getCalculatedDays() && (
+          {startDate && endDate && getCalculatedDays() !== null && (
             <div
               className={cn(
                 "p-3 rounded-lg border",
@@ -530,11 +605,18 @@ export function RequestLeaveDialog({
                   variant="secondary"
                   className={cn(isLeaveOnLeave && "bg-orange-500/20 text-orange-600 dark:text-orange-400")}
                 >
-                  {getCalculatedDays()} day{getCalculatedDays() !== 1 ? "s" : ""}
+                  {getCalculatedDays()} working day{getCalculatedDays() !== 1 ? "s" : ""}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 From {format(startDate, "MMM d, yyyy")} to {format(endDate, "MMM d, yyyy")}
+                {(() => {
+                  const totalCalendarDays =
+                    Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                  const businessDays = getCalculatedDays() || 0;
+                  const weekendDays = totalCalendarDays - businessDays;
+                  return weekendDays > 0 ? ` (${weekendDays} weekend day${weekendDays !== 1 ? "s" : ""} excluded)` : "";
+                })()}
               </p>
 
               {/* Show total if Leave on Leave and user is on leave */}
