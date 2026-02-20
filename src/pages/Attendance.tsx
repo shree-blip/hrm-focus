@@ -151,10 +151,26 @@ const Attendance = () => {
       await startPause();
     }
   };
-
+  const formatDuration = (minutes: number): string => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  };
   const handleExport = () => {
-    // Generate CSV with pause data
-    const headers = ["Date", "Clock In", "Clock Out", "Break (min)", "Pause (min)", "Net Hours Worked", "Type"];
+    const headers = [
+      "Date",
+      "Clock In",
+      "Clock Out",
+      "Break Start",
+      "Break End",
+      "Break Duration",
+      "Pause Start",
+      "Pause End",
+      "Pause Duration",
+      "Net Hours Worked",
+      "Type",
+    ];
     const rows = weeklyLogs.map((log) => {
       const clockIn = new Date(log.clock_in);
       const clockOut = log.clock_out ? new Date(log.clock_out) : null;
@@ -163,7 +179,6 @@ const Attendance = () => {
       let hours = "-";
       if (clockOut) {
         const diffMs = clockOut.getTime() - clockIn.getTime();
-        // Subtract both break and pause — both are inactive (non-working) states
         const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
         hours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
       }
@@ -171,8 +186,12 @@ const Attendance = () => {
         format(clockIn, "yyyy-MM-dd"),
         format(clockIn, "hh:mm a"),
         clockOut ? format(clockOut, "hh:mm a") : "-",
-        breakMinutes,
-        pauseMinutes,
+        log.break_start ? format(new Date(log.break_start), "HH:mm") : "-",
+        log.break_end ? format(new Date(log.break_end), "HH:mm") : "-",
+        breakMinutes > 0 ? formatDuration(breakMinutes) : "-",
+        (log as any).pause_start ? format(new Date((log as any).pause_start), "HH:mm") : "-",
+        (log as any).pause_end ? format(new Date((log as any).pause_end), "HH:mm") : "-",
+        pauseMinutes > 0 ? formatDuration(pauseMinutes) : "-",
         hours,
         log.clock_type || "payroll",
       ].join(",");
@@ -193,10 +212,7 @@ const Attendance = () => {
   };
 
   // Net weekly total = sum of (elapsed - breaks - pauses) per day
-  const weeklyTotal = weekDays.reduce(
-    (acc, day) => acc + getHoursForDay(day),
-    0,
-  );
+  const weeklyTotal = weekDays.reduce((acc, day) => acc + getHoursForDay(day), 0);
 
   // Set the target hours for comparison (e.g., 40 hours for the week)
   const targetHours = 40;
@@ -534,8 +550,36 @@ const Attendance = () => {
                       <TableCell className="font-medium">{format(clockInDate, "EEE, MMM d")}</TableCell>
                       <TableCell>{format(clockInDate, "hh:mm a")}</TableCell>
                       <TableCell>{clockOutDate ? format(clockOutDate, "hh:mm a") : "-"}</TableCell>
-                      <TableCell>{breakMinutes > 0 ? `${breakMinutes}m` : "-"}</TableCell>
-                      <TableCell>{pauseMinutes > 0 ? `${pauseMinutes}m` : "-"}</TableCell>
+                      <TableCell>
+                        {log.break_start ? (
+                          <div className="space-y-1">
+                            <span className="text-yellow-600 font-mono text-xs">
+                              {format(new Date(log.break_start), "HH:mm")} -{" "}
+                              {log.break_end ? format(new Date(log.break_end), "HH:mm") : "-"}
+                            </span>
+                            {breakMinutes > 0 && (
+                              <p className="text-xs text-muted-foreground">{formatDuration(breakMinutes)}</p>
+                            )}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {(log as any).pause_start ? (
+                          <div className="space-y-1">
+                            <span className="text-cyan-600 font-mono text-xs">
+                              {format(new Date((log as any).pause_start), "HH:mm")} -{" "}
+                              {(log as any).pause_end ? format(new Date((log as any).pause_end), "HH:mm") : "-"}
+                            </span>
+                            {pauseMinutes > 0 && (
+                              <p className="text-xs text-muted-foreground">{formatDuration(pauseMinutes)}</p>
+                            )}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
