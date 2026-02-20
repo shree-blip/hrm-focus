@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -24,8 +23,8 @@ interface NewTaskDialogProps {
     priority: "high" | "medium" | "low";
     dueDate: string;
     status: "todo" | "in-progress" | "review" | "done";
-    timeEstimate: string;
     assigneeIds: string[];
+    isInternal: boolean;
   }) => void;
   defaultStatus?: "todo" | "in-progress" | "review" | "done";
 }
@@ -36,10 +35,9 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
   const { user, profile } = useAuth();
 
   const [title, setTitle] = useState("");
-  const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [selectedClientId, setSelectedClientId] = useState<string>("internal");
   const [priority, setPriority] = useState<"high" | "medium" | "low">("medium");
   const [dueDate, setDueDate] = useState("");
-  const [timeEstimate, setTimeEstimate] = useState("");
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [status, setStatus] = useState<"todo" | "in-progress" | "review" | "done">(defaultStatus);
   const [showAddClientDialog, setShowAddClientDialog] = useState(false);
@@ -49,10 +47,9 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
     if (open) {
       setStatus(defaultStatus);
       setTitle("");
-      setSelectedClientId("");
+      setSelectedClientId("internal");
       setPriority("medium");
       setDueDate("");
-      setTimeEstimate("");
       setSelectedAssignees([]);
     }
   }, [open, defaultStatus]);
@@ -69,17 +66,18 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
       return;
     }
 
+    const isInternal = selectedClientId === "internal";
     const selectedClient = clients.find((c) => c.id === selectedClientId);
 
     onSubmit({
       title,
-      client: selectedClient?.name || "",
-      clientId: selectedClientId || undefined,
+      client: isInternal ? "Internal" : selectedClient?.name || "",
+      clientId: isInternal ? undefined : selectedClientId,
       priority,
       dueDate,
       status,
-      timeEstimate: timeEstimate || undefined,
       assigneeIds: selectedAssignees,
+      isInternal,
     });
 
     onOpenChange(false);
@@ -146,19 +144,19 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
                 <Select value={selectedClientId} onValueChange={setSelectedClientId}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Select a client">
-                      {selectedClientId && (
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          {clients.find((c) => c.id === selectedClientId)?.name || "Select client"}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        {selectedClientId === "internal"
+                          ? "Internal (Personal Task)"
+                          : clients.find((c) => c.id === selectedClientId)?.name || "Select client"}
+                      </div>
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="internal">
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4" />
-                        Internal
+                        Internal (Personal Task)
                       </div>
                     </SelectItem>
                     {clientsLoading ? (
@@ -202,39 +200,24 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
               </div>
 
               <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={status}
-                  onValueChange={(v) => setStatus(v as "todo" | "in-progress" | "review" | "done")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todo">To Do</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="review">Review</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
                 <Label htmlFor="dueDate">Due Date</Label>
                 <Input id="dueDate" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="timeEstimate">Time Estimate</Label>
-                <Input
-                  id="timeEstimate"
-                  placeholder="e.g., 4h"
-                  value={timeEstimate}
-                  onChange={(e) => setTimeEstimate(e.target.value)}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as "todo" | "in-progress" | "review" | "done")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todo">To Do</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="review">Review</SelectItem>
+                  <SelectItem value="done">Done</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -256,7 +239,6 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
                           toggleAssignee(assignee.id);
                         }}
                       >
-                        {/* Custom checkbox - no Radix/button involved */}
                         <div
                           className={`h-4 w-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                             selectedAssignees.includes(assignee.id)
