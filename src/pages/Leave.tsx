@@ -19,6 +19,7 @@ import {
   X as XIcon,
   Clock,
   Layers,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
@@ -39,9 +40,19 @@ export const SPECIAL_LEAVE_TYPES = {
 
 export type SpecialLeaveType = keyof typeof SPECIAL_LEAVE_TYPES;
 
-// Helper to check if a leave type is "Leave on Leave"
+// Helper to check if a leave type is "Leave on Lieu"
+export const isLeaveOnLieuType = (leaveType: string) => {
+  return leaveType.startsWith("Leave on Lieu");
+};
+
+// Helper to check if a leave type is "Other Leave"
+export const isOtherLeaveType = (leaveType: string) => {
+  return leaveType.startsWith("Other Leave");
+};
+
+// Legacy support: also check old "Leave on Leave" prefix
 export const isLeaveOnLeaveType = (leaveType: string) => {
-  return leaveType.startsWith("Leave on Leave");
+  return leaveType.startsWith("Leave on Leave") || leaveType.startsWith("Leave on Lieu");
 };
 
 const Leave = () => {
@@ -74,13 +85,13 @@ const Leave = () => {
   // Get team members currently on leave (excluding current user)
   const getTeamMembersOnLeave = () => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // ← normalize
+    today.setHours(0, 0, 0, 0);
     return teamLeaves.filter((r) => {
       if (r.status !== "approved" || r.user_id === user?.id) return false;
       const startDate = new Date(r.start_date);
-      startDate.setHours(0, 0, 0, 0); // ← normalize
+      startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(r.end_date);
-      endDate.setHours(0, 0, 0, 0); // ← normalize
+      endDate.setHours(0, 0, 0, 0);
       return today >= startDate && today <= endDate;
     });
   };
@@ -91,13 +102,13 @@ const Leave = () => {
   // Get current user's active leave details
   const getCurrentUserLeave = () => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // ← add this
+    today.setHours(0, 0, 0, 0);
     return ownRequests.find((r) => {
       if (r.status !== "approved" || r.user_id !== user?.id) return false;
       const startDate = new Date(r.start_date);
-      startDate.setHours(0, 0, 0, 0); // ← add this
+      startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(r.end_date);
-      endDate.setHours(0, 0, 0, 0); // ← add this
+      endDate.setHours(0, 0, 0, 0);
       return today >= startDate && today <= endDate;
     });
   };
@@ -154,10 +165,17 @@ const Leave = () => {
       .reduce((sum, r) => sum + r.days, 0);
   };
 
-  // Calculate Leave on Leave usage
-  const getLeaveOnLeaveUsed = () => {
+  // Calculate Leave on Lieu usage
+  const getLeaveOnLieuUsed = () => {
     return ownRequests
-      .filter((r) => r.status === "approved" && isLeaveOnLeaveType(r.leave_type) && r.user_id === user?.id)
+      .filter((r) => r.status === "approved" && isLeaveOnLieuType(r.leave_type) && r.user_id === user?.id)
+      .reduce((sum, r) => sum + r.days, 0);
+  };
+
+  // Calculate Other Leave usage
+  const getOtherLeaveUsed = () => {
+    return ownRequests
+      .filter((r) => r.status === "approved" && isOtherLeaveType(r.leave_type) && r.user_id === user?.id)
       .reduce((sum, r) => sum + r.days, 0);
   };
 
@@ -245,6 +263,10 @@ const Leave = () => {
                         const endDate = format(new Date(leave.end_date), "MMM d");
                         const daysRemaining = Math.max(0, differenceInDays(new Date(leave.end_date), new Date()) + 1);
 
+                        // Determine leave type category for badge color
+                        const isLieu = isLeaveOnLieuType(leave.leave_type);
+                        const isOther = isOtherLeaveType(leave.leave_type);
+
                         return (
                           <div
                             key={leave.id}
@@ -261,9 +283,16 @@ const Leave = () => {
                               <div className="flex items-center gap-1.5">
                                 <Badge
                                   variant="outline"
-                                  className="text-[10px] px-1.5 py-0 h-4 bg-success/10 text-success border-success/30"
+                                  className={cn(
+                                    "text-[10px] px-1.5 py-0 h-4",
+                                    isLieu
+                                      ? "bg-orange-500/10 text-orange-600 border-orange-500/30"
+                                      : isOther
+                                        ? "bg-violet-500/10 text-violet-600 border-violet-500/30"
+                                        : "bg-success/10 text-success border-success/30",
+                                  )}
                                 >
-                                  {leave.leave_type.replace(" Leave", "")}
+                                  {isLieu ? "Lieu" : isOther ? "Other" : leave.leave_type.replace(" Leave", "")}
                                 </Badge>
                                 <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                                   <Clock className="h-2.5 w-2.5" />
@@ -354,8 +383,8 @@ const Leave = () => {
         </Card>
       </div>
 
-      {/* Balance Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      {/* Balance Cards - Now 4 cards in 2x2 grid on large screens */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {/* Annual Leave Card */}
         <Card
           className="animate-slide-up opacity-0 hover:shadow-md transition-shadow"
@@ -430,7 +459,7 @@ const Leave = () => {
           </CardContent>
         </Card>
 
-        {/* Leave on Leave Card */}
+        {/* Leave on Lieu Card - Updated: date-based, no reason subtypes */}
         <Card
           className="animate-slide-up opacity-0 hover:shadow-md transition-shadow border-orange-500/20"
           style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
@@ -442,25 +471,58 @@ const Leave = () => {
                 Leave on Lieu
               </p>
               <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 dark:text-orange-400">
-                Priority
+                Date based
               </Badge>
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-display font-bold text-orange-600 dark:text-orange-400">
-                  {getLeaveOnLeaveUsed()}
+                  {getLeaveOnLieuUsed()}
                 </span>
                 <span className="text-muted-foreground">days used</span>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                For requesting additional leave while on existing approved leave
+                For taking a day off when you worked on a holiday or leave day
               </p>
+              <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-orange-500/5 border border-orange-500/10">
+                <Calendar className="h-3.5 w-3.5 text-orange-500" />
+                <span className="text-xs text-orange-600 dark:text-orange-400">
+                  Select date worked → Choose day off
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Other Leave Card - NEW */}
+        <Card
+          className="animate-slide-up opacity-0 hover:shadow-md transition-shadow border-violet-500/20"
+          style={{ animationDelay: "250ms", animationFillMode: "forwards" }}
+        >
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <FileText className="h-4 w-4 text-violet-500" />
+                Other
+              </p>
+              <Badge variant="secondary" className="bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                Reason based
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-display font-bold text-violet-600 dark:text-violet-400">
+                  {getOtherLeaveUsed()}
+                </span>
+                <span className="text-muted-foreground">days used</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">For emergency or miscellaneous leave requests</p>
               <div className="flex flex-wrap gap-1 mt-2">
                 {["Extension", "Medical", "Family", "Travel", "Other"].map((type) => (
                   <Badge
                     key={type}
                     variant="outline"
-                    className="text-xs border-orange-500/30 text-orange-600 dark:text-orange-400"
+                    className="text-xs border-violet-500/30 text-violet-600 dark:text-violet-400"
                   >
                     {type}
                   </Badge>
@@ -540,20 +602,34 @@ const Leave = () => {
                   ? `${request.profile.first_name[0]}${request.profile.last_name[0]}`
                   : "??";
                 const email = request.profile?.email || "";
-                const isLeaveOnLeave = isLeaveOnLeaveType(request.leave_type);
+                const isLeaveOnLieu = isLeaveOnLieuType(request.leave_type);
+                const isOtherLeave = isOtherLeaveType(request.leave_type);
 
                 // Determine leave type badge color
                 const getLeaveTypeBadgeClass = (leaveType: string) => {
                   if (leaveType === "Annual Leave") return "bg-primary/10 text-primary";
                   if (Object.keys(SPECIAL_LEAVE_TYPES).includes(leaveType)) return "bg-warning/10 text-warning";
-                  if (isLeaveOnLeaveType(leaveType))
+                  if (isLeaveOnLieuType(leaveType))
                     return "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30";
+                  if (isOtherLeaveType(leaveType))
+                    return "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30";
                   return "bg-muted text-muted-foreground";
                 };
 
-                // Get display name for leave type (clean up Leave on Leave prefix)
+                // Get display name for leave type
                 const getLeaveTypeDisplay = (leaveType: string) => {
-                  if (isLeaveOnLeaveType(leaveType)) {
+                  if (isLeaveOnLieuType(leaveType)) {
+                    const dateMatch = leaveType.match(/Leave on Lieu - (\d{4}-\d{2}-\d{2})/);
+                    if (dateMatch) {
+                      return `Lieu (worked: ${format(new Date(dateMatch[1] + "T12:00:00"), "MMM d")})`;
+                    }
+                    return leaveType.replace("Leave on Lieu - ", "Lieu: ");
+                  }
+                  if (isOtherLeaveType(leaveType)) {
+                    return leaveType.replace("Other Leave - ", "");
+                  }
+                  // Legacy support
+                  if (leaveType.startsWith("Leave on Leave")) {
                     return leaveType.replace("Leave on Leave - ", "");
                   }
                   return leaveType;
@@ -565,11 +641,15 @@ const Leave = () => {
                     className={cn(
                       "flex items-start gap-4 p-4 rounded-xl border transition-all animate-fade-in",
                       request.status === "pending" &&
-                        !isLeaveOnLeave &&
+                        !isLeaveOnLieu &&
+                        !isOtherLeave &&
                         "bg-warning/5 border-warning/20 hover:border-warning/40",
                       request.status === "pending" &&
-                        isLeaveOnLeave &&
+                        isLeaveOnLieu &&
                         "bg-gradient-to-r from-orange-500/10 to-amber-500/5 border-orange-500/30 hover:border-orange-500/50",
+                      request.status === "pending" &&
+                        isOtherLeave &&
+                        "bg-gradient-to-r from-violet-500/10 to-purple-500/5 border-violet-500/30 hover:border-violet-500/50",
                       request.status === "approved" && "bg-success/5 border-success/20 hover:border-success/40",
                       request.status === "rejected" &&
                         "bg-destructive/5 border-destructive/20 hover:border-destructive/40",
@@ -582,8 +662,12 @@ const Leave = () => {
                       <AvatarImage src="" />
                       <AvatarFallback
                         className={cn(
-                          request.status === "pending" && !isLeaveOnLeave && "bg-warning/20 text-warning",
-                          request.status === "pending" && isLeaveOnLeave && "bg-orange-500/20 text-orange-600",
+                          request.status === "pending" &&
+                            !isLeaveOnLieu &&
+                            !isOtherLeave &&
+                            "bg-warning/20 text-warning",
+                          request.status === "pending" && isLeaveOnLieu && "bg-orange-500/20 text-orange-600",
+                          request.status === "pending" && isOtherLeave && "bg-violet-500/20 text-violet-600",
                           request.status === "approved" && "bg-success/20 text-success",
                           request.status === "rejected" && "bg-destructive/20 text-destructive",
                           !["pending", "approved", "rejected"].includes(request.status) && "bg-primary/10 text-primary",
@@ -602,13 +686,22 @@ const Leave = () => {
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                            {isLeaveOnLeave && (
+                            {isLeaveOnLieu && (
                               <Badge
                                 variant="outline"
                                 className="text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 flex items-center gap-1"
                               >
                                 <Layers className="h-3 w-3" />
                                 Leave on Lieu
+                              </Badge>
+                            )}
+                            {isOtherLeave && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30 flex items-center gap-1"
+                              >
+                                <FileText className="h-3 w-3" />
+                                Other Leave
                               </Badge>
                             )}
                             <Badge
@@ -634,19 +727,26 @@ const Leave = () => {
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           <div className="flex items-center gap-1">
-                            {isLeaveOnLeave && request.status === "pending" && (
-                              <Badge className="bg-orange-500 text-white text-[10px] px-1.5">Priority</Badge>
+                            {isLeaveOnLieu && request.status === "pending" && (
+                              <Badge className="bg-orange-500 text-white text-[10px] px-1.5">Lieu</Badge>
+                            )}
+                            {isOtherLeave && request.status === "pending" && (
+                              <Badge className="bg-violet-500 text-white text-[10px] px-1.5">Other</Badge>
                             )}
                             <Badge
                               variant="outline"
                               className={cn(
                                 "capitalize",
                                 request.status === "pending" &&
-                                  !isLeaveOnLeave &&
+                                  !isLeaveOnLieu &&
+                                  !isOtherLeave &&
                                   "border-warning text-warning bg-warning/10",
                                 request.status === "pending" &&
-                                  isLeaveOnLeave &&
+                                  isLeaveOnLieu &&
                                   "border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/10",
+                                request.status === "pending" &&
+                                  isOtherLeave &&
+                                  "border-violet-500 text-violet-600 dark:text-violet-400 bg-violet-500/10",
                                 request.status === "approved" && "border-success text-success bg-success/10",
                                 request.status === "rejected" &&
                                   "border-destructive text-destructive bg-destructive/10",
@@ -724,7 +824,7 @@ const Leave = () => {
                   const currentMonth = new Date().getMonth();
                   const currentYear = new Date().getFullYear();
                   const currentDate = new Date(currentYear, currentMonth, day);
-                  currentDate.setHours(0, 0, 0, 0); // ← add this
+                  currentDate.setHours(0, 0, 0, 0);
 
                   const todayNorm = new Date();
                   todayNorm.setHours(0, 0, 0, 0);
@@ -735,7 +835,6 @@ const Leave = () => {
                     startDate.setHours(0, 0, 0, 0);
                     const endDate = new Date(r.end_date);
                     endDate.setHours(0, 0, 0, 0);
-                    // Only show if leave is current or future (end date hasn't passed)
                     return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
                   });
 
@@ -751,7 +850,6 @@ const Leave = () => {
                   return (
                     <div
                       key={day}
-                      // Background highlighting - only for active/future leaves
                       className={cn(
                         "text-sm py-2 rounded-md cursor-pointer transition-colors relative",
                         day === today && "bg-primary text-primary-foreground font-medium",
@@ -763,7 +861,6 @@ const Leave = () => {
                       title={isUserOnLeave ? "You are on leave" : othersOnLeave ? "Team member(s) on leave" : ""}
                     >
                       {day}
-                      {/* Dot indicator - only for active/future leaves */}
                       {(isUserOnLeave || othersOnLeave) && day !== today && (
                         <div
                           className={cn(
@@ -795,11 +892,11 @@ const Leave = () => {
                     const currentlyOnLeave = teamLeaves.filter((r) => {
                       if (r.status !== "approved") return false;
                       const today = new Date();
-                      today.setHours(0, 0, 0, 0); // ← add this
+                      today.setHours(0, 0, 0, 0);
                       const startDate = new Date(r.start_date);
-                      startDate.setHours(0, 0, 0, 0); // ← add this
+                      startDate.setHours(0, 0, 0, 0);
                       const endDate = new Date(r.end_date);
-                      endDate.setHours(0, 0, 0, 0); // ← add this
+                      endDate.setHours(0, 0, 0, 0);
                       return today >= startDate && today <= endDate;
                     });
 
