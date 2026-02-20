@@ -38,18 +38,19 @@ const SPECIAL_LEAVE_TYPES: Record<string, number> = {
   "Paternity Leave": 22,
 };
 
-// Leave on Leave types (these don't have fixed days - user specifies)
-const LEAVE_ON_LEAVE_PREFIXES = [
-  "Leave on Leave - Extension Request",
-  "Leave on Leave - Medical Emergency",
-  "Leave on Leave - Family Emergency",
-  "Leave on Leave - Travel Complications",
-  "Leave on Leave - Other Emergency",
-];
+// Helper to check if a leave type is "Leave on Lieu" (date-based)
+const isLeaveOnLieuType = (leaveType: string) => {
+  return leaveType.startsWith("Leave on Lieu");
+};
 
-// Helper to check if a leave type is "Leave on Leave"
+// Helper to check if a leave type is "Other Leave" (reason-based)
+const isOtherLeaveType = (leaveType: string) => {
+  return leaveType.startsWith("Other Leave");
+};
+
+// Legacy support: old "Leave on Leave" prefix
 const isLeaveOnLeaveType = (leaveType: string) => {
-  return leaveType.startsWith("Leave on Leave");
+  return leaveType.startsWith("Leave on Leave") || leaveType.startsWith("Leave on Lieu");
 };
 
 export function useLeaveRequests() {
@@ -85,7 +86,7 @@ export function useLeaveRequests() {
     }
   };
 
-  // Fetch user's own requests (for management - pending, approved, rejected)
+  // Fetch user's own requests
   const fetchOwnRequests = useCallback(async () => {
     if (!user) return [];
 
@@ -104,11 +105,9 @@ export function useLeaveRequests() {
   }, [user]);
 
   // Fetch all approved team leaves (for calendar visibility)
-  // This should work if you have RLS policy allowing read on approved leaves
   const fetchTeamLeaves = useCallback(async () => {
     if (!user) return [];
 
-    // Fetch all approved leave requests for team calendar
     const { data, error } = await supabase
       .from("leave_requests")
       .select("*")
@@ -126,22 +125,14 @@ export function useLeaveRequests() {
   // Fetch team member user IDs for supervisors/line managers
   const fetchTeamMemberUserIds = useCallback(async (): Promise<string[]> => {
     if (!user) return [];
-    
-    // For admin/vp/manager - they see all, no filtering needed
-    if (role === 'admin' || role === 'vp' || role === 'manager') return [];
-    
-    // For supervisor/line_manager - get their direct reports
+
+    if (role === "admin" || role === "vp" || role === "manager") return [];
+
     if (isSupervisor || isLineManager) {
-      // Step 1: Get the current user's profile id
-      const { data: myProfile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
+      const { data: myProfile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
 
       if (!myProfile) return [];
 
-      // Step 2: Get the employee record for this user
       const { data: myEmployee } = await supabase
         .from("employees")
         .select("id")
@@ -150,7 +141,6 @@ export function useLeaveRequests() {
 
       if (!myEmployee) return [];
 
-      // Step 3: Get employees where this user is line_manager or manager
       const { data: teamMembers } = await supabase
         .from("employees")
         .select("profile_id")
@@ -158,8 +148,7 @@ export function useLeaveRequests() {
 
       if (!teamMembers || teamMembers.length === 0) return [];
 
-      // Step 4: Get user_ids from profiles
-      const profileIds = teamMembers.map(e => e.profile_id).filter(Boolean);
+      const profileIds = teamMembers.map((e) => e.profile_id).filter(Boolean);
       if (profileIds.length === 0) return [];
 
       const { data: profiles } = await supabase
@@ -167,7 +156,7 @@ export function useLeaveRequests() {
         .select("user_id")
         .in("id", profileIds as string[]);
 
-      return profiles?.map(p => p.user_id) || [];
+      return profiles?.map((p) => p.user_id) || [];
     }
 
     return [];
@@ -189,11 +178,10 @@ export function useLeaveRequests() {
       return [];
     }
 
-    // For supervisor/line_manager - filter to only their team members
-    if ((isSupervisor || isLineManager) && role !== 'admin' && role !== 'vp' && role !== 'manager') {
+    if ((isSupervisor || isLineManager) && role !== "admin" && role !== "vp" && role !== "manager") {
       const teamIds = await fetchTeamMemberUserIds();
       if (teamIds.length > 0) {
-        return (data || []).filter(r => teamIds.includes(r.user_id));
+        return (data || []).filter((r) => teamIds.includes(r.user_id));
       }
       return [];
     }
@@ -204,9 +192,8 @@ export function useLeaveRequests() {
   // Fetch all team requests (all statuses) for supervisors/line_managers
   const fetchAllTeamRequests = useCallback(async () => {
     if (!user || !isManager) return [];
-    
-    // For admin/vp/manager - fetch all requests
-    if (role === 'admin' || role === 'vp' || role === 'manager') {
+
+    if (role === "admin" || role === "vp" || role === "manager") {
       const { data, error } = await supabase
         .from("leave_requests")
         .select("*")
@@ -215,8 +202,7 @@ export function useLeaveRequests() {
       if (error) return [];
       return data || [];
     }
-    
-    // For supervisor/line_manager - fetch all statuses but filter to team
+
     if (isSupervisor || isLineManager) {
       const { data, error } = await supabase
         .from("leave_requests")
@@ -224,46 +210,37 @@ export function useLeaveRequests() {
         .neq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) return [];
-      
+
       const teamIds = await fetchTeamMemberUserIds();
       if (teamIds.length > 0) {
-        return (data || []).filter(r => teamIds.includes(r.user_id));
+        return (data || []).filter((r) => teamIds.includes(r.user_id));
       }
       return [];
     }
-    
+
     return [];
   }, [user, isManager, isSupervisor, isLineManager, role, fetchTeamMemberUserIds]);
 
   const fetchRequests = useCallback(async () => {
     if (!user) return;
 
-    // Fetch own requests
     const ownRequestsData = await fetchOwnRequests();
-
-    // Fetch team leaves (approved) for calendar
     const approvedTeamLeaves = await fetchTeamLeaves();
-
-    // Fetch all team requests if manager/supervisor/line_manager (for Approvals page)
     const allTeamRequests = isManager ? await fetchAllTeamRequests() : [];
 
-    // Combine own requests with team requests for managers
     const allManageableRequests = [...ownRequestsData];
 
-    // Add team requests from others
     allTeamRequests.forEach((req) => {
       if (!allManageableRequests.find((r) => r.id === req.id)) {
         allManageableRequests.push(req);
       }
     });
 
-    // Get all unique user IDs from both sets
     const allUserIds = new Set([
       ...allManageableRequests.map((r) => r.user_id),
       ...approvedTeamLeaves.map((r) => r.user_id),
     ]);
 
-    // Fetch profiles for all users
     const { data: profilesData } = await supabase
       .from("profiles")
       .select("user_id, first_name, last_name, email")
@@ -271,13 +248,11 @@ export function useLeaveRequests() {
 
     const profilesMap = new Map(profilesData?.map((p) => [p.user_id, p]) || []);
 
-    // Add profiles to own requests
     const ownRequestsWithProfiles = allManageableRequests.map((request) => ({
       ...request,
       profile: profilesMap.get(request.user_id) || undefined,
     })) as LeaveRequest[];
 
-    // Add profiles to team leaves
     const teamLeavesWithProfiles = approvedTeamLeaves.map((request) => ({
       ...request,
       profile: profilesMap.get(request.user_id) || undefined,
@@ -331,7 +306,6 @@ export function useLeaveRequests() {
   useEffect(() => {
     loadAllData();
 
-    // Set up real-time subscription for leave requests
     const channel = supabase
       .channel("leave-changes")
       .on(
@@ -360,12 +334,15 @@ export function useLeaveRequests() {
     // Check if it's a special leave type with fixed days
     if (SPECIAL_LEAVE_TYPES[request.leave_type]) {
       days = SPECIAL_LEAVE_TYPES[request.leave_type];
+    } else if (isLeaveOnLieuType(request.leave_type)) {
+      // Leave on Lieu is always 1 day
+      days = 1;
     } else {
-      // For Annual Leave, Leave on Leave, and other types - calculate from dates
+      // For Annual Leave, Other Leave, and other types - calculate from dates
       days = Math.ceil((request.end_date.getTime() - request.start_date.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     }
 
-    // Only check balance for Annual Leave (not for Leave on Leave or Special Leave)
+    // Only check balance for Annual Leave
     if (request.leave_type === "Annual Leave") {
       const balanceForType = balances.find((b) => b.leave_type === request.leave_type);
       if (balanceForType) {
@@ -409,8 +386,9 @@ export function useLeaveRequests() {
 
     const userName = userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : "Employee";
 
-    // Determine if this is a Leave on Leave request for special handling
-    const isLeaveOnLeave = isLeaveOnLeaveType(request.leave_type);
+    // Determine leave category for notifications
+    const isLieu = isLeaveOnLieuType(request.leave_type);
+    const isOther = isOtherLeaveType(request.leave_type);
 
     const { data: newRequest, error } = await supabase
       .from("leave_requests")
@@ -433,20 +411,28 @@ export function useLeaveRequests() {
         variant: "destructive",
       });
     } else {
-      toast({
-        title: isLeaveOnLeave ? "Leave on Leave Request Submitted" : "Request Submitted",
-        description: isLeaveOnLeave
-          ? "Your leave on leave request is pending priority approval."
-          : "Your leave request is pending approval.",
-      });
+      const toastTitle = isLieu
+        ? "Leave on Lieu Request Submitted"
+        : isOther
+          ? "Other Leave Request Submitted"
+          : "Request Submitted";
+      const toastDesc = isLieu
+        ? "Your lieu day request is pending approval."
+        : isOther
+          ? "Your other leave request is pending approval."
+          : "Your leave request is pending approval.";
+
+      toast({ title: toastTitle, description: toastDesc });
 
       // Create notification for user
       await createNotification(
         user.id,
-        isLeaveOnLeave ? "Leave on Leave Request Submitted" : "Leave Request Submitted",
-        isLeaveOnLeave
-          ? `Your Leave on Leave request for ${days} day(s) has been submitted for priority review.`
-          : `Your ${request.leave_type} request for ${days} day(s) has been submitted and is pending approval.`,
+        toastTitle,
+        isLieu
+          ? `Your Leave on Lieu request for ${days} day(s) has been submitted.`
+          : isOther
+            ? `Your Other Leave (${request.leave_type.replace("Other Leave - ", "")}) request for ${days} day(s) has been submitted.`
+            : `Your ${request.leave_type} request for ${days} day(s) has been submitted and is pending approval.`,
         "leave",
         `/leave`,
       );
@@ -458,11 +444,7 @@ export function useLeaveRequests() {
         .in("role", ["manager", "admin", "vp", "supervisor", "line_manager"]);
 
       // Also get the user's direct line manager/supervisor via employee record
-      const { data: userProfile2 } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
+      const { data: userProfile2 } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
 
       let lineManagerUserIds: string[] = [];
       if (userProfile2) {
@@ -481,34 +463,34 @@ export function useLeaveRequests() {
               .in("id", managerEmpIds as string[]);
 
             if (managerProfiles) {
-              const profileIds = managerProfiles.map(m => m.profile_id).filter(Boolean);
+              const profileIds = managerProfiles.map((m) => m.profile_id).filter(Boolean);
               const { data: mgrUsers } = await supabase
                 .from("profiles")
                 .select("user_id")
                 .in("id", profileIds as string[]);
-              lineManagerUserIds = mgrUsers?.map(p => p.user_id) || [];
+              lineManagerUserIds = mgrUsers?.map((p) => p.user_id) || [];
             }
           }
         }
       }
 
       // Combine and deduplicate
-      const allNotifyIds = new Set([
-        ...(managers?.map(m => m.user_id) || []),
-        ...lineManagerUserIds,
-      ]);
+      const allNotifyIds = new Set([...(managers?.map((m) => m.user_id) || []), ...lineManagerUserIds]);
 
       for (const managerId of allNotifyIds) {
         if (managerId !== user.id) {
-          await createNotification(
-            managerId,
-            isLeaveOnLeave ? "🚨 Priority: Leave on Leave Request" : "New Leave Request",
-            isLeaveOnLeave
-              ? `PRIORITY: ${userName} submitted a Leave on Leave request for ${days} day(s). Reason: ${request.leave_type.replace("Leave on Leave - ", "")}. Requires immediate attention.`
-              : `${userName} submitted a ${request.leave_type} request for ${days} day(s) (${formatLocalDate(request.start_date)} to ${formatLocalDate(request.end_date)}).`,
-            "leave",
-            `/approvals`,
-          );
+          const notifTitle = isLieu
+            ? "📅 Leave on Lieu Request"
+            : isOther
+              ? "📋 Other Leave Request"
+              : "New Leave Request";
+          const notifMsg = isLieu
+            ? `${userName} submitted a Leave on Lieu request for ${days} day(s). ${request.reason}`
+            : isOther
+              ? `${userName} submitted an Other Leave request (${request.leave_type.replace("Other Leave - ", "")}) for ${days} day(s).`
+              : `${userName} submitted a ${request.leave_type} request for ${days} day(s) (${formatLocalDate(request.start_date)} to ${formatLocalDate(request.end_date)}).`;
+
+          await createNotification(managerId, notifTitle, notifMsg, "leave", `/approvals`);
         }
       }
 
@@ -560,16 +542,23 @@ export function useLeaveRequests() {
 
       const managerName = managerProfile ? `${managerProfile.first_name} ${managerProfile.last_name}` : "Manager";
       const userName = requestProfile ? `${requestProfile.first_name} ${requestProfile.last_name}` : "Employee";
-      const isLeaveOnLeave = isLeaveOnLeaveType(requestData.leave_type);
+      const isLieu = isLeaveOnLieuType(requestData.leave_type);
+      const isOther = isOtherLeaveType(requestData.leave_type);
+
+      const approveTitle = isLieu
+        ? "Leave on Lieu Approved"
+        : isOther
+          ? "Other Leave Approved"
+          : "Leave Request Approved";
 
       toast({
         title: "Approved",
-        description: isLeaveOnLeave ? "Leave on Leave request has been approved." : "Leave request has been approved.",
+        description: `${approveTitle.replace("Approved", "has been approved.")}`,
       });
 
       await createNotification(
         requestData.user_id,
-        isLeaveOnLeave ? "Leave on Leave Approved" : "Leave Request Approved",
+        approveTitle,
         `Your ${requestData.leave_type} request for ${requestData.days} day(s) has been approved by ${managerName}.`,
         "leave",
         `/leave`,
@@ -577,7 +566,7 @@ export function useLeaveRequests() {
 
       await createNotification(
         user.id,
-        isLeaveOnLeave ? "Leave on Leave Approved" : "Leave Request Approved",
+        approveTitle,
         `You approved ${userName}'s ${requestData.leave_type} request for ${requestData.days} day(s).`,
         "leave",
         `/leave`,
@@ -634,17 +623,24 @@ export function useLeaveRequests() {
 
       const managerName = managerProfile ? `${managerProfile.first_name} ${managerProfile.last_name}` : "Manager";
       const userName = requestProfile ? `${requestProfile.first_name} ${requestProfile.last_name}` : "Employee";
-      const isLeaveOnLeave = isLeaveOnLeaveType(requestData.leave_type);
+      const isLieu = isLeaveOnLieuType(requestData.leave_type);
+      const isOther = isOtherLeaveType(requestData.leave_type);
+
+      const rejectTitle = isLieu
+        ? "Leave on Lieu Rejected"
+        : isOther
+          ? "Other Leave Rejected"
+          : "Leave Request Rejected";
 
       toast({
         title: "Rejected",
-        description: isLeaveOnLeave ? "Leave on Leave request has been rejected." : "Leave request has been rejected.",
+        description: `${rejectTitle.replace("Rejected", "has been rejected.")}`,
         variant: "destructive",
       });
 
       await createNotification(
         requestData.user_id,
-        isLeaveOnLeave ? "Leave on Leave Rejected" : "Leave Request Rejected",
+        rejectTitle,
         `Your ${requestData.leave_type} request for ${requestData.days} day(s) has been rejected by ${managerName}. Reason: ${rejectionReason}`,
         "leave",
         `/leave`,
@@ -652,7 +648,7 @@ export function useLeaveRequests() {
 
       await createNotification(
         user.id,
-        isLeaveOnLeave ? "Leave on Leave Rejected" : "Leave Request Rejected",
+        rejectTitle,
         `You rejected ${userName}'s ${requestData.leave_type} request. Reason: ${rejectionReason}`,
         "leave",
         `/leave`,
@@ -665,7 +661,6 @@ export function useLeaveRequests() {
   // For managers, we need all requests to display pending requests from team
   const getAllRequests = () => {
     const allRequests = [...ownRequests];
-    // Add team leaves that aren't already in ownRequests
     teamLeaves.forEach((tl) => {
       if (!allRequests.find((r) => r.id === tl.id)) {
         allRequests.push(tl);
@@ -675,9 +670,9 @@ export function useLeaveRequests() {
   };
 
   return {
-    requests: getAllRequests(), // Combined list for manager view
-    ownRequests, // Only user's own requests (for employee dashboard)
-    teamLeaves, // All approved team leaves (for calendar)
+    requests: getAllRequests(),
+    ownRequests,
+    teamLeaves,
     balances,
     loading,
     createRequest,
