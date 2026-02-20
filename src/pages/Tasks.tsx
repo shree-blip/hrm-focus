@@ -5,8 +5,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, MoreHorizontal, Clock, AlertCircle, GripVertical, CheckCircle2, Circle, Timer, Loader2, User } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Clock,
+  AlertCircle,
+  GripVertical,
+  CheckCircle2,
+  Circle,
+  Timer,
+  Loader2,
+  User,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
@@ -52,7 +69,7 @@ const Tasks = () => {
   const [draggedTask, setDraggedTask] = useState<TaskUI | null>(null);
 
   // Transform database tasks to UI format
-  const transformedTasks: TaskUI[] = tasks.map(task => ({
+  const transformedTasks: TaskUI[] = tasks.map((task) => ({
     id: task.id,
     title: task.title,
     client: task.client_name || "Internal",
@@ -66,11 +83,13 @@ const Tasks = () => {
     assignees: task.assignees,
   }));
 
-  const getTasksByStatus = (status: string) => transformedTasks.filter((task) => 
-    task.status === status && 
-    (task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-     task.client.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const getTasksByStatus = (status: string) =>
+    transformedTasks.filter(
+      (task) =>
+        task.status === status &&
+        (task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.client.toLowerCase().includes(searchQuery.toLowerCase())),
+    );
 
   const handleAddTask = async (task: {
     title: string;
@@ -79,22 +98,24 @@ const Tasks = () => {
     priority: "high" | "medium" | "low";
     dueDate: string;
     status: "todo" | "in-progress" | "review" | "done";
-    timeEstimate?: string;
     assigneeIds: string[];
+    isInternal?: boolean;
   }) => {
-    const statusDbMap: Record<string, "todo" | "in-progress" | "review" | "done"> = { 
-      "in-progress": "in-progress", "todo": "todo", "review": "review", "done": "done" 
+    const statusDbMap: Record<string, "todo" | "in-progress" | "review" | "done"> = {
+      "in-progress": "in-progress",
+      todo: "todo",
+      review: "review",
+      done: "done",
     };
     const dueDate = task.dueDate && task.dueDate !== "No date" ? new Date(task.dueDate) : undefined;
-    
+
     await createTask({
       title: task.title,
-      client_name: task.client,
-      client_id: task.clientId,
+      client_name: task.isInternal ? "Internal" : task.client,
+      client_id: task.isInternal ? undefined : task.clientId,
       priority: task.priority,
       due_date: dueDate,
       status: statusDbMap[task.status] || "todo",
-      time_estimate: task.timeEstimate,
       description: undefined,
       assignee_ids: task.assigneeIds,
     });
@@ -161,57 +182,101 @@ const Tasks = () => {
           <h1 className="text-3xl font-display font-bold text-foreground">Task Management</h1>
           <p className="text-muted-foreground mt-1">Organize and track team tasks efficiently</p>
         </div>
-        <Button className="gap-2 shadow-md" onClick={() => { setNewTaskDefaultStatus("todo"); setNewTaskDialogOpen(true); }}>
+        <Button
+          className="gap-2 shadow-md"
+          onClick={() => {
+            setNewTaskDefaultStatus("todo");
+            setNewTaskDialogOpen(true);
+          }}
+        >
           <Plus className="h-4 w-4" />
           New Task
         </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6 animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
+      <div
+        className="flex flex-col sm:flex-row gap-4 mb-6 animate-slide-up opacity-0"
+        style={{ animationDelay: "100ms", animationFillMode: "forwards" }}
+      >
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search tasks by title or client..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+          <Input
+            placeholder="Search tasks by title or client..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
         </div>
       </div>
 
-      <div className="flex lg:grid lg:grid-cols-4 gap-6 overflow-x-auto pb-4 -mx-4 px-4 lg:mx-0 lg:px-0 animate-slide-up opacity-0" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+      <div
+        className="flex lg:grid lg:grid-cols-4 gap-6 overflow-x-auto pb-4 -mx-4 px-4 lg:mx-0 lg:px-0 animate-slide-up opacity-0"
+        style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
+      >
         {columns.map((column) => {
           const columnTasks = getTasksByStatus(column.id);
           const Icon = column.icon;
           return (
-            <div key={column.id} className="flex flex-col min-w-[280px] lg:min-w-0" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, column.id as TaskUI["status"])}>
-              <div className="flex items-center justify-between mb-4 px-1">
-                <div className="flex items-center gap-2">
-                  <Icon className={cn("h-4 w-4", column.id === "done" && "text-success", column.id === "in-progress" && "text-info", column.id === "review" && "text-warning")} />
-                  <h3 className="font-display font-semibold">{column.title}</h3>
-                  <Badge variant="secondary" className="text-xs">{columnTasks.length}</Badge>
-                </div>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setNewTaskDefaultStatus(column.id as TaskUI["status"]); setNewTaskDialogOpen(true); }}>
-                  <Plus className="h-4 w-4" />
-                </Button>
+            <div
+              key={column.id}
+              className="flex flex-col min-w-[280px] lg:min-w-0"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, column.id as TaskUI["status"])}
+            >
+              {/* Column Header - removed + button */}
+              <div className="flex items-center gap-2 mb-4 px-1">
+                <Icon
+                  className={cn(
+                    "h-4 w-4",
+                    column.id === "done" && "text-success",
+                    column.id === "in-progress" && "text-info",
+                    column.id === "review" && "text-warning",
+                  )}
+                />
+                <h3 className="font-display font-semibold">{column.title}</h3>
+                <Badge variant="secondary" className="text-xs">
+                  {columnTasks.length}
+                </Badge>
               </div>
 
               <div className="space-y-3 min-h-[400px]">
                 {columnTasks.map((task, index) => (
-                  <Card 
-                    key={task.id} 
-                    className="group cursor-pointer hover:shadow-md hover:border-primary/20 transition-all animate-scale-in relative" 
-                    style={{ animationDelay: `${300 + index * 50}ms` }} 
-                    draggable 
-                    onDragStart={(e) => handleDragStart(e, task)} 
-                    onClick={() => { setSelectedTask(task); setTaskDetailOpen(true); }}
+                  <Card
+                    key={task.id}
+                    className="group cursor-pointer hover:shadow-md hover:border-primary/20 transition-all animate-scale-in relative"
+                    style={{ animationDelay: `${300 + index * 50}ms` }}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task)}
+                    onClick={() => {
+                      setSelectedTask(task);
+                      setTaskDetailOpen(true);
+                    }}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                         </div>
-                        <Badge variant="outline" className={cn("text-xs", task.priority === "high" && "border-destructive/50 text-destructive", task.priority === "medium" && "border-warning/50 text-warning", task.priority === "low" && "border-muted-foreground/50")}>{task.priority}</Badge>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            task.priority === "high" && "border-destructive/50 text-destructive",
+                            task.priority === "medium" && "border-warning/50 text-warning",
+                            task.priority === "low" && "border-muted-foreground/50",
+                          )}
+                        >
+                          {task.priority}
+                        </Badge>
                       </div>
-                      <h4 className="font-medium text-sm mb-1 line-clamp-2" title={task.title}>{task.title}</h4>
-                      <p className="text-xs text-muted-foreground mb-3" title={task.client}>{task.client}</p>
-                      
-                      {/* Show who assigned the task */}
+                      <h4 className="font-medium text-sm mb-1 line-clamp-2" title={task.title}>
+                        {task.title}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mb-3" title={task.client}>
+                        {task.client}
+                      </p>
+
+                      {/* Show who created the task */}
                       {task.created_by_name && (
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-2">
                           <User className="h-3 w-3" />
@@ -240,42 +305,83 @@ const Tasks = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{task.timeEstimate}</span>
-                          <span className={cn("flex items-center gap-1", task.dueDate === "Today" && "text-destructive font-medium")}>{task.dueDate === "Today" && <AlertCircle className="h-3 w-3" />}{task.dueDate}</span>
+                          <span
+                            className={cn(
+                              "flex items-center gap-1",
+                              task.dueDate === "Today" && "text-destructive font-medium",
+                            )}
+                          >
+                            {task.dueDate === "Today" && <AlertCircle className="h-3 w-3" />}
+                            {task.dueDate}
+                          </span>
                         </div>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedTask(task); setTaskDetailOpen(true); }}>Edit Task</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}>Delete</DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedTask(task);
+                              setTaskDetailOpen(true);
+                            }}
+                          >
+                            Edit Task
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTask(task.id);
+                            }}
+                          >
+                            Delete
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </CardContent>
                   </Card>
                 ))}
-                {columnTasks.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground bg-accent/30 rounded-lg border-2 border-dashed border-border">
-                    <Circle className="h-8 w-8 mb-2 opacity-30" />
-                    <p className="text-sm">No tasks</p>
+
+                {/* Add Task card at bottom of each column */}
+                <div
+                  className="flex items-center justify-center h-12 text-center text-muted-foreground bg-accent/30 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-accent/50 hover:text-foreground cursor-pointer transition-all group"
+                  onClick={() => {
+                    setNewTaskDefaultStatus(column.id as TaskUI["status"]);
+                    setNewTaskDialogOpen(true);
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <Plus className="h-4 w-4 group-hover:text-primary transition-colors" />
+                    <span className="text-sm font-medium">Add Task</span>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      <NewTaskDialog open={newTaskDialogOpen} onOpenChange={setNewTaskDialogOpen} onSubmit={handleAddTask} defaultStatus={newTaskDefaultStatus} />
-      <TaskDetailDialog 
-        task={selectedTask} 
-        open={taskDetailOpen} 
-        onOpenChange={setTaskDetailOpen} 
-        onUpdate={handleUpdateTask} 
+      <NewTaskDialog
+        open={newTaskDialogOpen}
+        onOpenChange={setNewTaskDialogOpen}
+        onSubmit={handleAddTask}
+        defaultStatus={newTaskDefaultStatus}
+      />
+      <TaskDetailDialog
+        task={selectedTask}
+        open={taskDetailOpen}
+        onOpenChange={setTaskDetailOpen}
+        onUpdate={handleUpdateTask}
         onDelete={handleDeleteTask}
         onUpdateAssignees={handleUpdateAssignees}
       />
