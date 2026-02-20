@@ -23,6 +23,7 @@ import {
   Timer,
   Loader2,
   User,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
@@ -50,6 +51,7 @@ interface TaskUI {
   created_by?: string;
   created_by_name?: string;
   assignees?: TaskAssignee[];
+  comment_count?: number;
 }
 
 const columns = [
@@ -81,6 +83,7 @@ const Tasks = () => {
     created_by: task.created_by,
     created_by_name: task.created_by_name,
     assignees: task.assignees,
+    comment_count: task.comment_count || 0,
   }));
 
   const getTasksByStatus = (status: string) =>
@@ -305,6 +308,12 @@ const Tasks = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          {task.comment_count && task.comment_count > 0 && (
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              {task.comment_count}
+                            </span>
+                          )}
                           <span
                             className={cn(
                               "flex items-center gap-1",

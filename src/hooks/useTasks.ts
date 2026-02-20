@@ -27,6 +27,7 @@ export interface Task {
   is_recurring: boolean;
   created_at: string;
   assignees?: TaskAssignee[];
+  comment_count?: number;
 }
 
 export function useTasks() {
@@ -56,6 +57,15 @@ export function useTasks() {
 
       // Fetch profiles for names
       const { data: profilesData } = await supabase.from("profiles").select("user_id, first_name, last_name");
+
+      // Fetch comment counts per task
+      const { data: commentsData } = await supabase
+        .from("task_comments")
+        .select("task_id");
+      const commentCountMap = new Map<string, number>();
+      (commentsData || []).forEach((c: { task_id: string }) => {
+        commentCountMap.set(c.task_id, (commentCountMap.get(c.task_id) || 0) + 1);
+      });
 
       const profileMap = new Map((profilesData || []).map((p) => [p.user_id, `${p.first_name} ${p.last_name}`]));
 
@@ -97,6 +107,7 @@ export function useTasks() {
         is_recurring: task.is_recurring ?? false,
         created_at: task.created_at,
         assignees: assigneesByTask.get(task.id) || [],
+        comment_count: commentCountMap.get(task.id) || 0,
       }));
 
       // FILTER: Only show tasks where the user is the creator OR is assigned
