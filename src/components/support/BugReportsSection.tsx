@@ -26,8 +26,7 @@ import { format } from "date-fns";
 
 // IT team user IDs (Sagar and Bikash)
 const IT_TEAM_IDS = [
-  "6bf66314-dc0f-4dda-945d-2b12972dbd84",
-  "2e75b9b5-8a15-46eb-8721-16fcbe7db719",
+  "744c4e71-96bf-4c43-a225-dcbb3b762080",
 ];
 
 export function BugReportsSection() {
