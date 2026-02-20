@@ -353,18 +353,19 @@ const Tasks = () => {
                 ))}
 
                 {/* Add Task card at bottom of each column */}
-                <div
-                  className="flex items-center justify-center h-12 text-center text-muted-foreground bg-accent/30 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-accent/50 hover:text-foreground cursor-pointer transition-all group"
-                  onClick={() => {
-                    setNewTaskDefaultStatus(column.id as TaskUI["status"]);
-                    setNewTaskDialogOpen(true);
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4 group-hover:text-primary transition-colors" />
-                    <span className="text-sm font-medium">Add Task</span>
+
+                {column.id === "todo" && (
+                  <div
+                    className="border-2 border-dashed border-gray-200 rounded-lg p-3 flex items-center justify-center cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      setNewTaskDefaultStatus(column.id as TaskUI["status"]);
+                      setNewTaskDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-5 w-5 text-gray-400 mr-2" />
+                    <span className="text-sm text-gray-500">Add Task</span>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           );
