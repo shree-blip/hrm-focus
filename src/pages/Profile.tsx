@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, parseISO } from "date-fns";
-import { InlineEditField } from "@/components/profile/InlineEditField";
 
 // Helper arrays for the simple date picker
 const MONTHS = [
@@ -449,30 +448,6 @@ const Profile = () => {
     }
   };
 
-  // Inline save for a single field
-  const handleInlineSave = async (field: string, value: string) => {
-    if (!user) return { error: new Error("Not authenticated") };
-
-    const updateData: Record<string, any> = {
-      [field]: value || null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase
-      .from("profiles")
-      .update(updateData)
-      .eq("user_id", user.id);
-
-    if (error) {
-      toast({ title: "Error", description: "Failed to update field", variant: "destructive" });
-      return { error };
-    }
-
-    toast({ title: "Updated", description: "Field updated successfully." });
-    if (refreshProfile) await refreshProfile();
-    return { error: null };
-  };
-
   const getRoleBadgeColor = () => {
     switch (role) {
       case "admin":
@@ -630,18 +605,9 @@ const Profile = () => {
                 ) : (
                   <>
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1">
-                        <InlineEditField
-                          value={profile?.first_name || ""}
-                          placeholder="First name"
-                          onSave={(v) => handleInlineSave("first_name", v)}
-                        />
-                        <InlineEditField
-                          value={profile?.last_name || ""}
-                          placeholder="Last name"
-                          onSave={(v) => handleInlineSave("last_name", v)}
-                        />
-                      </div>
+                      <h2 className="text-2xl font-display font-bold">
+                        {profile?.first_name} {profile?.last_name}
+                      </h2>
                       <Badge className={getRoleBadgeColor()}>{getRoleLabel()}</Badge>
                     </div>
                     <p className="text-muted-foreground">{profile?.job_title || "No title set"}</p>
@@ -677,19 +643,13 @@ const Profile = () => {
                   <Phone className="h-4 w-4 text-muted-foreground" />
                   Phone Number
                 </Label>
-                {isEditing ? (
-                  <Input
-                    value={formData.phone}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
-                    placeholder="Enter phone number"
-                  />
-                ) : (
-                  <InlineEditField
-                    value={profile?.phone || ""}
-                    placeholder="Enter phone number"
-                    onSave={(v) => handleInlineSave("phone", v)}
-                  />
-                )}
+                <Input
+                  value={formData.phone}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                  disabled={!isEditing}
+                  placeholder="Enter phone number"
+                  className={!isEditing ? "bg-muted" : ""}
+                />
               </div>
 
               <div className="space-y-2">
@@ -697,19 +657,13 @@ const Profile = () => {
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   Location
                 </Label>
-                {isEditing ? (
-                  <Input
-                    value={formData.location}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
-                    placeholder="Enter location (e.g., New York, US)"
-                  />
-                ) : (
-                  <InlineEditField
-                    value={profile?.location || ""}
-                    placeholder="Enter location (e.g., New York, US)"
-                    onSave={(v) => handleInlineSave("location", v)}
-                  />
-                )}
+                <Input
+                  value={formData.location}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
+                  disabled={!isEditing}
+                  placeholder="Enter location (e.g., New York, US)"
+                  className={!isEditing ? "bg-muted" : ""}
+                />
               </div>
             </CardContent>
           </Card>
