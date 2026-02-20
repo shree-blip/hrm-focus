@@ -52,7 +52,10 @@ const Leave = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<{ id: string; name: string } | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
 
   // Function to get requests for display based on user role and active tab
@@ -71,10 +74,13 @@ const Leave = () => {
   // Get team members currently on leave (excluding current user)
   const getTeamMembersOnLeave = () => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // ← normalize
     return teamLeaves.filter((r) => {
       if (r.status !== "approved" || r.user_id === user?.id) return false;
       const startDate = new Date(r.start_date);
+      startDate.setHours(0, 0, 0, 0); // ← normalize
       const endDate = new Date(r.end_date);
+      endDate.setHours(0, 0, 0, 0); // ← normalize
       return today >= startDate && today <= endDate;
     });
   };
@@ -85,10 +91,13 @@ const Leave = () => {
   // Get current user's active leave details
   const getCurrentUserLeave = () => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // ← add this
     return ownRequests.find((r) => {
       if (r.status !== "approved" || r.user_id !== user?.id) return false;
       const startDate = new Date(r.start_date);
+      startDate.setHours(0, 0, 0, 0); // ← add this
       const endDate = new Date(r.end_date);
+      endDate.setHours(0, 0, 0, 0); // ← add this
       return today >= startDate && today <= endDate;
     });
   };
@@ -194,7 +203,8 @@ const Leave = () => {
         <div className="flex items-center gap-3">
           {ownPendingRequests > 0 && (
             <Badge variant="outline" className="text-warning border-warning">
-              {ownPendingRequests} pending request{ownPendingRequests !== 1 ? "s" : ""}
+              {ownPendingRequests} pending request
+              {ownPendingRequests !== 1 ? "s" : ""}
             </Badge>
           )}
           <Button className="gap-2 shadow-md" onClick={() => setRequestDialogOpen(true)}>
@@ -364,7 +374,9 @@ const Leave = () => {
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500 bg-primary"
-                  style={{ width: `${Math.min((getUsedDaysForType("Annual Leave") / 12) * 100, 100)}%` }}
+                  style={{
+                    width: `${Math.min((getUsedDaysForType("Annual Leave") / 12) * 100, 100)}%`,
+                  }}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -712,24 +724,34 @@ const Leave = () => {
                   const currentMonth = new Date().getMonth();
                   const currentYear = new Date().getFullYear();
                   const currentDate = new Date(currentYear, currentMonth, day);
+                  currentDate.setHours(0, 0, 0, 0); // ← add this
+
+                  const todayNorm = new Date();
+                  todayNorm.setHours(0, 0, 0, 0);
 
                   const isUserOnLeave = ownRequests.some((r) => {
                     if (r.status !== "approved" || r.user_id !== user?.id) return false;
                     const startDate = new Date(r.start_date);
+                    startDate.setHours(0, 0, 0, 0);
                     const endDate = new Date(r.end_date);
-                    return currentDate >= startDate && currentDate <= endDate;
+                    endDate.setHours(0, 0, 0, 0);
+                    // Only show if leave is current or future (end date hasn't passed)
+                    return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
                   });
 
                   const othersOnLeave = teamLeaves.some((r) => {
                     if (r.status !== "approved" || r.user_id === user?.id) return false;
                     const startDate = new Date(r.start_date);
+                    startDate.setHours(0, 0, 0, 0);
                     const endDate = new Date(r.end_date);
-                    return currentDate >= startDate && currentDate <= endDate;
+                    endDate.setHours(0, 0, 0, 0);
+                    return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
                   });
 
                   return (
                     <div
                       key={day}
+                      // Background highlighting - only for active/future leaves
                       className={cn(
                         "text-sm py-2 rounded-md cursor-pointer transition-colors relative",
                         day === today && "bg-primary text-primary-foreground font-medium",
@@ -741,6 +763,7 @@ const Leave = () => {
                       title={isUserOnLeave ? "You are on leave" : othersOnLeave ? "Team member(s) on leave" : ""}
                     >
                       {day}
+                      {/* Dot indicator - only for active/future leaves */}
                       {(isUserOnLeave || othersOnLeave) && day !== today && (
                         <div
                           className={cn(
@@ -772,8 +795,11 @@ const Leave = () => {
                     const currentlyOnLeave = teamLeaves.filter((r) => {
                       if (r.status !== "approved") return false;
                       const today = new Date();
+                      today.setHours(0, 0, 0, 0); // ← add this
                       const startDate = new Date(r.start_date);
+                      startDate.setHours(0, 0, 0, 0); // ← add this
                       const endDate = new Date(r.end_date);
+                      endDate.setHours(0, 0, 0, 0); // ← add this
                       return today >= startDate && today <= endDate;
                     });
 
