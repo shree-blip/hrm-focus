@@ -71,13 +71,10 @@ const Leave = () => {
   // Get team members currently on leave (excluding current user)
   const getTeamMembersOnLeave = () => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // ← normalize
     return teamLeaves.filter((r) => {
       if (r.status !== "approved" || r.user_id === user?.id) return false;
       const startDate = new Date(r.start_date);
-      startDate.setHours(0, 0, 0, 0); // ← normalize
       const endDate = new Date(r.end_date);
-      endDate.setHours(0, 0, 0, 0); // ← normalize
       return today >= startDate && today <= endDate;
     });
   };
@@ -848,7 +845,7 @@ const Leave = () => {
             </CardContent>
           </Card>
 
-          <Card
+          {/* <Card
             className="animate-slide-up opacity-0"
             style={{ animationDelay: "500ms", animationFillMode: "forwards" }}
           >
@@ -887,7 +884,7 @@ const Leave = () => {
                 )}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
 
