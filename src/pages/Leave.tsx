@@ -71,10 +71,13 @@ const Leave = () => {
   // Get team members currently on leave (excluding current user)
   const getTeamMembersOnLeave = () => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // ← normalize
     return teamLeaves.filter((r) => {
       if (r.status !== "approved" || r.user_id === user?.id) return false;
       const startDate = new Date(r.start_date);
+      startDate.setHours(0, 0, 0, 0); // ← normalize
       const endDate = new Date(r.end_date);
+      endDate.setHours(0, 0, 0, 0); // ← normalize
       return today >= startDate && today <= endDate;
     });
   };
@@ -841,6 +844,47 @@ const Leave = () => {
                     });
                   })()}
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="animate-slide-up opacity-0"
+            style={{ animationDelay: "500ms", animationFillMode: "forwards" }}
+          >
+            <CardHeader>
+              <CardTitle className="font-display text-lg flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                Recent Notifications
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {unreadCount > 0 ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Bell className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium">
+                          You have {unreadCount} new notification{unreadCount !== 1 ? "s" : ""}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Check your notifications for updates</p>
+                      </div>
+                    </div>
+                    <Button className="w-full gap-2" onClick={() => (window.location.href = "/notifications")}>
+                      <Bell className="h-4 w-4" />
+                      View All Notifications
+                    </Button>
+                  </>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p>No new notifications</p>
+                    <p className="text-xs mt-1">You're all caught up!</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
