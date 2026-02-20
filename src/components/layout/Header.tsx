@@ -325,10 +325,10 @@ export function Header({ isMobile }: HeaderProps = {}) {
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer" onClick={handleTimesheetClick}>
+            {/* <DropdownMenuItem className="cursor-pointer" onClick={handleTimesheetClick}>
               <FileText className="mr-2 h-4 w-4" />
               My Timesheet
-            </DropdownMenuItem>
+            </DropdownMenuItem> */}
             <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/settings")}>
               <Settings className="mr-2 h-4 w-4" />
               Settings
