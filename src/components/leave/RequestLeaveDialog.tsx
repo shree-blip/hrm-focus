@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Info, AlertTriangle, Layers, Clock } from "lucide-react";
+import { CalendarIcon, Info, AlertTriangle, Layers, Clock, FileText } from "lucide-react";
 import { format, addDays, isWeekend, isSaturday, isSunday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -18,15 +18,16 @@ import { Separator } from "@/components/ui/separator";
 const LEAVE_TYPES = {
   "Annual Leave": { days: 12, description: "Regular annual leave allocation" },
   "Special Leave": { days: null, description: "Select a category below" },
-  "Leave on Leave": { days: null, description: "Request additional leave while on existing leave" },
+  "Leave on Lieu": { days: null, description: "Take a day off for a day you worked on a holiday/leave day" },
+  "Other Leave": { days: null, description: "Select a reason category below" },
 } as const;
 
-// Leave on Leave subtypes
-const LEAVE_ON_LEAVE_SUBTYPES = {
+// Other Leave subtypes (moved from old Leave on Leave)
+const OTHER_LEAVE_SUBTYPES = {
   "Extension Request": { days: null, description: "Extend your current leave period" },
-  "Medical Emergency": { days: null, description: "Unexpected medical situation during leave" },
-  "Family Emergency": { days: null, description: "Urgent family matter requiring extended time" },
-  "Travel Complications": { days: null, description: "Unable to return due to travel issues" },
+  "Medical Emergency": { days: null, description: "Unexpected medical situation requiring leave" },
+  "Family Emergency": { days: null, description: "Urgent family matter requiring time off" },
+  "Travel Complications": { days: null, description: "Unable to work due to travel issues" },
   "Other Emergency": { days: null, description: "Other urgent circumstances" },
 } as const;
 
@@ -40,7 +41,7 @@ const SPECIAL_LEAVE_SUBTYPES = {
 
 type LeaveType = keyof typeof LEAVE_TYPES;
 type SpecialLeaveSubtype = keyof typeof SPECIAL_LEAVE_SUBTYPES;
-type LeaveOnLeaveSubtype = keyof typeof LEAVE_ON_LEAVE_SUBTYPES;
+type OtherLeaveSubtype = keyof typeof OTHER_LEAVE_SUBTYPES;
 
 interface CurrentLeave {
   id: string;
@@ -60,7 +61,6 @@ interface RequestLeaveDialogProps {
 
 /**
  * Count business days (excluding Saturday & Sunday) between two dates (inclusive).
- * Example: Feb 20 (Thu) to Feb 23 (Sun) = 2 business days (Thu + Fri)
  */
 function getBusinessDaysBetween(start: Date, end: Date): number {
   let count = 0;
@@ -71,7 +71,6 @@ function getBusinessDaysBetween(start: Date, end: Date): number {
 
   while (current <= endDate) {
     const day = current.getDay();
-    // 0 = Sunday, 6 = Saturday
     if (day !== 0 && day !== 6) {
       count++;
     }
@@ -82,20 +81,15 @@ function getBusinessDaysBetween(start: Date, end: Date): number {
 
 /**
  * Add N business days to a start date, skipping weekends.
- * Returns the end date (the Nth business day from start, inclusive of start).
- * Example: addBusinessDays(Monday, 5) => Friday (same week)
  */
 function addBusinessDays(start: Date, businessDays: number): Date {
   const result = new Date(start);
-  // We already count the start date as day 1 (if it's a weekday)
   let remaining = businessDays;
 
-  // If start is a weekend, move to next Monday first
   while (result.getDay() === 0 || result.getDay() === 6) {
     result.setDate(result.getDate() + 1);
   }
 
-  // Start date counts as day 1
   remaining--;
 
   while (remaining > 0) {
@@ -118,10 +112,14 @@ export function RequestLeaveDialog({
 }: RequestLeaveDialogProps) {
   const [leaveType, setLeaveType] = useState<LeaveType | "">("");
   const [specialLeaveSubtype, setSpecialLeaveSubtype] = useState<SpecialLeaveSubtype | "">("");
-  const [leaveOnLeaveSubtype, setLeaveOnLeaveSubtype] = useState<LeaveOnLeaveSubtype | "">("");
+  const [otherLeaveSubtype, setOtherLeaveSubtype] = useState<OtherLeaveSubtype | "">("");
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [reason, setReason] = useState("");
+
+  // Leave on Lieu specific fields
+  const [dateWorked, setDateWorked] = useState<Date>(); // The date they worked on a holiday/leave
+  const [lieuLeaveDate, setLieuLeaveDate] = useState<Date>(); // The date they want to take off
 
   // Auto-calculate end date based on leave type selection (using business days)
   useEffect(() => {
@@ -137,34 +135,79 @@ export function RequestLeaveDialog({
     if (leaveType !== "Special Leave") {
       setSpecialLeaveSubtype("");
     }
-    if (leaveType !== "Leave on Leave") {
-      setLeaveOnLeaveSubtype("");
+    if (leaveType !== "Other Leave") {
+      setOtherLeaveSubtype("");
+    }
+    if (leaveType !== "Leave on Lieu") {
+      setDateWorked(undefined);
+      setLieuLeaveDate(undefined);
     }
   }, [leaveType]);
-
-  // Pre-fill start date for "Leave on Leave" when user is currently on leave
-  useEffect(() => {
-    if (leaveType === "Leave on Leave" && isOnLeave && currentLeave && open) {
-      const dayAfterCurrentLeave = addDays(new Date(currentLeave.end_date), 1);
-      setStartDate(dayAfterCurrentLeave);
-    }
-  }, [leaveType, isOnLeave, currentLeave, open]);
 
   // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
       setLeaveType("");
       setSpecialLeaveSubtype("");
-      setLeaveOnLeaveSubtype("");
+      setOtherLeaveSubtype("");
       setStartDate(undefined);
       setEndDate(undefined);
       setReason("");
+      setDateWorked(undefined);
+      setLieuLeaveDate(undefined);
     }
   }, [open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validation for Leave on Lieu
+    if (leaveType === "Leave on Lieu") {
+      if (!dateWorked || !lieuLeaveDate) {
+        toast({
+          title: "Missing Information",
+          description: "Please select both the date you worked and the date you want off.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!reason) {
+        toast({
+          title: "Missing Information",
+          description: "Please provide a brief description of the work done on that day.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const adjustedDateWorked = new Date(dateWorked);
+      adjustedDateWorked.setHours(12, 0, 0, 0);
+      const adjustedLieuDate = new Date(lieuLeaveDate);
+      adjustedLieuDate.setHours(12, 0, 0, 0);
+
+      onSubmit({
+        type: `Leave on Lieu - ${format(dateWorked, "yyyy-MM-dd")}`,
+        startDate: adjustedLieuDate,
+        endDate: adjustedLieuDate,
+        reason: `Worked on: ${format(dateWorked, "MMM d, yyyy")}. ${reason}`,
+      });
+
+      // Reset form
+      setLeaveType("");
+      setDateWorked(undefined);
+      setLieuLeaveDate(undefined);
+      setReason("");
+      onOpenChange(false);
+
+      toast({
+        title: "Leave on Lieu Request Submitted",
+        description: "Your lieu day request has been submitted for approval.",
+      });
+      return;
+    }
+
+    // Standard validation for other leave types
     if (!leaveType || !startDate || !endDate || !reason) {
       toast({
         title: "Missing Information",
@@ -183,10 +226,10 @@ export function RequestLeaveDialog({
       return;
     }
 
-    if (leaveType === "Leave on Leave" && !leaveOnLeaveSubtype) {
+    if (leaveType === "Other Leave" && !otherLeaveSubtype) {
       toast({
         title: "Missing Information",
-        description: "Please select a reason for your leave on leave request.",
+        description: "Please select a reason for your leave request.",
         variant: "destructive",
       });
       return;
@@ -201,7 +244,6 @@ export function RequestLeaveDialog({
       return;
     }
 
-    // Validate that the selected range has at least 1 business day
     const businessDays = getBusinessDaysBetween(startDate, endDate);
     if (businessDays === 0) {
       toast({
@@ -213,18 +255,17 @@ export function RequestLeaveDialog({
       return;
     }
 
-    // Create dates at noon to avoid timezone issues
     const adjustedStartDate = new Date(startDate);
     adjustedStartDate.setHours(12, 0, 0, 0);
     const adjustedEndDate = new Date(endDate);
     adjustedEndDate.setHours(12, 0, 0, 0);
 
     // Determine the actual leave type to submit
-    let actualLeaveType = leaveType;
+    let actualLeaveType = leaveType as string;
     if (leaveType === "Special Leave") {
-      actualLeaveType = specialLeaveSubtype as LeaveType;
-    } else if (leaveType === "Leave on Leave") {
-      actualLeaveType = `Leave on Leave - ${leaveOnLeaveSubtype}` as LeaveType;
+      actualLeaveType = specialLeaveSubtype as string;
+    } else if (leaveType === "Other Leave") {
+      actualLeaveType = `Other Leave - ${otherLeaveSubtype}`;
     }
 
     onSubmit({
@@ -237,33 +278,19 @@ export function RequestLeaveDialog({
     // Reset form
     setLeaveType("");
     setSpecialLeaveSubtype("");
-    setLeaveOnLeaveSubtype("");
+    setOtherLeaveSubtype("");
     setStartDate(undefined);
     setEndDate(undefined);
     setReason("");
     onOpenChange(false);
 
     toast({
-      title: leaveType === "Leave on Leave" ? "Leave on Leave Request Submitted" : "Leave Request Submitted",
-      description:
-        leaveType === "Leave on Leave"
-          ? "Your leave on leave request has been submitted for priority review."
-          : "Your leave request has been submitted for approval.",
+      title: "Leave Request Submitted",
+      description: "Your leave request has been submitted for approval.",
     });
   };
 
-  // Get the allocated days for the selected leave type
-  const getAllocatedDays = () => {
-    if (leaveType === "Special Leave" && specialLeaveSubtype) {
-      return SPECIAL_LEAVE_SUBTYPES[specialLeaveSubtype].days;
-    }
-    if (leaveType === "Annual Leave") {
-      return LEAVE_TYPES["Annual Leave"].days;
-    }
-    return null;
-  };
-
-  // Calculate business days between dates (excluding Sat & Sun)
+  // Calculate business days between dates
   const getCalculatedDays = () => {
     if (startDate && endDate) {
       return getBusinessDaysBetween(startDate, endDate);
@@ -271,17 +298,23 @@ export function RequestLeaveDialog({
     return null;
   };
 
-  const isLeaveOnLeave = leaveType === "Leave on Leave";
+  const isLeaveOnLieu = leaveType === "Leave on Lieu";
+  const isOtherLeave = leaveType === "Other Leave";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-xl flex items-center gap-2">
-            {isLeaveOnLeave ? (
+            {isLeaveOnLieu ? (
               <>
                 <Layers className="h-5 w-5 text-orange-500" />
                 Leave on Lieu Request
+              </>
+            ) : isOtherLeave ? (
+              <>
+                <FileText className="h-5 w-5 text-violet-500" />
+                Other Leave Request
               </>
             ) : (
               <>
@@ -291,18 +324,25 @@ export function RequestLeaveDialog({
             )}
           </DialogTitle>
           <DialogDescription>
-            {isLeaveOnLeave
-              ? "Request additional time off while on existing approved leave."
-              : "Submit a new leave request for approval."}
+            {isLeaveOnLieu
+              ? "Request a day off in lieu of a day you worked on a holiday or leave day."
+              : isOtherLeave
+                ? "Submit an other leave request with reason for approval."
+                : "Submit a new leave request for approval."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          {/* Leave Type Selection - All 3 types always visible */}
+          {/* Leave Type Selection - All 4 types */}
           <div className="space-y-2">
             <Label htmlFor="leaveType">Leave Type</Label>
             <Select value={leaveType} onValueChange={(value) => setLeaveType(value as LeaveType)}>
-              <SelectTrigger className={cn(isLeaveOnLeave && "border-orange-500/50 ring-orange-500/20")}>
+              <SelectTrigger
+                className={cn(
+                  isLeaveOnLieu && "border-orange-500/50 ring-orange-500/20",
+                  isOtherLeave && "border-violet-500/50 ring-violet-500/20",
+                )}
+              >
                 <SelectValue placeholder="Select leave type" />
               </SelectTrigger>
               <SelectContent>
@@ -330,8 +370,8 @@ export function RequestLeaveDialog({
 
                 <Separator className="my-1" />
 
-                {/* Leave on Leave - Always visible */}
-                <SelectItem value="Leave on Leave" className="py-3">
+                {/* Leave on Lieu */}
+                <SelectItem value="Leave on Lieu" className="py-3">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-orange-500" />
                     <span className="font-medium">Leave on Lieu</span>
@@ -339,13 +379,27 @@ export function RequestLeaveDialog({
                       variant="secondary"
                       className="text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30"
                     >
-                      Priority
+                      Date based
+                    </Badge>
+                  </div>
+                </SelectItem>
+
+                {/* Other Leave */}
+                <SelectItem value="Other Leave" className="py-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-violet-500" />
+                    <span className="font-medium">Other</span>
+                    <Badge
+                      variant="secondary"
+                      className="text-xs bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30"
+                    >
+                      Reason based
                     </Badge>
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
-            {leaveType && leaveType !== "Leave on Leave" && leaveType !== "Special Leave" && (
+            {leaveType && !isLeaveOnLieu && !isOtherLeave && leaveType !== "Special Leave" && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Info className="h-3 w-3" />
                 {LEAVE_TYPES[leaveType]?.description}
@@ -353,18 +407,139 @@ export function RequestLeaveDialog({
             )}
           </div>
 
-          {/* Leave on Leave Subtype Selection */}
-          {leaveType === "Leave on Leave" && (
-            <div className="space-y-3 p-4 rounded-lg border-2 border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-amber-500/5">
-              <Label htmlFor="leaveOnLeaveSubtype" className="flex items-center gap-2">
+          {/* ========== LEAVE ON LIEU SECTION ========== */}
+          {isLeaveOnLieu && (
+            <div className="space-y-4 p-4 rounded-lg border-2 border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-amber-500/5">
+              <div className="flex items-center gap-2 mb-1">
                 <Layers className="h-4 w-4 text-orange-500" />
-                Reason for Leave on Lieu
+                <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">
+                  Leave on Lieu Details
+                </span>
+              </div>
+
+              {/* Date Worked (the holiday/leave day they worked on) */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <CalendarIcon className="h-3.5 w-3.5 text-orange-500" />
+                  Date You Worked (Holiday/Leave Day)
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal border-orange-500/30",
+                        !dateWorked && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateWorked ? format(dateWorked, "PPP") : "Select the date you worked"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateWorked}
+                      onSelect={setDateWorked}
+                      initialFocus
+                      className="pointer-events-auto"
+                      disabled={(date) => {
+                        // Can only select past dates or today (they already worked)
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        tomorrow.setHours(0, 0, 0, 0);
+                        return date >= tomorrow;
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground">
+                  Select the date you worked on a public holiday or scheduled leave day
+                </p>
+              </div>
+
+              {/* Date to Take Off (the lieu day) */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <CalendarIcon className="h-3.5 w-3.5 text-orange-500" />
+                  Date You Want Off (Lieu Day)
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal border-orange-500/30",
+                        !lieuLeaveDate && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {lieuLeaveDate ? format(lieuLeaveDate, "PPP") : "Select the date you want off"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={lieuLeaveDate}
+                      onSelect={setLieuLeaveDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                      disabled={(date) => {
+                        // Disable weekends and past dates
+                        if (date.getDay() === 0 || date.getDay() === 6) return true;
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today;
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground">Select the working day you want to take off in lieu</p>
+              </div>
+
+              {/* Summary */}
+              {dateWorked && lieuLeaveDate && (
+                <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-orange-600 dark:text-orange-400">Lieu Day Summary</span>
+                    <Badge className="bg-orange-500 text-white">1 day</Badge>
+                  </div>
+                  <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Worked on:</span>
+                      <span className="font-medium text-foreground">{format(dateWorked, "MMM d, yyyy (EEEE)")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Day off:</span>
+                      <span className="font-medium text-foreground">{format(lieuLeaveDate, "MMM d, yyyy (EEEE)")}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Info box */}
+              <div className="p-2 rounded-md bg-orange-500/10 border border-orange-500/20">
+                <p className="text-xs text-orange-600 dark:text-orange-400 flex items-start gap-1">
+                  <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                  Leave on Lieu is for employees who worked on a public holiday or during approved leave. Select the
+                  date you worked and the date you'd like off.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ========== OTHER LEAVE SECTION ========== */}
+          {isOtherLeave && (
+            <div className="space-y-3 p-4 rounded-lg border-2 border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-purple-500/5">
+              <Label htmlFor="otherLeaveSubtype" className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-violet-500" />
+                Reason Category
               </Label>
               <Select
-                value={leaveOnLeaveSubtype}
-                onValueChange={(value) => setLeaveOnLeaveSubtype(value as LeaveOnLeaveSubtype)}
+                value={otherLeaveSubtype}
+                onValueChange={(value) => setOtherLeaveSubtype(value as OtherLeaveSubtype)}
               >
-                <SelectTrigger className="border-orange-500/30">
+                <SelectTrigger className="border-violet-500/30">
                   <SelectValue placeholder="Select reason" />
                 </SelectTrigger>
                 <SelectContent>
@@ -407,43 +582,19 @@ export function RequestLeaveDialog({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              {leaveOnLeaveSubtype && (
+              {otherLeaveSubtype && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Info className="h-3 w-3" />
-                  {LEAVE_ON_LEAVE_SUBTYPES[leaveOnLeaveSubtype].description}
+                  {OTHER_LEAVE_SUBTYPES[otherLeaveSubtype].description}
                 </p>
               )}
 
-              {/* Info box for Leave on Leave */}
-              <div className="mt-2 p-2 rounded-md bg-orange-500/10 border border-orange-500/20">
-                <p className="text-xs text-orange-600 dark:text-orange-400 flex items-start gap-1">
+              <div className="mt-2 p-2 rounded-md bg-violet-500/10 border border-violet-500/20">
+                <p className="text-xs text-violet-600 dark:text-violet-400 flex items-start gap-1">
                   <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                  Leave on Lieu requests are flagged for priority manager review. Please provide detailed justification.
+                  Other leave requests require manager approval. Please provide detailed justification.
                 </p>
               </div>
-
-              {/* Show current leave info if user is on leave */}
-              {isOnLeave && currentLeave && (
-                <Alert className="mt-3 bg-orange-500/5 border-orange-500/20">
-                  <Clock className="h-4 w-4 text-orange-500" />
-                  <AlertTitle className="text-orange-600 dark:text-orange-400 text-sm font-semibold">
-                    Your Current Leave
-                  </AlertTitle>
-                  <AlertDescription className="text-xs mt-1">
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      <Badge variant="outline" className="bg-white/50 dark:bg-gray-800/50 text-xs">
-                        {currentLeave.leave_type}
-                      </Badge>
-                      <Badge variant="outline" className="bg-white/50 dark:bg-gray-800/50 text-xs">
-                        Until {format(new Date(currentLeave.end_date), "MMM d, yyyy")}
-                      </Badge>
-                      <Badge variant="outline" className="bg-white/50 dark:bg-gray-800/50 text-xs">
-                        {currentLeave.days} days
-                      </Badge>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
             </div>
           )}
 
@@ -502,108 +653,99 @@ export function RequestLeaveDialog({
             </div>
           )}
 
-          {/* Date Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Start Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground",
-                      isLeaveOnLeave && "border-orange-500/30",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                    disabled={(date) => {
-                      // Disable weekends
-                      if (date.getDay() === 0 || date.getDay() === 6) return true;
-                      // If Leave on Leave and user is on leave, must start after current leave ends
-                      if (isLeaveOnLeave && isOnLeave && currentLeave) {
-                        const dayAfterCurrentLeave = addDays(new Date(currentLeave.end_date), 1);
-                        return date < dayAfterCurrentLeave;
-                      }
-                      return date < new Date();
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-              {isLeaveOnLeave && isOnLeave && currentLeave && (
-                <p className="text-xs text-orange-600 dark:text-orange-400">
-                  Starts after: {format(new Date(currentLeave.end_date), "MMM d, yyyy")}
-                </p>
-              )}
+          {/* Date Selection - NOT shown for Leave on Lieu (has its own date pickers) */}
+          {!isLeaveOnLieu && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !startDate && "text-muted-foreground",
+                        isOtherLeave && "border-violet-500/30",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                      disabled={(date) => {
+                        if (date.getDay() === 0 || date.getDay() === 6) return true;
+                        return date < new Date();
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label>End Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !endDate && "text-muted-foreground",
+                        isOtherLeave && "border-violet-500/30",
+                      )}
+                      disabled={leaveType === "Special Leave" && !!specialLeaveSubtype && !!startDate}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                      disabled={(date) => {
+                        if (startDate && date < startDate) return true;
+                        return false;
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <Label>End Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground",
-                      isLeaveOnLeave && "border-orange-500/30",
-                    )}
-                    disabled={leaveType === "Special Leave" && !!specialLeaveSubtype && !!startDate}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                    disabled={(date) => {
-                      if (startDate && date < startDate) return true;
-                      return false;
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
+          {/* Weekend notice - not for Leave on Lieu */}
+          {!isLeaveOnLieu && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Info className="h-3 w-3" />
+              Saturdays and Sundays are not counted as leave days.
+            </p>
+          )}
 
-          {/* Weekend notice */}
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Info className="h-3 w-3" />
-            Saturdays and Sundays are not counted as leave days.
-          </p>
-
-          {/* Days Summary */}
-          {startDate && endDate && getCalculatedDays() !== null && (
+          {/* Days Summary - not for Leave on Lieu */}
+          {!isLeaveOnLieu && startDate && endDate && getCalculatedDays() !== null && (
             <div
               className={cn(
                 "p-3 rounded-lg border",
-                isLeaveOnLeave
-                  ? "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/20"
+                isOtherLeave
+                  ? "bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/20"
                   : "bg-primary/5 border-primary/20",
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  {isLeaveOnLeave ? "Additional Leave Duration" : "Leave Duration"}
-                </span>
+                <span className="text-sm font-medium">Leave Duration</span>
                 <Badge
                   variant="secondary"
-                  className={cn(isLeaveOnLeave && "bg-orange-500/20 text-orange-600 dark:text-orange-400")}
+                  className={cn(isOtherLeave && "bg-violet-500/20 text-violet-600 dark:text-violet-400")}
                 >
                   {getCalculatedDays()} working day{getCalculatedDays() !== 1 ? "s" : ""}
                 </Badge>
@@ -618,37 +760,14 @@ export function RequestLeaveDialog({
                   return weekendDays > 0 ? ` (${weekendDays} weekend day${weekendDays !== 1 ? "s" : ""} excluded)` : "";
                 })()}
               </p>
-
-              {/* Show total if Leave on Leave and user is on leave */}
-              {isLeaveOnLeave && isOnLeave && currentLeave && (
-                <div className="mt-2 pt-2 border-t border-orange-500/20">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Current leave:</span>
-                    <span className="font-medium">{currentLeave.days} days</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs mt-1">
-                    <span className="text-muted-foreground">Additional request:</span>
-                    <span className="font-medium text-orange-600 dark:text-orange-400">
-                      +{getCalculatedDays()} days
-                    </span>
-                  </div>
-                  <Separator className="my-2" />
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium">Total if approved:</span>
-                    <Badge className="bg-orange-500 text-white">
-                      {currentLeave.days + (getCalculatedDays() || 0)} days
-                    </Badge>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
           {/* Reason */}
           <div className="space-y-2">
             <Label htmlFor="reason" className="flex items-center gap-2">
-              Reason
-              {isLeaveOnLeave && (
+              {isLeaveOnLieu ? "Description of Work Done" : "Reason"}
+              {(isLeaveOnLieu || isOtherLeave) && (
                 <Badge variant="outline" className="text-xs bg-red-500/10 text-red-600 border-red-500/30">
                   Required
                 </Badge>
@@ -657,19 +776,27 @@ export function RequestLeaveDialog({
             <Textarea
               id="reason"
               placeholder={
-                isLeaveOnLeave
-                  ? "Please provide detailed justification for your leave on lieu request. Include any relevant circumstances, documentation references, and expected return date..."
-                  : "Please provide a reason for your leave request..."
+                isLeaveOnLieu
+                  ? "Describe the work you performed on the holiday/leave day (e.g., 'Covered weekend shift for project deployment on Saturday Jan 15')..."
+                  : isOtherLeave
+                    ? "Please provide detailed justification for your leave request..."
+                    : "Please provide a reason for your leave request..."
               }
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              rows={isLeaveOnLeave ? 4 : 3}
-              className={cn(isLeaveOnLeave && "border-orange-500/30")}
+              rows={isLeaveOnLieu || isOtherLeave ? 3 : 3}
+              className={cn(isLeaveOnLieu && "border-orange-500/30", isOtherLeave && "border-violet-500/30")}
             />
-            {isLeaveOnLeave && (
+            {isLeaveOnLieu && (
               <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                Briefly describe what work was done on the holiday/leave day
+              </p>
+            )}
+            {isOtherLeave && (
+              <p className="text-xs text-violet-600 dark:text-violet-400 flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" />
-                Detailed explanation required for Leave on Lieu requests
+                Detailed explanation required for other leave requests
               </p>
             )}
           </div>
@@ -682,11 +809,13 @@ export function RequestLeaveDialog({
             <Button
               type="submit"
               className={cn(
-                isLeaveOnLeave &&
+                isLeaveOnLieu &&
                   "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white",
+                isOtherLeave &&
+                  "bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white",
               )}
             >
-              {isLeaveOnLeave ? "Submit Leave on Lieu" : "Submit Request"}
+              {isLeaveOnLieu ? "Submit Lieu Request" : isOtherLeave ? "Submit Other Leave" : "Submit Request"}
             </Button>
           </div>
         </form>
