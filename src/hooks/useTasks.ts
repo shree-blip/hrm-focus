@@ -73,7 +73,15 @@ export function useTasks() {
         assigneesByTask.set(a.task_id, taskAssignees);
       });
 
-      const tasksWithAssignees: Task[] = (tasksData || []).map((task) => ({
+      // Build a set of task IDs where the current user is assigned
+      const userAssignedTaskIds = new Set<string>();
+      (assigneesData || []).forEach((a) => {
+        if (a.user_id === userId) {
+          userAssignedTaskIds.add(a.task_id);
+        }
+      });
+
+      const allTasksWithAssignees: Task[] = (tasksData || []).map((task) => ({
         id: task.id,
         title: task.title,
         description: task.description,
@@ -91,7 +99,16 @@ export function useTasks() {
         assignees: assigneesByTask.get(task.id) || [],
       }));
 
-      setTasks(tasksWithAssignees);
+      // FILTER: Only show tasks where the user is the creator OR is assigned
+      const filteredTasks = allTasksWithAssignees.filter((task) => {
+        // User created the task
+        if (task.created_by === userId) return true;
+        // User is assigned to the task
+        if (userAssignedTaskIds.has(task.id)) return true;
+        return false;
+      });
+
+      setTasks(filteredTasks);
     } catch (error) {
       console.error("Unexpected error in fetchTasks:", error);
     } finally {
@@ -130,7 +147,6 @@ export function useTasks() {
 
     try {
       // Get org_id for the user
-      // Wrapped in try/catch to prevent RPC failures from crashing the whole flow
       let orgData = null;
       try {
         const { data } = await supabase.rpc("get_user_org_id", { _user_id: userId });
@@ -194,9 +210,7 @@ export function useTasks() {
             .eq("user_id", userId)
             .single();
 
-          const creatorName = creatorProfile
-            ? `${creatorProfile.first_name} ${creatorProfile.last_name}`
-            : "Someone";
+          const creatorName = creatorProfile ? `${creatorProfile.first_name} ${creatorProfile.last_name}` : "Someone";
 
           // Create notifications for all assignees (except self)
           for (const assigneeId of task.assignee_ids) {
@@ -211,12 +225,10 @@ export function useTasks() {
             }
           }
 
-          // Construct optimistically formatted assignees for immediate UI feedback
           createdAssignees = task.assignee_ids.map((id) => ({
             user_id: id,
             assigned_by: userId,
             assigned_at: new Date().toISOString(),
-            // Names will be populated on next fetch, preventing "undefined" crash
             assignee_name: "Loading...",
             assigner_name: "Me",
           }));
@@ -228,7 +240,6 @@ export function useTasks() {
       // Trigger a refresh from server
       fetchTasks();
 
-      // Return the full task structure immediately so UI doesn't crash on .assignees.map
       const fullTask: Task = {
         id: data.id,
         title: data.title,
@@ -286,10 +297,7 @@ export function useTasks() {
 
     try {
       // Get existing assignees to determine new additions
-      const { data: existingAssignees } = await supabase
-        .from("task_assignees")
-        .select("user_id")
-        .eq("task_id", taskId);
+      const { data: existingAssignees } = await supabase.from("task_assignees").select("user_id").eq("task_id", taskId);
 
       const existingIds = new Set((existingAssignees || []).map((a) => a.user_id));
       const newAssigneeIds = assigneeIds.filter((id) => !existingIds.has(id));
@@ -310,11 +318,7 @@ export function useTasks() {
 
         // Get task info and creator name for notification
         if (newAssigneeIds.length > 0) {
-          const { data: taskData } = await supabase
-            .from("tasks")
-            .select("title")
-            .eq("id", taskId)
-            .single();
+          const { data: taskData } = await supabase.from("tasks").select("title").eq("id", taskId).single();
 
           const { data: assignerProfile } = await supabase
             .from("profiles")
@@ -332,7 +336,7 @@ export function useTasks() {
               await supabase.from("notifications").insert({
                 user_id: assigneeId,
                 title: "Task Assigned",
-                message: `${assignerName} assigned you to a task: "${taskData?.title || 'Untitled'}"`,
+                message: `${assignerName} assigned you to a task: "${taskData?.title || "Untitled"}"`,
                 type: "task",
                 link: "/tasks",
               });
