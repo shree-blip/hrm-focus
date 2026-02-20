@@ -19,13 +19,14 @@ import { useTasks } from "@/hooks/useTasks";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useAttendance } from "@/hooks/useAttendance";
 import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
+import { useMemo } from "react";
 
 const Index = () => {
   const { profile, role, isManager } = useAuth();
   const navigate = useNavigate();
   const { employees } = useEmployees();
   const { tasks } = useTasks();
-  const { requests } = useLeaveRequests();
+  const { requests, ownRequests, teamLeaves } = useLeaveRequests();
   const { monthlyHours } = useAttendance();
 
   const firstName = profile?.first_name || "User";
@@ -35,7 +36,62 @@ const Index = () => {
     const today = new Date().toISOString().split("T")[0];
     return t.due_date === today && t.status !== "done";
   }).length;
-  const pendingLeaveRequests = requests.filter((r) => r.status === "pending").length;
+
+  // Get today's date string for comparisons
+  const todayStr = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  // Filter: only approved leaves that are currently active or upcoming (end_date >= today)
+  const activeAndUpcomingLeaves = useMemo(() => {
+    const allLeaves = isManager ? requests : ownRequests;
+    return allLeaves.filter((r) => {
+      // Only approved leaves that haven't ended yet
+      if (r.status === "approved" && r.end_date >= todayStr) return true;
+      // Also include pending leaves (they're upcoming)
+      if (r.status === "pending") return true;
+      return false;
+    });
+  }, [requests, ownRequests, isManager, todayStr]);
+
+  // Pending leave requests count (for manager approval badge)
+  const pendingLeaveRequests = useMemo(() => {
+    const allLeaves = isManager ? requests : ownRequests;
+    return allLeaves.filter((r) => r.status === "pending").length;
+  }, [requests, ownRequests, isManager]);
+
+  // People on leave TODAY (approved leaves where today falls between start and end date)
+  const onLeaveToday = useMemo(() => {
+    // Use teamLeaves (all approved leaves across the org) for better visibility
+    const source = teamLeaves.length > 0 ? teamLeaves : requests;
+    return source.filter((r) => {
+      return r.status === "approved" && r.start_date <= todayStr && r.end_date >= todayStr;
+    });
+  }, [teamLeaves, requests, todayStr]);
+
+  // Build the leave stat card subtitle
+  const leaveChangeText = useMemo(() => {
+    if (isManager) {
+      if (pendingLeaveRequests > 0) {
+        return `${pendingLeaveRequests} pending approval`;
+      }
+      if (onLeaveToday.length > 0) {
+        const names = onLeaveToday.map((r) => (r.profile ? `${r.profile.first_name}` : "Someone")).slice(0, 3); // Show max 3 names
+        const extra = onLeaveToday.length > 3 ? ` +${onLeaveToday.length - 3} more` : "";
+        return `On leave: ${names.join(", ")}${extra}`;
+      }
+      return "No one on leave today";
+    } else {
+      if (onLeaveToday.some((r) => r.user_id === profile?.user_id)) {
+        return "You're on leave today";
+      }
+      return "View leave balance";
+    }
+  }, [isManager, pendingLeaveRequests, onLeaveToday, profile]);
 
   const getRoleLabel = () => {
     if (role === "vp") return "VP";
@@ -122,9 +178,11 @@ const Index = () => {
         />
         <StatCard
           title={isManager ? "Leave Requests" : "My Leave"}
-          value={requests.length.toString()}
-          change={isManager ? `${pendingLeaveRequests} pending approval` : "View leave balance"}
-          changeType={isManager && pendingLeaveRequests > 0 ? "neutral" : "positive"}
+          value={activeAndUpcomingLeaves.length.toString()}
+          change={leaveChangeText}
+          changeType={
+            isManager && pendingLeaveRequests > 0 ? "negative" : onLeaveToday.length > 0 ? "neutral" : "positive"
+          }
           icon={Calendar}
           iconColor="bg-info/10 text-info"
           delay={250}
