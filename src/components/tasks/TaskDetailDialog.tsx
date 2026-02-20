@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Clock, AlertCircle, Calendar, User, UserPlus, Building2 } from "lucide-react";
+import { TaskComments } from "./TaskComments";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -362,6 +363,9 @@ export function TaskDetailDialog({
               <span className="text-sm font-medium">{currentTask.timeEstimate}</span>
             </div>
           </div>
+
+          {/* Comments Section */}
+          <TaskComments taskId={task.id} />
 
           {/* Actions */}
           <div className="flex justify-between pt-4 border-t border-border">
