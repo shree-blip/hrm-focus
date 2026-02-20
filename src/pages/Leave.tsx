@@ -845,7 +845,7 @@ const Leave = () => {
             </CardContent>
           </Card>
 
-          <Card
+          {/* <Card
             className="animate-slide-up opacity-0"
             style={{ animationDelay: "500ms", animationFillMode: "forwards" }}
           >
@@ -884,7 +884,7 @@ const Leave = () => {
                 )}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
 
