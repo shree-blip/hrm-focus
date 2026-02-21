@@ -17,6 +17,9 @@ export interface WorkLog {
   start_time: string | null;
   end_time: string | null;
   status: string | null;
+  pause_start: string | null;
+  pause_end: string | null;
+  total_pause_minutes: number;
   created_at: string;
   updated_at: string;
   employee?: {
@@ -152,10 +155,32 @@ export function useWorkLogs() {
     [user, isManager, isVP],
   );
 
-  // ── Add log ───────────────────────────────────────────────────────────
+  // ── Add log (auto-pause existing in-progress logs) ─────────────────────
   const addLog = async (input: WorkLogInput) => {
     if (!user) return null;
     try {
+      // Auto-pause any currently in-progress logs when starting a new one
+      if (!input.end_time) {
+        const { data: activeLogs } = await supabase
+          .from("work_logs")
+          .select("id, pause_start, total_pause_minutes")
+          .eq("user_id", user.id)
+          .eq("status", "in_progress")
+          .is("end_time", null);
+
+        if (activeLogs && activeLogs.length > 0) {
+          for (const activeLog of activeLogs) {
+            await supabase
+              .from("work_logs")
+              .update({
+                status: "on_hold",
+                pause_start: new Date().toISOString(),
+              })
+              .eq("id", activeLog.id);
+          }
+        }
+      }
+
       const { data, error } = await supabase
         .from("work_logs")
         .insert({
@@ -199,20 +224,37 @@ export function useWorkLogs() {
         .single();
       if (fetchError) throw fetchError;
 
-      // Save history
-      await supabase.from("work_log_history").insert({
-        work_log_id: id,
-        user_id: user.id,
-        change_type: "update",
-        previous_task_description: currentLog.task_description,
-        new_task_description: input.task_description || currentLog.task_description,
-        previous_time_spent_minutes: currentLog.time_spent_minutes,
-        new_time_spent_minutes: input.time_spent_minutes ?? currentLog.time_spent_minutes,
-        previous_notes: currentLog.notes,
-        new_notes: input.notes ?? currentLog.notes,
-        previous_log_date: currentLog.log_date,
-        new_log_date: input.log_date || currentLog.log_date,
-      });
+      // Block updates on completed tasks
+      if (currentLog.status === "completed") {
+        toast({ title: "Locked", description: "Completed tasks cannot be modified", variant: "destructive" });
+        return;
+      }
+
+      // Save history only if something actually changed
+      const newDesc = input.task_description !== undefined ? input.task_description : currentLog.task_description;
+      const newNotes = input.notes !== undefined ? (input.notes ?? null) : currentLog.notes;
+      const newTimeMinutes = input.time_spent_minutes ?? currentLog.time_spent_minutes;
+
+      const hasRealChange =
+        newDesc !== currentLog.task_description ||
+        newTimeMinutes !== currentLog.time_spent_minutes ||
+        newNotes !== currentLog.notes;
+
+      if (hasRealChange) {
+        await supabase.from("work_log_history").insert({
+          work_log_id: id,
+          user_id: user.id,
+          change_type: "update",
+          previous_task_description: currentLog.task_description,
+          new_task_description: newDesc,
+          previous_time_spent_minutes: currentLog.time_spent_minutes,
+          new_time_spent_minutes: newTimeMinutes,
+          previous_notes: currentLog.notes,
+          new_notes: newNotes,
+          previous_log_date: currentLog.log_date,
+          new_log_date: input.log_date || currentLog.log_date,
+        });
+      }
 
       const updateData: Record<string, any> = {};
       if (input.task_description !== undefined) updateData.task_description = input.task_description;
@@ -224,11 +266,19 @@ export function useWorkLogs() {
       if (input.end_time !== undefined) updateData.end_time = input.end_time || null;
       if (input.status !== undefined) updateData.status = input.status;
 
-      // Auto-recalculate time
+      // Auto-set end time when marking as completed
+      if (input.status === "completed" && !input.end_time && !currentLog.end_time) {
+        const now = new Date();
+        updateData.end_time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      }
+
+      // Auto-recalculate time (subtract pause minutes)
       const finalStart = input.start_time ?? currentLog.start_time;
-      const finalEnd = input.end_time ?? currentLog.end_time;
+      const finalEnd = updateData.end_time ?? input.end_time ?? currentLog.end_time;
       if (finalStart && finalEnd) {
-        updateData.time_spent_minutes = calcMinutesBetween(finalStart, finalEnd);
+        const rawMinutes = calcMinutesBetween(finalStart, finalEnd);
+        const pauseMinutes = currentLog.total_pause_minutes || 0;
+        updateData.time_spent_minutes = Math.max(0, rawMinutes - pauseMinutes);
       }
 
       const { error } = await supabase.from("work_logs").update(updateData).eq("id", id);
@@ -247,21 +297,50 @@ export function useWorkLogs() {
     try {
       const { data: currentLog } = await supabase.from("work_logs").select("*").eq("id", id).single();
 
+      // Block updates on completed tasks
+      if (currentLog?.status === "completed") {
+        toast({ title: "Locked", description: "Completed tasks cannot be modified", variant: "destructive" });
+        return;
+      }
+
       if (currentLog) {
-        // Save edit history
-        await supabase.from("work_log_history").insert({
-          work_log_id: id,
-          user_id: user.id,
-          change_type: "update",
-          previous_task_description: currentLog.task_description,
-          new_task_description: fields.task_description || currentLog.task_description,
-          previous_time_spent_minutes: currentLog.time_spent_minutes,
-          new_time_spent_minutes: fields.time_spent_minutes ?? currentLog.time_spent_minutes,
-          previous_notes: currentLog.notes,
-          new_notes: fields.notes ?? currentLog.notes,
-          previous_log_date: currentLog.log_date,
-          new_log_date: fields.log_date || currentLog.log_date,
-        });
+        // Only save edit history if something actually changed
+        const newDesc = fields.task_description !== undefined ? fields.task_description : currentLog.task_description;
+        const newNotes = fields.notes !== undefined ? (fields.notes ?? null) : currentLog.notes;
+        const newEndTime = fields.end_time !== undefined ? (fields.end_time || null) : currentLog.end_time;
+        const newStartTime = fields.start_time !== undefined ? fields.start_time : currentLog.start_time;
+        const newStatus = fields.status !== undefined ? fields.status : currentLog.status;
+
+        // Calculate the new time if times changed
+        let newTimeMinutes = currentLog.time_spent_minutes;
+        if (newStartTime && newEndTime) {
+          const rawMinutes = calcMinutesBetween(newStartTime, newEndTime);
+          newTimeMinutes = Math.max(0, rawMinutes - (currentLog.total_pause_minutes || 0));
+        }
+
+        const hasRealChange =
+          newDesc !== currentLog.task_description ||
+          newTimeMinutes !== currentLog.time_spent_minutes ||
+          newNotes !== currentLog.notes ||
+          newEndTime !== currentLog.end_time ||
+          newStartTime !== currentLog.start_time ||
+          newStatus !== currentLog.status;
+
+        if (hasRealChange) {
+          await supabase.from("work_log_history").insert({
+            work_log_id: id,
+            user_id: user.id,
+            change_type: "update",
+            previous_task_description: currentLog.task_description,
+            new_task_description: newDesc,
+            previous_time_spent_minutes: currentLog.time_spent_minutes,
+            new_time_spent_minutes: newTimeMinutes,
+            previous_notes: currentLog.notes,
+            new_notes: newNotes,
+            previous_log_date: currentLog.log_date,
+            new_log_date: fields.log_date || currentLog.log_date,
+          });
+        }
       }
 
       const updateData: Record<string, any> = {};
@@ -273,11 +352,19 @@ export function useWorkLogs() {
       if (fields.client_id !== undefined) updateData.client_id = fields.client_id || null;
       if (fields.department !== undefined) updateData.department = fields.department;
 
-      // Auto-recalculate time
+      // Auto-set end time when marking as completed
+      if (fields.status === "completed" && !fields.end_time && !currentLog?.end_time) {
+        const now = new Date();
+        updateData.end_time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      }
+
+      // Auto-recalculate time (subtract pause minutes)
       const finalStart = fields.start_time ?? currentLog?.start_time;
-      const finalEnd = fields.end_time ?? currentLog?.end_time;
+      const finalEnd = updateData.end_time ?? fields.end_time ?? currentLog?.end_time;
       if (finalStart && finalEnd) {
-        updateData.time_spent_minutes = calcMinutesBetween(finalStart, finalEnd);
+        const rawMinutes = calcMinutesBetween(finalStart, finalEnd);
+        const pauseMinutes = currentLog?.total_pause_minutes || 0;
+        updateData.time_spent_minutes = Math.max(0, rawMinutes - pauseMinutes);
       }
 
       const { error } = await supabase.from("work_logs").update(updateData).eq("id", id);
@@ -287,6 +374,56 @@ export function useWorkLogs() {
     } catch (error: any) {
       console.error("Error with quick update:", error);
       toast({ title: "Error", description: "Failed to update", variant: "destructive" });
+    }
+  };
+
+  // ── Pause / Resume a log ──────────────────────────────────────────────
+  const pauseLog = async (id: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from("work_logs")
+        .update({
+          status: "on_hold",
+          pause_start: new Date().toISOString(),
+        })
+        .eq("id", id);
+      if (error) throw error;
+      toast({ title: "Paused", description: "Work log paused" });
+      await fetchMyLogs(selectedDate);
+    } catch (error: any) {
+      console.error("Error pausing log:", error);
+      toast({ title: "Error", description: "Failed to pause", variant: "destructive" });
+    }
+  };
+
+  const resumeLog = async (id: string) => {
+    if (!user) return;
+    try {
+      const { data: currentLog } = await supabase.from("work_logs").select("*").eq("id", id).single();
+      if (!currentLog) return;
+
+      let additionalPauseMinutes = 0;
+      if (currentLog.pause_start) {
+        const pauseStart = new Date(currentLog.pause_start);
+        const now = new Date();
+        additionalPauseMinutes = Math.round((now.getTime() - pauseStart.getTime()) / 60000);
+      }
+
+      const { error } = await supabase
+        .from("work_logs")
+        .update({
+          status: "in_progress",
+          pause_end: new Date().toISOString(),
+          total_pause_minutes: (currentLog.total_pause_minutes || 0) + additionalPauseMinutes,
+        })
+        .eq("id", id);
+      if (error) throw error;
+      toast({ title: "Resumed", description: `Paused for ${additionalPauseMinutes}m` });
+      await fetchMyLogs(selectedDate);
+    } catch (error: any) {
+      console.error("Error resuming log:", error);
+      toast({ title: "Error", description: "Failed to resume", variant: "destructive" });
     }
   };
 
@@ -320,6 +457,8 @@ export function useWorkLogs() {
     updateLog,
     quickUpdate,
     deleteLog,
+    pauseLog,
+    resumeLog,
     refetch: () => {
       fetchMyLogs(selectedDate);
       fetchTeamLogs(selectedDate);

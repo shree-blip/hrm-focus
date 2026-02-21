@@ -2886,11 +2886,14 @@ export type Database = {
           log_date: string
           notes: string | null
           org_id: string | null
+          pause_end: string | null
+          pause_start: string | null
           start_time: string | null
           status: string | null
           task_description: string
           task_id: string | null
           time_spent_minutes: number
+          total_pause_minutes: number | null
           updated_at: string
           user_id: string
         }
@@ -2904,11 +2907,14 @@ export type Database = {
           log_date?: string
           notes?: string | null
           org_id?: string | null
+          pause_end?: string | null
+          pause_start?: string | null
           start_time?: string | null
           status?: string | null
           task_description: string
           task_id?: string | null
           time_spent_minutes?: number
+          total_pause_minutes?: number | null
           updated_at?: string
           user_id: string
         }
@@ -2922,11 +2928,14 @@ export type Database = {
           log_date?: string
           notes?: string | null
           org_id?: string | null
+          pause_end?: string | null
+          pause_start?: string | null
           start_time?: string | null
           status?: string | null
           task_description?: string
           task_id?: string | null
           time_spent_minutes?: number
+          total_pause_minutes?: number | null
           updated_at?: string
           user_id?: string
         }
