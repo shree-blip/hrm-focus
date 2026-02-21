@@ -62,6 +62,7 @@ import {
   Save,
   Timer,
   PlayCircle,
+  PauseCircle,
   StopCircle,
   StickyNote,
   ChevronDown,
@@ -239,6 +240,8 @@ export default function LogSheet() {
     updateLog,
     quickUpdate,
     deleteLog,
+    pauseLog,
+    resumeLog,
   } = useWorkLogs();
   const { clients, loading: clientsLoading, refetch: refetchClients } = useClients();
   const { fetchAlertsForClient } = useClientAlerts();
@@ -361,6 +364,7 @@ export default function LogSheet() {
 
   // ── Full edit (opens dialog pre-filled) ───────────────────────────────
   const handleFullEdit = (log: any) => {
+    if (log.status === "completed") return; // Lock completed tasks
     setFormData({
       task_description: log.task_description,
       time_spent_minutes: log.time_spent_minutes,
@@ -396,10 +400,12 @@ export default function LogSheet() {
   const saveInlineEdit = async () => {
     if (!inlineEditId) return;
     const finalStatus = inlineData.end_time && inlineData.status === "in_progress" ? "completed" : inlineData.status;
+    // Auto-set end time when completing
+    const finalEndTime = finalStatus === "completed" && !inlineData.end_time ? getCurrentTime() : inlineData.end_time;
     await quickUpdate(inlineEditId, {
       task_description: inlineData.task_description,
       start_time: inlineData.start_time,
-      end_time: inlineData.end_time || undefined,
+      end_time: finalEndTime || undefined,
       status: finalStatus,
       notes: inlineData.notes,
       client_id: inlineData.client_id,
@@ -563,6 +569,8 @@ export default function LogSheet() {
                       const isEditing = inlineEditId === log.id;
                       const isExpanded = expandedRows.has(log.id);
                       const isActive = log.status === "in_progress" && !log.end_time;
+                      const isOnHold = log.status === "on_hold";
+                      const isCompleted = log.status === "completed";
 
                       if (isEditing) {
                         /* ════════════ INLINE EDIT MODE ════════════ */
@@ -700,8 +708,8 @@ export default function LogSheet() {
                             <div className="pt-0.5 flex-shrink-0">
                               {isActive ? (
                                 <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-                              ) : log.status === "on_hold" ? (
-                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                              ) : isOnHold ? (
+                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse" />
                               ) : (
                                 <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
                               )}
@@ -781,15 +789,49 @@ export default function LogSheet() {
                                         <span className="mx-0.5">→</span>
                                         {formatTime12h(log.end_time)}
                                       </>
+                                    ) : isOnHold ? (
+                                      <span className="text-yellow-600 ml-1">paused</span>
                                     ) : (
                                       <span className="text-green-600 ml-1">ongoing</span>
                                     )}
+                                  </p>
+                                )}
+                                {(log as any).total_pause_minutes > 0 && (
+                                  <p className="text-[10px] text-yellow-600 mt-0.5">
+                                    ⏸ {formatTime((log as any).total_pause_minutes)} paused
                                   </p>
                                 )}
                               </div>
 
                               {/* Action buttons */}
                               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {/* Pause button for active logs */}
+                                {isActive && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 gap-1 text-xs px-2 border-yellow-200 text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700 dark:border-yellow-800 dark:hover:bg-yellow-950"
+                                    onClick={() => pauseLog(log.id)}
+                                    title="Pause this log"
+                                  >
+                                    <PauseCircle className="h-3 w-3" />
+                                    Hold
+                                  </Button>
+                                )}
+                                {/* Resume button for on-hold logs */}
+                                {isOnHold && !isCompleted && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 gap-1 text-xs px-2 border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700 dark:border-green-800 dark:hover:bg-green-950"
+                                    onClick={() => resumeLog(log.id)}
+                                    title="Resume this log"
+                                  >
+                                    <PlayCircle className="h-3 w-3" />
+                                    Resume
+                                  </Button>
+                                )}
+                                {/* End Now for active logs */}
                                 {isActive && (
                                   <Button
                                     variant="outline"
@@ -801,15 +843,18 @@ export default function LogSheet() {
                                     End Now
                                   </Button>
                                 )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  onClick={() => startInlineEdit(log)}
-                                  title="Quick edit"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
+                                {/* Edit button - disabled for completed */}
+                                {!isCompleted && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => startInlineEdit(log)}
+                                    title="Quick edit"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -822,30 +867,39 @@ export default function LogSheet() {
                                 >
                                   <History className="h-3.5 w-3.5" />
                                 </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete">
-                                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Delete this log?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        This will permanently delete the work log. This action cannot be undone.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => deleteLog(log.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        Delete
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
+                                {/* Delete - disabled for completed */}
+                                {!isCompleted && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete">
+                                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete this log?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will permanently delete the work log. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => deleteLog(log.id)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
+                                {/* Lock indicator for completed tasks */}
+                                {isCompleted && (
+                                  <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-muted-foreground">
+                                    🔒 Locked
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           </div>
