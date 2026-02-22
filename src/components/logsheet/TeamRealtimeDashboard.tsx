@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -30,36 +30,86 @@ interface LiveLog {
 }
 
 export function TeamRealtimeDashboard() {
-  const { user } = useAuth();
+  const { user, isVP, isManager, isLineManager } = useAuth();
   const [liveLogs, setLiveLogs] = useState<LiveLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teamUserIds, setTeamUserIds] = useState<string[]>([]);
 
   const formatTime = formatDuration;
 
-  const fetchLiveLogs = async () => {
+  // Fetch team member user IDs for scoped visibility
+  const fetchTeamUserIds = useCallback(async () => {
+    if (!user) return;
+
+    // VP/Admin see everyone
+    if (isVP) {
+      setTeamUserIds([]); // empty = fetch all
+      return;
+    }
+
+    const { data: myEmpId } = await supabase.rpc("get_employee_id_for_user", {
+      _user_id: user.id,
+    });
+    if (!myEmpId) {
+      setTeamUserIds(["__none__"]);
+      return;
+    }
+
+    const { data: teamEmployees } = await supabase
+      .from("employees")
+      .select("id, profile_id")
+      .or(`line_manager_id.eq.${myEmpId},manager_id.eq.${myEmpId}`);
+
+    if (!teamEmployees || teamEmployees.length === 0) {
+      setTeamUserIds(["__none__"]);
+      return;
+    }
+
+    const profileIds = teamEmployees.map((e) => e.profile_id).filter(Boolean);
+    if (profileIds.length === 0) {
+      setTeamUserIds(["__none__"]);
+      return;
+    }
+
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .in("id", profileIds);
+
+    const ids = (profiles || []).map((p) => p.user_id);
+    setTeamUserIds(ids.length > 0 ? ids : ["__none__"]);
+  }, [user, isVP]);
+
+  const fetchLiveLogs = useCallback(async () => {
+    if (!user) return;
+    // Wait for team IDs to be resolved (unless VP)
+    if (!isVP && teamUserIds.length === 0) return;
+    if (teamUserIds.includes("__none__")) {
+      setLiveLogs([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const today = format(new Date(), "yyyy-MM-dd");
-      const { data, error } = await supabase
+      let query = supabase
         .from("work_logs")
         .select(
-          `
-          id,
-          user_id,
-          log_date,
-          task_description,
-          time_spent_minutes,
-          status,
-          start_time,
-          created_at,
+          `id, user_id, log_date, task_description, time_spent_minutes, status, start_time, created_at,
           client:clients(name, client_id),
-          employee:employees(first_name, last_name, department)
-        `,
+          employee:employees(first_name, last_name, department)`,
         )
         .eq("log_date", today)
-        .neq("user_id", user?.id || "")
+        .neq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20);
 
+      // Scope to team members for non-VP
+      if (!isVP && teamUserIds.length > 0) {
+        query = query.in("user_id", teamUserIds);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setLiveLogs((data as LiveLog[]) || []);
     } catch (error) {
@@ -67,7 +117,11 @@ export function TeamRealtimeDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, isVP, teamUserIds]);
+
+  useEffect(() => {
+    fetchTeamUserIds();
+  }, [fetchTeamUserIds]);
 
   useEffect(() => {
     fetchLiveLogs();
@@ -91,7 +145,7 @@ export function TeamRealtimeDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [fetchLiveLogs]);
 
   const activeCount = liveLogs.filter((log) => log.status === "in_progress").length;
 

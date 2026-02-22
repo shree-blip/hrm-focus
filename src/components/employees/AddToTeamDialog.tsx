@@ -107,18 +107,43 @@ export function AddToTeamDialog({
     setSaving(true);
 
     let successCount = 0;
-    for (const empId of selectedIds) {
-      const { error } = await supabase.from("employees").update({ line_manager_id: assignToId }).eq("id", empId);
+    const failedNames: string[] = [];
 
-      if (!error) successCount++;
+    for (const empId of selectedIds) {
+      const { data, error } = await supabase
+        .from("employees")
+        .update({ line_manager_id: assignToId })
+        .eq("id", empId)
+        .select("id")
+        .maybeSingle();
+
+      if (error || !data) {
+        // Update was blocked by RLS or failed — track the failure
+        const emp = allEmployees.find((e) => e.id === empId);
+        failedNames.push(emp ? `${emp.first_name} ${emp.last_name}` : empId);
+      } else {
+        successCount++;
+      }
     }
 
-    if (successCount > 0) {
-      onOpenChange(false);
+    onOpenChange(false);
+
+    if (failedNames.length > 0 && successCount > 0) {
+      toast({
+        title: "Partial Success",
+        description: `${successCount} added. Could not assign: ${failedNames.join(", ")}. They may already belong to another team.`,
+        variant: "destructive",
+      });
       await onAdded(true, successCount);
-    } else {
-      onOpenChange(false);
+    } else if (failedNames.length > 0) {
+      toast({
+        title: "Assignment Failed",
+        description: `Could not assign: ${failedNames.join(", ")}. They may already belong to another team.`,
+        variant: "destructive",
+      });
       await onAdded(false, 0);
+    } else {
+      await onAdded(true, successCount);
     }
 
     setSaving(false);
