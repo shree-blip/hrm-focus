@@ -522,7 +522,7 @@ export default function LogSheet() {
               <FileText className="h-4 w-4" />
               My Logs
             </TabsTrigger>
-            {(isManager || isVP) && (
+            {(isManager || isVP || isLineManager) && (
               <>
                 <TabsTrigger value="team-live" className="gap-2">
                   <Activity className="h-4 w-4" />

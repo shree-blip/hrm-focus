@@ -83,7 +83,7 @@ export function useWorkLogs() {
     org_id: string;
     department: string | null;
   } | null>(null);
-  const { user, isManager, isVP } = useAuth();
+  const { user, isManager, isVP, isLineManager } = useAuth();
   const { toast } = useToast();
 
   // ── Fetch employee info once on mount ─────────────────────────────────
@@ -134,25 +134,77 @@ export function useWorkLogs() {
     [user, toast],
   );
 
-  // ── Fetch team logs ───────────────────────────────────────────────────
+  // ── Fetch team logs (scoped to team members only) ──────────────────────
   const fetchTeamLogs = useCallback(
     async (date: Date) => {
-      if (!user || (!isManager && !isVP)) return;
+      if (!user || (!isManager && !isVP && !isLineManager)) return;
       try {
         const dateStr = formatLocalDate(date);
-        const { data, error } = await supabase
-          .from("work_logs")
-          .select(`*, employee:employees(first_name, last_name, department), client:clients(name, client_id)`)
-          .eq("log_date", dateStr)
-          .neq("user_id", user.id)
-          .order("created_at", { ascending: false });
-        if (error) throw error;
-        setTeamLogs((data as WorkLog[]) || []);
+
+        // For VP/Admin, show all logs; for managers/line managers, scope to their team
+        if (isVP) {
+          const { data, error } = await supabase
+            .from("work_logs")
+            .select(`*, employee:employees(first_name, last_name, department), client:clients(name, client_id)`)
+            .eq("log_date", dateStr)
+            .neq("user_id", user.id)
+            .order("created_at", { ascending: false });
+          if (error) throw error;
+          setTeamLogs((data as WorkLog[]) || []);
+        } else {
+          // Get my employee ID to find team members
+          const { data: myEmpId } = await supabase.rpc("get_employee_id_for_user", {
+            _user_id: user.id,
+          });
+
+          if (!myEmpId) {
+            setTeamLogs([]);
+            return;
+          }
+
+          // Get team member employee IDs (both line_manager_id and manager_id)
+          const { data: teamEmployees } = await supabase
+            .from("employees")
+            .select("id, profile_id")
+            .or(`line_manager_id.eq.${myEmpId},manager_id.eq.${myEmpId}`);
+
+          if (!teamEmployees || teamEmployees.length === 0) {
+            setTeamLogs([]);
+            return;
+          }
+
+          // Get user IDs for these employees via profiles
+          const profileIds = teamEmployees.map((e) => e.profile_id).filter(Boolean);
+          if (profileIds.length === 0) {
+            setTeamLogs([]);
+            return;
+          }
+
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("user_id")
+            .in("id", profileIds);
+
+          const teamUserIds = (profiles || []).map((p) => p.user_id);
+          if (teamUserIds.length === 0) {
+            setTeamLogs([]);
+            return;
+          }
+
+          const { data, error } = await supabase
+            .from("work_logs")
+            .select(`*, employee:employees(first_name, last_name, department), client:clients(name, client_id)`)
+            .eq("log_date", dateStr)
+            .in("user_id", teamUserIds)
+            .order("created_at", { ascending: false });
+          if (error) throw error;
+          setTeamLogs((data as WorkLog[]) || []);
+        }
       } catch (error: any) {
         console.error("Error fetching team logs:", error);
       }
     },
-    [user, isManager, isVP],
+    [user, isManager, isVP, isLineManager],
   );
 
   // ── Add log (auto-pause existing in-progress logs) ─────────────────────
