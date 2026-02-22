@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDocuments, Document, PRIVATE_CATEGORIES, LEAVE_EVIDENCE_CATEGORY } from "@/hooks/useDocuments";
+import { toast } from "@/hooks/use-toast";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
 import { DocumentViewDialog } from "@/components/documents/DocumentViewDialog";
 import { RenameDocumentDialog } from "@/components/documents/RenameDocumentDialog";
@@ -144,7 +145,7 @@ interface DisplayDocument {
 }
 
 const Documents = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
   const {
     documents: realDocuments,
     loading,
@@ -157,6 +158,7 @@ const Documents = () => {
     isPrivateCategory,
     isLeaveEvidenceCategory,
     isRestrictedCategory,
+    uploadComplianceDocuments,
   } = useDocuments();
   const [selectedCategory, setSelectedCategory] = useState("All Documents");
   const [searchQuery, setSearchQuery] = useState("");
@@ -198,9 +200,20 @@ const Documents = () => {
     date: string;
     status: string;
     file?: File;
+    employeeId?: string;
+    complianceData?: {
+      bankAccountNumber?: string;
+      citizenshipPhoto?: File;
+      panCardPhoto?: File;
+      otherDocument?: File;
+    };
   }) => {
-    if (docData.file) {
-      await uploadDocument(docData.file, docData.category);
+    // Handle compliance category with multiple files
+    if (docData.category === "Compliance" && docData.complianceData && docData.employeeId) {
+      await uploadComplianceDocuments(docData.employeeId, docData.complianceData);
+      toast({ title: "Compliance Documents Uploaded", description: "All compliance documents have been uploaded." });
+    } else if (docData.file) {
+      await uploadDocument(docData.file, docData.category, docData.employeeId);
     }
     setUploadDialogOpen(false);
   };
@@ -448,11 +461,16 @@ const Documents = () => {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => handleView(doc)}>View</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setRenameDoc(doc)}>Rename</DropdownMenuItem>
+                                {/* Contracts: only VP can rename/delete. Compliance: only uploader or VP */}
+                                {(doc.category !== "Contracts" || isVP) && (
+                                  <DropdownMenuItem onClick={() => setRenameDoc(doc)}>Rename</DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={() => handleShare(doc)}>Share</DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDoc(doc)}>
-                                  Delete
-                                </DropdownMenuItem>
+                                {(doc.category !== "Contracts" || isVP) && (
+                                  <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDoc(doc)}>
+                                    Delete
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
