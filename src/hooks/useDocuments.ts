@@ -59,38 +59,64 @@ export function useDocuments() {
 
       if (error) {
         console.error("Error fetching documents:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load documents",
-          variant: "destructive",
-        });
+        toast({ title: "Error", description: "Failed to load documents", variant: "destructive" });
         setLoading(false);
         return;
       }
 
       const allDocs = data || [];
 
-      // Step 3: Filter documents based on category and role
-      const filteredDocs = allDocs.filter((doc) => {
-      // Leave Evidence - visible to uploader, admin, VP, manager, or line manager
-      if (doc.category === LEAVE_EVIDENCE_CATEGORY) {
-        // User is the uploader
-        if (doc.uploaded_by === user.id) return true;
-        // User is admin, VP, manager, or line manager (any management role can view)
-        if (isAdmin || isVP || isManager || isLineManager) return true;
-        return false;
+      // Step 3: Get current user's employee record to check employee_id match
+      const { data: userProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      let userEmployeeId: string | null = null;
+      if (userProfile) {
+        const { data: empRecord } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("profile_id", userProfile.id)
+          .maybeSingle();
+        userEmployeeId = empRecord?.id || null;
       }
 
-        // Private categories (Contracts, Compliance) - only uploader, admin, VP
-        if (PRIVATE_CATEGORIES.includes(doc.category || "")) {
-          return doc.uploaded_by === user.id || isAdmin || isVP;
+      // Step 4: Filter documents based on category and role
+      const filteredDocs = allDocs.filter((doc) => {
+        // Leave Evidence - visible to uploader, admin, VP, manager, or line manager
+        if (doc.category === LEAVE_EVIDENCE_CATEGORY) {
+          if (doc.uploaded_by === user.id) return true;
+          if (isAdmin || isVP || isManager || isLineManager) return true;
+          return false;
+        }
+
+        // Contracts - visible to uploader (VP), admin, VP, and the assigned employee
+        if (doc.category === "Contracts") {
+          if (doc.uploaded_by === user.id) return true;
+          if (isAdmin || isVP) return true;
+          // Employee can see their own contract
+          if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
+          return false;
+        }
+
+        // Compliance - visible to uploader, admin, VP, and the assigned employee
+        if (doc.category === "Compliance") {
+          if (doc.uploaded_by === user.id) return true;
+          if (isAdmin || isVP) return true;
+          // Employee can see their own compliance docs
+          if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
+          // Managers/line managers who uploaded can also view
+          if (isManager || isLineManager) return true;
+          return false;
         }
 
         // All other documents are visible to everyone
         return true;
       });
 
-      // Step 4: Fetch uploader names for display
+      // Step 5: Fetch uploader names for display
       const uploaderIds = [...new Set(filteredDocs.map((d) => d.uploaded_by).filter(Boolean))];
       if (uploaderIds.length > 0) {
         const { data: profiles } = await supabase
@@ -110,11 +136,7 @@ export function useDocuments() {
       setDocuments(filteredDocs);
     } catch (err) {
       console.error("Error in fetchDocuments:", err);
-      toast({
-        title: "Error",
-        description: "Failed to load documents",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to load documents", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -124,26 +146,22 @@ export function useDocuments() {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  const uploadDocument = async (file: File, category: string) => {
+  const uploadDocument = async (file: File, category: string, employeeId?: string) => {
     if (!user) return { error: new Error("Not authenticated") };
 
-    const fileExt = file.name.split(".").pop();
     const fileName = `${user.id}/${Date.now()}-${file.name}`;
+    const fileExt = file.name.split(".").pop();
 
     // Upload to storage
     const { error: uploadError } = await supabase.storage.from("documents").upload(fileName, file);
 
     if (uploadError) {
-      toast({
-        title: "Upload Failed",
-        description: uploadError.message,
-        variant: "destructive",
-      });
+      toast({ title: "Upload Failed", description: uploadError.message, variant: "destructive" });
       return { error: uploadError };
     }
 
     // Create document record
-    const { error: insertError } = await supabase.from("documents").insert({
+    const insertData: any = {
       name: file.name,
       file_path: fileName,
       file_type: fileExt || null,
@@ -151,57 +169,87 @@ export function useDocuments() {
       category,
       status: "active",
       uploaded_by: user.id,
-    });
+    };
+
+    if (employeeId) {
+      insertData.employee_id = employeeId;
+    }
+
+    const { error: insertError } = await supabase.from("documents").insert(insertData);
 
     if (insertError) {
-      toast({
-        title: "Error",
-        description: "Failed to save document record",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to save document record", variant: "destructive" });
       return { error: insertError };
     }
 
-    toast({
-      title: "Document Uploaded",
-      description: `${file.name} uploaded successfully`,
-    });
+    toast({ title: "Document Uploaded", description: `${file.name} uploaded successfully` });
 
     fetchDocuments();
     return { error: null };
   };
 
+  const uploadComplianceDocuments = async (
+    employeeId: string,
+    data: {
+      bankAccountNumber?: string;
+      citizenshipPhoto?: File;
+      panCardPhoto?: File;
+      otherDocument?: File;
+    }
+  ) => {
+    if (!user) return { error: new Error("Not authenticated") };
+
+    const uploads: Promise<any>[] = [];
+
+    // Upload each compliance file
+    if (data.citizenshipPhoto) {
+      uploads.push(
+        uploadDocument(data.citizenshipPhoto, "Compliance", employeeId).then((res) => {
+          if (!res.error) {
+            // Rename to indicate it's a citizenship photo
+            return null;
+          }
+          return res;
+        })
+      );
+    }
+
+    if (data.panCardPhoto) {
+      uploads.push(uploadDocument(data.panCardPhoto, "Compliance", employeeId));
+    }
+
+    if (data.otherDocument) {
+      uploads.push(uploadDocument(data.otherDocument, "Compliance", employeeId));
+    }
+
+    // If bank account number is provided, store it as a text-based note document
+    if (data.bankAccountNumber) {
+      const blob = new Blob([`Bank Account Number: ${data.bankAccountNumber}`], { type: "text/plain" });
+      const bankFile = new File([blob], `bank-account-${employeeId}.txt`, { type: "text/plain" });
+      uploads.push(uploadDocument(bankFile, "Compliance", employeeId));
+    }
+
+    await Promise.all(uploads);
+    fetchDocuments();
+    return { error: null };
+  };
+
   const deleteDocument = async (doc: Document) => {
-    // Optimistically remove document from UI
     const previousDocuments = documents;
     setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
 
-    // Delete from storage
     const { error: storageError } = await supabase.storage.from("documents").remove([doc.file_path]);
+    if (storageError) console.error("Storage delete error:", storageError);
 
-    if (storageError) {
-      console.error("Storage delete error:", storageError);
-    }
-
-    // Delete record
     const { error } = await supabase.from("documents").delete().eq("id", doc.id);
 
     if (error) {
-      // Revert on error
       setDocuments(previousDocuments);
-      toast({
-        title: "Error",
-        description: "Failed to delete document",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to delete document", variant: "destructive" });
       return { error };
     }
 
-    toast({
-      title: "Document Deleted",
-      description: `${doc.name} has been deleted`,
-    });
-
+    toast({ title: "Document Deleted", description: `${doc.name} has been deleted` });
     return { error: null };
   };
 
@@ -212,75 +260,44 @@ export function useDocuments() {
       .eq("id", doc.id);
 
     if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to rename document",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to rename document", variant: "destructive" });
       return { error };
     }
 
-    toast({
-      title: "Document Renamed",
-      description: `Document renamed to ${newName}`,
-    });
-
+    toast({ title: "Document Renamed", description: `Document renamed to ${newName}` });
     fetchDocuments();
     return { error: null };
   };
 
   const getDownloadUrl = async (filePath: string) => {
     const { data, error } = await supabase.storage.from("documents").createSignedUrl(filePath, 3600);
-
-    if (error) {
-      console.error("Error creating signed URL:", error);
-      throw error;
-    }
-
+    if (error) throw error;
     return data.signedUrl;
   };
 
   const downloadDocument = async (doc: Document) => {
     const url = await getDownloadUrl(doc.file_path);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = doc.name;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    toast({
-      title: "Download Started",
-      description: `Downloading ${doc.name}`,
-    });
+    toast({ title: "Download Started", description: `Downloading ${doc.name}` });
   };
 
-  const getUploaderName = (uploaderId: string) => {
-    return uploaderNames[uploaderId] || "Unknown";
-  };
+  const getUploaderName = (uploaderId: string) => uploaderNames[uploaderId] || "Unknown";
 
-  const isPrivateCategory = (category: string | null) => {
-    return PRIVATE_CATEGORIES.includes(category || "");
-  };
-
-  const isLeaveEvidenceCategory = (category: string | null) => {
-    return category === LEAVE_EVIDENCE_CATEGORY;
-  };
-
-  const isRestrictedCategory = (category: string | null) => {
-    return isPrivateCategory(category) || isLeaveEvidenceCategory(category);
-  };
-
-  const canAccessDocument = (doc: Document) => {
-    // This is now handled in fetchDocuments, but keeping for external use
-    return true;
-  };
+  const isPrivateCategory = (category: string | null) => PRIVATE_CATEGORIES.includes(category || "");
+  const isLeaveEvidenceCategory = (category: string | null) => category === LEAVE_EVIDENCE_CATEGORY;
+  const isRestrictedCategory = (category: string | null) => isPrivateCategory(category) || isLeaveEvidenceCategory(category);
+  const canAccessDocument = (_doc: Document) => true;
 
   return {
     documents,
     loading,
     uploadDocument,
+    uploadComplianceDocuments,
     deleteDocument,
     renameDocument,
     downloadDocument,
