@@ -176,7 +176,7 @@ const Documents = () => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   // Use real documents if available, otherwise use mock data
-  const documents: DisplayDocument[] = realDocuments.length > 0 ? realDocuments : mockDocuments;
+  const documents: DisplayDocument[] = realDocuments;
 
   // Check if current category uses employee-first view
   const isEmployeeFirstCategory = selectedCategory === "Contracts" || selectedCategory === "Compliance";
