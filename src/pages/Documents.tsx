@@ -101,7 +101,7 @@ const mockDocuments = [
 ];
 
 const categories = [
-  { name: "All Documents", icon: FolderOpen },
+  // { name: "All Documents", icon: FolderOpen },
   { name: "Contracts", icon: FileText },
   { name: "Policies", icon: File },
   { name: "Compliance", icon: File },
@@ -375,12 +375,7 @@ const Documents = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 {isEmployeeFirstCategory && selectedEmployeeId && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setSelectedEmployeeId(null)}
-                  >
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedEmployeeId(null)}>
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
                 )}
@@ -394,7 +389,9 @@ const Documents = () => {
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder={isEmployeeFirstCategory && !selectedEmployeeId ? "Search employees..." : "Search documents..."}
+                    placeholder={
+                      isEmployeeFirstCategory && !selectedEmployeeId ? "Search employees..." : "Search documents..."
+                    }
                     className="pl-10"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -412,7 +409,7 @@ const Documents = () => {
               /* Employee List View */
               (() => {
                 const filtered = employeesWithDocs.filter((emp) =>
-                  `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
+                  `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()),
                 );
                 return filtered.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
@@ -434,12 +431,17 @@ const Documents = () => {
                         <div className="flex items-center gap-4">
                           <Avatar className="h-10 w-10">
                             <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                              {emp.first_name?.[0]}{emp.last_name?.[0]}
+                              {emp.first_name?.[0]}
+                              {emp.last_name?.[0]}
                             </AvatarFallback>
                           </Avatar>
                           <div className="text-left">
-                            <p className="font-medium text-foreground">{emp.first_name} {emp.last_name}</p>
-                            <p className="text-sm text-muted-foreground">{emp.department || "No department"} · {emp.job_title || "No title"}</p>
+                            <p className="font-medium text-foreground">
+                              {emp.first_name} {emp.last_name}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {emp.department || "No department"} · {emp.job_title || "No title"}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -508,7 +510,8 @@ const Documents = () => {
                               </div>
                               {isEmployeeFirstCategory && selectedEmployee && (
                                 <span className="text-xs text-muted-foreground ml-8">
-                                  Uploaded by {uploaderName} for {selectedEmployee.first_name} {selectedEmployee.last_name}
+                                  Uploaded by {uploaderName} for {selectedEmployee.first_name}{" "}
+                                  {selectedEmployee.last_name}
                                 </span>
                               )}
                             </div>
@@ -546,7 +549,12 @@ const Documents = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleDownload(doc)}
+                              >
                                 <Download className="h-4 w-4" />
                               </Button>
                               <DropdownMenu>
