@@ -1,13 +1,7 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, FileSpreadsheet, File, Download, Clock } from "lucide-react";
+import { FileText, FileSpreadsheet, File, Download, Clock, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Document {
@@ -53,22 +47,21 @@ const formatFileSize = (bytes: number | null) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-export function DocumentViewDialog({
-  document,
-  open,
-  onOpenChange,
-  onDownload,
-}: DocumentViewDialogProps) {
+export function DocumentViewDialog({ document, open, onOpenChange, onDownload }: DocumentViewDialogProps) {
   if (!document) return null;
+
+  const handleOpenInNewTab = () => {
+    if (document.file_path) {
+      window.open(document.file_path, "_blank", "noopener,noreferrer");
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">Document Preview</DialogTitle>
-          <DialogDescription>
-            View document details
-          </DialogDescription>
+          <DialogDescription>View document details</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
@@ -107,7 +100,7 @@ export function DocumentViewDialog({
                   document.status === "active" && "border-primary text-primary bg-primary/10",
                   document.status === "draft" && "border-warning text-warning bg-warning/10",
                   document.status === "completed" && "border-info text-info bg-info/10",
-                  document.status === "approved" && "border-success text-success bg-success/10"
+                  document.status === "approved" && "border-success text-success bg-success/10",
                 )}
               >
                 {document.status || "active"}
@@ -119,6 +112,10 @@ export function DocumentViewDialog({
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={handleOpenInNewTab}>
+              <ExternalLink className="h-4 w-4" />
+              Open in New Tab
             </Button>
             <Button className="gap-2" onClick={() => onDownload(document)}>
               <Download className="h-4 w-4" />
