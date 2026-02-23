@@ -28,7 +28,10 @@ import {
   User,
   CalendarCheck,
   Users,
+  ArrowLeft,
+  ChevronRight,
 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useDocuments, Document, PRIVATE_CATEGORIES, LEAVE_EVIDENCE_CATEGORY } from "@/hooks/useDocuments";
 import { toast } from "@/hooks/use-toast";
@@ -39,6 +42,7 @@ import { DeleteDocumentDialog } from "@/components/documents/DeleteDocumentDialo
 import { ShareDocumentDialog } from "@/components/documents/ShareDocumentDialog";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEmployees } from "@/hooks/useEmployees";
 
 // Mock data for display when no real documents exist
 const mockDocuments = [
@@ -146,6 +150,7 @@ interface DisplayDocument {
 
 const Documents = () => {
   const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
+  const { employees } = useEmployees();
   const {
     documents: realDocuments,
     loading,
@@ -168,18 +173,49 @@ const Documents = () => {
   const [deleteDoc, setDeleteDoc] = useState<DisplayDocument | null>(null);
   const [shareDoc, setShareDoc] = useState<DisplayDocument | null>(null);
   const [shareUrl, setShareUrl] = useState("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   // Use real documents if available, otherwise use mock data
   const documents: DisplayDocument[] = realDocuments.length > 0 ? realDocuments : mockDocuments;
 
-  // Filter documents based on category and search
+  // Check if current category uses employee-first view
+  const isEmployeeFirstCategory = selectedCategory === "Contracts" || selectedCategory === "Compliance";
+
+  // Get employees that have documents in the selected category
+  const employeesWithDocs = useMemo(() => {
+    if (!isEmployeeFirstCategory) return [];
+    const categoryDocs = documents.filter((doc) => doc.category === selectedCategory && doc.employee_id);
+    const empIds = [...new Set(categoryDocs.map((d) => d.employee_id).filter(Boolean))];
+    return employees
+      .filter((emp) => empIds.includes(emp.id))
+      .map((emp) => ({
+        ...emp,
+        docCount: categoryDocs.filter((d) => d.employee_id === emp.id).length,
+      }));
+  }, [documents, employees, selectedCategory, isEmployeeFirstCategory]);
+
+  // Get selected employee's name
+  const selectedEmployee = useMemo(() => {
+    if (!selectedEmployeeId) return null;
+    return employees.find((e) => e.id === selectedEmployeeId) || null;
+  }, [employees, selectedEmployeeId]);
+
+  // Filter documents based on category, search, and selected employee
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
       const matchesCategory = selectedCategory === "All Documents" || doc.category === selectedCategory;
       const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+      const matchesEmployee = !selectedEmployeeId || doc.employee_id === selectedEmployeeId;
+      return matchesCategory && matchesSearch && matchesEmployee;
     });
-  }, [documents, selectedCategory, searchQuery]);
+  }, [documents, selectedCategory, searchQuery, selectedEmployeeId]);
+
+  // Handle category change - reset employee selection
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setSelectedEmployeeId(null);
+    setSearchQuery("");
+  };
 
   // Get category counts
   const categoryCounts = useMemo(() => {
@@ -297,7 +333,7 @@ const Documents = () => {
               return (
                 <button
                   key={category.name}
-                  onClick={() => setSelectedCategory(category.name)}
+                  onClick={() => handleCategoryChange(category.name)}
                   className={cn(
                     "w-full flex items-center justify-between p-3 rounded-lg text-sm transition-all",
                     isSelected ? "bg-primary text-primary-foreground" : "hover:bg-accent text-foreground",
@@ -337,16 +373,31 @@ const Documents = () => {
         >
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <CardTitle className="font-display text-lg">{selectedCategory}</CardTitle>
+              <div className="flex items-center gap-3">
+                {isEmployeeFirstCategory && selectedEmployeeId && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setSelectedEmployeeId(null)}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                )}
+                <CardTitle className="font-display text-lg">
+                  {isEmployeeFirstCategory && selectedEmployeeId && selectedEmployee
+                    ? `${selectedEmployee.first_name} ${selectedEmployee.last_name} — ${selectedCategory}`
+                    : selectedCategory}
+                </CardTitle>
+              </div>
               <div className="flex gap-3">
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Search documents..."
+                    placeholder={isEmployeeFirstCategory && !selectedEmployeeId ? "Search employees..." : "Search documents..."}
                     className="pl-10"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={handleSearch}
                   />
                 </div>
               </div>
@@ -357,13 +408,61 @@ const Documents = () => {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
+            ) : isEmployeeFirstCategory && !selectedEmployeeId ? (
+              /* Employee List View */
+              (() => {
+                const filtered = employeesWithDocs.filter((emp) =>
+                  `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+                return filtered.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No employees with {selectedCategory.toLowerCase()} documents</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filtered.map((emp, index) => (
+                      <button
+                        key={emp.id}
+                        onClick={() => {
+                          setSelectedEmployeeId(emp.id);
+                          setSearchQuery("");
+                        }}
+                        className="w-full flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent transition-colors animate-fade-in"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                      >
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                              {emp.first_name?.[0]}{emp.last_name?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="text-left">
+                            <p className="font-medium text-foreground">{emp.first_name} {emp.last_name}</p>
+                            <p className="text-sm text-muted-foreground">{emp.department || "No department"} · {emp.job_title || "No title"}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary" className="text-xs">
+                            {emp.docCount} {emp.docCount === 1 ? "document" : "documents"}
+                          </Badge>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()
             ) : filteredDocuments.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No documents found</p>
-                <Button variant="outline" className="mt-4" onClick={() => setUploadDialogOpen(true)}>
-                  Upload your first document
-                </Button>
+                {isEmployeeFirstCategory && selectedEmployeeId && (
+                  <Button variant="outline" className="mt-4" onClick={() => setSelectedEmployeeId(null)}>
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Employees
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -373,110 +472,107 @@ const Documents = () => {
                       <TableHead>Name</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Uploaded By</TableHead>
-                      <TableHead>Size</TableHead>
-                      <TableHead>Modified</TableHead>
+                      <TableHead>Upload Date</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-[100px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDocuments.map((doc, index) => (
-                      <TableRow
-                        key={doc.id}
-                        className="group cursor-pointer animate-fade-in"
-                        style={{ animationDelay: `${300 + index * 50}ms` }}
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            {getFileIcon(doc.file_type)}
-                            <span className="font-medium">{doc.name}</span>
-                            {isRestrictedCategory(doc.category) && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  {isLeaveEvidenceCategory(doc.category) ? (
-                                    <Users className="h-3 w-3 text-blue-500" />
-                                  ) : (
-                                    <Lock className="h-3 w-3 text-warning" />
-                                  )}
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{getVisibilityTooltip(doc.category)}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
+                    {filteredDocuments.map((doc, index) => {
+                      const uploaderName = doc.uploaded_by === user?.id ? "You" : getUploaderName(doc.uploaded_by);
+                      return (
+                        <TableRow
+                          key={doc.id}
+                          className="group cursor-pointer animate-fade-in"
+                          style={{ animationDelay: `${300 + index * 50}ms` }}
+                        >
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-3">
+                                {getFileIcon(doc.file_type)}
+                                <span className="font-medium">{doc.name}</span>
+                                {isRestrictedCategory(doc.category) && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      {isLeaveEvidenceCategory(doc.category) ? (
+                                        <Users className="h-3 w-3 text-blue-500" />
+                                      ) : (
+                                        <Lock className="h-3 w-3 text-warning" />
+                                      )}
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{getVisibilityTooltip(doc.category)}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                              {isEmployeeFirstCategory && selectedEmployee && (
+                                <span className="text-xs text-muted-foreground ml-8">
+                                  Uploaded by {uploaderName} for {selectedEmployee.first_name} {selectedEmployee.last_name}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
                             <Badge variant="secondary" className="font-normal">
                               {doc.category || "Uncategorized"}
                             </Badge>
-                            {isRestrictedCategory(doc.category) &&
-                              (isLeaveEvidenceCategory(doc.category) ? (
-                                <Users className="h-3 w-3 text-blue-500" />
-                              ) : (
-                                <Lock className="h-3 w-3 text-muted-foreground" />
-                              ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <User className="h-3 w-3" />
-                            <span className="text-sm">
-                              {doc.uploaded_by === user?.id ? "You" : getUploaderName(doc.uploaded_by)}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{formatFileSize(doc.file_size)}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {format(new Date(doc.updated_at || doc.created_at), "MMM d, yyyy")}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              doc.status === "signed" && "border-success text-success bg-success/10",
-                              doc.status === "active" && "border-primary text-primary bg-primary/10",
-                              doc.status === "draft" && "border-warning text-warning bg-warning/10",
-                              doc.status === "completed" && "border-info text-info bg-info/10",
-                              doc.status === "approved" && "border-success text-success bg-success/10",
-                            )}
-                          >
-                            {doc.status || "active"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}>
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleView(doc)}>View</DropdownMenuItem>
-                                {/* Contracts: only VP can rename/delete. Compliance: only uploader or VP */}
-                                {(doc.category !== "Contracts" || isVP) && (
-                                  <DropdownMenuItem onClick={() => setRenameDoc(doc)}>Rename</DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onClick={() => handleShare(doc)}>Share</DropdownMenuItem>
-                                {(doc.category !== "Contracts" || isVP) && (
-                                  <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDoc(doc)}>
-                                    Delete
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <User className="h-3 w-3" />
+                              <span className="text-sm">{uploaderName}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {format(new Date(doc.created_at), "MMM d, yyyy")}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                doc.status === "signed" && "border-success text-success bg-success/10",
+                                doc.status === "active" && "border-primary text-primary bg-primary/10",
+                                doc.status === "draft" && "border-warning text-warning bg-warning/10",
+                                doc.status === "completed" && "border-info text-info bg-info/10",
+                                doc.status === "approved" && "border-success text-success bg-success/10",
+                              )}
+                            >
+                              {doc.status || "active"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}>
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleView(doc)}>View</DropdownMenuItem>
+                                  {(doc.category !== "Contracts" || isVP) && (
+                                    <DropdownMenuItem onClick={() => setRenameDoc(doc)}>Rename</DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem onClick={() => handleShare(doc)}>Share</DropdownMenuItem>
+                                  {(doc.category !== "Contracts" || isVP) && (
+                                    <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDoc(doc)}>
+                                      Delete
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
