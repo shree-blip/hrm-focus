@@ -2824,14 +2824,26 @@ export type Database = {
           change_type: string
           changed_at: string
           id: string
+          new_client_id: string | null
+          new_department: string | null
+          new_end_time: string | null
           new_log_date: string | null
           new_notes: string | null
+          new_start_time: string | null
+          new_status: string | null
           new_task_description: string | null
           new_time_spent_minutes: number | null
+          new_total_pause_minutes: number | null
+          previous_client_id: string | null
+          previous_department: string | null
+          previous_end_time: string | null
           previous_log_date: string | null
           previous_notes: string | null
+          previous_start_time: string | null
+          previous_status: string | null
           previous_task_description: string | null
           previous_time_spent_minutes: number | null
+          previous_total_pause_minutes: number | null
           user_id: string
           work_log_id: string
         }
@@ -2839,14 +2851,26 @@ export type Database = {
           change_type?: string
           changed_at?: string
           id?: string
+          new_client_id?: string | null
+          new_department?: string | null
+          new_end_time?: string | null
           new_log_date?: string | null
           new_notes?: string | null
+          new_start_time?: string | null
+          new_status?: string | null
           new_task_description?: string | null
           new_time_spent_minutes?: number | null
+          new_total_pause_minutes?: number | null
+          previous_client_id?: string | null
+          previous_department?: string | null
+          previous_end_time?: string | null
           previous_log_date?: string | null
           previous_notes?: string | null
+          previous_start_time?: string | null
+          previous_status?: string | null
           previous_task_description?: string | null
           previous_time_spent_minutes?: number | null
+          previous_total_pause_minutes?: number | null
           user_id: string
           work_log_id: string
         }
@@ -2854,14 +2878,26 @@ export type Database = {
           change_type?: string
           changed_at?: string
           id?: string
+          new_client_id?: string | null
+          new_department?: string | null
+          new_end_time?: string | null
           new_log_date?: string | null
           new_notes?: string | null
+          new_start_time?: string | null
+          new_status?: string | null
           new_task_description?: string | null
           new_time_spent_minutes?: number | null
+          new_total_pause_minutes?: number | null
+          previous_client_id?: string | null
+          previous_department?: string | null
+          previous_end_time?: string | null
           previous_log_date?: string | null
           previous_notes?: string | null
+          previous_start_time?: string | null
+          previous_status?: string | null
           previous_task_description?: string | null
           previous_time_spent_minutes?: number | null
+          previous_total_pause_minutes?: number | null
           user_id?: string
           work_log_id?: string
         }

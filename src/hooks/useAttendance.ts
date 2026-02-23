@@ -153,21 +153,72 @@ export function useAttendance(weekStart?: Date) {
   const clockOut = async () => {
     if (!user || !currentLog) return;
 
+    const clockOutTime = new Date();
+    const clockOutIso = clockOutTime.toISOString();
+    const clockOutHHMM = `${String(clockOutTime.getHours()).padStart(2, "0")}:${String(clockOutTime.getMinutes()).padStart(2, "0")}`;
+
     const { error } = await supabase
       .from("attendance_logs")
       .update({
-        clock_out: new Date().toISOString(),
+        clock_out: clockOutIso,
         status: "completed",
       })
       .eq("id", currentLog.id);
 
     if (error) {
       toast({ title: "Error", description: "Failed to clock out", variant: "destructive" });
-    } else {
-      setCurrentLog(null);
-      fetchWeeklyLogs();
-      toast({ title: "Clocked Out", description: "Your time has been recorded." });
+      return;
     }
+
+    // Auto-close ALL active work logs for this user (any status that isn't completed)
+    try {
+      const { data: activeLogs } = await supabase
+        .from("work_logs")
+        .select("id, start_time, pause_start, total_pause_minutes, status")
+        .eq("user_id", user.id)
+        .is("end_time", null)
+        .in("status", ["in_progress", "on_hold", "pending", "break", "paused"]);
+
+      if (activeLogs && activeLogs.length > 0) {
+        for (const log of activeLogs) {
+          let totalPause = log.total_pause_minutes || 0;
+
+          // If currently paused, finalize pause duration
+          if (log.pause_start && (log.status === "on_hold" || log.status === "paused")) {
+            const pauseStart = new Date(log.pause_start);
+            totalPause += Math.round((clockOutTime.getTime() - pauseStart.getTime()) / 60000);
+          }
+
+          // Calculate time_spent_minutes from start_time to clockOutHHMM minus pauses
+          let timeSpent = 0;
+          if (log.start_time) {
+            const [sH, sM] = log.start_time.split(":").map(Number);
+            const [eH, eM] = clockOutHHMM.split(":").map(Number);
+            const startMin = sH * 60 + sM;
+            const endMin = eH * 60 + eM;
+            const raw = endMin < startMin ? 24 * 60 - startMin + endMin : endMin - startMin;
+            timeSpent = Math.max(0, raw - totalPause);
+          }
+
+          await supabase
+            .from("work_logs")
+            .update({
+              end_time: clockOutHHMM,
+              status: "completed",
+              total_pause_minutes: totalPause,
+              pause_end: log.pause_start ? clockOutIso : undefined,
+              time_spent_minutes: timeSpent,
+            })
+            .eq("id", log.id);
+        }
+      }
+    } catch (err) {
+      console.error("Error auto-closing work logs on clock out:", err);
+    }
+
+    setCurrentLog(null);
+    fetchWeeklyLogs();
+    toast({ title: "Clocked Out", description: "Your time has been recorded. All active logs have been closed." });
   };
 
   const startBreak = async () => {
