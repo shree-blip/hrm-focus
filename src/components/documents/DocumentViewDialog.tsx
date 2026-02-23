@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, FileSpreadsheet, File, Download, Clock, ExternalLink } from "lucide-react";
+import { FileText, FileSpreadsheet, File, Download, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Document {
@@ -49,12 +49,6 @@ const formatFileSize = (bytes: number | null) => {
 
 export function DocumentViewDialog({ document, open, onOpenChange, onDownload }: DocumentViewDialogProps) {
   if (!document) return null;
-
-  const handleOpenInNewTab = () => {
-    if (document.file_path) {
-      window.open(document.file_path, "_blank", "noopener,noreferrer");
-    }
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -112,10 +106,6 @@ export function DocumentViewDialog({ document, open, onOpenChange, onDownload }:
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
-            </Button>
-            <Button variant="outline" className="gap-2" onClick={handleOpenInNewTab}>
-              <ExternalLink className="h-4 w-4" />
-              Open in New Tab
             </Button>
             <Button className="gap-2" onClick={() => onDownload(document)}>
               <Download className="h-4 w-4" />
