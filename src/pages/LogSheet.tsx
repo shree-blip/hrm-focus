@@ -978,14 +978,15 @@ export default function LogSheet() {
           </TabsContent>
 
           {/* ══════════ TEAM LIVE ══════════ */}
-          {(isManager || isVP) && (
+          {(isManager || isVP || isLineManager) && (
             <TabsContent value="team-live">
               <TeamRealtimeDashboard />
             </TabsContent>
           )}
 
           {/* ══════════ TEAM LOGS ══════════ */}
-          {(isManager || isVP) && (
+
+          {(isManager || isVP || isLineManager) && (
             <TabsContent value="team-logs">
               <Card>
                 <CardHeader className="pb-3">
@@ -1104,7 +1105,7 @@ export default function LogSheet() {
           )}
 
           {/* ══════════ REPORTS ══════════ */}
-          {(isManager || isVP) && (
+          {(isManager || isVP || isLineManager) && (
             <TabsContent value="reports">
               <ClientReportDownload />
             </TabsContent>
