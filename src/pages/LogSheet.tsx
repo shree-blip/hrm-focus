@@ -254,7 +254,10 @@ export default function LogSheet() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<string | null>(null);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
-  const [selectedLogForHistory, setSelectedLogForHistory] = useState<{ id: string; task: string } | null>(null);
+  const [selectedLogForHistory, setSelectedLogForHistory] = useState<{
+    id: string;
+    task: string;
+  } | null>(null);
   const [addClientDialogOpen, setAddClientDialogOpen] = useState(false);
 
   // ── Inline edit state ─────────────────────────────────────────────────
@@ -415,7 +418,10 @@ export default function LogSheet() {
   };
 
   const handleEndNow = async (logId: string) => {
-    await quickUpdate(logId, { end_time: getCurrentTime(), status: "completed" });
+    await quickUpdate(logId, {
+      end_time: getCurrentTime(),
+      status: "completed",
+    });
   };
 
   // ── Computed ──────────────────────────────────────────────────────────
@@ -599,7 +605,10 @@ export default function LogSheet() {
                                   clients={clients}
                                   value={inlineData.client_id}
                                   onChange={(id) => {
-                                    setInlineData({ ...inlineData, client_id: id });
+                                    setInlineData({
+                                      ...inlineData,
+                                      client_id: id,
+                                    });
                                     if (id) handleClientSelectWithAlerts(id);
                                   }}
                                   onAddNew={() => setAddClientDialogOpen(true)}
@@ -611,7 +620,12 @@ export default function LogSheet() {
                                 <Label className="text-xs font-medium text-muted-foreground">Department</Label>
                                 <Select
                                   value={inlineData.department}
-                                  onValueChange={(v) => setInlineData({ ...inlineData, department: v })}
+                                  onValueChange={(v) =>
+                                    setInlineData({
+                                      ...inlineData,
+                                      department: v,
+                                    })
+                                  }
                                 >
                                   <SelectTrigger className="h-9 text-sm">
                                     <SelectValue placeholder="Department" />
@@ -632,7 +646,12 @@ export default function LogSheet() {
                               <Label className="text-xs font-medium text-muted-foreground">Task Description</Label>
                               <Textarea
                                 value={inlineData.task_description}
-                                onChange={(e) => setInlineData({ ...inlineData, task_description: e.target.value })}
+                                onChange={(e) =>
+                                  setInlineData({
+                                    ...inlineData,
+                                    task_description: e.target.value,
+                                  })
+                                }
                                 rows={2}
                                 className="text-sm resize-none"
                               />
@@ -645,7 +664,12 @@ export default function LogSheet() {
                                 <Input
                                   type="time"
                                   value={inlineData.start_time}
-                                  onChange={(e) => setInlineData({ ...inlineData, start_time: e.target.value })}
+                                  onChange={(e) =>
+                                    setInlineData({
+                                      ...inlineData,
+                                      start_time: e.target.value,
+                                    })
+                                  }
                                   className="h-9 text-sm"
                                 />
                               </div>
@@ -654,7 +678,12 @@ export default function LogSheet() {
                                 <Input
                                   type="time"
                                   value={inlineData.end_time}
-                                  onChange={(e) => setInlineData({ ...inlineData, end_time: e.target.value })}
+                                  onChange={(e) =>
+                                    setInlineData({
+                                      ...inlineData,
+                                      end_time: e.target.value,
+                                    })
+                                  }
                                   className="h-9 text-sm"
                                 />
                               </div>
@@ -690,7 +719,12 @@ export default function LogSheet() {
                               <Textarea
                                 placeholder="Add notes..."
                                 value={inlineData.notes}
-                                onChange={(e) => setInlineData({ ...inlineData, notes: e.target.value })}
+                                onChange={(e) =>
+                                  setInlineData({
+                                    ...inlineData,
+                                    notes: e.target.value,
+                                  })
+                                }
                                 rows={2}
                                 className="text-sm resize-none"
                               />
@@ -860,7 +894,10 @@ export default function LogSheet() {
                                   size="icon"
                                   className="h-7 w-7"
                                   onClick={() => {
-                                    setSelectedLogForHistory({ id: log.id, task: log.task_description });
+                                    setSelectedLogForHistory({
+                                      id: log.id,
+                                      task: log.task_description,
+                                    });
                                     setHistoryDialogOpen(true);
                                   }}
                                   title="Edit history"
@@ -895,10 +932,38 @@ export default function LogSheet() {
                                   </AlertDialog>
                                 )}
                                 {/* Lock indicator for completed tasks */}
+                                {/* Lock indicator + delete for completed tasks */}
                                 {isCompleted && (
-                                  <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-muted-foreground">
-                                    🔒 Locked
-                                  </Badge>
+                                  <>
+                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-muted-foreground">
+                                      🔒 Locked
+                                    </Badge>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete">
+                                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Delete this completed log?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This log is marked as completed. Deleting it is permanent and cannot be
+                                            undone.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => deleteLog(log.id)}
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          >
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -1016,7 +1081,10 @@ export default function LogSheet() {
                                   size="icon"
                                   className="h-7 w-7"
                                   onClick={() => {
-                                    setSelectedLogForHistory({ id: log.id, task: log.task_description });
+                                    setSelectedLogForHistory({
+                                      id: log.id,
+                                      task: log.task_description,
+                                    });
                                     setHistoryDialogOpen(true);
                                   }}
                                   title="Edit history"
@@ -1108,7 +1176,12 @@ export default function LogSheet() {
                 <Textarea
                   placeholder="What are you working on?"
                   value={formData.task_description}
-                  onChange={(e) => setFormData({ ...formData, task_description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      task_description: e.target.value,
+                    })
+                  }
                   required
                   rows={3}
                   className="resize-none"
