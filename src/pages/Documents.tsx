@@ -101,7 +101,7 @@ const mockDocuments = [
 ];
 
 const categories = [
-  // { name: "All Documents", icon: FolderOpen },
+  { name: "All Documents", icon: FolderOpen },
   { name: "Contracts", icon: FileText },
   { name: "Policies", icon: File },
   { name: "Compliance", icon: File },
