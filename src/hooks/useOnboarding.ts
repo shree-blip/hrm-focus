@@ -104,7 +104,7 @@ const DEFAULT_ONBOARDING_TASKS: Array<{
   },
   {
     title: "Setup Direct Deposit",
-    description: "Collect banking information for payroll",
+    description: "Collect Payroll processing info",
     task_type: "general",
     sort_order: 7,
   },
