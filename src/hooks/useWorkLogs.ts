@@ -245,15 +245,35 @@ export function useWorkLogs() {
             return;
           }
 
+          // Resolve user IDs from profile_id, and also directly from profiles by email for employees with NULL profile_id
           const profileIds = teamEmployees.map((e) => e.profile_id).filter(Boolean);
-          if (profileIds.length === 0) {
-            setTeamLogs([]);
-            return;
+          const empIdsWithoutProfile = teamEmployees.filter((e) => !e.profile_id).map((e) => e.id);
+
+          let teamUserIds: string[] = [];
+
+          if (profileIds.length > 0) {
+            const { data: profiles } = await supabase.from("profiles").select("user_id").in("id", profileIds);
+            teamUserIds = (profiles || []).map((p) => p.user_id);
           }
 
-          const { data: profiles } = await supabase.from("profiles").select("user_id").in("id", profileIds);
+          // For employees without profile_id, look up by email match in profiles
+          if (empIdsWithoutProfile.length > 0) {
+            const { data: empsWithoutProfile } = await supabase
+              .from("employees")
+              .select("email")
+              .in("id", empIdsWithoutProfile);
+            if (empsWithoutProfile && empsWithoutProfile.length > 0) {
+              const emails = empsWithoutProfile.map((e) => e.email);
+              const { data: matchedProfiles } = await supabase
+                .from("profiles")
+                .select("user_id")
+                .in("email", emails);
+              if (matchedProfiles) {
+                teamUserIds = [...teamUserIds, ...matchedProfiles.map((p) => p.user_id)];
+              }
+            }
+          }
 
-          const teamUserIds = (profiles || []).map((p) => p.user_id);
           if (teamUserIds.length === 0) {
             setTeamLogs([]);
             return;

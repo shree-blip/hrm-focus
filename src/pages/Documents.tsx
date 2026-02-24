@@ -179,12 +179,14 @@ const Documents = () => {
   const documents: DisplayDocument[] = realDocuments;
 
   // Check if current category uses employee-first view
-  const isEmployeeFirstCategory = selectedCategory === "Contracts" || selectedCategory === "Compliance";
+  const isEmployeeFirstCategory = selectedCategory === "Contracts" || selectedCategory === "Compliance" || selectedCategory === "All Documents";
 
   // Get employees that have documents in the selected category
   const employeesWithDocs = useMemo(() => {
     if (!isEmployeeFirstCategory) return [];
-    const categoryDocs = documents.filter((doc) => doc.category === selectedCategory && doc.employee_id);
+    const categoryDocs = selectedCategory === "All Documents"
+      ? documents.filter((doc) => doc.employee_id)
+      : documents.filter((doc) => doc.category === selectedCategory && doc.employee_id);
     const empIds = [...new Set(categoryDocs.map((d) => d.employee_id).filter(Boolean))];
     return employees
       .filter((emp) => empIds.includes(emp.id))
@@ -206,6 +208,10 @@ const Documents = () => {
       const matchesCategory = selectedCategory === "All Documents" || doc.category === selectedCategory;
       const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesEmployee = !selectedEmployeeId || doc.employee_id === selectedEmployeeId;
+      // In All Documents employee-first view, only show docs that have employee_id when drilling down
+      if (selectedCategory === "All Documents" && selectedEmployeeId) {
+        return doc.employee_id === selectedEmployeeId && matchesSearch;
+      }
       return matchesCategory && matchesSearch && matchesEmployee;
     });
   }, [documents, selectedCategory, searchQuery, selectedEmployeeId]);
@@ -508,7 +514,7 @@ const Documents = () => {
                                   </Tooltip>
                                 )}
                               </div>
-                              {isEmployeeFirstCategory && selectedEmployee && (
+              {selectedEmployee && (
                                 <span className="text-xs text-muted-foreground ml-8">
                                   Uploaded by {uploaderName} for {selectedEmployee.first_name}{" "}
                                   {selectedEmployee.last_name}

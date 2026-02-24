@@ -66,17 +66,35 @@ export function TeamRealtimeDashboard() {
     }
 
     const profileIds = teamEmployees.map((e) => e.profile_id).filter(Boolean);
-    if (profileIds.length === 0) {
-      setTeamUserIds(["__none__"]);
-      return;
+    const empIdsWithoutProfile = teamEmployees.filter((e) => !e.profile_id).map((e) => e.id);
+
+    let ids: string[] = [];
+
+    if (profileIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .in("id", profileIds);
+      ids = (profiles || []).map((p) => p.user_id);
     }
 
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("user_id")
-      .in("id", profileIds);
+    // For employees without profile_id, look up by email
+    if (empIdsWithoutProfile.length > 0) {
+      const { data: empsNoProfile } = await supabase
+        .from("employees")
+        .select("email")
+        .in("id", empIdsWithoutProfile);
+      if (empsNoProfile && empsNoProfile.length > 0) {
+        const { data: matchedProfiles } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .in("email", empsNoProfile.map((e) => e.email));
+        if (matchedProfiles) {
+          ids = [...ids, ...matchedProfiles.map((p) => p.user_id)];
+        }
+      }
+    }
 
-    const ids = (profiles || []).map((p) => p.user_id);
     setTeamUserIds(ids.length > 0 ? ids : ["__none__"]);
   }, [user, isVP]);
 
