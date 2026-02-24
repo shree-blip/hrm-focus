@@ -116,6 +116,11 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
       })),
   ];
 
+  const [assigneeSearch, setAssigneeSearch] = useState("");
+  const filteredAssignees = assignableUsers.filter((user) =>
+    user.name.toLowerCase().includes(assigneeSearch.toLowerCase()),
+  );
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
