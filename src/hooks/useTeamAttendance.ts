@@ -155,13 +155,13 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         }
       }
 
-      // Calculate hours for summary (only completed records, ONLY excluding breaks, NOT pauses)
+      // Calculate hours for summary (only completed records, excluding breaks AND pauses)
       if (log.clock_out) {
         const clockIn = new Date(log.clock_in);
         const clockOut = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
-        // NOTE: We DO NOT subtract pause minutes - pauses are included in work time
-        const hours = (clockOut.getTime() - clockIn.getTime() - breakMinutes * 60 * 1000) / (1000 * 60 * 60);
+        const pauseMinutes = log.total_pause_minutes || 0;
+        const hours = (clockOut.getTime() - clockIn.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000) / (1000 * 60 * 60);
 
         const dayKey = clockIn.toISOString().split("T")[0];
 
@@ -174,15 +174,15 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         totals.days.add(dayKey);
       }
 
-      // Calculate hours for daily records (ONLY excluding breaks, NOT pauses)
+      // Calculate hours for daily records (excluding breaks AND pauses)
       let hoursWorked = 0;
       if (log.clock_in && log.clock_out) {
         const clockIn = new Date(log.clock_in);
         const clockOut = new Date(log.clock_out);
         const breakMinutes = log.total_break_minutes || 0;
-        // NOTE: We DO NOT subtract pause minutes - pauses are included in work time
+        const pauseMinutes = log.total_pause_minutes || 0;
         const totalMinutes = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60);
-        hoursWorked = Math.max(0, (totalMinutes - breakMinutes) / 60);
+        hoursWorked = Math.max(0, (totalMinutes - breakMinutes - pauseMinutes) / 60);
       }
 
       // Add to daily records with pause fields
