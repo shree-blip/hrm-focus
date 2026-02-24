@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -114,6 +114,51 @@ export function useAttendance(weekStart?: Date) {
     fetchMonthlyLogs();
   }, [fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
 
+  // 8-hour work duration reminder (fires 10 min before 8 hours = at 7h50m)
+  const reminderSentRef = useRef(false);
+
+  useEffect(() => {
+    if (!currentLog || !user) {
+      reminderSentRef.current = false;
+      return;
+    }
+
+    const checkWorkDuration = () => {
+      if (reminderSentRef.current || !currentLog || currentLog.status === "paused" || currentLog.status === "break") return;
+
+      const clockInTime = new Date(currentLog.clock_in).getTime();
+      const now = Date.now();
+      const breakMs = (currentLog.total_break_minutes || 0) * 60 * 1000;
+      const pauseMs = (currentLog.total_pause_minutes || 0) * 60 * 1000;
+      const netWorkMs = now - clockInTime - breakMs - pauseMs;
+
+      // 7 hours 50 minutes = 470 minutes
+      const reminderThresholdMs = 470 * 60 * 1000;
+
+      if (netWorkMs >= reminderThresholdMs) {
+        reminderSentRef.current = true;
+        toast({
+          title: "⏰ 8-Hour Reminder",
+          description: "You've been working for nearly 8 hours. Consider clocking out soon!",
+        });
+
+        supabase.from("notifications").insert({
+          user_id: user.id,
+          title: "⏰ 8-Hour Work Reminder",
+          message: "You've been working for nearly 8 hours. Consider clocking out in the next 10 minutes.",
+          type: "attendance",
+          link: "/attendance",
+        });
+      }
+    };
+
+    // Check immediately and then every minute
+    checkWorkDuration();
+    const interval = setInterval(checkWorkDuration, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [currentLog, user]);
+
   const clockIn = async (type: "payroll" | "billable" = "payroll") => {
     if (!user) return;
 
@@ -147,6 +192,15 @@ export function useAttendance(weekStart?: Date) {
     } else {
       setCurrentLog(data as AttendanceLog);
       toast({ title: "Clocked In", description: `You are now tracking ${type} time.` });
+
+      // Create notification for clock-in
+      await supabase.from("notifications").insert({
+        user_id: user.id,
+        title: "⏰ Clocked In",
+        message: `You clocked in at ${new Date().toLocaleTimeString()} (${type} time).`,
+        type: "attendance",
+        link: "/attendance",
+      });
     }
   };
 
@@ -240,6 +294,15 @@ export function useAttendance(weekStart?: Date) {
     setCurrentLog(null);
     fetchWeeklyLogs();
     toast({ title: "Clocked Out", description: "Your time has been recorded. All active logs have been closed." });
+
+    // Create notification for clock-out
+    await supabase.from("notifications").insert({
+      user_id: user.id,
+      title: "⏰ Clocked Out",
+      message: `You clocked out at ${clockOutTime.toLocaleTimeString()}. Your time has been recorded.`,
+      type: "attendance",
+      link: "/attendance",
+    });
   };
 
   const startBreak = async () => {
@@ -261,6 +324,14 @@ export function useAttendance(weekStart?: Date) {
     } else {
       setCurrentLog({ ...data, status: "break" } as AttendanceLog);
       toast({ title: "Break Started", description: "Enjoy your break!" });
+
+      await supabase.from("notifications").insert({
+        user_id: user.id,
+        title: "☕ Break Started",
+        message: `You started a break at ${new Date().toLocaleTimeString()}.`,
+        type: "attendance",
+        link: "/attendance",
+      });
     }
   };
 
@@ -287,6 +358,14 @@ export function useAttendance(weekStart?: Date) {
     } else {
       setCurrentLog({ ...data, status: "active" } as AttendanceLog);
       toast({ title: "Back to Work", description: `Break time: ${breakMinutes} minutes` });
+
+      await supabase.from("notifications").insert({
+        user_id: user.id,
+        title: "💼 Break Ended",
+        message: `You resumed work after a ${breakMinutes} minute break.`,
+        type: "attendance",
+        link: "/attendance",
+      });
     }
   };
 
@@ -309,6 +388,14 @@ export function useAttendance(weekStart?: Date) {
     } else {
       setCurrentLog({ ...data, status: "paused" } as AttendanceLog);
       toast({ title: "Clock Paused", description: "Your time tracking is paused. Resume when you continue working." });
+
+      await supabase.from("notifications").insert({
+        user_id: user.id,
+        title: "⏸️ Clock Paused",
+        message: `You paused your clock at ${new Date().toLocaleTimeString()}.`,
+        type: "attendance",
+        link: "/attendance",
+      });
     }
   };
 
@@ -335,6 +422,14 @@ export function useAttendance(weekStart?: Date) {
     } else {
       setCurrentLog({ ...data, status: "active" } as AttendanceLog);
       toast({ title: "Clock Resumed", description: `Pause time: ${pauseMinutes} minutes` });
+
+      await supabase.from("notifications").insert({
+        user_id: user.id,
+        title: "▶️ Clock Resumed",
+        message: `You resumed work after a ${pauseMinutes} minute pause.`,
+        type: "attendance",
+        link: "/attendance",
+      });
     }
   };
 

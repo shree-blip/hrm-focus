@@ -163,6 +163,36 @@ const Announcements = () => {
       return;
     }
 
+    // Notify all org users about the new announcement
+    try {
+      const { data: allProfiles } = await supabase
+        .from("profiles")
+        .select("user_id");
+
+      if (allProfiles) {
+        const { data: creatorProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", user.id)
+          .single();
+        const creatorName = creatorProfile ? `${creatorProfile.first_name} ${creatorProfile.last_name}` : "Admin";
+
+        for (const profile of allProfiles) {
+          if (profile.user_id !== user.id) {
+            await supabase.from("notifications").insert({
+              user_id: profile.user_id,
+              title: "📢 New Announcement",
+              message: `${creatorName} posted: "${formData.title.trim()}"`,
+              type: "announcement",
+              link: "/announcements",
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error sending announcement notifications:", err);
+    }
+
     setFormData({
       title: "",
       content: "",

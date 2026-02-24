@@ -373,6 +373,42 @@ export function useTasks() {
     if (error) {
       toast({ title: "Error", description: "Failed to move task", variant: "destructive" });
       fetchTasks(); // Revert on error
+    } else {
+      // Notify all assignees about the status change
+      try {
+        const { data: taskData } = await supabase.from("tasks").select("title").eq("id", taskId).single();
+        const { data: assignees } = await supabase.from("task_assignees").select("user_id").eq("task_id", taskId);
+
+        const { data: moverProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", userId!)
+          .single();
+        const moverName = moverProfile ? `${moverProfile.first_name} ${moverProfile.last_name}` : "Someone";
+
+        const statusLabels: Record<string, string> = {
+          "todo": "To Do",
+          "in-progress": "In Progress",
+          "review": "Review",
+          "done": "Done",
+        };
+
+        if (assignees) {
+          for (const assignee of assignees) {
+            if (assignee.user_id !== userId) {
+              await supabase.from("notifications").insert({
+                user_id: assignee.user_id,
+                title: "📋 Task Status Updated",
+                message: `${moverName} moved "${taskData?.title || "a task"}" to ${statusLabels[newStatus] || newStatus}.`,
+                type: "task",
+                link: "/tasks",
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error sending task status notifications:", err);
+      }
     }
   };
 

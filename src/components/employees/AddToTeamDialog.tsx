@@ -123,6 +123,70 @@ export function AddToTeamDialog({
         failedNames.push(emp ? `${emp.first_name} ${emp.last_name}` : empId);
       } else {
         successCount++;
+
+        // Notify the employee being added to the team
+        const emp = allEmployees.find((e) => e.id === empId);
+        if (emp) {
+          // Get user_id for the employee
+          const { data: empProfile } = await supabase
+            .from("employees")
+            .select("profile_id")
+            .eq("id", empId)
+            .single();
+
+          if (empProfile?.profile_id) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("user_id")
+              .eq("id", empProfile.profile_id)
+              .single();
+
+            if (profile) {
+              // Get manager name
+              const { data: managerEmp } = await supabase
+                .from("employees")
+                .select("first_name, last_name")
+                .eq("id", assignToId)
+                .single();
+              const managerName = managerEmp ? `${managerEmp.first_name} ${managerEmp.last_name}` : "your manager";
+
+              await supabase.from("notifications").insert({
+                user_id: profile.user_id,
+                title: "👥 Added to Team",
+                message: `You have been added to ${managerName}'s team.`,
+                type: "team",
+                link: "/employees",
+              });
+            }
+          }
+        }
+
+        // Notify VPs about the team addition
+        const { data: vpUsers } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["vp", "admin"]);
+
+        if (vpUsers && emp) {
+          for (const vp of vpUsers) {
+            if (vp.user_id !== user?.id) {
+              const { data: managerEmp } = await supabase
+                .from("employees")
+                .select("first_name, last_name")
+                .eq("id", assignToId)
+                .single();
+              const managerName = managerEmp ? `${managerEmp.first_name} ${managerEmp.last_name}` : "A manager";
+
+              await supabase.from("notifications").insert({
+                user_id: vp.user_id,
+                title: "👥 Team Update",
+                message: `${emp.first_name} ${emp.last_name} has been added to ${managerName}'s team.`,
+                type: "team",
+                link: "/employees",
+              });
+            }
+          }
+        }
       }
     }
 
