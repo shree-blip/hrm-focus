@@ -103,12 +103,6 @@ const DEFAULT_ONBOARDING_TASKS: Array<{
     sort_order: 5,
   },
   {
-    title: "Complete I-9 Form",
-    description: "Verify employment eligibility documentation",
-    task_type: "general",
-    sort_order: 6,
-  },
-  {
     title: "Setup Direct Deposit",
     description: "Collect banking information for payroll",
     task_type: "general",
