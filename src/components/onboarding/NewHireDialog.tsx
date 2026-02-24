@@ -351,29 +351,6 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="salary">{getSalaryLabel()} (NPR)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
-                  रू
-                </span>
-                <Input
-                  id="salary"
-                  type="number"
-                  placeholder={getSalaryPlaceholder()}
-                  value={salary}
-                  onChange={(e) => setSalary(e.target.value)}
-                  className="pl-8"
-                  disabled={isSubmitting}
-                  min="0"
-                  step={payType === "hourly" ? "10" : "1000"}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {payType === "hourly" ? "Per hour rate in Nepali Rupees" : "Annual amount in Nepali Rupees"}
-              </p>
-            </div>
           </div>
 
           {/* Actions */}
