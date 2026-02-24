@@ -294,29 +294,6 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
             </div>
 
             <div className="space-y-2">
-              <Label>
-                Location <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={location}
-                onValueChange={(value) => {
-                  setLocation(value);
-                  if (errors.location) setErrors((prev) => ({ ...prev, location: "" }));
-                }}
-                disabled={isSubmitting}
-              >
-                <SelectTrigger className={errors.location ? "border-destructive" : ""}>
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="US">🇺🇸 United States</SelectItem>
-                  <SelectItem value="Nepal">🇳🇵 Nepal</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.location && <p className="text-xs text-destructive">{errors.location}</p>}
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="startDate">
                 Start Date <span className="text-destructive">*</span>
               </Label>
@@ -349,6 +326,28 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
                   <SelectItem value="contractor">Contractor</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>
+                Location <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={location}
+                onValueChange={(value) => {
+                  setLocation(value);
+                  if (errors.location) setErrors((prev) => ({ ...prev, location: "" }));
+                }}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger className={errors.location ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="US">🇺🇸 United States</SelectItem>
+                  <SelectItem value="Nepal">🇳🇵 Nepal</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.location && <p className="text-xs text-destructive">{errors.location}</p>}
             </div>
           </div>
 
