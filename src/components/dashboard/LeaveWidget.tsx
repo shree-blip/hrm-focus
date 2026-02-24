@@ -15,13 +15,25 @@ export function LeaveWidget() {
   // Get the first 3 pending requests for managers, or user's own requests for employees
   const todayStr = new Date().toISOString().split("T")[0];
 
-  const displayRequests = (isManager ? requests : ownRequests)
-    .filter((r) => {
-      if (r.status === "pending") return true;
-      if (r.status === "approved" && r.end_date >= todayStr) return true;
-      return false;
-    })
-    .slice(0, 3);
+  const displayRequests = isManager
+    ? requests
+        .filter((r) => {
+          if (r.status === "pending") return true;
+          if (r.status === "approved" && r.end_date >= todayStr) return true;
+          return false;
+        })
+        .slice(0, 3)
+    : requests
+        .filter((r) => {
+          // Show who is on leave today or upcoming
+          if (r.status === "approved" && r.start_date <= todayStr && r.end_date >= todayStr) return true;
+          // Show own pending requests
+          if (r.status === "pending" && r.user_id === user?.id) return true;
+          // Show own upcoming approved leaves
+          if (r.status === "approved" && r.user_id === user?.id && r.start_date > todayStr) return true;
+          return false;
+        })
+        .slice(0, 3);
 
   // Calculate business days between two dates (excluding weekends)
   const getBusinessDaysBetween = (startDate: Date, endDate: Date): number => {
