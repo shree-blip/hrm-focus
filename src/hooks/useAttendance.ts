@@ -157,12 +157,33 @@ export function useAttendance(weekStart?: Date) {
     const clockOutIso = clockOutTime.toISOString();
     const clockOutHHMM = `${String(clockOutTime.getHours()).padStart(2, "0")}:${String(clockOutTime.getMinutes()).padStart(2, "0")}`;
 
+    // Finalize any active pause or break before clocking out
+    let finalBreakMinutes = currentLog.total_break_minutes || 0;
+    let finalPauseMinutes = currentLog.total_pause_minutes || 0;
+    const updatePayload: Record<string, unknown> = {
+      clock_out: clockOutIso,
+      status: "completed",
+    };
+
+    if (currentLog.pause_start && !currentLog.pause_end) {
+      const pauseStart = new Date(currentLog.pause_start);
+      const additionalPause = Math.round((clockOutTime.getTime() - pauseStart.getTime()) / 60000);
+      finalPauseMinutes += additionalPause;
+      updatePayload.pause_end = clockOutIso;
+      updatePayload.total_pause_minutes = finalPauseMinutes;
+    }
+
+    if (currentLog.break_start && !currentLog.break_end) {
+      const breakStart = new Date(currentLog.break_start);
+      const additionalBreak = Math.round((clockOutTime.getTime() - breakStart.getTime()) / 60000);
+      finalBreakMinutes += additionalBreak;
+      updatePayload.break_end = clockOutIso;
+      updatePayload.total_break_minutes = finalBreakMinutes;
+    }
+
     const { error } = await supabase
       .from("attendance_logs")
-      .update({
-        clock_out: clockOutIso,
-        status: "completed",
-      })
+      .update(updatePayload)
       .eq("id", currentLog.id);
 
     if (error) {
