@@ -289,14 +289,11 @@ const Reports = () => {
     // Convert to hours
     const totalHours = totalTimeMs / (1000 * 60 * 60);
 
-    // Calculate break time in hours (to subtract)
+    // Subtract both break and pause time — both are non-working states
     const breakHours = totalBreakMinutes / 60;
-
-    // Do NOT subtract pause time (pause time should be included)
     const pauseHours = totalPauseMinutes / 60;
 
-    // The final total work hours should include pauses but exclude breaks
-    return Math.max(0, totalHours - breakHours);
+    return Math.max(0, totalHours - breakHours - pauseHours);
   };
 
   // Calculate daily attendance stats based on filtered data
