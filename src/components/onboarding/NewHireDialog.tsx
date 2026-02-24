@@ -323,7 +323,6 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
               <Input
                 id="startDate"
                 type="date"
-                min={today}
                 value={startDate}
                 onChange={(e) => {
                   setStartDate(e.target.value);
