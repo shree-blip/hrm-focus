@@ -13,7 +13,15 @@ export function LeaveWidget() {
   const { user, isManager } = useAuth();
 
   // Get the first 3 pending requests for managers, or user's own requests for employees
-  const displayRequests = requests.slice(0, 3);
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const displayRequests = (isManager ? requests : ownRequests)
+    .filter((r) => {
+      if (r.status === "pending") return true;
+      if (r.status === "approved" && r.end_date >= todayStr) return true;
+      return false;
+    })
+    .slice(0, 3);
 
   // Calculate business days between two dates (excluding weekends)
   const getBusinessDaysBetween = (startDate: Date, endDate: Date): number => {
