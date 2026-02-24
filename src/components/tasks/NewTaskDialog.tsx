@@ -236,7 +236,7 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
               <ScrollArea className="h-[150px] border rounded-md p-2">
                 {employeesLoading ? (
                   <p className="text-sm text-muted-foreground p-2">Loading...</p>
-                ) : assignableUsers.length === 0 ? (
+                ) : filteredAssignees.length === 0 ? (
                   <p className="text-sm text-muted-foreground p-2">No users available</p>
                 ) : (
                   <div className="space-y-2">
