@@ -227,6 +227,12 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
 
             <div className="space-y-2">
               <Label>Assign To ({selectedAssignees.length} selected)</Label>
+              <Input
+                placeholder="Search people..."
+                value={assigneeSearch}
+                onChange={(e) => setAssigneeSearch(e.target.value)}
+                className="mb-2"
+              />
               <ScrollArea className="h-[150px] border rounded-md p-2">
                 {employeesLoading ? (
                   <p className="text-sm text-muted-foreground p-2">Loading...</p>
