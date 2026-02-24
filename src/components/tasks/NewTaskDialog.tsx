@@ -240,7 +240,7 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
                   <p className="text-sm text-muted-foreground p-2">No users available</p>
                 ) : (
                   <div className="space-y-2">
-                    {assignableUsers.map((assignee) => (
+                    {filteredAssignees.map((assignee) => (
                       <div
                         key={assignee.id}
                         className="flex items-center gap-3 p-2 rounded-md hover:bg-accent cursor-pointer select-none"
