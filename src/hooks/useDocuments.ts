@@ -276,14 +276,15 @@ export function useDocuments() {
   };
 
   const downloadDocument = async (doc: Document) => {
-    const url = await getDownloadUrl(doc.file_path);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = doc.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: "Download Started", description: `Downloading ${doc.name}` });
+    try {
+      const url = await getDownloadUrl(doc.file_path);
+      // Open document in a new tab
+      window.open(url, "_blank", "noopener,noreferrer");
+      toast({ title: "Document Opened", description: `${doc.name} opened in a new tab` });
+    } catch (err) {
+      console.error("Download error:", err);
+      toast({ title: "Error", description: "Failed to open document", variant: "destructive" });
+    }
   };
 
   const getUploaderName = (uploaderId: string) => uploaderNames[uploaderId] || "Unknown";

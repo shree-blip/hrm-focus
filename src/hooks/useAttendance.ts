@@ -159,6 +159,68 @@ export function useAttendance(weekStart?: Date) {
     return () => clearInterval(interval);
   }, [currentLog, user]);
 
+  // Auto-pause all active work logs when attendance is paused/on break
+  const autoPauseWorkLogs = async (reason: string) => {
+    if (!user) return;
+    try {
+      const { data: activeLogs } = await supabase
+        .from("work_logs")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "in_progress")
+        .is("end_time", null);
+
+      if (activeLogs && activeLogs.length > 0) {
+        for (const log of activeLogs) {
+          await supabase
+            .from("work_logs")
+            .update({
+              status: "on_hold",
+              pause_start: new Date().toISOString(),
+            })
+            .eq("id", log.id);
+        }
+      }
+    } catch (err) {
+      console.error("Error auto-pausing work logs:", err);
+    }
+  };
+
+  // Auto-resume paused work logs when attendance resumes
+  const autoResumeWorkLogs = async () => {
+    if (!user) return;
+    try {
+      const { data: pausedLogs } = await supabase
+        .from("work_logs")
+        .select("id, pause_start, total_pause_minutes")
+        .eq("user_id", user.id)
+        .eq("status", "on_hold")
+        .is("end_time", null)
+        .not("pause_start", "is", null);
+
+      if (pausedLogs && pausedLogs.length > 0) {
+        const now = new Date();
+        for (const log of pausedLogs) {
+          let totalPause = log.total_pause_minutes || 0;
+          if (log.pause_start) {
+            const pauseStart = new Date(log.pause_start);
+            totalPause += Math.round((now.getTime() - pauseStart.getTime()) / 60000);
+          }
+          await supabase
+            .from("work_logs")
+            .update({
+              status: "in_progress",
+              pause_end: now.toISOString(),
+              total_pause_minutes: totalPause,
+            })
+            .eq("id", log.id);
+        }
+      }
+    } catch (err) {
+      console.error("Error auto-resuming work logs:", err);
+    }
+  };
+
   const clockIn = async (type: "payroll" | "billable" = "payroll") => {
     if (!user) return;
 
@@ -325,6 +387,9 @@ export function useAttendance(weekStart?: Date) {
       setCurrentLog({ ...data, status: "break" } as AttendanceLog);
       toast({ title: "Break Started", description: "Enjoy your break!" });
 
+      // Auto-pause all active work logs
+      await autoPauseWorkLogs("break");
+
       await supabase.from("notifications").insert({
         user_id: user.id,
         title: "☕ Break Started",
@@ -359,6 +424,9 @@ export function useAttendance(weekStart?: Date) {
       setCurrentLog({ ...data, status: "active" } as AttendanceLog);
       toast({ title: "Back to Work", description: `Break time: ${breakMinutes} minutes` });
 
+      // Auto-resume all paused work logs
+      await autoResumeWorkLogs();
+
       await supabase.from("notifications").insert({
         user_id: user.id,
         title: "💼 Break Ended",
@@ -388,6 +456,9 @@ export function useAttendance(weekStart?: Date) {
     } else {
       setCurrentLog({ ...data, status: "paused" } as AttendanceLog);
       toast({ title: "Clock Paused", description: "Your time tracking is paused. Resume when you continue working." });
+
+      // Auto-pause all active work logs
+      await autoPauseWorkLogs("paused");
 
       await supabase.from("notifications").insert({
         user_id: user.id,
@@ -422,6 +493,9 @@ export function useAttendance(weekStart?: Date) {
     } else {
       setCurrentLog({ ...data, status: "active" } as AttendanceLog);
       toast({ title: "Clock Resumed", description: `Pause time: ${pauseMinutes} minutes` });
+
+      // Auto-resume all paused work logs
+      await autoResumeWorkLogs();
 
       await supabase.from("notifications").insert({
         user_id: user.id,
