@@ -212,6 +212,7 @@ export type Database = {
           total_break_minutes: number | null
           total_pause_minutes: number | null
           user_id: string
+          work_location: string | null
         }
         Insert: {
           break_end?: string | null
@@ -234,6 +235,7 @@ export type Database = {
           total_break_minutes?: number | null
           total_pause_minutes?: number | null
           user_id: string
+          work_location?: string | null
         }
         Update: {
           break_end?: string | null
@@ -256,6 +258,7 @@ export type Database = {
           total_break_minutes?: number | null
           total_pause_minutes?: number | null
           user_id?: string
+          work_location?: string | null
         }
         Relationships: [
           {
