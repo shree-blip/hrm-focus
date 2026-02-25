@@ -190,6 +190,36 @@ export type Database = {
           },
         ]
       }
+      attendance_edit_logs: {
+        Row: {
+          attendance_id: string
+          created_at: string
+          edited_by: string
+          id: string
+          new_values: Json
+          old_values: Json
+          reason: string
+        }
+        Insert: {
+          attendance_id: string
+          created_at?: string
+          edited_by: string
+          id?: string
+          new_values: Json
+          old_values: Json
+          reason: string
+        }
+        Update: {
+          attendance_id?: string
+          created_at?: string
+          edited_by?: string
+          id?: string
+          new_values?: Json
+          old_values?: Json
+          reason?: string
+        }
+        Relationships: []
+      }
       attendance_logs: {
         Row: {
           break_end: string | null
@@ -201,6 +231,7 @@ export type Database = {
           created_at: string
           employee_id: string | null
           id: string
+          is_edited: boolean | null
           location_lat: number | null
           location_lng: number | null
           location_name: string | null
@@ -224,6 +255,7 @@ export type Database = {
           created_at?: string
           employee_id?: string | null
           id?: string
+          is_edited?: boolean | null
           location_lat?: number | null
           location_lng?: number | null
           location_name?: string | null
@@ -247,6 +279,7 @@ export type Database = {
           created_at?: string
           employee_id?: string | null
           id?: string
+          is_edited?: boolean | null
           location_lat?: number | null
           location_lng?: number | null
           location_name?: string | null

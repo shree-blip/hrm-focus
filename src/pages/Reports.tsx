@@ -22,12 +22,15 @@ import {
   Timer,
   Pause,
   CalendarRange,
+  Pencil,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useTeamAttendance, DateRangeType, getDateRangeFromType } from "@/hooks/useTeamAttendance";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { EditAttendanceDialog } from "@/components/reports/EditAttendanceDialog";
 
 // Types for multi-break support
 interface BreakRecord {
@@ -46,6 +49,7 @@ interface PauseRecord {
 }
 
 interface DailyAttendanceRecord {
+  id?: string;
   user_id: string;
   employee_name: string;
   email: string;
@@ -79,16 +83,21 @@ const getDateRangeLabel = (rangeType: DateRangeType): string => {
 
 const Reports = () => {
   const { requests, loading: leaveLoading } = useLeaveRequests();
+  const { isVP } = useAuth();
   const [dateRange, setDateRange] = useState<DateRangeType>("this-month");
 
   // Pass dateRange to the hook so it fetches data for the selected period
-  const { teamAttendance, dailyAttendance, loading: attendanceLoading } = useTeamAttendance(dateRange);
+  const { teamAttendance, dailyAttendance, loading: attendanceLoading, refetch: refetchAttendance } = useTeamAttendance(dateRange);
 
   const [activeTab, setActiveTab] = useState("daily");
   const [searchDate, setSearchDate] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
+
+  // VP edit state
+  const [editRecord, setEditRecord] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const loading = leaveLoading || attendanceLoading;
 
@@ -1136,6 +1145,7 @@ const Reports = () => {
                         <th className="text-left p-3 font-medium">Clock Out</th>
                         <th className="text-left p-3 font-medium">Total Hrs</th>
                         <th className="text-left p-3 font-medium">Status</th>
+                        {isVP && <th className="text-left p-3 font-medium w-10">Edit</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -1220,13 +1230,46 @@ const Reports = () => {
                                 {totalHours !== null ? `${totalHours.toFixed(2)}h` : "-"}
                               </td>
                               <td className="p-3">
-                                <Badge variant={status.variant}>{status.label}</Badge>
+                                <div className="flex items-center gap-1">
+                                  <Badge variant={status.variant}>{status.label}</Badge>
+                                  {(att as any).is_edited && (
+                                    <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 bg-amber-50">
+                                      Edited
+                                    </Badge>
+                                  )}
+                                </div>
                               </td>
+                              {isVP && (
+                                <td className="p-3">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => {
+                                      setEditRecord({
+                                        id: (att as any).id,
+                                        employee_name: typedAtt.employee_name,
+                                        clock_in: typedAtt.clock_in,
+                                        clock_out: typedAtt.clock_out,
+                                        break_start: typedAtt.break_start || null,
+                                        break_end: typedAtt.break_end || null,
+                                        total_break_minutes: typedAtt.total_break_minutes || 0,
+                                        pause_start: typedAtt.pause_start || null,
+                                        pause_end: typedAtt.pause_end || null,
+                                        total_pause_minutes: typedAtt.total_pause_minutes || 0,
+                                      });
+                                      setEditDialogOpen(true);
+                                    }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                  </Button>
+                                </td>
+                              )}
                             </tr>
                             {/* Expanded breaks and pauses detail row */}
                             {hasExpandableContent && isExpanded && (
                               <tr className="bg-slate-50">
-                                <td colSpan={11} className="p-0">
+                                <td colSpan={isVP ? 12 : 11} className="p-0">
                                   <div className="px-12 py-3 border-b space-y-4">
                                     {/* Breaks detail */}
                                     {hasMultipleBreaks && (
@@ -1295,6 +1338,14 @@ const Reports = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* VP Edit Attendance Dialog */}
+      <EditAttendanceDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        record={editRecord}
+        onSaved={refetchAttendance}
+      />
     </DashboardLayout>
   );
 };
