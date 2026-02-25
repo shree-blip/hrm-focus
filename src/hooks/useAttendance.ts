@@ -124,7 +124,8 @@ export function useAttendance(weekStart?: Date) {
     }
 
     const checkWorkDuration = () => {
-      if (reminderSentRef.current || !currentLog || currentLog.status === "paused" || currentLog.status === "break") return;
+      if (reminderSentRef.current || !currentLog || currentLog.status === "paused" || currentLog.status === "break")
+        return;
 
       const clockInTime = new Date(currentLog.clock_in).getTime();
       const now = Date.now();
@@ -195,16 +196,17 @@ export function useAttendance(weekStart?: Date) {
   // Auto-resume ONLY the work log that was auto-paused by this attendance session
   const autoResumeWorkLogs = async () => {
     if (!user) return;
-    const targetId = autoPausedLogIdRef.current;
-    if (!targetId) return; // nothing was auto-paused
 
     try {
+      // Find the most recent on_hold work log (the one auto-paused by clock)
       const { data: log } = await supabase
         .from("work_logs")
         .select("id, pause_start, total_pause_minutes")
-        .eq("id", targetId)
+        .eq("user_id", user.id)
         .eq("status", "on_hold")
         .is("end_time", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .single();
 
       if (log) {
@@ -306,10 +308,7 @@ export function useAttendance(weekStart?: Date) {
       updatePayload.total_break_minutes = finalBreakMinutes;
     }
 
-    const { error } = await supabase
-      .from("attendance_logs")
-      .update(updatePayload)
-      .eq("id", currentLog.id);
+    const { error } = await supabase.from("attendance_logs").update(updatePayload).eq("id", currentLog.id);
 
     if (error) {
       toast({ title: "Error", description: "Failed to clock out", variant: "destructive" });
