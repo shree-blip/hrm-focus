@@ -1,4 +1,4 @@
-import { useState, Fragment, useMemo } from "react";
+import { useState, Fragment, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -87,7 +87,12 @@ const Reports = () => {
   const [dateRange, setDateRange] = useState<DateRangeType>("this-month");
 
   // Pass dateRange to the hook so it fetches data for the selected period
-  const { teamAttendance, dailyAttendance, loading: attendanceLoading, refetch: refetchAttendance } = useTeamAttendance(dateRange);
+  const {
+    teamAttendance,
+    dailyAttendance,
+    loading: attendanceLoading,
+    refetch: refetchAttendance,
+  } = useTeamAttendance(dateRange);
 
   const [activeTab, setActiveTab] = useState("daily");
   const [searchDate, setSearchDate] = useState("");
@@ -1233,7 +1238,10 @@ const Reports = () => {
                                 <div className="flex items-center gap-1">
                                   <Badge variant={status.variant}>{status.label}</Badge>
                                   {(att as any).is_edited && (
-                                    <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 bg-amber-50">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] border-amber-400 text-amber-600 bg-amber-50"
+                                    >
                                       Edited
                                     </Badge>
                                   )}
