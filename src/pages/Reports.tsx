@@ -165,6 +165,8 @@ const Reports = () => {
       (emp) => emp.employee_name.toLowerCase().includes(query) || emp.email.toLowerCase().includes(query),
     );
   }, [employeesList, employeeSearchQuery]);
+  // Add at the top with other state declarations
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Filter daily attendance by search date and selected employee
   const filteredDailyAttendance = useMemo(() => {
