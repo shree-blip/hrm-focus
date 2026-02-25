@@ -1011,6 +1011,7 @@ export default function LogSheet() {
                           <TableRow>
                             <TableHead>Employee</TableHead>
                             <TableHead>Client</TableHead>
+                            <TableHead>Department</TableHead>
                             <TableHead>Task</TableHead>
                             <TableHead>Time</TableHead>
                             <TableHead>Status</TableHead>
