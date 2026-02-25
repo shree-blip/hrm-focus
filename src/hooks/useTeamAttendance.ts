@@ -28,6 +28,7 @@ interface DailyAttendanceRecord {
   total_pause_minutes: number | null;
   hours_worked: number;
   date: string;
+  is_edited: boolean;
 }
 
 export type DateRangeType = "this-month" | "last-month" | "this-quarter" | "this-year";
@@ -104,7 +105,8 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         total_break_minutes,
         pause_start,
         pause_end,
-        total_pause_minutes
+        total_pause_minutes,
+        is_edited
       `,
       )
       .gte("clock_in", startDate.toISOString())
@@ -202,6 +204,7 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         total_pause_minutes: log.total_pause_minutes,
         hours_worked: hoursWorked,
         date: log.clock_in.split("T")[0],
+        is_edited: !!(log as any).is_edited,
       });
     });
 

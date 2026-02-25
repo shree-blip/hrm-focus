@@ -159,65 +159,74 @@ export function useAttendance(weekStart?: Date) {
     return () => clearInterval(interval);
   }, [currentLog, user]);
 
-  // Auto-pause all active work logs when attendance is paused/on break
+  // Track the ID of the work log that was auto-paused by the current attendance session
+  const autoPausedLogIdRef = useRef<string | null>(null);
+
+  // Auto-pause ONLY the currently active (in_progress) work log when attendance is paused/on break
   const autoPauseWorkLogs = async (reason: string) => {
     if (!user) return;
     try {
+      // Find the single most-recent in_progress work log (the "current" one)
       const { data: activeLogs } = await supabase
         .from("work_logs")
         .select("id")
         .eq("user_id", user.id)
         .eq("status", "in_progress")
-        .is("end_time", null);
+        .is("end_time", null)
+        .order("created_at", { ascending: false })
+        .limit(1);
 
       if (activeLogs && activeLogs.length > 0) {
-        for (const log of activeLogs) {
-          await supabase
-            .from("work_logs")
-            .update({
-              status: "on_hold",
-              pause_start: new Date().toISOString(),
-            })
-            .eq("id", log.id);
-        }
+        const logId = activeLogs[0].id;
+        autoPausedLogIdRef.current = logId;
+        await supabase
+          .from("work_logs")
+          .update({
+            status: "on_hold",
+            pause_start: new Date().toISOString(),
+          })
+          .eq("id", logId);
       }
     } catch (err) {
       console.error("Error auto-pausing work logs:", err);
     }
   };
 
-  // Auto-resume paused work logs when attendance resumes
+  // Auto-resume ONLY the work log that was auto-paused by this attendance session
   const autoResumeWorkLogs = async () => {
     if (!user) return;
+    const targetId = autoPausedLogIdRef.current;
+    if (!targetId) return; // nothing was auto-paused
+
     try {
-      const { data: pausedLogs } = await supabase
+      const { data: log } = await supabase
         .from("work_logs")
         .select("id, pause_start, total_pause_minutes")
-        .eq("user_id", user.id)
+        .eq("id", targetId)
         .eq("status", "on_hold")
         .is("end_time", null)
-        .not("pause_start", "is", null);
+        .single();
 
-      if (pausedLogs && pausedLogs.length > 0) {
+      if (log) {
         const now = new Date();
-        for (const log of pausedLogs) {
-          let totalPause = log.total_pause_minutes || 0;
-          if (log.pause_start) {
-            const pauseStart = new Date(log.pause_start);
-            totalPause += Math.round((now.getTime() - pauseStart.getTime()) / 60000);
-          }
-          await supabase
-            .from("work_logs")
-            .update({
-              status: "in_progress",
-              pause_end: now.toISOString(),
-              total_pause_minutes: totalPause,
-            })
-            .eq("id", log.id);
+        let totalPause = log.total_pause_minutes || 0;
+        if (log.pause_start) {
+          const pauseStart = new Date(log.pause_start);
+          totalPause += Math.round((now.getTime() - pauseStart.getTime()) / 60000);
         }
+        await supabase
+          .from("work_logs")
+          .update({
+            status: "in_progress",
+            pause_end: now.toISOString(),
+            total_pause_minutes: totalPause,
+          })
+          .eq("id", log.id);
       }
     } catch (err) {
       console.error("Error auto-resuming work logs:", err);
+    } finally {
+      autoPausedLogIdRef.current = null;
     }
   };
 
