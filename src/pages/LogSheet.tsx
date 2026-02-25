@@ -1047,6 +1047,15 @@ export default function LogSheet() {
                                   <span className="text-muted-foreground text-xs">—</span>
                                 )}
                               </TableCell>
+                              <TableCell>
+                                {log.department ? (
+                                  <Badge variant="secondary" className="font-normal text-xs py-0 h-5">
+                                    {log.department}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">—</span>
+                                )}
+                              </TableCell>
                               <TableCell className="max-w-[200px]">
                                 <p className="text-sm truncate">{log.task_description}</p>
                               </TableCell>
