@@ -403,9 +403,11 @@ const Reports = () => {
   const formatTime24 = (dateString: string | null) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
-    const hours = String(date.getHours()).padStart(2, "0");
+    let hours = date.getHours();
     const minutes = String(date.getMinutes()).padStart(2, "0");
-    return `${hours}:${minutes}`;
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    return `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
   };
 
   const formatBreakDuration = (minutes: number): string => {
