@@ -911,12 +911,22 @@ const Reports = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select an employee" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <div className="p-2 sticky top-0 bg-background">
+                    <SelectContent className="max-h-[300px]">
+                      <div className="p-2 sticky top-0 z-10 bg-popover border-b">
                         <Input
+                          ref={searchInputRef}
                           placeholder="Search employee..."
                           value={employeeSearchQuery}
-                          onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setEmployeeSearchQuery(e.target.value);
+                            // Force refocus after Radix tries to steal it
+                            setTimeout(() => searchInputRef.current?.focus(), 0);
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          onKeyUp={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onFocus={(e) => e.stopPropagation()}
                           className="h-8"
                         />
                       </div>
