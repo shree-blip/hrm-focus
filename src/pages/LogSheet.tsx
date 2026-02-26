@@ -1310,7 +1310,7 @@ export default function LogSheet() {
               {/* Department */}
               <div className="space-y-1.5">
                 <Label className="text-sm">
-                  Department
+                  Work Department
                   {userDepartment && !editingLog && (
                     <span className="text-xs text-muted-foreground ml-1.5">(auto-filled from profile)</span>
                   )}
