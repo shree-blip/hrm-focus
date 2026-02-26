@@ -196,7 +196,7 @@ export function Header({ isMobile }: HeaderProps = {}) {
       <div className="flex items-center gap-4">
         <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4" />
-          <span className="text-sm font-medium">
+          <span className="text-sm font-bold">
             {formatNepalTime(currentTime)} NPT | {formatCSTTime(currentTime)} CST | {formatCaliforniaTime(currentTime)}{" "}
             PST • {formatDate(currentTime)}
           </span>
