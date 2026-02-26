@@ -72,20 +72,75 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const DEPARTMENTS = [
-  "Engineering",
-  "Marketing",
-  "Sales",
-  "Human Resources",
-  "Finance",
-  "Operations",
-  "Design",
-  "Customer Support",
-  "Legal",
-  "Product",
-  "Tax",
-  "Other",
+// ─── Nested Department Data ─────────────────────────────────────────────────
+interface DepartmentItem {
+  label: string;
+  value: string;
+  children?: { label: string; value: string }[];
+}
+
+const DEPARTMENTS: DepartmentItem[] = [
+  {
+    label: "Tax",
+    value: "Tax",
+    children: [
+      { label: "Tax", value: "Tax" },
+      { label: "Tax Preparation", value: "Tax_Preparation" },
+      { label: "Tax Return Review", value: "Tax_Return_Review" },
+      { label: "Tax Return Walk Through", value: "Tax_Return_Walk_Through" },
+      { label: "Tax Return Compliance", value: "Tax_Return_Compliance" },
+      { label: "TR Compliance", value: "TR_Compliance" },
+      { label: "TR Closure", value: "TR_Closure" },
+      { label: "TR Invoicing", value: "TR_Invoicing" },
+    ],
+  },
+  {
+    label: "Payroll",
+    value: "Payroll",
+    children: [
+      { label: "Payroll", value: "Payroll_" },
+      { label: "Payroll Preparation", value: "Payroll_Preparation" },
+      { label: "Payroll Notice Resolution", value: "Payroll_Notice_Resolution" },
+      { label: "Payroll Documentation", value: "Payroll_Documentation" },
+    ],
+  },
+  {
+    label: "Accounting",
+    value: "Accounting",
+    children: [
+      { label: "Accounting", value: "Accounting" },
+      { label: "Daily Bookkeeping", value: "Daily_Bookkeeping" },
+      { label: "Month End Closing", value: "Month_End_Closing" },
+      { label: "Book Review", value: "Book_Review" },
+      { label: "Book Discussion with Client", value: "Book_Discussion_with_Client" },
+      { label: "Sales Tax Preparation & Filing", value: "Sales_Tax_Preparation_Filing" },
+      { label: "Sales Tax Notice Resolution", value: "Sales_Tax_Notice_Resolution" },
+    ],
+  },
+  { label: "Marketing", value: "Marketing" },
+  { label: "Sales", value: "Sales" },
+  { label: "Finance", value: "Finance" },
+  { label: "Operations", value: "Operations" },
+  { label: "Design", value: "Design" },
+  { label: "Engineering", value: "Engineering" },
+  { label: "Human Resources", value: "Human Resources" },
+  { label: "Customer Support", value: "Customer Support" },
+  { label: "Legal", value: "Legal" },
+  { label: "Product", value: "Product" },
+  { label: "Other", value: "Other" },
 ];
+
+// Helper: find display label for a department value
+function getDepartmentDisplayLabel(value: string): string | null {
+  for (const dept of DEPARTMENTS) {
+    if (dept.value === value) return dept.label;
+    if (dept.children) {
+      const child = dept.children.find((c) => c.value === value);
+      if (child) return `${dept.label} → ${child.label}`;
+    }
+  }
+  return null;
+}
 
 import { formatTime12h, getCurrentTime24h, formatDuration } from "@/lib/timeFormat";
 
@@ -94,6 +149,121 @@ const getCurrentTime = getCurrentTime24h;
 
 /** Format total minutes to human readable */
 const formatTime = formatDuration;
+
+// ─── Department Select (collapsible nested dropdown) ────────────────────────
+interface DepartmentSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  compact?: boolean;
+}
+
+function DepartmentSelect({ value, onChange, compact = false }: DepartmentSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (groupValue: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      next.has(groupValue) ? next.delete(groupValue) : next.add(groupValue);
+      return next;
+    });
+  };
+
+  const displayLabel = useMemo(() => getDepartmentDisplayLabel(value), [value]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          className={cn(
+            "w-full justify-between font-normal",
+            compact ? "h-9 text-sm" : "",
+            !displayLabel && "text-muted-foreground",
+          )}
+        >
+          <span className="truncate">{displayLabel || "Select department"}</span>
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start">
+        <div className="max-h-[400px] overflow-y-auto p-1">
+          {DEPARTMENTS.map((dept) => {
+            const hasChildren = dept.children && dept.children.length > 0;
+            const isExpanded = expandedGroups.has(dept.value);
+
+            return (
+              <div key={dept.value}>
+                {/* Parent row */}
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex-1 flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                      value === dept.value && "bg-accent",
+                    )}
+                    onClick={() => {
+                      if (!hasChildren) {
+                        onChange(dept.value);
+                        setOpen(false);
+                      } else {
+                        // Toggle expand when clicking a parent with children
+                        toggleGroup(dept.value);
+                      }
+                    }}
+                  >
+                    <Check className={cn("h-4 w-4 shrink-0", value === dept.value ? "opacity-100" : "opacity-0")} />
+                    <span className={cn(hasChildren && "font-medium")}>{dept.label}</span>
+                  </button>
+
+                  {/* Expand/collapse chevron for groups */}
+                  {hasChildren && (
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleGroup(dept.value);
+                      }}
+                    >
+                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                  )}
+                </div>
+
+                {/* Children (collapsible) */}
+                {hasChildren && isExpanded && (
+                  <div className="ml-4 border-l pl-1 my-0.5">
+                    {dept.children!.map((child) => (
+                      <button
+                        key={child.value}
+                        type="button"
+                        className={cn(
+                          "w-full flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                          value === child.value && "bg-accent",
+                        )}
+                        onClick={() => {
+                          onChange(child.value);
+                          setOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn("h-4 w-4 shrink-0", value === child.value ? "opacity-100" : "opacity-0")}
+                        />
+                        <span>{child.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 // ─── Client Combobox (reusable for both add-dialog and inline edit) ─────────
 interface ClientComboboxProps {
@@ -618,26 +788,11 @@ export default function LogSheet() {
                               </div>
                               <div className="space-y-1.5">
                                 <Label className="text-xs font-medium text-muted-foreground">Department</Label>
-                                <Select
+                                <DepartmentSelect
                                   value={inlineData.department}
-                                  onValueChange={(v) =>
-                                    setInlineData({
-                                      ...inlineData,
-                                      department: v,
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger className="h-9 text-sm">
-                                    <SelectValue placeholder="Department" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {DEPARTMENTS.map((d) => (
-                                      <SelectItem key={d} value={d}>
-                                        {d}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  onChange={(v) => setInlineData({ ...inlineData, department: v })}
+                                  compact
+                                />
                               </div>
                             </div>
 
@@ -772,7 +927,7 @@ export default function LogSheet() {
                                 {log.department && (
                                   <Badge variant="secondary" className="gap-1 text-xs py-0 h-5 font-normal">
                                     <Building2 className="h-3 w-3" />
-                                    {log.department}
+                                    {getDepartmentDisplayLabel(log.department) || log.department}
                                   </Badge>
                                 )}
                                 {log.notes && (
@@ -931,7 +1086,6 @@ export default function LogSheet() {
                                     </AlertDialogContent>
                                   </AlertDialog>
                                 )}
-                                {/* Lock indicator for completed tasks */}
                                 {/* Lock indicator + delete for completed tasks */}
                                 {isCompleted && (
                                   <>
@@ -1050,7 +1204,7 @@ export default function LogSheet() {
                               <TableCell>
                                 {log.department ? (
                                   <Badge variant="secondary" className="font-normal text-xs py-0 h-5">
-                                    {log.department}
+                                    {getDepartmentDisplayLabel(log.department) || log.department}
                                   </Badge>
                                 ) : (
                                   <span className="text-muted-foreground text-xs">—</span>
@@ -1161,21 +1315,10 @@ export default function LogSheet() {
                     <span className="text-xs text-muted-foreground ml-1.5">(auto-filled from profile)</span>
                   )}
                 </Label>
-                <Select
-                  value={formData.department}
-                  onValueChange={(value) => setFormData({ ...formData, department: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DEPARTMENTS.map((dept) => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <DepartmentSelect
+                  value={formData.department || ""}
+                  onChange={(value) => setFormData({ ...formData, department: value })}
+                />
               </div>
 
               <Separator />
