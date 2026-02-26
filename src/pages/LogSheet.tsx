@@ -1294,7 +1294,7 @@ export default function LogSheet() {
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Client */}
               <div className="space-y-1.5">
-                <Label className="text-sm">Client (optional)</Label>
+                <Label className="text-sm">Client </Label>
                 <ClientCombobox
                   clients={clients}
                   value={formData.client_id || ""}
