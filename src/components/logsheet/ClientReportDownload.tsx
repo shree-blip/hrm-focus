@@ -22,6 +22,9 @@ import {
   User,
   X,
   FileSpreadsheet,
+  Building2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +37,7 @@ interface ReportLog {
   start_time: string | null;
   end_time: string | null;
   status: string | null;
+  department: string | null;
   employee?: {
     first_name: string;
     last_name: string;
@@ -52,6 +56,196 @@ interface Employee {
   department: string | null;
   employee_id: string | null;
   email: string | null;
+}
+
+// ─── Nested Department Data ─────────────────────────────────────────────────
+interface DepartmentItem {
+  label: string;
+  value: string;
+  children?: { label: string; value: string }[];
+}
+
+const DEPARTMENTS: DepartmentItem[] = [
+  {
+    label: "Tax",
+    value: "Tax",
+    children: [
+      { label: "Tax", value: "Tax" },
+      { label: "Tax Preparation", value: "Tax_Preparation" },
+      { label: "Tax Return Review", value: "Tax_Return_Review" },
+      { label: "Tax Return Walk Through", value: "Tax_Return_Walk_Through" },
+      { label: "Tax Return Compliance", value: "Tax_Return_Compliance" },
+      { label: "TR Compliance", value: "TR_Compliance" },
+      { label: "TR Closure", value: "TR_Closure" },
+      { label: "TR Invoicing", value: "TR_Invoicing" },
+    ],
+  },
+  {
+    label: "Payroll",
+    value: "Payroll",
+    children: [
+      { label: "Payroll", value: "Payroll_" },
+      { label: "Payroll Preparation", value: "Payroll_Preparation" },
+      { label: "Payroll Notice Resolution", value: "Payroll_Notice_Resolution" },
+      { label: "Payroll Documentation", value: "Payroll_Documentation" },
+    ],
+  },
+  {
+    label: "Accounting",
+    value: "Accounting",
+    children: [
+      { label: "Accounting", value: "Accounting" },
+      { label: "Daily Bookkeeping", value: "Daily_Bookkeeping" },
+      { label: "Month End Closing", value: "Month_End_Closing" },
+      { label: "Book Review", value: "Book_Review" },
+      { label: "Book Discussion with Client", value: "Book_Discussion_with_Client" },
+      { label: "Sales Tax Preparation & Filing", value: "Sales_Tax_Preparation_Filing" },
+      { label: "Sales Tax Notice Resolution", value: "Sales_Tax_Notice_Resolution" },
+    ],
+  },
+
+  { label: "Marketing", value: "Marketing" },
+  { label: "Sales", value: "Sales" },
+  { label: "Human Resources", value: "Human Resources" },
+  { label: "Finance", value: "Finance" },
+  { label: "Operations", value: "Operations" },
+  { label: "Design", value: "Design" },
+  { label: "Customer Support", value: "Customer Support" },
+  { label: "Legal", value: "Legal" },
+  { label: "Engineering", value: "Engineering" },
+  { label: "Product", value: "Product" },
+  { label: "Other", value: "Other" },
+];
+
+// Helper: find display label for a department value
+function getDepartmentDisplayLabel(value: string): string | null {
+  for (const dept of DEPARTMENTS) {
+    if (dept.value === value) return dept.label;
+    if (dept.children) {
+      const child = dept.children.find((c) => c.value === value);
+      if (child) return `${dept.label} → ${child.label}`;
+    }
+  }
+  return null;
+}
+
+// ─── Department Select (collapsible nested dropdown) ────────────────────────
+interface DepartmentSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  compact?: boolean;
+  placeholder?: string;
+}
+
+function DepartmentSelect({
+  value,
+  onChange,
+  compact = false,
+  placeholder = "All departments",
+}: DepartmentSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (groupValue: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      next.has(groupValue) ? next.delete(groupValue) : next.add(groupValue);
+      return next;
+    });
+  };
+
+  const displayLabel = useMemo(() => getDepartmentDisplayLabel(value), [value]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          className={cn(
+            "w-full justify-between font-normal",
+            compact ? "h-9 text-sm" : "",
+            !displayLabel && "text-muted-foreground",
+          )}
+        >
+          <span className="truncate">{displayLabel || placeholder}</span>
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start">
+        <div className="max-h-[400px] overflow-y-auto p-1">
+          {DEPARTMENTS.map((dept) => {
+            const hasChildren = dept.children && dept.children.length > 0;
+            const isExpanded = expandedGroups.has(dept.value);
+
+            return (
+              <div key={dept.value}>
+                {/* Parent row */}
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex-1 flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                      value === dept.value && "bg-accent",
+                    )}
+                    onClick={() => {
+                      if (!hasChildren) {
+                        onChange(dept.value);
+                        setOpen(false);
+                      } else {
+                        toggleGroup(dept.value);
+                      }
+                    }}
+                  >
+                    <Check className={cn("h-4 w-4 shrink-0", value === dept.value ? "opacity-100" : "opacity-0")} />
+                    <span className={cn(hasChildren && "font-medium")}>{dept.label}</span>
+                  </button>
+
+                  {hasChildren && (
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleGroup(dept.value);
+                      }}
+                    >
+                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                  )}
+                </div>
+
+                {/* Children (collapsible) */}
+                {hasChildren && isExpanded && (
+                  <div className="ml-4 border-l pl-1 my-0.5">
+                    {dept.children!.map((child) => (
+                      <button
+                        key={child.value}
+                        type="button"
+                        className={cn(
+                          "w-full flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                          value === child.value && "bg-accent",
+                        )}
+                        onClick={() => {
+                          onChange(child.value);
+                          setOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn("h-4 w-4 shrink-0", value === child.value ? "opacity-100" : "opacity-0")}
+                        />
+                        <span>{child.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // Helper to format minutes as hours and minutes
@@ -85,6 +279,7 @@ export function ClientReportDownload() {
   const [employeeSearchOpen, setEmployeeSearchOpen] = useState(false);
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("");
 
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
@@ -164,13 +359,15 @@ export function ClientReportDownload() {
       : `${selectedEmployeeObj.first_name} ${selectedEmployeeObj.last_name}`
     : null;
 
-  // Calculate time spent by each employee
+  // Calculate time spent by each employee — uses log.department (work log dept)
   const employeeTimeSummary = useMemo(() => {
     const summary: Record<string, { name: string; department: string; totalMinutes: number }> = {};
 
     reportLogs.forEach((log) => {
       const employeeName = log.employee ? `${log.employee.first_name} ${log.employee.last_name}` : "Unassigned";
-      const department = log.employee?.department || "N/A";
+      // USE log.department (work log department), NOT log.employee.department (profile)
+      const deptValue = log.department || log.employee?.department || "N/A";
+      const department = getDepartmentDisplayLabel(deptValue) || deptValue;
       const key = employeeName;
 
       if (!summary[key]) {
@@ -200,6 +397,22 @@ export function ClientReportDownload() {
     return Object.values(summary).sort((a, b) => b.totalMinutes - a.totalMinutes);
   }, [reportLogs]);
 
+  // Calculate time spent by each department — uses log.department (work log dept)
+  const departmentTimeSummary = useMemo(() => {
+    const summary: Record<string, { name: string; rawValue: string; totalMinutes: number }> = {};
+
+    reportLogs.forEach((log) => {
+      const deptRaw = log.department || "No Department";
+      const deptDisplay = getDepartmentDisplayLabel(deptRaw) || deptRaw;
+      if (!summary[deptRaw]) {
+        summary[deptRaw] = { name: deptDisplay, rawValue: deptRaw, totalMinutes: 0 };
+      }
+      summary[deptRaw].totalMinutes += log.time_spent_minutes;
+    });
+
+    return Object.values(summary).sort((a, b) => b.totalMinutes - a.totalMinutes);
+  }, [reportLogs]);
+
   const handleClientSelect = (clientId: string) => {
     setSelectedClient(clientId);
     setClientSearchOpen(false);
@@ -220,6 +433,10 @@ export function ClientReportDownload() {
     setSelectedEmployee("");
   };
 
+  const clearDepartment = () => {
+    setSelectedDepartment("");
+  };
+
   const fetchReport = async () => {
     setLoading(true);
     setHasSearched(true);
@@ -237,6 +454,7 @@ export function ClientReportDownload() {
           start_time,
           end_time,
           status,
+          department,
           employee:employees(first_name, last_name, department),
           client:clients(name, client_id)
         `,
@@ -251,6 +469,9 @@ export function ClientReportDownload() {
       }
       if (selectedEmployee) {
         query = query.eq("employee_id", selectedEmployee);
+      }
+      if (selectedDepartment) {
+        query = query.eq("department", selectedDepartment);
       }
 
       const { data, error } = await query;
@@ -281,7 +502,7 @@ export function ClientReportDownload() {
     const totalMinutes = reportLogs.reduce((sum, log) => sum + log.time_spent_minutes, 0);
 
     // Determine report type for header
-    const isAllReport = !selectedClient && !selectedEmployee;
+    const isAllReport = !selectedClient && !selectedEmployee && !selectedDepartment;
     const reportTitle = isAllReport ? "COMPLETE WORK LOG REPORT - ALL CLIENTS & EMPLOYEES" : "WORK LOG REPORT";
 
     // Build CSV content with sections
@@ -307,11 +528,16 @@ export function ClientReportDownload() {
       if (employeeCode) {
         csvLines.push(`Employee ID,${employeeCode}`);
       }
-      if (selectedEmployeeObj?.department) {
-        csvLines.push(`Department,${selectedEmployeeObj.department}`);
-      }
     } else {
       csvLines.push("Employee Filter,All Employees");
+    }
+
+    // Department info
+    if (selectedDepartment) {
+      const deptDisplay = getDepartmentDisplayLabel(selectedDepartment) || selectedDepartment;
+      csvLines.push(`Department Filter,${deptDisplay}`);
+    } else {
+      csvLines.push("Department Filter,All Departments");
     }
 
     csvLines.push(`Report Period,${format(startDate, "yyyy-MM-dd")} to ${format(endDate, "yyyy-MM-dd")}`);
@@ -328,6 +554,9 @@ export function ClientReportDownload() {
     }
     if (!selectedEmployee) {
       csvLines.push(`Total Employees,${employeeTimeSummary.length}`);
+    }
+    if (!selectedDepartment) {
+      csvLines.push(`Total Departments,${departmentTimeSummary.length}`);
     }
     csvLines.push("");
 
@@ -363,6 +592,20 @@ export function ClientReportDownload() {
       csvLines.push("");
     }
 
+    // ===== SECTION 4b: Time by Department =====
+    if (!selectedDepartment && departmentTimeSummary.length > 0) {
+      csvLines.push("TIME BY DEPARTMENT");
+      csvLines.push("");
+      csvLines.push("Department,Total Time,Hours (Decimal)");
+
+      departmentTimeSummary.forEach((dept) => {
+        csvLines.push(`"${dept.name}","${formatTime(dept.totalMinutes)}",${formatDecimalHours(dept.totalMinutes)}`);
+      });
+
+      csvLines.push(`"TOTAL","${formatTime(totalMinutes)}",${formatDecimalHours(totalMinutes)}`);
+      csvLines.push("");
+    }
+
     // ===== SECTION 5: Detailed Log Entries =====
     csvLines.push("DETAILED LOG ENTRIES");
     csvLines.push("");
@@ -384,10 +627,11 @@ export function ClientReportDownload() {
     csvLines.push(detailHeaders.join(","));
 
     reportLogs.forEach((log) => {
+      const deptDisplay = log.department ? getDepartmentDisplayLabel(log.department) || log.department : "N/A";
       const row = [
         format(new Date(log.log_date), "yyyy-MM-dd"),
         log.employee ? `"${log.employee.first_name} ${log.employee.last_name}"` : "N/A",
-        log.employee?.department ? `"${log.employee.department}"` : "N/A",
+        `"${deptDisplay}"`,
         log.client?.name ? `"${log.client.name}"` : "N/A",
         log.client?.client_id || "N/A",
         `"${log.task_description.replace(/"/g, '""')}"`,
@@ -422,6 +666,10 @@ export function ClientReportDownload() {
     } else {
       fileName += "_all_employees";
     }
+    if (selectedDepartment) {
+      const deptLabel = getDepartmentDisplayLabel(selectedDepartment) || selectedDepartment;
+      fileName += `_${deptLabel.replace(/[→\s]+/g, "_")}`;
+    }
     fileName += `_${format(startDate, "yyyy-MM-dd")}_to_${format(endDate, "yyyy-MM-dd")}.csv`;
 
     link.download = fileName;
@@ -438,15 +686,16 @@ export function ClientReportDownload() {
 
   // Determine report type label
   const getReportTypeLabel = () => {
-    if (!selectedClient && !selectedEmployee) return "All Data";
-    if (selectedClient && selectedEmployee) return "Client & Employee";
-    if (selectedClient) return "Client";
-    if (selectedEmployee) return "Employee";
-    return "";
+    if (!selectedClient && !selectedEmployee && !selectedDepartment) return "All Data";
+    const parts: string[] = [];
+    if (selectedClient) parts.push("Client");
+    if (selectedEmployee) parts.push("Employee");
+    if (selectedDepartment) parts.push("Department");
+    return parts.join(" & ");
   };
 
   // Check if it's an "all data" report
-  const isAllDataReport = !selectedClient && !selectedEmployee;
+  const isAllDataReport = !selectedClient && !selectedEmployee && !selectedDepartment;
 
   return (
     <Card>
@@ -458,7 +707,7 @@ export function ClientReportDownload() {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           {/* Searchable Client Selection */}
           <div className="space-y-2">
             <Label>Client</Label>
@@ -594,6 +843,28 @@ export function ClientReportDownload() {
             </div>
           </div>
 
+          {/* Department Filter — now nested dropdown */}
+          <div className="space-y-2">
+            <Label>Department</Label>
+            <div className="relative">
+              <DepartmentSelect
+                value={selectedDepartment}
+                onChange={setSelectedDepartment}
+                placeholder="All departments"
+              />
+              {selectedDepartment && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-8 top-0 h-full px-2 hover:bg-transparent z-10"
+                  onClick={clearDepartment}
+                >
+                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </Button>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>Start Date</Label>
             <Popover>
@@ -643,7 +914,7 @@ export function ClientReportDownload() {
           <p className="text-sm text-muted-foreground">
             {isAllDataReport
               ? "Generate a complete report for all clients and employees within the selected date range."
-              : "Filter by client, employee, or both. Leave filters empty for a complete report."}
+              : "Filter by client, employee, department, or any combination. Leave filters empty for a complete report."}
           </p>
         </div>
 
@@ -686,6 +957,14 @@ export function ClientReportDownload() {
                       </p>
                     </div>
                   )}
+                  {selectedDepartment && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Department</p>
+                      <p className="font-semibold">
+                        {getDepartmentDisplayLabel(selectedDepartment) || selectedDepartment}
+                      </p>
+                    </div>
+                  )}
                   {!selectedClient && (
                     <div>
                       <p className="text-sm text-muted-foreground">Total Clients</p>
@@ -714,7 +993,7 @@ export function ClientReportDownload() {
               </div>
             )}
 
-            {/* Time by Client Summary (when not filtering by specific client) */}
+            {/* Time by Client Summary */}
             {reportLogs.length > 0 && !selectedClient && clientTimeSummary.length > 0 && (
               <div className="p-4 border rounded-lg bg-card">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
@@ -737,7 +1016,7 @@ export function ClientReportDownload() {
               </div>
             )}
 
-            {/* Time by Employee Summary (when not filtering by specific employee) */}
+            {/* Time by Employee Summary */}
             {reportLogs.length > 0 && !selectedEmployee && employeeTimeSummary.length > 0 && (
               <div className="p-4 border rounded-lg bg-card">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
@@ -760,7 +1039,30 @@ export function ClientReportDownload() {
               </div>
             )}
 
-            {/* Table */}
+            {/* Time by Department Summary */}
+            {reportLogs.length > 0 && !selectedDepartment && departmentTimeSummary.length > 0 && (
+              <div className="p-4 border rounded-lg bg-card">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Time by Department ({departmentTimeSummary.length} departments)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto">
+                  {departmentTimeSummary.map((dept) => (
+                    <div key={dept.rawValue} className="flex items-center justify-between p-3 bg-muted/30 rounded-md">
+                      <p className="font-medium text-sm">{dept.name}</p>
+                      <Badge variant="secondary" className="ml-2">
+                        {formatTime(dept.totalMinutes)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                TABLE — 7 headers, 7 cells, using log.department
+                Same pattern as Team Logs tab in LogSheet.tsx
+            ═══════════════════════════════════════════════════════════ */}
             {reportLogs.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -773,6 +1075,7 @@ export function ClientReportDownload() {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Employee</TableHead>
+                      <TableHead>Department</TableHead>
                       <TableHead>Client</TableHead>
                       <TableHead>Task</TableHead>
                       <TableHead>Time</TableHead>
@@ -782,10 +1085,23 @@ export function ClientReportDownload() {
                   <TableBody>
                     {reportLogs.slice(0, 15).map((log) => (
                       <TableRow key={log.id}>
+                        {/* 1. Date */}
                         <TableCell>{format(new Date(log.log_date), "MMM d, yyyy")}</TableCell>
+                        {/* 2. Employee name */}
                         <TableCell>
                           {log.employee ? `${log.employee.first_name} ${log.employee.last_name}` : "N/A"}
                         </TableCell>
+                        {/* 3. Department — from work_logs.department with friendly label */}
+                        <TableCell>
+                          {log.department ? (
+                            <Badge variant="secondary" className="font-normal text-xs">
+                              {getDepartmentDisplayLabel(log.department) || log.department}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        {/* 4. Client */}
                         <TableCell>
                           {log.client?.name ? (
                             <div className="flex flex-col">
@@ -798,12 +1114,15 @@ export function ClientReportDownload() {
                             "N/A"
                           )}
                         </TableCell>
+                        {/* 5. Task */}
                         <TableCell className="max-w-xs">
                           <p className="truncate">{log.task_description}</p>
                         </TableCell>
+                        {/* 6. Time */}
                         <TableCell>
                           <Badge variant="secondary">{formatTime(log.time_spent_minutes)}</Badge>
                         </TableCell>
+                        {/* 7. Status */}
                         <TableCell>
                           <Badge variant={log.status === "in_progress" ? "default" : "outline"}>
                             {log.status || "completed"}
