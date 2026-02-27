@@ -193,14 +193,14 @@ export function Header({ isMobile }: HeaderProps = {}) {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" />
-          <span className="text-sm font-bold">
-            {formatNepalTime(currentTime)} NPT | {formatCSTTime(currentTime)} CST | {formatCaliforniaTime(currentTime)}{" "}
-            PST • {formatDate(currentTime)}
-          </span>
-        </div>
+// FROM THIS:
+<div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+  <Clock className="h-4 w-4" />
+  <span className="text-sm font-bold">
+    {formatNepalTime(currentTime)} NPT | {formatCSTTime(currentTime)} CST | {formatCaliforniaTime(currentTime)}{" "}
+    PST • {formatDate(currentTime)}
+  </span>
+</div>
 
         <DropdownMenu
           onOpenChange={(open) => {
