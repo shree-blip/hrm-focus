@@ -21,6 +21,7 @@ import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import focusLogo from "@/assets/focus-logo.png";
+
 interface HeaderProps {
   isMobile?: boolean;
 }
@@ -193,14 +194,15 @@ export function Header({ isMobile }: HeaderProps = {}) {
         </div>
       </div>
 
-// FROM THIS:
-<div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
-  <Clock className="h-4 w-4" />
-  <span className="text-sm font-bold">
-    {formatNepalTime(currentTime)} NPT | {formatCSTTime(currentTime)} CST | {formatCaliforniaTime(currentTime)}{" "}
-    PST • {formatDate(currentTime)}
-  </span>
-</div>
+      <div className="flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span className="text-sm font-bold">
+            {formatNepalTime(currentTime)} <span className="text-blue-500">NPT</span> | {formatCSTTime(currentTime)}{" "}
+            <span className="text-emerald-500">CST</span> | {formatCaliforniaTime(currentTime)}{" "}
+            <span className="text-amber-500">PST</span> • {formatDate(currentTime)}
+          </span>
+        </div>
 
         <DropdownMenu
           onOpenChange={(open) => {
