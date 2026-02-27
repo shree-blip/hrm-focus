@@ -20,6 +20,7 @@ interface Employee {
   status: Status;
   lastAction: string | null;
   avatar: string | null;
+  workLocation: "office" | "home";
 }
 
 interface Event {
@@ -27,6 +28,7 @@ interface Event {
   name: string;
   type: Status;
   time: string;
+  workLocation: "office" | "home";
 }
 
 // Status config
@@ -76,6 +78,7 @@ export function RealTimeAttendanceWidget() {
   const [activeFilter, setActiveFilter] = useState<FilterType | null>(null);
   const [nptTime, setNptTime] = useState("");
   const [pstTime, setPstTime] = useState("");
+  const [locationTab, setLocationTab] = useState<"all" | "office" | "home">("all");
 
   // Live clock for NPT and PST
   useEffect(() => {
@@ -166,6 +169,7 @@ export function RealTimeAttendanceWidget() {
         status,
         lastAction,
         avatar: e.profiles?.avatar_url || null,
+        workLocation: log?.work_location || "office",
       };
     });
 
@@ -194,13 +198,54 @@ export function RealTimeAttendanceWidget() {
     logs?.forEach((log) => {
       const emp = empMap.get(log.employee_id) || userEmpMap.get(log.user_id);
       const name = emp ? `${emp.first_name} ${emp.last_name}`.trim() : "Unknown";
-
-      if (log.clock_in) evts.push({ id: `${log.id}-in`, name, type: "IN", time: log.clock_in });
-      if (log.break_start) evts.push({ id: `${log.id}-brs`, name, type: "BRS", time: log.break_start });
-      if (log.break_end) evts.push({ id: `${log.id}-bre`, name, type: "BRE", time: log.break_end });
-      if (log.pause_start) evts.push({ id: `${log.id}-pause`, name, type: "PAUSE", time: log.pause_start });
-      if (log.pause_end) evts.push({ id: `${log.id}-cont`, name, type: "CONT", time: log.pause_end });
-      if (log.clock_out) evts.push({ id: `${log.id}-out`, name, type: "OUT", time: log.clock_out });
+      if (log.clock_in)
+        evts.push({
+          id: `${log.id}-in`,
+          name,
+          type: "IN",
+          time: log.clock_in,
+          workLocation: (log as any).work_location || "office",
+        });
+      if (log.break_start)
+        evts.push({
+          id: `${log.id}-brs`,
+          name,
+          type: "BRS",
+          time: log.break_start,
+          workLocation: (log as any).work_location || "office",
+        });
+      if (log.break_end)
+        evts.push({
+          id: `${log.id}-bre`,
+          name,
+          type: "BRE",
+          time: log.break_end,
+          workLocation: (log as any).work_location || "office",
+        });
+      if (log.pause_start)
+        evts.push({
+          id: `${log.id}-pause`,
+          name,
+          type: "PAUSE",
+          time: log.pause_start,
+          workLocation: (log as any).work_location || "office",
+        });
+      if (log.pause_end)
+        evts.push({
+          id: `${log.id}-cont`,
+          name,
+          type: "CONT",
+          time: log.pause_end,
+          workLocation: (log as any).work_location || "office",
+        });
+      if (log.clock_out)
+        evts.push({
+          id: `${log.id}-out`,
+          name,
+          type: "OUT",
+          time: log.clock_out,
+          workLocation: (log as any).work_location || "office",
+        });
     });
 
     evts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -209,75 +254,88 @@ export function RealTimeAttendanceWidget() {
   }, []);
 
   // Process realtime payload locally for instant updates
-  const handleRealtimeChange = useCallback((payload: any) => {
-    const log = payload.new || payload.old;
-    if (!log) {
-      fetchData();
-      return;
-    }
+  const handleRealtimeChange = useCallback(
+    (payload: any) => {
+      const log = payload.new || payload.old;
+      if (!log) {
+        fetchData();
+        return;
+      }
 
-    // Resolve the employee_id from the log — either directly or via user_id map
-    const resolvedEmpId = log.employee_id || userToEmpMap.get(log.user_id);
+      // Resolve the employee_id from the log — either directly or via user_id map
+      const resolvedEmpId = log.employee_id || userToEmpMap.get(log.user_id);
 
-    if (!resolvedEmpId) {
-      // Can't match to an employee, do a full refetch
-      fetchData();
-      return;
-    }
+      if (!resolvedEmpId) {
+        // Can't match to an employee, do a full refetch
+        fetchData();
+        return;
+      }
 
-    setEmployees(prev => {
-      const updated = prev.map(emp => {
-        if (emp.id !== resolvedEmpId) return emp;
+      setEmployees((prev) => {
+        const updated = prev.map((emp) => {
+          if (emp.id !== resolvedEmpId) return emp;
 
-        let status: Status = "—";
-        if (log.clock_out) status = "OUT";
-        else if (log.pause_start && !log.pause_end) status = "PAUSE";
-        else if (log.break_start && !log.break_end) status = "BRS";
-        else if (log.clock_in) status = "IN";
+          let status: Status = "—";
+          if (log.clock_out) status = "OUT";
+          else if (log.pause_start && !log.pause_end) status = "PAUSE";
+          else if (log.break_start && !log.break_end) status = "BRS";
+          else if (log.clock_in) status = "IN";
 
-        const times = [log.clock_out, log.pause_end, log.pause_start, log.break_end, log.break_start, log.clock_in].filter(Boolean);
-        const lastAction = times.length > 0 ? times.reduce((a: string, b: string) => (new Date(b) > new Date(a) ? b : a)) : emp.lastAction;
+          const times = [
+            log.clock_out,
+            log.pause_end,
+            log.pause_start,
+            log.break_end,
+            log.break_start,
+            log.clock_in,
+          ].filter(Boolean);
+          const lastAction =
+            times.length > 0
+              ? times.reduce((a: string, b: string) => (new Date(b) > new Date(a) ? b : a))
+              : emp.lastAction;
 
-        return { ...emp, status, lastAction };
+          return { ...emp, status, lastAction, workLocation: log.work_location || emp.workLocation };
+        });
+
+        updated.sort((a, b) => {
+          if (!a.lastAction && !b.lastAction) return 0;
+          if (!a.lastAction) return 1;
+          if (!b.lastAction) return -1;
+          return new Date(b.lastAction).getTime() - new Date(a.lastAction).getTime();
+        });
+
+        // Update summary
+        const working = updated.filter((e) => ["IN", "BRE", "CONT"].includes(e.status)).length;
+        const onBreak = updated.filter((e) => e.status === "BRS").length;
+        const paused = updated.filter((e) => e.status === "PAUSE").length;
+        const out = updated.filter((e) => e.status === "OUT").length;
+        setSummary({ total: updated.length, working, break: onBreak, paused, out });
+
+        // Update events
+        const evtName = updated.find((e) => e.id === resolvedEmpId)?.name || "Unknown";
+        setEvents((prevEvts) => {
+          const newEvts = [...prevEvts];
+          const addEvt = (type: Status, time: string) => {
+            const id = `${log.id}-${type.toLowerCase()}`;
+            if (!newEvts.find((e) => e.id === id)) {
+              newEvts.unshift({ id, name: evtName, type, time, workLocation: log.work_location || "office" });
+            }
+          };
+          if (log.clock_in) addEvt("IN", log.clock_in);
+          if (log.break_start) addEvt("BRS", log.break_start);
+          if (log.break_end) addEvt("BRE", log.break_end);
+          if (log.pause_start) addEvt("PAUSE", log.pause_start);
+          if (log.pause_end) addEvt("CONT", log.pause_end);
+          if (log.clock_out) addEvt("OUT", log.clock_out);
+          newEvts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+          return newEvts.slice(0, 20);
+        });
+
+        return updated;
       });
-
-      updated.sort((a, b) => {
-        if (!a.lastAction && !b.lastAction) return 0;
-        if (!a.lastAction) return 1;
-        if (!b.lastAction) return -1;
-        return new Date(b.lastAction).getTime() - new Date(a.lastAction).getTime();
-      });
-
-      // Update summary
-      const working = updated.filter(e => ["IN", "BRE", "CONT"].includes(e.status)).length;
-      const onBreak = updated.filter(e => e.status === "BRS").length;
-      const paused = updated.filter(e => e.status === "PAUSE").length;
-      const out = updated.filter(e => e.status === "OUT").length;
-      setSummary({ total: updated.length, working, break: onBreak, paused, out });
-
-      // Update events
-      const evtName = updated.find(e => e.id === resolvedEmpId)?.name || "Unknown";
-      setEvents(prevEvts => {
-        const newEvts = [...prevEvts];
-        const addEvt = (type: Status, time: string) => {
-          const id = `${log.id}-${type.toLowerCase()}`;
-          if (!newEvts.find(e => e.id === id)) {
-            newEvts.unshift({ id, name: evtName, type, time });
-          }
-        };
-        if (log.clock_in) addEvt("IN", log.clock_in);
-        if (log.break_start) addEvt("BRS", log.break_start);
-        if (log.break_end) addEvt("BRE", log.break_end);
-        if (log.pause_start) addEvt("PAUSE", log.pause_start);
-        if (log.pause_end) addEvt("CONT", log.pause_end);
-        if (log.clock_out) addEvt("OUT", log.clock_out);
-        newEvts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-        return newEvts.slice(0, 20);
-      });
-
-      return updated;
-    });
-  }, [fetchData, userToEmpMap]);
+    },
+    [fetchData, userToEmpMap],
+  );
 
   useEffect(() => {
     fetchData();
@@ -294,12 +352,20 @@ export function RealTimeAttendanceWidget() {
 
   // Filter employees based on active filter
   const filteredEmployees = employees.filter((emp) => {
+    // Location filter
+    if (locationTab !== "all" && emp.workLocation !== locationTab) return false;
+    // Status filter
     if (!activeFilter || activeFilter === "all") return true;
     if (activeFilter === "working") return ["IN", "BRE", "CONT"].includes(emp.status);
     if (activeFilter === "break") return emp.status === "BRS";
     if (activeFilter === "paused") return emp.status === "PAUSE";
     if (activeFilter === "out") return emp.status === "OUT";
     return true;
+  });
+
+  const filteredEvents = events.filter((evt) => {
+    if (locationTab === "all") return true;
+    return evt.workLocation === locationTab;
   });
 
   // Handle card click
@@ -450,7 +516,29 @@ export function RealTimeAttendanceWidget() {
             </ScrollArea>
           </div>
         )}
-
+        {/* Location Tabs */}
+        <div className="flex gap-1 border rounded-lg p-1 bg-muted/30">
+          {(
+            [
+              { key: "all", label: "All" },
+              { key: "office", label: "🏢 Office" },
+              { key: "home", label: "🏠 Home" },
+            ] as const
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setLocationTab(key)}
+              className={cn(
+                "flex-1 text-xs font-medium py-1.5 px-3 rounded transition-all",
+                locationTab === key
+                  ? "bg-background shadow text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         {/* Activity Feed - Show when no filter active */}
         {!activeFilter && (
           <div>
@@ -460,13 +548,13 @@ export function RealTimeAttendanceWidget() {
             </div>
             <ScrollArea className="h-[180px]">
               <div className="space-y-1">
-                {events.length === 0 ? (
+                {filteredEvents.length === 0 ? (
                   <div className="flex flex-col items-center py-8 text-muted-foreground">
                     <Clock className="h-8 w-8 mb-2 opacity-40" />
                     <p className="text-sm">No activity today</p>
                   </div>
                 ) : (
-                  events.map((evt) => {
+                  filteredEvents.map((evt) => {
                     const cfg = STATUS[evt.type];
                     const Icon = cfg.icon;
                     return (
