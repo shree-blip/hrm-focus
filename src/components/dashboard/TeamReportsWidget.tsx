@@ -36,7 +36,36 @@ export function TeamReportsWidget() {
   const pendingLeaveRequests = requests.filter((r) => r.status === "pending");
 
   // Today's clocked in count (from aggregated team attendance data)
-  const clockedInToday = teamAttendance.filter((a) => a.days_worked > 0).length;
+  const [clockedInToday, setClockedInToday] = useState(0);
+
+  useEffect(() => {
+    const fetchClockedIn = async () => {
+      const today = new Date();
+      const dayStart = startOfDay(today).toISOString();
+      const dayEnd = endOfDay(today).toISOString();
+
+      const { data: logs } = await supabase
+        .from("attendance_logs")
+        .select("id, employee_id, user_id, clock_in, clock_out")
+        .gte("clock_in", dayStart)
+        .lte("clock_in", dayEnd)
+        .is("clock_out", null);
+
+      setClockedInToday(logs?.length || 0);
+    };
+
+    fetchClockedIn();
+
+    // Real-time subscription for live updates
+    const channel = supabase
+      .channel("team-reports-attendance")
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, () => fetchClockedIn())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Top performers (most tasks completed)
   const tasksByAssignee = tasks.reduce(
