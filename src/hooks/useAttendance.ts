@@ -16,8 +16,6 @@ interface AttendanceLog {
   clock_type: "payroll" | "billable";
   status: "active" | "break" | "paused" | "completed" | "auto_clocked_out";
   location_name?: string;
-  // After: location_name?: string;
-  work_location: "office" | "home";
 }
 
 export function useAttendance(weekStart?: Date) {
@@ -234,7 +232,7 @@ export function useAttendance(weekStart?: Date) {
     }
   };
 
-  const clockIn = async (type: "payroll" | "billable" = "payroll", workLocation: "office" | "home" = "office") => {
+  const clockIn = async (type: "payroll" | "billable" = "payroll") => {
     if (!user) return;
 
     // Check geofencing (simplified - just check if location is available)
@@ -258,7 +256,6 @@ export function useAttendance(weekStart?: Date) {
         clock_type: type,
         status: "active",
         location_name: locationName,
-        work_location: workLocation,
       })
       .select()
       .single();
@@ -267,10 +264,7 @@ export function useAttendance(weekStart?: Date) {
       toast({ title: "Error", description: "Failed to clock in", variant: "destructive" });
     } else {
       setCurrentLog(data as AttendanceLog);
-      toast({
-        title: "Clocked In",
-        description: `You are now tracking ${type} time (${workLocation === "home" ? "Work From Home" : "Work From Office"}).`,
-      });
+      toast({ title: "Clocked In", description: `You are now tracking ${type} time.` });
 
       // Create notification for clock-in
       await supabase.from("notifications").insert({

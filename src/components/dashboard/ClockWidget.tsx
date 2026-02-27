@@ -31,7 +31,6 @@ interface AttendanceLogWithPause {
   pause_start: string | null;
   pause_end: string | null;
   total_pause_minutes: number;
-  work_location: "office" | "home";
 }
 
 export function ClockWidget() {
@@ -104,8 +103,8 @@ export function ClockWidget() {
     return () => clearInterval(interval);
   }, [clockStatus, typedCurrentLog]);
 
-  const handleClockIn = async (workLocation: "office" | "home") => {
-    await clockIn(clockType, workLocation);
+  const handleClockIn = async () => {
+    await clockIn(clockType);
   };
 
   const handleClockOut = async () => {
@@ -280,11 +279,6 @@ export function ClockWidget() {
               {typedCurrentLog?.clock_type === "billable" && " (Billable)"}
             </p>
           )}
-          {typedCurrentLog?.work_location && (
-            <p className="text-xs text-muted-foreground mt-1">
-              📍 {typedCurrentLog.work_location === "home" ? "Work From Home" : "Work From Office"}
-            </p>
-          )}
           {/* Show pause info if paused */}
           {clockStatus === "paused" && typedCurrentLog?.pause_start && (
             <p className="text-xs text-info mt-1">
@@ -311,16 +305,10 @@ export function ClockWidget() {
         {/* Action Buttons */}
         <div className="flex gap-2 flex-wrap">
           {clockStatus === "out" ? (
-            <div className="flex gap-2 w-full">
-              <Button onClick={() => handleClockIn("office")} className="flex-1 gap-2" size="lg">
-                <Briefcase className="h-4 w-4" />
-                Clock In (Office)
-              </Button>
-              <Button onClick={() => handleClockIn("home")} variant="secondary" className="flex-1 gap-2" size="lg">
-                <Play className="h-4 w-4" />
-                Clock In (Home)
-              </Button>
-            </div>
+            <Button onClick={handleClockIn} className="flex-1 gap-2" size="lg">
+              <Play className="h-4 w-4" />
+              Clock In
+            </Button>
           ) : (
             <>
               <Button
