@@ -232,11 +232,11 @@ export function useAttendance(weekStart?: Date) {
     }
   };
 
-  const clockIn = async (type: "payroll" | "billable" = "payroll", workLocation: "office" | "home" = "office") => {
+  const clockIn = async (type: "payroll" | "billable" = "payroll") => {
     if (!user) return;
 
     // Check geofencing (simplified - just check if location is available)
-    let locationName = workLocation === "home" ? "Home" : "Office";
+    let locationName = "Office";
     if ("geolocation" in navigator) {
       try {
         const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -256,7 +256,6 @@ export function useAttendance(weekStart?: Date) {
         clock_type: type,
         status: "active",
         location_name: locationName,
-        work_location: workLocation,
       })
       .select()
       .single();

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Clock, Play, Square, Coffee, Loader2, Briefcase, Pause, Home } from "lucide-react";
+import { Clock, Play, Square, Coffee, Loader2, Briefcase, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -103,8 +103,8 @@ export function ClockWidget() {
     return () => clearInterval(interval);
   }, [clockStatus, typedCurrentLog]);
 
-  const handleClockIn = async (workLocation: "office" | "home") => {
-    await clockIn(clockType, workLocation);
+  const handleClockIn = async () => {
+    await clockIn(clockType);
   };
 
   const handleClockOut = async () => {
@@ -292,10 +292,10 @@ export function ClockWidget() {
         </div>
 
         {/* Clock out button only visible when active (status "in") */}
-        {clockStatus === "in" && (
+        {status === "in" && (
           <button
             onClick={handleClockOut}
-            className="px-4 py-3 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-xl font-bold transition-all active:scale-[0.98] animate-in fade-in zoom-in-95 duration-200"
+            className="px-4 py-3 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl font-bold transition-all active:scale-[0.98] animate-in fade-in zoom-in-95 duration-200"
             title="Clock Out"
           >
             <Square className="h-5 w-5 fill-current" />
@@ -305,16 +305,10 @@ export function ClockWidget() {
         {/* Action Buttons */}
         <div className="flex gap-2 flex-wrap">
           {clockStatus === "out" ? (
-            <div className="flex gap-2 w-full">
-              <Button onClick={() => handleClockIn("office")} className="flex-1 gap-2" size="lg">
-                <Briefcase className="h-4 w-4" />
-                Clock In (Office)
-              </Button>
-              <Button onClick={() => handleClockIn("home")} variant="secondary" className="flex-1 gap-2" size="lg">
-                <Home className="h-4 w-4" />
-                Clock In (Home)
-              </Button>
-            </div>
+            <Button onClick={handleClockIn} className="flex-1 gap-2" size="lg">
+              <Play className="h-4 w-4" />
+              Clock In
+            </Button>
           ) : (
             <>
               <Button

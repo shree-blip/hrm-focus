@@ -5,14 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, Briefcase, Coffee, Pause, LogOut, RefreshCw, Clock, Activity, Circle, X, Home, Building2 } from "lucide-react";
+import { Users, Briefcase, Coffee, Pause, LogOut, RefreshCw, Clock, Activity, Circle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow, startOfDay, endOfDay } from "date-fns";
 
 // Types
 type Status = "IN" | "OUT" | "BRS" | "BRE" | "PAUSE" | "CONT" | "—";
 type FilterType = "all" | "working" | "break" | "paused" | "out";
-type LocationTab = "all" | "office" | "home";
+
 interface Employee {
   id: string;
   name: string;
@@ -20,7 +20,6 @@ interface Employee {
   status: Status;
   lastAction: string | null;
   avatar: string | null;
-  workLocation: string | null;
 }
 
 interface Event {
@@ -28,7 +27,6 @@ interface Event {
   name: string;
   type: Status;
   time: string;
-  workLocation: string | null;
 }
 
 // Status config
@@ -76,7 +74,6 @@ export function RealTimeAttendanceWidget() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterType | null>(null);
-  const [locationTab, setLocationTab] = useState<LocationTab>("all");
   const [nptTime, setNptTime] = useState("");
   const [pstTime, setPstTime] = useState("");
 
@@ -169,7 +166,6 @@ export function RealTimeAttendanceWidget() {
         status,
         lastAction,
         avatar: e.profiles?.avatar_url || null,
-        workLocation: log?.work_location || null,
       };
     });
 
@@ -198,14 +194,13 @@ export function RealTimeAttendanceWidget() {
     logs?.forEach((log) => {
       const emp = empMap.get(log.employee_id) || userEmpMap.get(log.user_id);
       const name = emp ? `${emp.first_name} ${emp.last_name}`.trim() : "Unknown";
-      const wl = (log as any).work_location || null;
 
-      if (log.clock_in) evts.push({ id: `${log.id}-in`, name, type: "IN", time: log.clock_in, workLocation: wl });
-      if (log.break_start) evts.push({ id: `${log.id}-brs`, name, type: "BRS", time: log.break_start, workLocation: wl });
-      if (log.break_end) evts.push({ id: `${log.id}-bre`, name, type: "BRE", time: log.break_end, workLocation: wl });
-      if (log.pause_start) evts.push({ id: `${log.id}-pause`, name, type: "PAUSE", time: log.pause_start, workLocation: wl });
-      if (log.pause_end) evts.push({ id: `${log.id}-cont`, name, type: "CONT", time: log.pause_end, workLocation: wl });
-      if (log.clock_out) evts.push({ id: `${log.id}-out`, name, type: "OUT", time: log.clock_out, workLocation: wl });
+      if (log.clock_in) evts.push({ id: `${log.id}-in`, name, type: "IN", time: log.clock_in });
+      if (log.break_start) evts.push({ id: `${log.id}-brs`, name, type: "BRS", time: log.break_start });
+      if (log.break_end) evts.push({ id: `${log.id}-bre`, name, type: "BRE", time: log.break_end });
+      if (log.pause_start) evts.push({ id: `${log.id}-pause`, name, type: "PAUSE", time: log.pause_start });
+      if (log.pause_end) evts.push({ id: `${log.id}-cont`, name, type: "CONT", time: log.pause_end });
+      if (log.clock_out) evts.push({ id: `${log.id}-out`, name, type: "OUT", time: log.clock_out });
     });
 
     evts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -243,7 +238,7 @@ export function RealTimeAttendanceWidget() {
         const times = [log.clock_out, log.pause_end, log.pause_start, log.break_end, log.break_start, log.clock_in].filter(Boolean);
         const lastAction = times.length > 0 ? times.reduce((a: string, b: string) => (new Date(b) > new Date(a) ? b : a)) : emp.lastAction;
 
-        return { ...emp, status, lastAction, workLocation: log.work_location || emp.workLocation };
+        return { ...emp, status, lastAction };
       });
 
       updated.sort((a, b) => {
@@ -264,11 +259,10 @@ export function RealTimeAttendanceWidget() {
       const evtName = updated.find(e => e.id === resolvedEmpId)?.name || "Unknown";
       setEvents(prevEvts => {
         const newEvts = [...prevEvts];
-        const wl = log.work_location || null;
         const addEvt = (type: Status, time: string) => {
           const id = `${log.id}-${type.toLowerCase()}`;
           if (!newEvts.find(e => e.id === id)) {
-            newEvts.unshift({ id, name: evtName, type, time, workLocation: wl });
+            newEvts.unshift({ id, name: evtName, type, time });
           }
         };
         if (log.clock_in) addEvt("IN", log.clock_in);
@@ -460,105 +454,19 @@ export function RealTimeAttendanceWidget() {
         {/* Activity Feed - Show when no filter active */}
         {!activeFilter && (
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Recent Activity</span>
-              </div>
-              <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
-                <button
-                  onClick={() => setLocationTab("all")}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
-                    locationTab === "all" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setLocationTab("office")}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1",
-                    locationTab === "office" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Building2 className="h-3 w-3" />
-                  Office
-                </button>
-                <button
-                  onClick={() => setLocationTab("home")}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1",
-                    locationTab === "home" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Home className="h-3 w-3" />
-                  Home
-                </button>
-              </div>
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Recent Activity</span>
             </div>
-
-            {/* Filtered working list by location */}
-            {locationTab !== "all" && (
-              <div className="border rounded-lg mb-3">
-                <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b">
-                  <span className="text-sm font-medium flex items-center gap-1.5">
-                    {locationTab === "office" ? <Building2 className="h-3.5 w-3.5" /> : <Home className="h-3.5 w-3.5" />}
-                    {locationTab === "office" ? "Work From Office" : "Work From Home"}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {employees.filter(e => e.workLocation === locationTab && e.status !== "—").length} employees
-                  </span>
-                </div>
-                <ScrollArea className="h-[120px]">
-                  {(() => {
-                    const filtered = employees.filter(e => e.workLocation === locationTab && e.status !== "—");
-                    if (filtered.length === 0) return (
-                      <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">No employees</div>
-                    );
-                    return (
-                      <div className="divide-y">
-                        {filtered.map((emp) => {
-                          const cfg = STATUS[emp.status];
-                          const Icon = cfg.icon;
-                          return (
-                            <div key={emp.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30">
-                              <Avatar className="h-7 w-7">
-                                <AvatarImage src={emp.avatar || undefined} />
-                                <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                  {getInitials(emp.name)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{emp.name}</p>
-                              </div>
-                              <Badge variant="outline" className={cn("text-[10px] gap-1", cfg.bg, cfg.color)}>
-                                <Icon className="h-3 w-3" />
-                                {emp.status}
-                              </Badge>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </ScrollArea>
-              </div>
-            )}
-
             <ScrollArea className="h-[180px]">
               <div className="space-y-1">
-                {(() => {
-                  const filteredEvents = locationTab === "all"
-                    ? events
-                    : events.filter(evt => evt.workLocation === locationTab);
-                  if (filteredEvents.length === 0) return (
-                    <div className="flex flex-col items-center py-8 text-muted-foreground">
-                      <Clock className="h-8 w-8 mb-2 opacity-40" />
-                      <p className="text-sm">No activity</p>
-                    </div>
-                  );
-                  return filteredEvents.map((evt) => {
+                {events.length === 0 ? (
+                  <div className="flex flex-col items-center py-8 text-muted-foreground">
+                    <Clock className="h-8 w-8 mb-2 opacity-40" />
+                    <p className="text-sm">No activity today</p>
+                  </div>
+                ) : (
+                  events.map((evt) => {
                     const cfg = STATUS[evt.type];
                     const Icon = cfg.icon;
                     return (
@@ -581,8 +489,8 @@ export function RealTimeAttendanceWidget() {
                         </Badge>
                       </div>
                     );
-                  });
-                })()}
+                  })
+                )}
               </div>
             </ScrollArea>
           </div>
