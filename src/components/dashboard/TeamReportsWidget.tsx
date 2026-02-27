@@ -6,16 +6,11 @@ import { useTeamAttendance } from "@/hooks/useTeamAttendance";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { startOfDay, endOfDay } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  Users, 
-  CheckCircle2, 
-  Clock,
-  Calendar,
-  TrendingUp,
-  AlertCircle,
-  UserCheck
-} from "lucide-react";
+import { Users, CheckCircle2, Clock, Calendar, TrendingUp, AlertCircle, UserCheck } from "lucide-react";
 
 export function TeamReportsWidget() {
   const { employees } = useEmployees();
@@ -24,43 +19,44 @@ export function TeamReportsWidget() {
   const { teamAttendance } = useTeamAttendance();
 
   // Team stats
-  const activeEmployees = employees.filter(e => e.status === "active");
+  const activeEmployees = employees.filter((e) => e.status === "active");
   const totalTeamMembers = activeEmployees.length;
 
   // Task distribution
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.status === "done").length;
-  const inProgressTasks = tasks.filter(t => t.status === "in-progress").length;
-  const overdueTasks = tasks.filter(t => {
+  const completedTasks = tasks.filter((t) => t.status === "done").length;
+  const inProgressTasks = tasks.filter((t) => t.status === "in-progress").length;
+  const overdueTasks = tasks.filter((t) => {
     if (!t.due_date || t.status === "done") return false;
     return new Date(t.due_date) < new Date();
   }).length;
-  const teamCompletionRate = totalTasks > 0 
-    ? Math.round((completedTasks / totalTasks) * 100) 
-    : 0;
+  const teamCompletionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   // Leave stats
-  const pendingLeaveRequests = requests.filter(r => r.status === "pending");
+  const pendingLeaveRequests = requests.filter((r) => r.status === "pending");
 
   // Today's clocked in count (from aggregated team attendance data)
-  const clockedInToday = teamAttendance.filter(a => a.days_worked > 0).length;
+  const clockedInToday = teamAttendance.filter((a) => a.days_worked > 0).length;
 
   // Top performers (most tasks completed)
-  const tasksByAssignee = tasks.reduce((acc, task) => {
-    if (task.status === "done" && task.assignee_id) {
-      acc[task.assignee_id] = (acc[task.assignee_id] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
+  const tasksByAssignee = tasks.reduce(
+    (acc, task) => {
+      if (task.status === "done" && task.assignee_id) {
+        acc[task.assignee_id] = (acc[task.assignee_id] || 0) + 1;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   const topPerformers = Object.entries(tasksByAssignee)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 3)
     .map(([userId, count]) => {
-      const employee = employees.find(e => e.profile_id === userId || e.id === userId);
+      const employee = employees.find((e) => e.profile_id === userId || e.id === userId);
       return { employee, count };
     })
-    .filter(p => p.employee);
+    .filter((p) => p.employee);
 
   return (
     <Card className="animate-slide-up" style={{ animationDelay: "350ms" }}>
@@ -122,16 +118,14 @@ export function TeamReportsWidget() {
             </div>
             <div className="space-y-2">
               {topPerformers.map(({ employee, count }, idx) => (
-                <div 
-                  key={employee?.id || idx}
-                  className="flex items-center gap-3 p-2 rounded-lg bg-accent/30"
-                >
+                <div key={employee?.id || idx} className="flex items-center gap-3 p-2 rounded-lg bg-accent/30">
                   <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
                     {idx + 1}
                   </div>
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="text-xs bg-primary/10">
-                      {employee?.first_name?.[0]}{employee?.last_name?.[0]}
+                      {employee?.first_name?.[0]}
+                      {employee?.last_name?.[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
@@ -157,7 +151,8 @@ export function TeamReportsWidget() {
               <span className="font-medium text-warning">Action Required</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {pendingLeaveRequests.length} leave request{pendingLeaveRequests.length > 1 ? "s" : ""} awaiting your approval
+              {pendingLeaveRequests.length} leave request{pendingLeaveRequests.length > 1 ? "s" : ""} awaiting your
+              approval
             </p>
           </div>
         )}
