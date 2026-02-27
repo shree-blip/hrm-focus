@@ -250,6 +250,8 @@ export function useAttendance(weekStart?: Date) {
       }
     }
 
+    const safeWorkLocation = workLocation === "home" ? "home" : "office";
+
     const { data, error } = await supabase
       .from("attendance_logs")
       .insert({
@@ -258,7 +260,8 @@ export function useAttendance(weekStart?: Date) {
         clock_type: type,
         status: "active",
         location_name: locationName,
-        work_location: workLocation,
+        work_location: safeWorkLocation,
+        work_mode: safeWorkLocation,
       })
       .select()
       .single();
