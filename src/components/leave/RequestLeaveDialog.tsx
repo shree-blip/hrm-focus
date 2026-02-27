@@ -18,26 +18,52 @@ import { Separator } from "@/components/ui/separator";
 const LEAVE_TYPES = {
   "Annual Leave": { days: 12, description: "Regular annual leave allocation" },
   "Special Leave": { days: null, description: "Select a category below" },
-  "Leave on Lieu": { days: null, description: "Take a day off for a day you worked on a holiday/leave day" },
+  "Leave on Lieu": {
+    days: null,
+    description: "Take a day off for a day you worked on a holiday/leave day",
+  },
   "Other Leave": { days: null, description: "Select a reason category below" },
 } as const;
 
 // Other Leave subtypes (moved from old Leave on Leave)
 const OTHER_LEAVE_SUBTYPES = {
-  "Extension Request": { days: null, description: "Extend your current leave period" },
-  "Medical Emergency": { days: null, description: "Unexpected medical situation requiring leave" },
-  "Family Emergency": { days: null, description: "Urgent family matter requiring time off" },
-  "Travel Complications": { days: null, description: "Unable to work due to travel issues" },
+  "Extension Request": {
+    days: null,
+    description: "Extend your current leave period",
+  },
+  "Medical Emergency": {
+    days: null,
+    description: "Unexpected medical situation requiring leave",
+  },
+  "Family Emergency": {
+    days: null,
+    description: "Urgent family matter requiring time off",
+  },
+  "Travel Complications": {
+    days: null,
+    description: "Unable to work due to travel issues",
+  },
   "Other Emergency": { days: null, description: "Other urgent circumstances" },
 } as const;
 
 // Special leave subtypes with their allocated days
 const SPECIAL_LEAVE_SUBTYPES = {
   "Wedding Leave": { days: 15, description: "For your wedding celebration" },
-  "Bereavement Leave": { days: 15, description: "For loss of immediate family" },
-  "Maternity Leave": { days: 98, description: "Maternity leave for new mothers" },
-  "Paternity Leave": { days: 22, description: "Paternity leave for new fathers" },
+  "Bereavement Leave": {
+    days: 15,
+    description: "For loss of immediate family",
+  },
+  "Maternity Leave": {
+    days: 98,
+    description: "Maternity leave for new mothers",
+  },
+  "Paternity Leave": {
+    days: 22,
+    description: "Paternity leave for new fathers",
+  },
 } as const;
+const isEmergencySubtype = (subtype: string) =>
+  ["Medical Emergency", "Family Emergency", "Other Emergency"].includes(subtype);
 
 type LeaveType = keyof typeof LEAVE_TYPES;
 type SpecialLeaveSubtype = keyof typeof SPECIAL_LEAVE_SUBTYPES;
@@ -132,17 +158,11 @@ export function RequestLeaveDialog({
 
   // Reset subtypes when leave type changes
   useEffect(() => {
-    if (leaveType !== "Special Leave") {
-      setSpecialLeaveSubtype("");
+    if (leaveType === "Other Leave") {
+      setStartDate(undefined);
+      setEndDate(undefined);
     }
-    if (leaveType !== "Other Leave") {
-      setOtherLeaveSubtype("");
-    }
-    if (leaveType !== "Leave on Lieu") {
-      setDateWorked(undefined);
-      setLieuLeaveDate(undefined);
-    }
-  }, [leaveType]);
+  }, [otherLeaveSubtype, leaveType]);
 
   // Reset form when dialog closes
   useEffect(() => {
@@ -681,6 +701,7 @@ export function RequestLeaveDialog({
                       className="pointer-events-auto"
                       disabled={(date) => {
                         if (date.getDay() === 0 || date.getDay() === 6) return true;
+                        if (isOtherLeave && isEmergencySubtype(otherLeaveSubtype)) return false; // allow past dates
                         return date < new Date();
                       }}
                     />
@@ -714,6 +735,8 @@ export function RequestLeaveDialog({
                       className="pointer-events-auto"
                       disabled={(date) => {
                         if (startDate && date < startDate) return true;
+                        if (isOtherLeave && isEmergencySubtype) return false;
+                        if (date.getDay() === 0 || date.getDay() === 6) return true;
                         return false;
                       }}
                     />
@@ -747,7 +770,8 @@ export function RequestLeaveDialog({
                   variant="secondary"
                   className={cn(isOtherLeave && "bg-violet-500/20 text-violet-600 dark:text-violet-400")}
                 >
-                  {getCalculatedDays()} working day{getCalculatedDays() !== 1 ? "s" : ""}
+                  {getCalculatedDays()} working day
+                  {getCalculatedDays() !== 1 ? "s" : ""}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
