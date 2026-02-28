@@ -1584,6 +1584,42 @@ export type Database = {
           },
         ]
       }
+      loan_policies: {
+        Row: {
+          allow_if_existing_loan: boolean
+          allowed_terms: number[]
+          created_at: string
+          id: string
+          interest_rate: number
+          max_loan: number
+          min_tenure_months: number
+          position_level: string
+          updated_at: string
+        }
+        Insert: {
+          allow_if_existing_loan?: boolean
+          allowed_terms?: number[]
+          created_at?: string
+          id?: string
+          interest_rate?: number
+          max_loan?: number
+          min_tenure_months?: number
+          position_level: string
+          updated_at?: string
+        }
+        Update: {
+          allow_if_existing_loan?: boolean
+          allowed_terms?: number[]
+          created_at?: string
+          id?: string
+          interest_rate?: number
+          max_loan?: number
+          min_tenure_months?: number
+          position_level?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       loan_repayments: {
         Row: {
           agreement_id: string | null
