@@ -1,47 +1,34 @@
-// Loan calculation utilities - 5% annual interest, reducing balance amortization
-// UPDATED: Removed probation restrictions - all active employees are eligible
+// Loan calculation utilities - dynamic interest from policy, reducing balance amortization
 
-export const ANNUAL_INTEREST_RATE = 5;
-export const MAX_TERM_MONTHS = 6;
-
-export const POSITION_CAPS: Record<string, { min: number; max: number }> = {
-  entry: { min: 0, max: 500 },
-  mid: { min: 500, max: 1500 },
-  senior: { min: 1500, max: 2500 },
-  management: { min: 1500, max: 2500 },
-};
-
-export const LOAN_STATUSES = [
+export const SIMPLIFIED_STATUSES = [
   "draft",
-  "submitted",
-  "hr_review",
-  "finance_check",
-  "ceo_review",
+  "pending_manager",
+  "pending_vp",
   "approved",
   "rejected",
-  "deferred",
-  "agreement_signing",
   "disbursed",
-  "repaying",
-  "closed",
 ] as const;
 
-export type LoanStatus = (typeof LOAN_STATUSES)[number];
+export type SimplifiedLoanStatus = (typeof SIMPLIFIED_STATUSES)[number];
 
-export const STATUS_LABELS: Record<string, string> = {
+export const SIMPLIFIED_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
-  submitted: "Submitted",
-  hr_review: "HR Review",
-  finance_check: "Finance Check",
-  ceo_review: "CEO Review",
+  pending_manager: "Pending Manager",
+  pending_vp: "Pending VP",
   approved: "Approved",
   rejected: "Rejected",
-  deferred: "Deferred",
-  agreement_signing: "Agreement Signing",
   disbursed: "Disbursed",
-  repaying: "Repaying",
-  closed: "Closed",
 };
+
+export interface LoanPolicy {
+  id: string;
+  position_level: string;
+  max_loan: number;
+  allowed_terms: number[];
+  interest_rate: number;
+  min_tenure_months: number;
+  allow_if_existing_loan: boolean;
+}
 
 export interface AmortizationRow {
   month: number;
@@ -96,59 +83,4 @@ export function getTotalInterest(schedule: AmortizationRow[]): number {
 
 export function getTotalPayment(schedule: AmortizationRow[]): number {
   return Math.round(schedule.reduce((sum, row) => sum + row.emi, 0) * 100) / 100;
-}
-
-export function getMaxLoanAmount(positionLevel: string): number {
-  return POSITION_CAPS[positionLevel]?.max ?? 500;
-}
-
-export function getMinLoanAmount(positionLevel: string): number {
-  return POSITION_CAPS[positionLevel]?.min ?? 0;
-}
-
-/**
- * Check employee eligibility for loan
- * UPDATED: All employees are now eligible for loans
- * - Removed probation_completed requirement
- * - Removed employment_type restriction
- * - Only blocks terminated/resigned employees
- */
-export function checkEligibility(employee: {
-  employment_type?: string;
-  probation_completed?: boolean;
-  position_level?: string;
-  status?: string;
-}): { eligible: boolean; reasons: string[]; maxAmount: number } {
-  const reasons: string[] = [];
-
-  // Only block if employee is explicitly terminated or resigned
-  if (employee.status === "terminated" || employee.status === "resigned" || employee.status === "inactive") {
-    reasons.push("Employee must be active");
-  }
-
-  // REMOVED: employment_type check - all employment types can now apply
-  // REMOVED: probation_completed check - probation employees can now apply
-
-  const maxAmount = getMaxLoanAmount(employee.position_level || "entry");
-
-  return {
-    eligible: reasons.length === 0,
-    reasons,
-    maxAmount,
-  };
-}
-
-export function computeSeparationPayoff(
-  outstandingBalance: number,
-  annualRate: number,
-  separationDate: Date,
-  lastPaymentDate: Date,
-): { totalDue: number; accruedInterest: number } {
-  const daysDiff = Math.max(0, (separationDate.getTime() - lastPaymentDate.getTime()) / (1000 * 60 * 60 * 24));
-  const dailyRate = annualRate / 100 / 365;
-  const accruedInterest = Math.round(outstandingBalance * dailyRate * daysDiff * 100) / 100;
-  return {
-    totalDue: Math.round((outstandingBalance + accruedInterest) * 100) / 100,
-    accruedInterest,
-  };
 }

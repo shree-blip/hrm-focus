@@ -2,45 +2,54 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { calculateEMI, generateAmortizationSchedule } from "@/lib/loanCalculations";
+import { calculateEMI, LoanPolicy } from "@/lib/loanCalculations";
 
 export function useLoans() {
-  const { user, isAdmin, isVP } = useAuth();
-  const [loanRequests, setLoanRequests] = useState<any[]>([]);
+  const { user, isAdmin, isVP, isLineManager } = useAuth();
   const [myLoans, setMyLoans] = useState<any[]>([]);
-  const [repayments, setRepayments] = useState<any[]>([]);
-  const [approvals, setApprovals] = useState<any[]>([]);
-  const [agreements, setAgreements] = useState<any[]>([]);
-  const [budgets, setBudgets] = useState<any[]>([]);
-  const [waitingList, setWaitingList] = useState<any[]>([]);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [defaultEvents, setDefaultEvents] = useState<any[]>([]);
-  const [loanRoles, setLoanRoles] = useState<string[]>([]);
+  const [pendingForManager, setPendingForManager] = useState<any[]>([]);
+  const [managerHistory, setManagerHistory] = useState<any[]>([]);
+  const [vpQueue, setVpQueue] = useState<any[]>([]);
+  const [vpHistory, setVpHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [employeeData, setEmployeeData] = useState<any>(null);
-
-  const isLoanOfficer = isAdmin || isVP || loanRoles.length > 0;
-  const isHR = isAdmin || isVP || loanRoles.includes('hr_reviewer');
-  const isFinance = isAdmin || isVP || loanRoles.includes('finance_reviewer');
-  const isCEO = isVP || loanRoles.includes('ceo_approver');
-
-  const fetchLoanRoles = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('loan_officer_roles')
-      .select('loan_role')
-      .eq('user_id', user.id);
-    if (data) setLoanRoles(data.map((r: any) => r.loan_role));
-  }, [user]);
+  const [loanPolicy, setLoanPolicy] = useState<LoanPolicy | null>(null);
 
   const fetchEmployeeData = useCallback(async () => {
     if (!user) return;
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!profileData) return;
+
     const { data } = await supabase
       .from('employees')
-      .select('*, profiles!employees_profile_id_fkey(user_id)')
-      .eq('profiles.user_id', user.id)
-      .limit(1);
-    if (data && data.length > 0) setEmployeeData(data[0]);
+      .select('*')
+      .eq('profile_id', profileData.id)
+      .maybeSingle();
+    
+    if (data) {
+      setEmployeeData(data);
+      // Fetch loan policy for this employee's position level
+      if (data.position_level) {
+        const { data: policy } = await supabase
+          .from('loan_policies')
+          .select('*')
+          .eq('position_level', data.position_level)
+          .maybeSingle();
+        if (policy) {
+          setLoanPolicy({
+            ...policy,
+            max_loan: Number(policy.max_loan),
+            interest_rate: Number(policy.interest_rate),
+            allowed_terms: policy.allowed_terms as number[],
+          });
+        }
+      }
+    }
   }, [user]);
 
   const fetchMyLoans = useCallback(async () => {
@@ -53,97 +62,66 @@ export function useLoans() {
     if (data) setMyLoans(data);
   }, [user]);
 
-  const fetchAllLoanRequests = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
+  const fetchManagerQueue = useCallback(async () => {
+    if (!user || !isLineManager) return;
+    // Get my employee id
+    const { data: empId } = await supabase.rpc('get_employee_id_for_user', { _user_id: user.id });
+    if (!empId) return;
+
+    // Get employees managed by me
+    const { data: managedEmps } = await supabase
+      .from('employees')
+      .select('id')
+      .or(`line_manager_id.eq.${empId},manager_id.eq.${empId}`);
+
+    if (!managedEmps || managedEmps.length === 0) return;
+    const empIds = managedEmps.map(e => e.id);
+
+    const { data: pending } = await supabase
       .from('loan_requests')
-      .select('*')
+      .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
+      .in('employee_id', empIds)
+      .eq('status', 'pending_manager')
       .order('created_at', { ascending: false });
-    if (data) setLoanRequests(data);
-  }, [user]);
+    if (pending) setPendingForManager(pending);
 
-  const fetchRepayments = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('loan_repayments')
-      .select('*')
-      .order('due_date', { ascending: true });
-    if (data) setRepayments(data);
-  }, [user]);
-
-  const fetchApprovals = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('loan_approvals')
-      .select('*')
+    const { data: history } = await supabase
+      .from('loan_requests')
+      .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
+      .in('employee_id', empIds)
+      .neq('status', 'pending_manager')
+      .neq('status', 'draft')
       .order('created_at', { ascending: false });
-    if (data) setApprovals(data);
-  }, [user]);
+    if (history) setManagerHistory(history);
+  }, [user, isLineManager]);
 
-  const fetchAgreements = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('loan_agreements')
-      .select('*')
+  const fetchVPQueue = useCallback(async () => {
+    if (!user || !isVP) return;
+    const { data: pending } = await supabase
+      .from('loan_requests')
+      .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
+      .eq('status', 'pending_vp')
       .order('created_at', { ascending: false });
-    if (data) setAgreements(data);
-  }, [user]);
+    if (pending) setVpQueue(pending);
 
-  const fetchBudgets = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('loan_monthly_budgets')
-      .select('*')
-      .order('year', { ascending: false })
-      .order('month', { ascending: false });
-    if (data) setBudgets(data);
-  }, [user]);
-
-  const fetchWaitingList = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('loan_waiting_list')
-      .select('*')
-      .order('priority_score', { ascending: false });
-    if (data) setWaitingList(data);
-  }, [user]);
-
-  const fetchAuditLogs = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('loan_audit_logs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(100);
-    if (data) setAuditLogs(data);
-  }, [user]);
-
-  const fetchDefaultEvents = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('loan_default_events')
-      .select('*')
+    const { data: history } = await supabase
+      .from('loan_requests')
+      .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
+      .in('status', ['approved', 'rejected', 'disbursed'])
       .order('created_at', { ascending: false });
-    if (data) setDefaultEvents(data);
-  }, [user]);
+    if (history) setVpHistory(history);
+  }, [user, isVP]);
 
   const refetchAll = useCallback(async () => {
     setLoading(true);
     await Promise.all([
-      fetchLoanRoles(),
       fetchEmployeeData(),
       fetchMyLoans(),
-      fetchAllLoanRequests(),
-      fetchRepayments(),
-      fetchApprovals(),
-      fetchAgreements(),
-      fetchBudgets(),
-      fetchWaitingList(),
-      fetchAuditLogs(),
-      fetchDefaultEvents(),
+      fetchManagerQueue(),
+      fetchVPQueue(),
     ]);
     setLoading(false);
-  }, [fetchLoanRoles, fetchEmployeeData, fetchMyLoans, fetchAllLoanRequests, fetchRepayments, fetchApprovals, fetchAgreements, fetchBudgets, fetchWaitingList, fetchAuditLogs, fetchDefaultEvents]);
+  }, [fetchEmployeeData, fetchMyLoans, fetchManagerQueue, fetchVPQueue]);
 
   useEffect(() => {
     refetchAll();
@@ -153,21 +131,23 @@ export function useLoans() {
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel('loan-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'loan_requests' }, () => { fetchMyLoans(); fetchAllLoanRequests(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'loan_repayments' }, () => fetchRepayments())
+      .channel('loan-changes-simplified')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'loan_requests' }, () => {
+        fetchMyLoans();
+        fetchManagerQueue();
+        fetchVPQueue();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user, fetchMyLoans, fetchAllLoanRequests, fetchRepayments]);
+  }, [user, fetchMyLoans, fetchManagerQueue, fetchVPQueue]);
 
-  const logAudit = async (loanRequestId: string | null, action: string, details?: any, documentAccessed?: string) => {
+  const logAudit = async (loanRequestId: string | null, action: string, details?: any) => {
     if (!user) return;
     await supabase.from('loan_audit_logs').insert({
       loan_request_id: loanRequestId,
       user_id: user.id,
       action,
       details: details || {},
-      document_accessed: documentAccessed || null,
     });
   };
 
@@ -176,16 +156,12 @@ export function useLoans() {
     term_months: number;
     reason_type: string;
     reason_details?: string;
-    explanation?: string;
-    supporting_doc_path?: string;
-    has_prior_outstanding: boolean;
-    prior_outstanding_amount: number;
     auto_deduction_consent: boolean;
     e_signature: string;
   }) => {
-    if (!user || !employeeData) return null;
+    if (!user || !employeeData || !loanPolicy) return null;
 
-    const emi = calculateEMI(data.amount, 5, data.term_months);
+    const emi = calculateEMI(data.amount, loanPolicy.interest_rate, data.term_months);
 
     const { data: lr, error } = await supabase.from('loan_requests').insert({
       user_id: user.id,
@@ -193,20 +169,16 @@ export function useLoans() {
       org_id: employeeData.org_id,
       amount: data.amount,
       term_months: data.term_months,
-      interest_rate: 5,
+      interest_rate: loanPolicy.interest_rate,
       reason_type: data.reason_type,
       estimated_monthly_installment: emi,
       auto_deduction_consent: data.auto_deduction_consent,
       declaration_signed: true,
       e_signature: data.e_signature,
       signed_at: new Date().toISOString(),
-      has_prior_outstanding: data.has_prior_outstanding,
-      prior_outstanding_amount: data.prior_outstanding_amount,
       position_level: employeeData.position_level,
-      max_eligible_amount: employeeData.position_level ? (
-        { entry: 500, mid: 1500, senior: 2500, management: 2500 }[employeeData.position_level as string] ?? 500
-      ) : 500,
-      status: 'submitted',
+      max_eligible_amount: loanPolicy.max_loan,
+      status: 'pending_manager',
       submitted_at: new Date().toISOString(),
     }).select().single();
 
@@ -215,189 +187,101 @@ export function useLoans() {
       return null;
     }
 
-    // Store confidential details separately
-    if (lr) {
+    if (lr && data.reason_details) {
       await supabase.from('loan_request_confidential').insert({
         loan_request_id: lr.id,
         reason_details: data.reason_details,
-        explanation: data.explanation,
-        supporting_doc_path: data.supporting_doc_path,
       });
-
-      await logAudit(lr.id, 'loan_submitted', { amount: data.amount, term: data.term_months });
-
-      // Create HR review step
-      await supabase.from('loan_requests').update({ status: 'hr_review' }).eq('id', lr.id);
     }
 
-    toast({ title: "Loan Request Submitted", description: "Your request is now under HR review." });
+    if (lr) {
+      await logAudit(lr.id, 'loan_submitted', { amount: data.amount, term: data.term_months });
+    }
+
+    toast({ title: "Loan Request Submitted", description: "Your request has been sent to your Line Manager." });
     await refetchAll();
     return lr;
   };
 
-  const updateLoanStatus = async (loanId: string, newStatus: string, notes?: string) => {
+  const managerDecision = async (loanId: string, decision: 'approved' | 'rejected', comment: string) => {
     if (!user) return;
+    const newStatus = decision === 'approved' ? 'pending_vp' : 'rejected';
+
     const { error } = await supabase.from('loan_requests')
       .update({ status: newStatus })
       .eq('id', loanId);
+
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
-    await logAudit(loanId, `status_changed_to_${newStatus}`, { notes });
-    toast({ title: "Status Updated", description: `Loan status changed to ${newStatus}` });
-    await refetchAll();
-  };
 
-  const submitApproval = async (loanId: string, step: string, decision: string, data?: any) => {
-    if (!user) return;
-    const { error } = await supabase.from('loan_approvals').insert({
+    await supabase.from('loan_approvals').insert({
       loan_request_id: loanId,
-      approval_step: step,
+      approval_step: 'manager_review',
       reviewer_id: user.id,
       decision,
-      ...data,
+      notes: comment,
     });
+
+    await logAudit(loanId, `manager_${decision}`, { comment });
+    toast({ title: decision === 'approved' ? "Forwarded to VP" : "Loan Rejected", description: comment });
+    await refetchAll();
+  };
+
+  const vpDecision = async (loanId: string, decision: 'approved' | 'rejected', comment: string, disbursementDate?: string, autoPayroll?: boolean) => {
+    if (!user) return;
+    const newStatus = decision === 'approved' ? 'approved' : 'rejected';
+
+    const updates: any = { status: newStatus };
+    if (decision === 'approved' && autoPayroll !== undefined) {
+      updates.auto_deduction_consent = autoPayroll;
+    }
+
+    const { error } = await supabase.from('loan_requests')
+      .update(updates)
+      .eq('id', loanId);
+
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
-    // Progress workflow
-    const nextStatus: Record<string, string> = {
-      hr_review: decision === 'approved' ? 'finance_check' : decision,
-      finance_check: decision === 'approved' ? 'ceo_review' : decision,
-      ceo_review: decision === 'approved' ? 'approved' : decision,
-    };
-    if (nextStatus[step]) {
-      await updateLoanStatus(loanId, nextStatus[step], data?.notes);
-    }
-  };
-
-  const createAgreement = async (loanId: string, principal: number, termMonths: number) => {
-    if (!user) return;
-    const schedule = generateAmortizationSchedule(principal, 5, termMonths);
-    const emi = calculateEMI(principal, 5, termMonths);
-    const now = new Date();
-    const firstDeductionMonth = `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}`;
-
-    const slaDeadline = new Date();
-    slaDeadline.setDate(slaDeadline.getDate() + 15);
-
-    const { error } = await supabase.from('loan_agreements').insert({
+    await supabase.from('loan_approvals').insert({
       loan_request_id: loanId,
-      principal,
-      interest_rate: 5,
-      term_months: termMonths,
-      monthly_installment: emi,
-      repayment_schedule: schedule as any,
-      first_deduction_month: firstDeductionMonth,
-      disbursement_sla_deadline: slaDeadline.toISOString().split('T')[0],
+      approval_step: 'vp_review',
+      reviewer_id: user.id,
+      decision,
+      notes: comment,
     });
+
+    await logAudit(loanId, `vp_${decision}`, { comment, disbursementDate, autoPayroll });
+    toast({ title: decision === 'approved' ? "Loan Approved" : "Loan Rejected", description: comment });
+    await refetchAll();
+  };
+
+  const disburseLoan = async (loanId: string, disbursementDate: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('loan_requests')
+      .update({ status: 'disbursed' })
+      .eq('id', loanId);
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
-    await updateLoanStatus(loanId, 'agreement_signing');
-    await logAudit(loanId, 'agreement_created', { principal, termMonths, emi });
-  };
-
-  const signAgreement = async (agreementId: string, signatureType: 'employee' | 'hr' | 'ceo', signature: string) => {
-    if (!user) return;
-    const updates: any = {};
-    if (signatureType === 'employee') {
-      updates.employee_signature = signature;
-      updates.employee_signed_at = new Date().toISOString();
-    } else if (signatureType === 'hr') {
-      updates.hr_signature = signature;
-      updates.hr_signed_at = new Date().toISOString();
-    } else {
-      updates.ceo_signature = signature;
-      updates.ceo_signed_at = new Date().toISOString();
-    }
-
-    await supabase.from('loan_agreements').update(updates).eq('id', agreementId);
-    await logAudit(null, `agreement_signed_by_${signatureType}`, { agreementId });
-    toast({ title: "Agreement Signed", description: `${signatureType} signature recorded.` });
+    await logAudit(loanId, 'loan_disbursed', { disbursementDate });
+    toast({ title: "Loan Disbursed" });
     await refetchAll();
-  };
-
-  const setBudget = async (year: number, month: number, totalBudget: number) => {
-    if (!user) return;
-    const orgId = employeeData?.org_id;
-    const { error } = await supabase.from('loan_monthly_budgets').upsert({
-      org_id: orgId,
-      year,
-      month,
-      total_budget: totalBudget,
-      set_by: user.id,
-    }, { onConflict: 'org_id,year,month' });
-
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Budget Set", description: `Budget for ${month}/${year} set to $${totalBudget}` });
-    await refetchAll();
-  };
-
-  const createRepaymentSchedule = async (loanId: string, agreementId: string, employeeId: string, userId: string, schedule: any[]) => {
-    const rows = schedule.map((row: any, i: number) => {
-      const dueDate = new Date();
-      dueDate.setMonth(dueDate.getMonth() + i + 1);
-      return {
-        loan_request_id: loanId,
-        agreement_id: agreementId,
-        employee_id: employeeId,
-        user_id: userId,
-        month_number: row.month,
-        due_date: dueDate.toISOString().split('T')[0],
-        principal_amount: row.principal,
-        interest_amount: row.interest,
-        total_amount: row.emi,
-        remaining_balance: row.closingBalance,
-        status: 'pending',
-      };
-    });
-
-    const { error } = await supabase.from('loan_repayments').insert(rows);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-    await refetchAll();
-  };
-
-  const exportPayrollDeductions = (month?: number, year?: number) => {
-    const now = new Date();
-    const m = month ?? now.getMonth() + 1;
-    const y = year ?? now.getFullYear();
-
-    const pending = repayments.filter(r => {
-      const d = new Date(r.due_date);
-      return d.getMonth() + 1 === m && d.getFullYear() === y && r.status === 'pending';
-    });
-
-    const headers = ['employee_id', 'deduction_amount', 'month', 'remaining_balance'];
-    const rows = pending.map(r => [r.employee_id, r.total_amount, `${y}-${String(m).padStart(2, '0')}`, r.remaining_balance].join(','));
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `loan-deductions-${y}-${String(m).padStart(2, '0')}.csv`;
-    a.click();
-    toast({ title: "Export Complete", description: "Payroll deductions exported." });
   };
 
   return {
-    myLoans, loanRequests, repayments, approvals, agreements, budgets,
-    waitingList, auditLogs, defaultEvents, loading, employeeData,
-    loanRoles, isLoanOfficer, isHR, isFinance, isCEO,
-    createLoanRequest, updateLoanStatus, submitApproval,
-    createAgreement, signAgreement, setBudget,
-    createRepaymentSchedule, exportPayrollDeductions,
-    logAudit, refetchAll,
+    myLoans, loading, employeeData, loanPolicy,
+    pendingForManager, managerHistory,
+    vpQueue, vpHistory,
+    isLineManager, isVP,
+    createLoanRequest, managerDecision, vpDecision, disburseLoan,
+    refetchAll,
   };
 }

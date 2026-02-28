@@ -1,42 +1,35 @@
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Circle, Clock, XCircle, AlertTriangle } from "lucide-react";
-import { LOAN_STATUSES, STATUS_LABELS, LoanStatus } from "@/lib/loanCalculations";
+import { CheckCircle2, Circle, Clock, XCircle } from "lucide-react";
+import { SIMPLIFIED_STATUSES, SIMPLIFIED_STATUS_LABELS, SimplifiedLoanStatus } from "@/lib/loanCalculations";
 
 interface LoanStatusTimelineProps {
   currentStatus: string;
 }
 
-const statusIcons: Record<string, typeof CheckCircle2> = {
-  rejected: XCircle,
-  deferred: AlertTriangle,
-};
-
 export function LoanStatusTimeline({ currentStatus }: LoanStatusTimelineProps) {
-  const currentIndex = LOAN_STATUSES.indexOf(currentStatus as LoanStatus);
+  const currentIndex = SIMPLIFIED_STATUSES.indexOf(currentStatus as SimplifiedLoanStatus);
   const isRejected = currentStatus === 'rejected';
-  const isDeferred = currentStatus === 'deferred';
 
-  const displayStatuses = LOAN_STATUSES.filter(s => s !== 'rejected' && s !== 'deferred');
+  const displayStatuses = SIMPLIFIED_STATUSES.filter(s => s !== 'rejected');
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium">Status Timeline</p>
-      {(isRejected || isDeferred) && (
-        <div className={cn("flex items-center gap-2 p-2 rounded-lg text-sm", isRejected ? "bg-destructive/10 text-destructive" : "bg-yellow-500/10 text-yellow-600")}>
-          {isRejected ? <XCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-          <span className="font-medium">{isRejected ? 'Rejected' : 'Deferred to Waiting List'}</span>
+      {isRejected && (
+        <div className="flex items-center gap-2 p-2 rounded-lg text-sm bg-destructive/10 text-destructive">
+          <XCircle className="h-4 w-4" />
+          <span className="font-medium">Rejected</span>
         </div>
       )}
       <div className="flex items-center gap-1 overflow-x-auto pb-2">
         {displayStatuses.map((status, i) => {
-          const statusIndex = LOAN_STATUSES.indexOf(status);
-          const isPast = !isRejected && !isDeferred && statusIndex < currentIndex;
+          const statusIndex = SIMPLIFIED_STATUSES.indexOf(status);
+          const isPast = !isRejected && statusIndex < currentIndex;
           const isCurrent = status === currentStatus;
           const Icon = isCurrent ? Clock : isPast ? CheckCircle2 : Circle;
 
           return (
             <div key={status} className="flex items-center">
-              <div className={cn("flex flex-col items-center min-w-[60px]")}>
+              <div className="flex flex-col items-center min-w-[70px]">
                 <Icon className={cn("h-4 w-4 mb-1",
                   isPast && "text-green-500",
                   isCurrent && "text-primary",
@@ -47,7 +40,7 @@ export function LoanStatusTimeline({ currentStatus }: LoanStatusTimelineProps) {
                   isPast && "text-green-600",
                   !isPast && !isCurrent && "text-muted-foreground/50"
                 )}>
-                  {STATUS_LABELS[status]}
+                  {SIMPLIFIED_STATUS_LABELS[status]}
                 </span>
               </div>
               {i < displayStatuses.length - 1 && (
