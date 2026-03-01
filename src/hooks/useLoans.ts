@@ -53,11 +53,15 @@ export function useLoans() {
 
   const fetchMyLoans = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('loan_requests')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Error fetching my loans:', error.message);
+      return;
+    }
     if (data) setMyLoans(data);
   }, [user]);
 
@@ -65,21 +69,23 @@ export function useLoans() {
   const fetchManagerQueue = useCallback(async () => {
     if (!user || !isLineManager) return;
 
-    const { data: pending } = await supabase
+    const { data: pending, error: pendingErr } = await supabase
       .from('loan_requests')
       .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
       .eq('manager_user_id', user.id)
       .eq('status', 'pending_manager')
       .order('created_at', { ascending: false });
+    if (pendingErr) console.error('Error fetching manager pending:', pendingErr.message);
     if (pending) setPendingForManager(pending);
 
-    const { data: history } = await supabase
+    const { data: history, error: histErr } = await supabase
       .from('loan_requests')
       .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
       .eq('manager_user_id', user.id)
       .neq('status', 'pending_manager')
       .neq('status', 'draft')
       .order('created_at', { ascending: false });
+    if (histErr) console.error('Error fetching manager history:', histErr.message);
     if (history) setManagerHistory(history);
   }, [user, isLineManager]);
 
@@ -87,20 +93,22 @@ export function useLoans() {
   const fetchVPQueue = useCallback(async () => {
     if (!user || !isVP) return;
 
-    const { data: pending } = await supabase
+    const { data: pending, error: vpPendErr } = await supabase
       .from('loan_requests')
       .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
       .eq('vp_user_id', user.id)
       .eq('status', 'pending_vp')
       .order('created_at', { ascending: false });
+    if (vpPendErr) console.error('Error fetching VP queue:', vpPendErr.message);
     if (pending) setVpQueue(pending);
 
-    const { data: history } = await supabase
+    const { data: history, error: vpHistErr } = await supabase
       .from('loan_requests')
       .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
       .eq('vp_user_id', user.id)
       .in('status', ['approved', 'rejected', 'disbursed'])
       .order('created_at', { ascending: false });
+    if (vpHistErr) console.error('Error fetching VP history:', vpHistErr.message);
     if (history) setVpHistory(history);
   }, [user, isVP]);
 
