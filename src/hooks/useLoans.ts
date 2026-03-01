@@ -33,7 +33,6 @@ export function useLoans() {
     
     if (data) {
       setEmployeeData(data);
-      // Fetch loan policy for this employee's position level
       if (data.position_level) {
         const { data: policy } = await supabase
           .from('loan_policies')
@@ -62,25 +61,14 @@ export function useLoans() {
     if (data) setMyLoans(data);
   }, [user]);
 
+  // Manager sees loans routed to them via manager_user_id
   const fetchManagerQueue = useCallback(async () => {
     if (!user || !isLineManager) return;
-    // Get my employee id
-    const { data: empId } = await supabase.rpc('get_employee_id_for_user', { _user_id: user.id });
-    if (!empId) return;
-
-    // Get employees managed by me
-    const { data: managedEmps } = await supabase
-      .from('employees')
-      .select('id')
-      .or(`line_manager_id.eq.${empId},manager_id.eq.${empId}`);
-
-    if (!managedEmps || managedEmps.length === 0) return;
-    const empIds = managedEmps.map(e => e.id);
 
     const { data: pending } = await supabase
       .from('loan_requests')
       .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
-      .in('employee_id', empIds)
+      .eq('manager_user_id', user.id)
       .eq('status', 'pending_manager')
       .order('created_at', { ascending: false });
     if (pending) setPendingForManager(pending);
@@ -88,18 +76,21 @@ export function useLoans() {
     const { data: history } = await supabase
       .from('loan_requests')
       .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
-      .in('employee_id', empIds)
+      .eq('manager_user_id', user.id)
       .neq('status', 'pending_manager')
       .neq('status', 'draft')
       .order('created_at', { ascending: false });
     if (history) setManagerHistory(history);
   }, [user, isLineManager]);
 
+  // VP sees loans routed to them via vp_user_id
   const fetchVPQueue = useCallback(async () => {
     if (!user || !isVP) return;
+
     const { data: pending } = await supabase
       .from('loan_requests')
       .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
+      .eq('vp_user_id', user.id)
       .eq('status', 'pending_vp')
       .order('created_at', { ascending: false });
     if (pending) setVpQueue(pending);
@@ -107,6 +98,7 @@ export function useLoans() {
     const { data: history } = await supabase
       .from('loan_requests')
       .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
+      .eq('vp_user_id', user.id)
       .in('status', ['approved', 'rejected', 'disbursed'])
       .order('created_at', { ascending: false });
     if (history) setVpHistory(history);
@@ -151,6 +143,55 @@ export function useLoans() {
     });
   };
 
+  // Resolve manager_user_id and vp_user_id from the employee's team structure
+  const resolveApprovers = async (empData: any) => {
+    let managerUserId: string | null = null;
+    let vpUserId: string | null = null;
+
+    // Get line manager's user_id
+    if (empData.line_manager_id) {
+      const { data: mgrEmp } = await supabase
+        .from('employees')
+        .select('profile_id')
+        .eq('id', empData.line_manager_id)
+        .maybeSingle();
+      if (mgrEmp?.profile_id) {
+        const { data: mgrProfile } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('id', mgrEmp.profile_id)
+          .maybeSingle();
+        if (mgrProfile) managerUserId = mgrProfile.user_id;
+      }
+    } else if (empData.manager_id) {
+      // Fallback to manager_id if no line_manager_id
+      const { data: mgrEmp } = await supabase
+        .from('employees')
+        .select('profile_id')
+        .eq('id', empData.manager_id)
+        .maybeSingle();
+      if (mgrEmp?.profile_id) {
+        const { data: mgrProfile } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('id', mgrEmp.profile_id)
+          .maybeSingle();
+        if (mgrProfile) managerUserId = mgrProfile.user_id;
+      }
+    }
+
+    // Get VP user_id from user_roles
+    const { data: vpRole } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'vp')
+      .limit(1)
+      .maybeSingle();
+    if (vpRole) vpUserId = vpRole.user_id;
+
+    return { managerUserId, vpUserId };
+  };
+
   const createLoanRequest = async (data: {
     amount: number;
     term_months: number;
@@ -162,6 +203,12 @@ export function useLoans() {
     if (!user || !employeeData || !loanPolicy) return null;
 
     const emi = calculateEMI(data.amount, loanPolicy.interest_rate, data.term_months);
+    const { managerUserId, vpUserId } = await resolveApprovers(employeeData);
+
+    if (!managerUserId) {
+      toast({ title: "Error", description: "No Line Manager assigned. Please contact HR.", variant: "destructive" });
+      return null;
+    }
 
     const { data: lr, error } = await supabase.from('loan_requests').insert({
       user_id: user.id,
@@ -180,6 +227,8 @@ export function useLoans() {
       max_eligible_amount: loanPolicy.max_loan,
       status: 'pending_manager',
       submitted_at: new Date().toISOString(),
+      manager_user_id: managerUserId,
+      vp_user_id: vpUserId,
     }).select().single();
 
     if (error) {
@@ -207,8 +256,10 @@ export function useLoans() {
     if (!user) return;
     const newStatus = decision === 'approved' ? 'pending_vp' : 'rejected';
 
+    const updates: any = { status: newStatus, manager_comment: comment, manager_approved_at: new Date().toISOString() };
+
     const { error } = await supabase.from('loan_requests')
-      .update({ status: newStatus })
+      .update(updates)
       .eq('id', loanId);
 
     if (error) {

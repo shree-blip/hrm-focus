@@ -1763,6 +1763,9 @@ export type Database = {
           has_prior_outstanding: boolean | null
           id: string
           interest_rate: number
+          manager_approved_at: string | null
+          manager_comment: string | null
+          manager_user_id: string | null
           max_eligible_amount: number | null
           org_id: string | null
           position_level: string | null
@@ -1774,6 +1777,7 @@ export type Database = {
           term_months: number
           updated_at: string
           user_id: string
+          vp_user_id: string | null
         }
         Insert: {
           amount: number
@@ -1786,6 +1790,9 @@ export type Database = {
           has_prior_outstanding?: boolean | null
           id?: string
           interest_rate?: number
+          manager_approved_at?: string | null
+          manager_comment?: string | null
+          manager_user_id?: string | null
           max_eligible_amount?: number | null
           org_id?: string | null
           position_level?: string | null
@@ -1797,6 +1804,7 @@ export type Database = {
           term_months: number
           updated_at?: string
           user_id: string
+          vp_user_id?: string | null
         }
         Update: {
           amount?: number
@@ -1809,6 +1817,9 @@ export type Database = {
           has_prior_outstanding?: boolean | null
           id?: string
           interest_rate?: number
+          manager_approved_at?: string | null
+          manager_comment?: string | null
+          manager_user_id?: string | null
           max_eligible_amount?: number | null
           org_id?: string | null
           position_level?: string | null
@@ -1820,6 +1831,7 @@ export type Database = {
           term_months?: number
           updated_at?: string
           user_id?: string
+          vp_user_id?: string | null
         }
         Relationships: [
           {
@@ -3404,6 +3416,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string[]
       }
+      get_vp_user_id_for_org: { Args: { _org_id: string }; Returns: string }
       has_loan_officer_role: {
         Args: { _loan_role: string; _user_id: string }
         Returns: boolean
