@@ -2810,6 +2810,7 @@ export type Database = {
       }
       user_preferences: {
         Row: {
+          activity_alerts_enabled: boolean | null
           created_at: string
           email_digest: boolean | null
           id: string
@@ -2822,6 +2823,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          activity_alerts_enabled?: boolean | null
           created_at?: string
           email_digest?: boolean | null
           id?: string
@@ -2834,6 +2836,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          activity_alerts_enabled?: boolean | null
           created_at?: string
           email_digest?: boolean | null
           id?: string
