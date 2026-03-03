@@ -9,16 +9,18 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User, Bell, Shield, Building2, Loader2, Camera, Upload, X, Eye, EyeOff } from "lucide-react";
+import { User, Bell, Shield, Building2, Loader2, Camera, Upload, X, Eye, EyeOff, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/hooks/useSettings";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { useActivityAlerts } from "@/hooks/useActivityAlerts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 const Settings = () => {
   const { user, profile, refreshProfile } = useAuth();
   const { preferences, updateProfile, updatePreferences, updatePassword, loading } = useSettings();
+  const { enabled: activityAlertsEnabled, toggleEnabled: toggleActivityAlerts } = useActivityAlerts();
 
   // Get signed URL for avatar
   const { signedUrl: avatarSignedUrl } = useAvatarUrl(profile?.avatar_url);
@@ -526,6 +528,22 @@ const Settings = () => {
                   <Switch
                     checked={emailDigest}
                     onCheckedChange={(checked) => handleNotificationChange("email_digest", checked)}
+                  />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-3">
+                    <Activity className="h-5 w-5 text-primary mt-0.5" />
+                    <div>
+                      <p className="font-medium">Global Activity Alerts</p>
+                      <p className="text-sm text-muted-foreground">
+                        See real-time toast notifications when team members clock in, take breaks, or change status
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={activityAlertsEnabled ?? true}
+                    onCheckedChange={toggleActivityAlerts}
                   />
                 </div>
               </div>
