@@ -13,9 +13,10 @@ interface EmployeeLoanDashboardProps {
   employeeData: any;
   loanPolicy: LoanPolicy | null;
   onCreateLoan: (data: any) => Promise<any>;
+  isVP?: boolean;
 }
 
-export function EmployeeLoanDashboard({ myLoans, employeeData, loanPolicy, onCreateLoan }: EmployeeLoanDashboardProps) {
+export function EmployeeLoanDashboard({ myLoans, employeeData, loanPolicy, onCreateLoan, isVP }: EmployeeLoanDashboardProps) {
   const [showForm, setShowForm] = useState(false);
 
   const statusColor = (s: string) => {
@@ -28,9 +29,11 @@ export function EmployeeLoanDashboard({ myLoans, employeeData, loanPolicy, onCre
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">My Loan Requests</h3>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="h-4 w-4 mr-1" /> Apply for Loan
-        </Button>
+        {isVP && (
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Apply for Loan
+          </Button>
+        )}
       </div>
 
       {myLoans.length === 0 ? (
