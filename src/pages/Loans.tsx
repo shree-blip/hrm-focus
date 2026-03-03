@@ -48,6 +48,7 @@ export default function Loans() {
               employeeData={employeeData}
               loanPolicy={loanPolicy}
               onCreateLoan={createLoanRequest}
+              isVP={isVP}
             />
           </TabsContent>
 
