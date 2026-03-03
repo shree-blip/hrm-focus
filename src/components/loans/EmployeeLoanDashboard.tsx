@@ -29,11 +29,9 @@ export function EmployeeLoanDashboard({ myLoans, employeeData, loanPolicy, onCre
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">My Loan Requests</h3>
-        {isVP && (
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Apply for Loan
-          </Button>
-        )}
+        <Button onClick={() => setShowForm(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Apply for Loan
+        </Button>
       </div>
 
       {myLoans.length === 0 ? (
