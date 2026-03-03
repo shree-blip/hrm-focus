@@ -2,7 +2,6 @@
 
 export const SIMPLIFIED_STATUSES = [
   "draft",
-  "pending_manager",
   "pending_vp",
   "approved",
   "rejected",
@@ -13,7 +12,6 @@ export type SimplifiedLoanStatus = (typeof SIMPLIFIED_STATUSES)[number];
 
 export const SIMPLIFIED_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
-  pending_manager: "Pending Manager",
   pending_vp: "Pending VP",
   approved: "Approved",
   rejected: "Rejected",

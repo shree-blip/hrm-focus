@@ -173,52 +173,15 @@ export function useLoans() {
     });
   };
 
-  // Resolve manager_user_id and vp_user_id from the employee's team structure
-  const resolveApprovers = async (empData: any) => {
-    let managerUserId: string | null = null;
-    let vpUserId: string | null = null;
-
-    // Get line manager's user_id
-    if (empData.line_manager_id) {
-      const { data: mgrEmp } = await supabase
-        .from('employees')
-        .select('profile_id')
-        .eq('id', empData.line_manager_id)
-        .maybeSingle();
-      if (mgrEmp?.profile_id) {
-        const { data: mgrProfile } = await supabase
-          .from('profiles')
-          .select('user_id')
-          .eq('id', mgrEmp.profile_id)
-          .maybeSingle();
-        if (mgrProfile) managerUserId = mgrProfile.user_id;
-      }
-    } else if (empData.manager_id) {
-      const { data: mgrEmp } = await supabase
-        .from('employees')
-        .select('profile_id')
-        .eq('id', empData.manager_id)
-        .maybeSingle();
-      if (mgrEmp?.profile_id) {
-        const { data: mgrProfile } = await supabase
-          .from('profiles')
-          .select('user_id')
-          .eq('id', mgrEmp.profile_id)
-          .maybeSingle();
-        if (mgrProfile) managerUserId = mgrProfile.user_id;
-      }
-    }
-
-    // Get VP user_id from user_roles
-    const { data: vpRole } = await supabase
+  // Resolve VP user_id directly
+  const resolveVP = async (): Promise<string | null> => {
+    const { data } = await supabase
       .from('user_roles')
       .select('user_id')
       .eq('role', 'vp')
       .limit(1)
-      .maybeSingle();
-    if (vpRole) vpUserId = vpRole.user_id;
-
-    return { managerUserId, vpUserId };
+      .single();
+    return data?.user_id ?? null;
   };
 
   const createLoanRequest = async (data: {
@@ -232,7 +195,7 @@ export function useLoans() {
     if (!user || !employeeData || !loanPolicy) return null;
 
     const emi = calculateEMI(data.amount, loanPolicy.interest_rate, data.term_months);
-    const { managerUserId, vpUserId } = await resolveApprovers(employeeData);
+    const vpUserId = await resolveVP();
 
     if (!vpUserId) {
       toast({ title: "Error", description: "No VP assigned. Please contact HR.", variant: "destructive" });
@@ -256,7 +219,6 @@ export function useLoans() {
       max_eligible_amount: loanPolicy.max_loan,
       status: 'pending_vp',
       submitted_at: new Date().toISOString(),
-      manager_user_id: managerUserId,
       vp_user_id: vpUserId,
     }).select().single();
 
