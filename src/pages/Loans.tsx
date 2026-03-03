@@ -38,7 +38,7 @@ export default function Loans() {
           <TabsList className="flex-wrap">
             <TabsTrigger value="my-loans">My Loans</TabsTrigger>
             <TabsTrigger value="calculator">Calculator</TabsTrigger>
-            {isLineManager && <TabsTrigger value="manager">Manager Review</TabsTrigger>}
+            
             {isVP && <TabsTrigger value="vp">VP / Finance</TabsTrigger>}
           </TabsList>
 
@@ -62,15 +62,8 @@ export default function Loans() {
             </div>
           </TabsContent>
 
-          {isLineManager && (
-            <TabsContent value="manager">
-              <ManagerPanel
-                pendingRequests={pendingForManager}
-                history={managerHistory}
-                onDecision={managerDecision}
-              />
-            </TabsContent>
-          )}
+
+
 
           {isVP && (
             <TabsContent value="vp">
