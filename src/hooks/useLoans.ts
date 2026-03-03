@@ -111,7 +111,6 @@ export function useLoans() {
       const { data: pending, error: vpPendErr } = await supabase
         .from('loan_requests')
         .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
-        .eq('vp_user_id', user.id)
         .eq('status', 'pending_vp')
         .order('created_at', { ascending: false });
       if (vpPendErr) {
@@ -122,7 +121,6 @@ export function useLoans() {
       const { data: history, error: vpHistErr } = await supabase
         .from('loan_requests')
         .select('*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)')
-        .eq('vp_user_id', user.id)
         .in('status', ['approved', 'rejected', 'disbursed'])
         .order('created_at', { ascending: false });
       if (vpHistErr) {
