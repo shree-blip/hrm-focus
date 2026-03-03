@@ -179,9 +179,8 @@ export function useLoans() {
       .from('user_roles')
       .select('user_id')
       .eq('role', 'vp')
-      .limit(1)
-      .single();
-    return data?.user_id ?? null;
+      .limit(1);
+    return data && data.length > 0 ? data[0].user_id : null;
   };
 
   const createLoanRequest = async (data: {
