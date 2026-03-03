@@ -175,12 +175,12 @@ export function useLoans() {
 
   // Resolve VP user_id directly
   const resolveVP = async (): Promise<string | null> => {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'vp')
-      .limit(1);
-    return data && data.length > 0 ? data[0].user_id : null;
+    const { data, error } = await supabase.rpc('get_vp_user_id');
+    if (error) {
+      console.error('Error resolving VP:', error.message);
+      return null;
+    }
+    return data as string | null;
   };
 
   const createLoanRequest = async (data: {

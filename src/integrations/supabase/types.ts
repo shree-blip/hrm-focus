@@ -3416,6 +3416,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string[]
       }
+      get_vp_user_id: { Args: never; Returns: string }
       get_vp_user_id_for_org: { Args: { _org_id: string }; Returns: string }
       has_loan_officer_role: {
         Args: { _loan_role: string; _user_id: string }
