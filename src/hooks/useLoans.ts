@@ -234,8 +234,8 @@ export function useLoans() {
     const emi = calculateEMI(data.amount, loanPolicy.interest_rate, data.term_months);
     const { managerUserId, vpUserId } = await resolveApprovers(employeeData);
 
-    if (!managerUserId) {
-      toast({ title: "Error", description: "No Line Manager assigned. Please contact HR.", variant: "destructive" });
+    if (!vpUserId) {
+      toast({ title: "Error", description: "No VP assigned. Please contact HR.", variant: "destructive" });
       return null;
     }
 
@@ -254,7 +254,7 @@ export function useLoans() {
       signed_at: new Date().toISOString(),
       position_level: employeeData.position_level,
       max_eligible_amount: loanPolicy.max_loan,
-      status: 'pending_manager',
+      status: 'pending_vp',
       submitted_at: new Date().toISOString(),
       manager_user_id: managerUserId,
       vp_user_id: vpUserId,
@@ -277,7 +277,7 @@ export function useLoans() {
       await logAudit(lr.id, 'loan_submitted', { amount: data.amount, term: data.term_months });
     }
 
-    toast({ title: "Loan Request Submitted", description: "Your request has been sent to your Line Manager." });
+    toast({ title: "Loan Request Submitted", description: "Your request has been sent to the VP for approval." });
     await refetchAll();
     return lr;
   };
