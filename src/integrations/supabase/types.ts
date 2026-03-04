@@ -3350,6 +3350,10 @@ export type Database = {
         Args: { _conversation_id: string; _new_member_id: string }
         Returns: boolean
       }
+      add_team_member: {
+        Args: { _manager_employee_id: string; _member_employee_id: string }
+        Returns: Json
+      }
       auto_clock_out_after_8_hours: { Args: never; Returns: number }
       can_create_employee: { Args: { _user_id: string }; Returns: boolean }
       can_manage_announcements: { Args: { _user_id: string }; Returns: boolean }
@@ -3363,6 +3367,13 @@ export type Database = {
       }
       can_view_salary: {
         Args: { _employee_id: string; _user_id: string }
+        Returns: boolean
+      }
+      change_user_role: {
+        Args: {
+          _new_role: Database["public"]["Enums"]["app_role"]
+          _target_user_id: string
+        }
         Returns: boolean
       }
       check_rate_limit: {

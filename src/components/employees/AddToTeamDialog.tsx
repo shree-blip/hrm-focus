@@ -101,86 +101,79 @@ export function AddToTeamDialog({
   };
 
   const handleAssign = async () => {
-    // Use targetEmployeeId if provided, otherwise use logged-in user's employee ID
     const assignToId = targetEmployeeId || myEmployeeId;
     if (!assignToId || selectedIds.length === 0) return;
     setSaving(true);
 
     let successCount = 0;
     const failedNames: string[] = [];
+    const alreadyMembers: string[] = [];
 
     for (const empId of selectedIds) {
-      const { data, error } = await supabase
-        .from("employees")
-        .update({ line_manager_id: assignToId })
-        .eq("id", empId)
-        .select("id")
-        .maybeSingle();
+      // Use the idempotent backend function — never touches user_roles
+      const { data, error } = await supabase.rpc("add_team_member", {
+        _manager_employee_id: assignToId,
+        _member_employee_id: empId,
+      });
 
-      if (error || !data) {
-        // Update was blocked by RLS or failed — track the failure
+      if (error) {
         const emp = allEmployees.find((e) => e.id === empId);
         failedNames.push(emp ? `${emp.first_name} ${emp.last_name}` : empId);
-      } else {
-        successCount++;
+        continue;
+      }
 
-        // Notify the employee being added to the team
-        const emp = allEmployees.find((e) => e.id === empId);
-        if (emp) {
-          // Get user_id for the employee
-          const { data: empProfile } = await supabase
-            .from("employees")
-            .select("profile_id")
-            .eq("id", empId)
+      const result = data as { success: boolean; reason?: string; member_name?: string; manager_name?: string };
+
+      if (!result.success) {
+        if (result.reason === "already_member") {
+          alreadyMembers.push(result.member_name || empId);
+        } else {
+          failedNames.push(result.member_name || empId);
+        }
+        continue;
+      }
+
+      successCount++;
+
+      // Send notifications (employee + VPs)
+      const emp = allEmployees.find((e) => e.id === empId);
+      if (emp) {
+        const { data: empProfile } = await supabase
+          .from("employees")
+          .select("profile_id")
+          .eq("id", empId)
+          .single();
+
+        if (empProfile?.profile_id) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("user_id")
+            .eq("id", empProfile.profile_id)
             .single();
 
-          if (empProfile?.profile_id) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("user_id")
-              .eq("id", empProfile.profile_id)
-              .single();
-
-            if (profile) {
-              // Get manager name
-              const { data: managerEmp } = await supabase
-                .from("employees")
-                .select("first_name, last_name")
-                .eq("id", assignToId)
-                .single();
-              const managerName = managerEmp ? `${managerEmp.first_name} ${managerEmp.last_name}` : "your manager";
-
-              await supabase.from("notifications").insert({
-                user_id: profile.user_id,
-                title: "👥 Added to Team",
-                message: `You have been added to ${managerName}'s team.`,
-                type: "team",
-                link: "/employees",
-              });
-            }
+          if (profile) {
+            await supabase.from("notifications").insert({
+              user_id: profile.user_id,
+              title: "👥 Added to Team",
+              message: `You have been added to ${result.manager_name || "your manager"}'s team.`,
+              type: "team",
+              link: "/employees",
+            });
           }
         }
 
-        // Notify VPs about the team addition
         const { data: vpUsers } = await supabase
           .from("user_roles")
           .select("user_id")
           .in("role", ["vp", "admin"]);
 
-        if (vpUsers && emp) {
+        if (vpUsers) {
           for (const vp of vpUsers) {
             if (vp.user_id !== user?.id) {
-              const { data: managerEmp } = await supabase
-                .from("employees")
-                .select("first_name, last_name")
-                .eq("id", assignToId)
-                .single();
-              const managerName = managerEmp ? `${managerEmp.first_name} ${managerEmp.last_name}` : "A manager";
-
               await supabase.from("notifications").insert({
                 user_id: vp.user_id,
                 title: "👥 Team Update",
-                message: `${emp.first_name} ${emp.last_name} has been added to ${managerName}'s team.`,
+                message: `${emp.first_name} ${emp.last_name} has been added to ${result.manager_name || "a manager"}'s team.`,
                 type: "team",
                 link: "/employees",
               });
@@ -192,21 +185,20 @@ export function AddToTeamDialog({
 
     onOpenChange(false);
 
-    if (failedNames.length > 0 && successCount > 0) {
-      toast({
-        title: "Partial Success",
-        description: `${successCount} added. Could not assign: ${failedNames.join(", ")}. They may already belong to another team.`,
-        variant: "destructive",
-      });
-      await onAdded(true, successCount);
-    } else if (failedNames.length > 0) {
-      toast({
-        title: "Assignment Failed",
-        description: `Could not assign: ${failedNames.join(", ")}. They may already belong to another team.`,
-        variant: "destructive",
-      });
+    // Build feedback message
+    const messages: string[] = [];
+    if (successCount > 0) messages.push(`${successCount} added successfully`);
+    if (alreadyMembers.length > 0) messages.push(`Already on team: ${alreadyMembers.join(", ")}`);
+    if (failedNames.length > 0) messages.push(`Failed: ${failedNames.join(", ")}`);
+
+    if (failedNames.length > 0 && successCount === 0) {
+      toast({ title: "Assignment Failed", description: messages.join(". "), variant: "destructive" });
       await onAdded(false, 0);
+    } else if (alreadyMembers.length > 0 || failedNames.length > 0) {
+      toast({ title: "Partial Success", description: messages.join(". ") });
+      await onAdded(true, successCount);
     } else {
+      toast({ title: "✅ Team Updated", description: messages.join(". ") });
       await onAdded(true, successCount);
     }
 

@@ -269,25 +269,18 @@ export default function AccessControl() {
 
     setSaving(employeeId);
 
-    const { data: existingRole } = await supabase.from("user_roles").select("id").eq("user_id", userId).single();
-
-    let error;
-    if (existingRole) {
-      const result = await supabase
-        .from("user_roles")
-        .update({ role: newRole as AppRole })
-        .eq("user_id", userId);
-      error = result.error;
-    } else {
-      const result = await supabase.from("user_roles").insert({ user_id: userId, role: newRole as AppRole });
-      error = result.error;
-    }
+    // Use the atomic change_user_role function to prevent duplicate key errors
+    const { data, error } = await supabase.rpc("change_user_role", {
+      _target_user_id: userId,
+      _new_role: newRole as AppRole,
+    });
 
     if (error) {
       toast({ title: "Error", description: "Failed to update role: " + error.message, variant: "destructive" });
     } else {
-      toast({ title: "Role Updated", description: `Role changed to ${ROLE_LABELS[newRole]}.` });
-      // Immediately refresh the users list to reflect the new role
+      const emp = users.find((u) => u.id === employeeId);
+      const empName = emp ? `${emp.first_name} ${emp.last_name}` : "User";
+      toast({ title: "✅ Role Changed", description: `${empName}'s role changed to ${ROLE_LABELS[newRole]}.` });
       await fetchUsers();
     }
 
