@@ -232,7 +232,8 @@ export function useAttendance(weekStart?: Date) {
     }
   };
 
-  const clockIn = async (type: "payroll" | "billable" = "payroll") => {
+  // Change the signature
+  const clockIn = async (type: "payroll" | "billable" = "payroll", workMode: "wfo" | "wfh" = "wfo") => {
     if (!user) return;
 
     // Check geofencing (simplified - just check if location is available)
@@ -256,6 +257,7 @@ export function useAttendance(weekStart?: Date) {
         clock_type: type,
         status: "active",
         location_name: locationName,
+        work_mode: workMode, // <-- add this
       })
       .select()
       .single();
@@ -264,7 +266,10 @@ export function useAttendance(weekStart?: Date) {
       toast({ title: "Error", description: "Failed to clock in", variant: "destructive" });
     } else {
       setCurrentLog(data as AttendanceLog);
-      toast({ title: "Clocked In", description: `You are now tracking ${type} time.` });
+      toast({
+        title: "Clocked In",
+        description: `You are now tracking ${type} time (${workMode === "wfh" ? "Work From Home" : "Office"}).`,
+      });
 
       // Create notification for clock-in
       await supabase.from("notifications").insert({
@@ -478,7 +483,7 @@ export function useAttendance(weekStart?: Date) {
     }
   };
 
-  const endPause = async () => {
+  const endPause = async (newWorkMode?: "wfo" | "wfh") => {
     if (!user || !currentLog || !currentLog.pause_start) return;
 
     const pauseStart = new Date(currentLog.pause_start);
@@ -491,6 +496,7 @@ export function useAttendance(weekStart?: Date) {
         pause_end: pauseEnd.toISOString(),
         total_pause_minutes: (currentLog.total_pause_minutes || 0) + pauseMinutes,
         status: "active",
+        ...(newWorkMode && { work_mode: newWorkMode }),
       })
       .eq("id", currentLog.id)
       .select()
@@ -500,7 +506,10 @@ export function useAttendance(weekStart?: Date) {
       toast({ title: "Error", description: "Failed to resume clock", variant: "destructive" });
     } else {
       setCurrentLog({ ...data, status: "active" } as AttendanceLog);
-      toast({ title: "Clock Resumed", description: `Pause time: ${pauseMinutes} minutes` });
+      toast({
+        title: "Clock Resumed",
+        description: `Pause time: ${pauseMinutes} minutes${newWorkMode ? ` — now ${newWorkMode === "wfh" ? "Working From Home" : "Working From Office"}` : ""}`,
+      });
 
       // Auto-resume all paused work logs
       await autoResumeWorkLogs();
@@ -508,7 +517,7 @@ export function useAttendance(weekStart?: Date) {
       await supabase.from("notifications").insert({
         user_id: user.id,
         title: "▶️ Clock Resumed",
-        message: `You resumed work after a ${pauseMinutes} minute pause.`,
+        message: `You resumed work after a ${pauseMinutes} minute pause.${newWorkMode === "wfh" ? " Now working from home." : newWorkMode === "wfo" ? " Now working from office." : ""}`,
         type: "attendance",
         link: "/attendance",
       });
