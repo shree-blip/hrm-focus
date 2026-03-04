@@ -11,7 +11,7 @@ import { format, formatDistanceToNow, startOfDay, endOfDay } from "date-fns";
 
 // Types
 type Status = "IN" | "OUT" | "BRS" | "BRE" | "PAUSE" | "CONT" | "—";
-type FilterType = "all" | "working" | "break" | "paused" | "out";
+type FilterType = "all" | "working" | "break" | "paused" | "out" | "wfo" | "wfh";
 
 interface Employee {
   id: string;
@@ -20,6 +20,7 @@ interface Employee {
   status: Status;
   lastAction: string | null;
   avatar: string | null;
+  workMode: "wfo" | "wfh" | null;
 }
 
 interface Event {
@@ -58,6 +59,8 @@ const FILTER_LABELS: Record<FilterType, string> = {
   break: "On Break",
   paused: "Paused",
   out: "Clocked Out",
+  wfo: "Work From Office",
+  wfh: "Work From Home",
 };
 
 const getInitials = (name: string) =>
@@ -166,6 +169,7 @@ export function RealTimeAttendanceWidget() {
         status,
         lastAction,
         avatar: e.profiles?.avatar_url || null,
+        workMode: log?.work_mode || null,
       };
     });
 
@@ -209,75 +213,88 @@ export function RealTimeAttendanceWidget() {
   }, []);
 
   // Process realtime payload locally for instant updates
-  const handleRealtimeChange = useCallback((payload: any) => {
-    const log = payload.new || payload.old;
-    if (!log) {
-      fetchData();
-      return;
-    }
+  const handleRealtimeChange = useCallback(
+    (payload: any) => {
+      const log = payload.new || payload.old;
+      if (!log) {
+        fetchData();
+        return;
+      }
 
-    // Resolve the employee_id from the log — either directly or via user_id map
-    const resolvedEmpId = log.employee_id || userToEmpMap.get(log.user_id);
+      // Resolve the employee_id from the log — either directly or via user_id map
+      const resolvedEmpId = log.employee_id || userToEmpMap.get(log.user_id);
 
-    if (!resolvedEmpId) {
-      // Can't match to an employee, do a full refetch
-      fetchData();
-      return;
-    }
+      if (!resolvedEmpId) {
+        // Can't match to an employee, do a full refetch
+        fetchData();
+        return;
+      }
 
-    setEmployees(prev => {
-      const updated = prev.map(emp => {
-        if (emp.id !== resolvedEmpId) return emp;
+      setEmployees((prev) => {
+        const updated = prev.map((emp) => {
+          if (emp.id !== resolvedEmpId) return emp;
 
-        let status: Status = "—";
-        if (log.clock_out) status = "OUT";
-        else if (log.pause_start && !log.pause_end) status = "PAUSE";
-        else if (log.break_start && !log.break_end) status = "BRS";
-        else if (log.clock_in) status = "IN";
+          let status: Status = "—";
+          if (log.clock_out) status = "OUT";
+          else if (log.pause_start && !log.pause_end) status = "PAUSE";
+          else if (log.break_start && !log.break_end) status = "BRS";
+          else if (log.clock_in) status = "IN";
 
-        const times = [log.clock_out, log.pause_end, log.pause_start, log.break_end, log.break_start, log.clock_in].filter(Boolean);
-        const lastAction = times.length > 0 ? times.reduce((a: string, b: string) => (new Date(b) > new Date(a) ? b : a)) : emp.lastAction;
+          const times = [
+            log.clock_out,
+            log.pause_end,
+            log.pause_start,
+            log.break_end,
+            log.break_start,
+            log.clock_in,
+          ].filter(Boolean);
+          const lastAction =
+            times.length > 0
+              ? times.reduce((a: string, b: string) => (new Date(b) > new Date(a) ? b : a))
+              : emp.lastAction;
 
-        return { ...emp, status, lastAction };
+          return { ...emp, status, lastAction };
+        });
+
+        updated.sort((a, b) => {
+          if (!a.lastAction && !b.lastAction) return 0;
+          if (!a.lastAction) return 1;
+          if (!b.lastAction) return -1;
+          return new Date(b.lastAction).getTime() - new Date(a.lastAction).getTime();
+        });
+
+        // Update summary
+        const working = updated.filter((e) => ["IN", "BRE", "CONT"].includes(e.status)).length;
+        const onBreak = updated.filter((e) => e.status === "BRS").length;
+        const paused = updated.filter((e) => e.status === "PAUSE").length;
+        const out = updated.filter((e) => e.status === "OUT").length;
+        setSummary({ total: updated.length, working, break: onBreak, paused, out });
+
+        // Update events
+        const evtName = updated.find((e) => e.id === resolvedEmpId)?.name || "Unknown";
+        setEvents((prevEvts) => {
+          const newEvts = [...prevEvts];
+          const addEvt = (type: Status, time: string) => {
+            const id = `${log.id}-${type.toLowerCase()}`;
+            if (!newEvts.find((e) => e.id === id)) {
+              newEvts.unshift({ id, name: evtName, type, time });
+            }
+          };
+          if (log.clock_in) addEvt("IN", log.clock_in);
+          if (log.break_start) addEvt("BRS", log.break_start);
+          if (log.break_end) addEvt("BRE", log.break_end);
+          if (log.pause_start) addEvt("PAUSE", log.pause_start);
+          if (log.pause_end) addEvt("CONT", log.pause_end);
+          if (log.clock_out) addEvt("OUT", log.clock_out);
+          newEvts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+          return newEvts.slice(0, 20);
+        });
+
+        return updated;
       });
-
-      updated.sort((a, b) => {
-        if (!a.lastAction && !b.lastAction) return 0;
-        if (!a.lastAction) return 1;
-        if (!b.lastAction) return -1;
-        return new Date(b.lastAction).getTime() - new Date(a.lastAction).getTime();
-      });
-
-      // Update summary
-      const working = updated.filter(e => ["IN", "BRE", "CONT"].includes(e.status)).length;
-      const onBreak = updated.filter(e => e.status === "BRS").length;
-      const paused = updated.filter(e => e.status === "PAUSE").length;
-      const out = updated.filter(e => e.status === "OUT").length;
-      setSummary({ total: updated.length, working, break: onBreak, paused, out });
-
-      // Update events
-      const evtName = updated.find(e => e.id === resolvedEmpId)?.name || "Unknown";
-      setEvents(prevEvts => {
-        const newEvts = [...prevEvts];
-        const addEvt = (type: Status, time: string) => {
-          const id = `${log.id}-${type.toLowerCase()}`;
-          if (!newEvts.find(e => e.id === id)) {
-            newEvts.unshift({ id, name: evtName, type, time });
-          }
-        };
-        if (log.clock_in) addEvt("IN", log.clock_in);
-        if (log.break_start) addEvt("BRS", log.break_start);
-        if (log.break_end) addEvt("BRE", log.break_end);
-        if (log.pause_start) addEvt("PAUSE", log.pause_start);
-        if (log.pause_end) addEvt("CONT", log.pause_end);
-        if (log.clock_out) addEvt("OUT", log.clock_out);
-        newEvts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-        return newEvts.slice(0, 20);
-      });
-
-      return updated;
-    });
-  }, [fetchData, userToEmpMap]);
+    },
+    [fetchData, userToEmpMap],
+  );
 
   useEffect(() => {
     fetchData();
@@ -299,6 +316,10 @@ export function RealTimeAttendanceWidget() {
     if (activeFilter === "break") return emp.status === "BRS";
     if (activeFilter === "paused") return emp.status === "PAUSE";
     if (activeFilter === "out") return emp.status === "OUT";
+    if (activeFilter === "wfo")
+      return ["IN", "BRE", "CONT", "PAUSE", "BRS"].includes(emp.status) && emp.workMode !== "wfh";
+    if (activeFilter === "wfh")
+      return ["IN", "BRE", "CONT", "PAUSE", "BRS"].includes(emp.status) && emp.workMode === "wfh";
     return true;
   });
 
@@ -450,7 +471,32 @@ export function RealTimeAttendanceWidget() {
             </ScrollArea>
           </div>
         )}
-
+        {/* WFO / WFH Quick Filters */}
+        <div className="flex gap-2">
+          <Button
+            variant={activeFilter === "wfo" ? "default" : "outline"}
+            size="sm"
+            className="flex-1 gap-2"
+            onClick={() => handleFilterClick("wfo")}
+          >
+            <Briefcase className="h-4 w-4" />
+            WFO ({employees.filter((e) => ["IN", "BRE", "CONT"].includes(e.status) && e.workMode !== "wfh").length})
+          </Button>
+          <Button
+            variant={activeFilter === "wfh" ? "default" : "outline"}
+            size="sm"
+            className="flex-1 gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+            onClick={() => handleFilterClick("wfh")}
+          >
+            <Users className="h-4 w-4" />
+            WFH (
+            {
+              employees.filter((e) => ["IN", "BRE", "CONT", "PAUSE", "BRS"].includes(e.status) && e.workMode === "wfh")
+                .length
+            }
+            )
+          </Button>
+        </div>
         {/* Activity Feed - Show when no filter active */}
         {!activeFilter && (
           <div>
