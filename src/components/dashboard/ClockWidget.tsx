@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Clock, Play, Square, Coffee, Loader2, Briefcase, Pause } from "lucide-react";
+import { Clock, Play, Square, Coffee, Loader2, Briefcase, Pause, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +52,7 @@ export function ClockWidget() {
 
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
+  const [showResumeLocationDialog, setShowResumeLocationDialog] = useState(false);
 
   // Cast currentLog to include pause fields
   const typedCurrentLog = currentLog as AttendanceLogWithPause | null;
@@ -130,10 +131,16 @@ export function ClockWidget() {
 
   const handlePause = async () => {
     if (clockStatus === "paused") {
-      await endPause();
+      // Instead of resuming directly, show the location choice dialog
+      setShowResumeLocationDialog(true);
     } else {
       await startPause();
     }
+  };
+
+  const handleResumeWithLocation = async (workMode: "wfo" | "wfh") => {
+    setShowResumeLocationDialog(false);
+    await endPause(workMode);
   };
 
   // Calculate today's hours from logs (excluding breaks and pauses)
@@ -305,10 +312,21 @@ export function ClockWidget() {
         {/* Action Buttons */}
         <div className="flex gap-2 flex-wrap">
           {clockStatus === "out" ? (
-            <Button onClick={handleClockIn} className="flex-1 gap-2" size="lg">
-              <Play className="h-4 w-4" />
-              Clock In
-            </Button>
+            <div className="flex gap-2 w-full">
+              <Button onClick={() => clockIn(clockType, "wfo")} className="flex-1 gap-2" size="lg">
+                <Play className="h-4 w-4" />
+                Clock In
+              </Button>
+              <Button
+                onClick={() => clockIn(clockType, "wfh")}
+                variant="outline"
+                className="flex-1 gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+                size="lg"
+              >
+                <Play className="h-4 w-4" />
+                Clock In (WFH)
+              </Button>
+            </div>
           ) : (
             <>
               <Button
@@ -357,6 +375,7 @@ export function ClockWidget() {
             <p className="text-xs text-muted-foreground">This Month</p>
           </div>
         </div>
+
         {/* Clock Out Confirmation Dialog */}
         <AlertDialog open={showClockOutDialog} onOpenChange={setShowClockOutDialog}>
           <AlertDialogContent className="max-w-md">
@@ -392,6 +411,41 @@ export function ClockWidget() {
                 <Square className="h-4 w-4 fill-current" />
                 Confirm Clock Out
               </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        {/* Resume Location Dialog */}
+        <AlertDialog open={showResumeLocationDialog} onOpenChange={setShowResumeLocationDialog}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader className="space-y-4">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-100">
+                <Briefcase className="h-7 w-7 text-blue-600" />
+              </div>
+              <AlertDialogTitle className="text-center text-xl">Where are you working from?</AlertDialogTitle>
+              <AlertDialogDescription className="text-center text-base">
+                You're about to resume your shift. Please select your current work location.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex flex-col gap-3 mt-4">
+              <Button onClick={() => handleResumeWithLocation("wfo")} className="w-full gap-2 h-12 text-base" size="lg">
+                <Briefcase className="h-5 w-5" />
+                Work From Office (WFO)
+              </Button>
+              <Button
+                onClick={() => handleResumeWithLocation("wfh")}
+                variant="outline"
+                className="w-full gap-2 h-12 text-base border-blue-300 text-blue-600 hover:bg-blue-50"
+                size="lg"
+              >
+                <Home className="h-5 w-5" />
+                Work From Home (WFH)
+              </Button>
+            </div>
+            <AlertDialogFooter className="mt-3">
+              <AlertDialogCancel className="w-full gap-2">
+                <X className="h-4 w-4" />
+                Stay Paused
+              </AlertDialogCancel>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
