@@ -150,6 +150,8 @@ CREATE TABLE public.attendance_logs (
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'break', 'completed')),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
+ALTER TABLE public.attendance_logs 
+ADD COLUMN work_mode TEXT DEFAULT 'wfo' CHECK (work_mode IN ('wfo', 'wfh'));
 
 ALTER TABLE public.attendance_logs ENABLE ROW LEVEL SECURITY;
 
