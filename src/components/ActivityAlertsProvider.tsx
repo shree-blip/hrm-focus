@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useActivityAlerts } from "@/hooks/useActivityAlerts";
+import { requestNotificationPermission } from "@/lib/osNotification";
 
 /**
  * Invisible provider component that wires up the activity alerts
@@ -14,6 +15,11 @@ export function ActivityAlertsProvider() {
   useEffect(() => {
     setNavigate(navigate);
   }, [navigate, setNavigate]);
+
+  // Request OS notification permission on first load
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   return null;
 }
