@@ -24,7 +24,7 @@ type AppRole = (typeof ROLES)[number];
 const PERMISSION_ROLES = ROLES.filter((r): r is Exclude<AppRole, "supervisor"> => r !== "supervisor");
 
 const ROLE_LABELS: Record<string, string> = {
-  vp: "Vice President",
+  vp: "CEO",
   admin: "Admin",
   supervisor: "Supervisor",
   line_manager: "Line Manager",

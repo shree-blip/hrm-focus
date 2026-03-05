@@ -61,7 +61,7 @@ export function VPPanel({ vpQueue, vpHistory, onDecision, onDisburse }: VPPanelP
         <CardContent className="p-4 flex items-center gap-3">
           <Crown className="h-8 w-8 text-primary" />
           <div>
-            <p className="text-xs text-muted-foreground">Awaiting VP Decision</p>
+            <p className="text-xs text-muted-foreground">Awaiting CEO Decision</p>
             <p className="text-2xl font-bold">{vpQueue.length}</p>
           </div>
         </CardContent>
@@ -178,7 +178,7 @@ export function VPPanel({ vpQueue, vpHistory, onDecision, onDisburse }: VPPanelP
       <Dialog open={!!selectedLoan} onOpenChange={() => { setSelectedLoan(null); setComment(''); setDisbursementDate(''); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>VP Final Decision</DialogTitle>
+            <DialogTitle>CEO Final Decision</DialogTitle>
             <DialogDescription>Approve or reject this loan request</DialogDescription>
           </DialogHeader>
           {selectedLoan && (
