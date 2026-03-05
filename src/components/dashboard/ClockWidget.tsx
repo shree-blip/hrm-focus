@@ -315,7 +315,7 @@ export function ClockWidget() {
             <div className="flex gap-2 w-full">
               <Button onClick={() => clockIn(clockType, "wfo")} className="flex-1 gap-2" size="lg">
                 <Play className="h-4 w-4" />
-                Clock In
+                Clock In (WFO)
               </Button>
               <Button
                 onClick={() => clockIn(clockType, "wfh")}
