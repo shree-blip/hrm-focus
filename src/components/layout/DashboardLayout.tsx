@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { NotificationPermissionBanner } from "@/components/NotificationPermissionBanner";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -48,6 +49,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="hidden lg:block">
           <Header />
         </div>
+
+        {/* Notification permission banner */}
+        <NotificationPermissionBanner />
         
         {/* Mobile Header (below fixed bar) */}
         <div className="lg:hidden pt-14">
