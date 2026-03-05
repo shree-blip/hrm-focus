@@ -99,7 +99,7 @@ const Index = () => {
   }, [isManager, pendingLeaveRequests, onLeaveToday, profile]);
 
   const getRoleLabel = () => {
-    if (role === "vp") return "VP";
+    if (role === "vp") return "CEO";
     if (role === "admin") return "Admin";
     if (role === "manager") return "Manager";
     return "";
