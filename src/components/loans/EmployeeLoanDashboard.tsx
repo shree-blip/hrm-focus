@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoanStatusTimeline } from "./LoanStatusTimeline";
 import { LoanRequestForm } from "./LoanRequestForm";
 import { SIMPLIFIED_STATUS_LABELS, LoanPolicy } from "@/lib/loanCalculations";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface EmployeeLoanDashboardProps {
@@ -13,16 +13,24 @@ interface EmployeeLoanDashboardProps {
   employeeData: any;
   loanPolicy: LoanPolicy | null;
   onCreateLoan: (data: any) => Promise<any>;
+  onDeleteLoan: (loanId: string) => Promise<void>;
   isVP?: boolean;
 }
 
-export function EmployeeLoanDashboard({ myLoans, employeeData, loanPolicy, onCreateLoan, isVP }: EmployeeLoanDashboardProps) {
+export function EmployeeLoanDashboard({
+  myLoans,
+  employeeData,
+  loanPolicy,
+  onCreateLoan,
+  onDeleteLoan,
+  isVP,
+}: EmployeeLoanDashboardProps) {
   const [showForm, setShowForm] = useState(false);
 
   const statusColor = (s: string) => {
-    if (['approved', 'disbursed'].includes(s)) return 'default';
-    if (s === 'rejected') return 'destructive';
-    return 'outline';
+    if (["approved", "disbursed"].includes(s)) return "default";
+    if (s === "rejected") return "destructive";
+    return "outline";
   };
 
   return (
@@ -47,10 +55,14 @@ export function EmployeeLoanDashboard({ myLoans, employeeData, loanPolicy, onCre
               <CardContent className="p-4 space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-medium">${Number(loan.amount).toLocaleString()} · {loan.term_months} months</p>
+                    <p className="font-medium">
+                      ${Number(loan.amount).toLocaleString()} · {loan.term_months} months
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Submitted {loan.submitted_at ? format(new Date(loan.submitted_at), 'MMM dd, yyyy') : 'N/A'}
-                      {loan.estimated_monthly_installment ? ` · EMI: $${Number(loan.estimated_monthly_installment).toFixed(2)}/mo` : ''}
+                      Submitted {loan.submitted_at ? format(new Date(loan.submitted_at), "MMM dd, yyyy") : "N/A"}
+                      {loan.estimated_monthly_installment
+                        ? ` · EMI: $${Number(loan.estimated_monthly_installment).toFixed(2)}/mo`
+                        : ""}
                     </p>
                   </div>
                   <Badge variant={statusColor(loan.status) as any}>
@@ -58,6 +70,25 @@ export function EmployeeLoanDashboard({ myLoans, employeeData, loanPolicy, onCre
                   </Badge>
                 </div>
                 <LoanStatusTimeline currentStatus={loan.status} />
+                {["pending_vp", "pending_manager", "rejected", "draft"].includes(loan.status) && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "Are you sure you want to delete this loan request? This action cannot be undone.",
+                          )
+                        ) {
+                          onDeleteLoan(loan.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" /> Delete
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
