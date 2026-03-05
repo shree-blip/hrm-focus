@@ -9,21 +9,11 @@ import { Loader2 } from "lucide-react";
 
 export default function Loans() {
   const {
-    myLoans,
-    loading,
-    employeeData,
-    loanPolicy,
-    pendingForManager,
-    managerHistory,
-    vpQueue,
-    vpHistory,
-    isLineManager,
-    isVP,
-    createLoanRequest,
-    managerDecision,
-    vpDecision,
-    disburseLoan,
-    deleteLoanRequest,
+    myLoans, loading, employeeData, loanPolicy,
+    pendingForManager, managerHistory,
+    vpQueue, vpHistory,
+    isLineManager, isVP,
+    createLoanRequest, managerDecision, vpDecision, disburseLoan,
   } = useLoans();
 
   if (loading) {
@@ -48,6 +38,7 @@ export default function Loans() {
           <TabsList className="flex-wrap">
             <TabsTrigger value="my-loans">My Loans</TabsTrigger>
             <TabsTrigger value="calculator">Calculator</TabsTrigger>
+            
             {isVP && <TabsTrigger value="vp">CEO / Finance</TabsTrigger>}
           </TabsList>
 
@@ -57,7 +48,6 @@ export default function Loans() {
               employeeData={employeeData}
               loanPolicy={loanPolicy}
               onCreateLoan={createLoanRequest}
-              onDeleteLoan={deleteLoanRequest}
               isVP={isVP}
             />
           </TabsContent>
@@ -72,9 +62,17 @@ export default function Loans() {
             </div>
           </TabsContent>
 
+
+
+
           {isVP && (
             <TabsContent value="vp">
-              <VPPanel vpQueue={vpQueue} vpHistory={vpHistory} onDecision={vpDecision} onDisburse={disburseLoan} />
+              <VPPanel
+                vpQueue={vpQueue}
+                vpHistory={vpHistory}
+                onDecision={vpDecision}
+                onDisburse={disburseLoan}
+              />
             </TabsContent>
           )}
         </Tabs>
