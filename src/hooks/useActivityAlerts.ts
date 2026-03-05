@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast as sonnerToast } from "sonner";
+import { sendOSNotification } from "@/lib/osNotification";
 
 type AttendanceEventType = "clock_in" | "clock_out" | "break_start" | "break_end" | "pause_start" | "pause_end";
 
@@ -57,9 +58,9 @@ function flush() {
 
   if (events.length === 1) {
     const e = events[0];
-    sonnerToast(`${EVENT_ICONS[e.type]} ${e.employeeName} ${EVENT_LABELS[e.type]}`, {
-      duration: 5000,
-    });
+    const title = `${EVENT_ICONS[e.type]} ${e.employeeName} ${EVENT_LABELS[e.type]}`;
+    sonnerToast(title, { duration: 5000 });
+    sendOSNotification(title);
     return;
   }
 
@@ -69,11 +70,11 @@ function flush() {
     groups[label] = (groups[label] || 0) + 1;
   });
   const parts = Object.entries(groups).map(([label, count]) => `${count} ${label}`);
+  const title = `👥 ${events.length} activity updates`;
+  const body = parts.join(", ");
 
-  sonnerToast(`👥 ${events.length} activity updates`, {
-    description: parts.join(", "),
-    duration: 5000,
-  });
+  sonnerToast(title, { description: body, duration: 5000 });
+  sendOSNotification(title, body);
 }
 
 function enqueue(event: QueuedEvent) {
