@@ -17,60 +17,53 @@ import {
   ClipboardList,
   Bug,
   Landmark,
+  Megaphone,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions, Permission } from "@/hooks/usePermissions";
 import focusLogo from "@/assets/focus-logo.png";
 
 interface MenuItem {
   icon: typeof LayoutDashboard;
   label: string;
   href: string;
+  /** If set, item shows only when user has at least one of these permissions */
+  permissions?: Permission[];
+  /** If true, always visible to all authenticated users */
+  alwaysVisible?: boolean;
+  /** Only for roles that are managers+ (legacy, used as fallback) */
   managerOnly?: boolean;
 }
 
-const employeeMenuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: Clock, label: "Attendance", href: "/attendance" },
-  { icon: Calendar, label: "Leave", href: "/leave" },
-  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet" },
-  { icon: FileText, label: "Documents", href: "/documents" },
-  { icon: Landmark, label: "Loans", href: "/loans" },
-  { icon: Bug, label: "Support", href: "/support" },
-  { icon: Users, label: "Profile", href: "/profile" },
+/**
+ * Single unified menu — visibility controlled by effective permissions.
+ * Items with `alwaysVisible` show for everyone.
+ * Items with `permissions` show when user has ANY of the listed permissions.
+ * Items with `managerOnly` show for manager/vp/admin roles (legacy fallback).
+ */
+const ALL_MENU_ITEMS: MenuItem[] = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/", alwaysVisible: true },
+  { icon: CheckSquare, label: "Approvals", href: "/approvals", permissions: ["approve_leave"] },
+  { icon: Users, label: "Team", href: "/employees", permissions: ["manage_employees", "view_employees_all", "view_employees_reports_only"] },
+  { icon: Clock, label: "Attendance", href: "/attendance", alwaysVisible: true },
+  { icon: Calendar, label: "Leave", href: "/leave", alwaysVisible: true },
+  { icon: CheckSquare, label: "Tasks", href: "/tasks", alwaysVisible: true },
+  { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet", alwaysVisible: true },
+  { icon: TrendingUp, label: "Reports", href: "/reports", permissions: ["view_reports"] },
+  { icon: Megaphone, label: "Announcements", href: "/announcements", permissions: ["add_announcement", "edit_announcement", "delete_announcement", "view_announcements"] },
+  { icon: FileText, label: "Documents", href: "/documents", alwaysVisible: true },
+  { icon: UserPlus, label: "Onboarding", href: "/onboarding", permissions: ["manage_onboarding"] },
+  { icon: Wallet, label: "Payroll", href: "/payroll", permissions: ["manage_payroll", "view_payroll"] },
+  { icon: Landmark, label: "Loans", href: "/loans", alwaysVisible: true },
+  { icon: Bug, label: "Support", href: "/support", alwaysVisible: true },
+  { icon: Users, label: "Profile", href: "/profile", alwaysVisible: true },
+  { icon: Shield, label: "Access Control", href: "/access-control", permissions: ["manage_access"] },
 ];
 
-const managerMenuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: CheckSquare, label: "Approvals", href: "/approvals" },
-  { icon: Users, label: "Team", href: "/employees" },
-  { icon: Clock, label: "Attendance", href: "/attendance" },
-  { icon: Calendar, label: "Leave", href: "/leave" },
-  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet" },
-  { icon: FileText, label: "Documents", href: "/documents" },
-  { icon: Landmark, label: "Loans", href: "/loans" },
-  { icon: Bug, label: "Support", href: "/support" },
-];
-
-const vpMenuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: CheckSquare, label: "Approvals", href: "/approvals" },
-  { icon: TrendingUp, label: "Reports", href: "/reports" },
-  { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet" },
-  { icon: FileText, label: "Announcements", href: "/announcements" },
-  { icon: FileText, label: "Documents", href: "/documents" },
-  { icon: Bug, label: "Support", href: "/support" },
-  { icon: Users, label: "People", href: "/employees" },
-  { icon: UserPlus, label: "Onboarding", href: "/onboarding" },
-  { icon: Wallet, label: "Payroll", href: "/payroll" },
-  { icon: Landmark, label: "Loans", href: "/loans" },
-  { icon: Settings, label: "Access Control", href: "/access-control" },
-];
-
-const bottomMenuItems: MenuItem[] = [{ icon: Settings, label: "Settings", href: "/settings" }];
+const bottomMenuItems: MenuItem[] = [{ icon: Settings, label: "Settings", href: "/settings", alwaysVisible: true }];
 
 interface SidebarProps {
   onNavigate?: () => void;
@@ -79,10 +72,22 @@ interface SidebarProps {
 export function Sidebar({ onNavigate }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { isManager, isVP, role } = useAuth();
+  const { isManager, isVP } = useAuth();
+  const { hasPermission } = usePermissions();
 
-  // Select menu items based on role
-  const visibleMenuItems = isVP ? vpMenuItems : isManager ? managerMenuItems : employeeMenuItems;
+  const isItemVisible = (item: MenuItem): boolean => {
+    if (item.alwaysVisible) return true;
+    if (item.permissions) {
+      // Check effective permissions (role + overrides)
+      const hasEffective = item.permissions.some((p) => hasPermission(p));
+      if (hasEffective) return true;
+    }
+    // Legacy fallback: managers+ see manager-only items
+    if (item.managerOnly && isManager) return true;
+    return false;
+  };
+
+  const visibleMenuItems = ALL_MENU_ITEMS.filter(isItemVisible);
 
   const handleNavClick = () => {
     if (onNavigate) {
@@ -138,7 +143,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             );
 
             return (
-              <li key={item.href} className="animate-slide-in-left" style={{ animationDelay: `${index * 50}ms` }}>
+              <li key={item.href + item.label} className="animate-slide-in-left" style={{ animationDelay: `${index * 50}ms` }}>
                 {collapsed ? (
                   <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
