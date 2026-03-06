@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -64,32 +64,26 @@ export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
   'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_loans', 'view_loans', 'manage_calendar', 'manage_onboarding', 'manage_support'],
 };
 
-export const ALL_PERMISSIONS: Permission[] = [
-  'manage_access',
-  'manage_employees',
-  'manage_line_managers',
-  'view_employees_all',
-  'view_employees_reports_only',
-  'view_attendance_all',
-  'view_attendance_reports_only',
-  'manage_salaries_all',
-  'add_announcement',
-  'edit_announcement',
-  'delete_announcement',
-  'view_announcements',
-  'manage_documents',
-  'approve_leave',
-  'view_reports',
-  'manage_payroll',
-  'view_payroll',
-  'manage_onboarding',
-  'manage_tasks',
-  'view_tasks',
-  'manage_loans',
-  'view_loans',
-  'manage_calendar',
-  'manage_support',
-];
+export const ALL_PERMISSIONS: Permission[] = Object.values(PERMISSION_CATEGORIES).flat();
+
+/**
+ * Maps a permission key to the sidebar route it unlocks.
+ * Used by sidebar to show/hide menu items based on effective permissions.
+ */
+export const PERMISSION_ROUTE_MAP: Record<string, Permission[]> = {
+  '/announcements': ['add_announcement', 'edit_announcement', 'delete_announcement', 'view_announcements'],
+  '/employees': ['manage_employees', 'view_employees_all', 'view_employees_reports_only'],
+  '/approvals': ['approve_leave'],
+  '/reports': ['view_reports'],
+  '/payroll': ['manage_payroll', 'view_payroll'],
+  '/onboarding': ['manage_onboarding'],
+  '/access-control': ['manage_access'],
+  '/attendance': ['view_attendance_all', 'view_attendance_reports_only'],
+  '/documents': ['manage_documents'],
+  '/loans': ['manage_loans', 'view_loans'],
+  '/tasks': ['manage_tasks', 'view_tasks'],
+  '/support': ['manage_support'],
+};
 
 interface RolePermission {
   role: string;
@@ -98,31 +92,48 @@ interface RolePermission {
 }
 
 export function usePermissions() {
-  const { user } = useAuth();
-  const [permissions, setPermissions] = useState<Record<Permission, boolean>>({} as Record<Permission, boolean>);
+  const { user, role } = useAuth();
+  const [userOverrides, setUserOverrides] = useState<Record<string, boolean>>({});
+  const [rolePermissionsForUser, setRolePermissionsForUser] = useState<Record<string, boolean>>({});
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserPermissions = useCallback(async () => {
-    if (!user) {
+  // Batch-fetch user's role permissions + overrides in parallel
+  const fetchEffectivePermissions = useCallback(async () => {
+    if (!user || !role) {
       setLoading(false);
       return;
     }
 
-    // Fetch all permissions for the user using the has_permission function
-    const permissionResults: Record<Permission, boolean> = {} as Record<Permission, boolean>;
-    
-    for (const perm of ALL_PERMISSIONS) {
-      const { data } = await supabase.rpc('has_permission', {
-        _user_id: user.id,
-        _permission: perm
+    // Fetch role permissions for user's role AND user overrides in parallel
+    const [roleResult, overrideResult] = await Promise.all([
+      supabase
+        .from('role_permissions')
+        .select('permission, enabled')
+        .eq('role', role as any),
+      supabase
+        .from('user_permission_overrides')
+        .select('permission, enabled')
+        .eq('user_id', user.id),
+    ]);
+
+    const rolePerm: Record<string, boolean> = {};
+    if (!roleResult.error && roleResult.data) {
+      roleResult.data.forEach((rp) => {
+        rolePerm[rp.permission] = rp.enabled;
       });
-      permissionResults[perm] = !!data;
     }
-    
-    setPermissions(permissionResults);
+    setRolePermissionsForUser(rolePerm);
+
+    const overrides: Record<string, boolean> = {};
+    if (!overrideResult.error && overrideResult.data) {
+      overrideResult.data.forEach((o) => {
+        overrides[o.permission] = o.enabled;
+      });
+    }
+    setUserOverrides(overrides);
     setLoading(false);
-  }, [user]);
+  }, [user, role]);
 
   const fetchRolePermissions = useCallback(async () => {
     const { data, error } = await supabase
@@ -136,19 +147,79 @@ export function usePermissions() {
   }, []);
 
   useEffect(() => {
-    fetchUserPermissions();
+    fetchEffectivePermissions();
     fetchRolePermissions();
-  }, [fetchUserPermissions, fetchRolePermissions]);
+  }, [fetchEffectivePermissions, fetchRolePermissions]);
 
-  const hasPermission = (permission: Permission): boolean => {
+  // Listen for realtime changes to re-fetch
+  useEffect(() => {
+    if (!user) return;
+
+    const overridesChannel = supabase
+      .channel('my-overrides')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_permission_overrides',
+        filter: `user_id=eq.${user.id}`,
+      }, () => {
+        fetchEffectivePermissions();
+      })
+      .subscribe();
+
+    const rolePermChannel = supabase
+      .channel('role-perms-change')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'role_permissions',
+      }, () => {
+        fetchEffectivePermissions();
+        fetchRolePermissions();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(overridesChannel);
+      supabase.removeChannel(rolePermChannel);
+    };
+  }, [user, fetchEffectivePermissions, fetchRolePermissions]);
+
+  /**
+   * Effective permission check:
+   * 1. If user_permission_overrides has an entry → use that
+   * 2. Else fall back to role_permissions default
+   */
+  const permissions = useMemo(() => {
+    const result: Record<Permission, boolean> = {} as Record<Permission, boolean>;
+    for (const perm of ALL_PERMISSIONS) {
+      if (perm in userOverrides) {
+        result[perm] = userOverrides[perm];
+      } else {
+        result[perm] = rolePermissionsForUser[perm] ?? false;
+      }
+    }
+    return result;
+  }, [userOverrides, rolePermissionsForUser]);
+
+  const hasPermission = useCallback((permission: Permission): boolean => {
     return permissions[permission] ?? false;
-  };
+  }, [permissions]);
 
-  const updateRolePermission = async (role: string, permission: string, enabled: boolean) => {
+  /**
+   * Check if user has access to a route based on any matching permission
+   */
+  const hasRouteAccess = useCallback((route: string): boolean => {
+    const requiredPerms = PERMISSION_ROUTE_MAP[route];
+    if (!requiredPerms) return true; // No permission mapping = accessible to all
+    return requiredPerms.some((p) => permissions[p]);
+  }, [permissions]);
+
+  const updateRolePermission = async (r: string, permission: string, enabled: boolean) => {
     const { error } = await supabase
       .from('role_permissions')
       .update({ enabled })
-      .eq('role', role as any)
+      .eq('role', r as any)
       .eq('permission', permission);
     
     if (!error) {
@@ -162,7 +233,9 @@ export function usePermissions() {
     rolePermissions,
     loading,
     hasPermission,
+    hasRouteAccess,
     updateRolePermission,
     refetch: fetchRolePermissions,
+    refetchEffective: fetchEffectivePermissions,
   };
 }

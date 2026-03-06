@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -51,6 +52,7 @@ const durationToMs: Record<Exclude<DurationOption, "none" | "custom">, number> =
 
 const Announcements = () => {
   const { user, role } = useAuth();
+  const { hasPermission } = usePermissions();
   const { announcements, history, loading, refetch } = useAnnouncements();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -82,7 +84,11 @@ const Announcements = () => {
     checkPublisher();
   }, [user]);
 
-  const canManage = role === "admin" || role === "vp" || role === "manager" || isPublisher;
+  // Use effective permissions for access control
+  const canAdd = hasPermission("add_announcement") || role === "admin" || role === "vp" || role === "manager" || isPublisher;
+  const canEdit = hasPermission("edit_announcement") || role === "admin" || role === "vp" || role === "manager" || isPublisher;
+  const canDelete = hasPermission("delete_announcement") || role === "admin" || role === "vp" || role === "manager" || isPublisher;
+  const canManage = canAdd || canEdit || canDelete;
 
   const stats = useMemo(() => {
     const pinned = announcements.filter((a) => a.is_pinned).length;
