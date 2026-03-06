@@ -5,9 +5,32 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, Briefcase, Coffee, Pause, LogOut, RefreshCw, Clock, Activity, Circle, X } from "lucide-react";
+// Add Download to your lucide-react import
 import { cn } from "@/lib/utils";
-import { format, formatDistanceToNow, startOfDay, endOfDay } from "date-fns";
+import {
+  format,
+  formatDistanceToNow,
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+} from "date-fns";
+import {
+  Users,
+  Briefcase,
+  Coffee,
+  Pause,
+  LogOut,
+  RefreshCw,
+  Clock,
+  Activity,
+  Circle,
+  X,
+  Download,
+  Loader2,
+} from "lucide-react";
 
 // Types
 type Status = "IN" | "OUT" | "BRS" | "BRE" | "PAUSE" | "CONT" | "—";
@@ -32,13 +55,41 @@ interface Event {
 
 // Status config
 const STATUS: Record<Status, { color: string; bg: string; icon: React.ElementType }> = {
-  IN: { color: "text-emerald-600", bg: "bg-emerald-100 dark:bg-emerald-900/40", icon: Briefcase },
-  OUT: { color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800", icon: LogOut },
-  BRS: { color: "text-amber-600", bg: "bg-amber-100 dark:bg-amber-900/40", icon: Coffee },
-  BRE: { color: "text-teal-600", bg: "bg-teal-100 dark:bg-teal-900/40", icon: Briefcase },
-  PAUSE: { color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-900/40", icon: Pause },
-  CONT: { color: "text-cyan-600", bg: "bg-cyan-100 dark:bg-cyan-900/40", icon: Briefcase },
-  "—": { color: "text-gray-400", bg: "bg-gray-100 dark:bg-gray-800", icon: Circle },
+  IN: {
+    color: "text-emerald-600",
+    bg: "bg-emerald-100 dark:bg-emerald-900/40",
+    icon: Briefcase,
+  },
+  OUT: {
+    color: "text-slate-500",
+    bg: "bg-slate-100 dark:bg-slate-800",
+    icon: LogOut,
+  },
+  BRS: {
+    color: "text-amber-600",
+    bg: "bg-amber-100 dark:bg-amber-900/40",
+    icon: Coffee,
+  },
+  BRE: {
+    color: "text-teal-600",
+    bg: "bg-teal-100 dark:bg-teal-900/40",
+    icon: Briefcase,
+  },
+  PAUSE: {
+    color: "text-blue-600",
+    bg: "bg-blue-100 dark:bg-blue-900/40",
+    icon: Pause,
+  },
+  CONT: {
+    color: "text-cyan-600",
+    bg: "bg-cyan-100 dark:bg-cyan-900/40",
+    icon: Briefcase,
+  },
+  "—": {
+    color: "text-gray-400",
+    bg: "bg-gray-100 dark:bg-gray-800",
+    icon: Circle,
+  },
 };
 
 // Event labels
@@ -73,12 +124,20 @@ const getInitials = (name: string) =>
 
 export function RealTimeAttendanceWidget() {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [summary, setSummary] = useState({ total: 0, working: 0, break: 0, paused: 0, out: 0 });
+  const [summary, setSummary] = useState({
+    total: 0,
+    working: 0,
+    break: 0,
+    paused: 0,
+    out: 0,
+  });
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterType | null>(null);
   const [nptTime, setNptTime] = useState("");
   const [pstTime, setPstTime] = useState("");
+  const [dailyLogs, setDailyLogs] = useState<any[]>([]);
+  const [isExporting, setIsExporting] = useState(false); // Add this new state
 
   // Live clock for NPT and PST
   useEffect(() => {
@@ -200,15 +259,46 @@ export function RealTimeAttendanceWidget() {
       const name = emp ? `${emp.first_name} ${emp.last_name}`.trim() : "Unknown";
 
       if (log.clock_in) evts.push({ id: `${log.id}-in`, name, type: "IN", time: log.clock_in });
-      if (log.break_start) evts.push({ id: `${log.id}-brs`, name, type: "BRS", time: log.break_start });
-      if (log.break_end) evts.push({ id: `${log.id}-bre`, name, type: "BRE", time: log.break_end });
-      if (log.pause_start) evts.push({ id: `${log.id}-pause`, name, type: "PAUSE", time: log.pause_start });
-      if (log.pause_end) evts.push({ id: `${log.id}-cont`, name, type: "CONT", time: log.pause_end });
-      if (log.clock_out) evts.push({ id: `${log.id}-out`, name, type: "OUT", time: log.clock_out });
+      if (log.break_start)
+        evts.push({
+          id: `${log.id}-brs`,
+          name,
+          type: "BRS",
+          time: log.break_start,
+        });
+      if (log.break_end)
+        evts.push({
+          id: `${log.id}-bre`,
+          name,
+          type: "BRE",
+          time: log.break_end,
+        });
+      if (log.pause_start)
+        evts.push({
+          id: `${log.id}-pause`,
+          name,
+          type: "PAUSE",
+          time: log.pause_start,
+        });
+      if (log.pause_end)
+        evts.push({
+          id: `${log.id}-cont`,
+          name,
+          type: "CONT",
+          time: log.pause_end,
+        });
+      if (log.clock_out)
+        evts.push({
+          id: `${log.id}-out`,
+          name,
+          type: "OUT",
+          time: log.clock_out,
+        });
     });
 
     evts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
     setEvents(evts.slice(0, 20));
+    setDailyLogs(logs || []); // Add this line to store the raw logs
     setLoading(false);
   }, []);
 
@@ -229,6 +319,14 @@ export function RealTimeAttendanceWidget() {
         fetchData();
         return;
       }
+      // Add this block to update the detailed logs array
+      setDailyLogs((prevLogs) => {
+        const exists = prevLogs.find((l) => l.id === log.id);
+        if (exists) {
+          return prevLogs.map((l) => (l.id === log.id ? log : l));
+        }
+        return [log, ...prevLogs];
+      });
 
       setEmployees((prev) => {
         const updated = prev.map((emp) => {
@@ -268,7 +366,13 @@ export function RealTimeAttendanceWidget() {
         const onBreak = updated.filter((e) => e.status === "BRS").length;
         const paused = updated.filter((e) => e.status === "PAUSE").length;
         const out = updated.filter((e) => e.status === "OUT").length;
-        setSummary({ total: updated.length, working, break: onBreak, paused, out });
+        setSummary({
+          total: updated.length,
+          working,
+          break: onBreak,
+          paused,
+          out,
+        });
 
         // Update events
         const evtName = updated.find((e) => e.id === resolvedEmpId)?.name || "Unknown";
@@ -328,6 +432,142 @@ export function RealTimeAttendanceWidget() {
     setActiveFilter(activeFilter === filter ? null : filter);
   };
 
+  const exportHistoricalCSV = async (timeframe: "today" | "week" | "month") => {
+    setIsExporting(true);
+    try {
+      const now = new Date();
+      let start, end;
+
+      // Determine date range based on selection
+      if (timeframe === "today") {
+        start = startOfDay(now);
+        end = endOfDay(now);
+      } else if (timeframe === "week") {
+        start = startOfWeek(now, { weekStartsOn: 1 });
+        end = endOfDay(now);
+      } else if (timeframe === "month") {
+        start = startOfMonth(now);
+        end = endOfDay(now);
+      }
+
+      const { data: historicalLogs, error } = await supabase
+        .from("attendance_logs")
+        .select("*")
+        .gte("clock_in", start!.toISOString())
+        .lte("clock_in", end!.toISOString())
+        .order("clock_in", { ascending: false })
+        .limit(10000);
+
+      if (error) throw error;
+
+      if (!historicalLogs || historicalLogs.length === 0) {
+        alert(`No data found for this ${timeframe}.`);
+        return;
+      }
+
+      // 1. Updated Headers to include Durations and Net Hours
+      const headers = [
+        "Date",
+        "Employee Name",
+        "Department",
+        "Work Mode",
+        "Clock In",
+        "Clock Out",
+        "Break Start",
+        "Break End",
+        "Break Dur",
+        "Pause Start",
+        "Pause End",
+        "Pause Dur",
+        "Net Hours",
+      ];
+
+      // Helper 1: Format time exactly like your second screenshot (e.g. 09:34 AM)
+      const formatTimeOnly = (isoString?: string | null) => (isoString ? format(new Date(isoString), "hh:mm a") : "-");
+
+      // Helper 2: Calculate duration in minutes between two timestamps
+      const calculateDurationMinutes = (startTime?: string | null, endTime?: string | null) => {
+        if (!startTime || !endTime) return 0;
+        return Math.max(0, (new Date(endTime).getTime() - new Date(startTime).getTime()) / (1000 * 60));
+      };
+
+      // Helper 3: Format minutes into "1h 15m" or just "16m"
+      const formatDurationText = (minutes: number): string => {
+        if (minutes <= 0) return "-";
+        if (minutes < 60) return `${Math.round(minutes)}m`;
+        const hours = Math.floor(minutes / 60);
+        const mins = Math.round(minutes % 60);
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      };
+
+      // 2. Map raw logs to CSV format with the new logic
+      const csvRows = historicalLogs.map((log) => {
+        const empId = log.employee_id || userToEmpMap.get(log.user_id);
+        const emp = employees.find((e) => e.id === empId);
+
+        const dateObj = new Date(log.clock_in);
+        const logDate = format(dateObj, "yyyy-MM-dd");
+        const name = emp ? emp.name : "Unknown";
+        const dept = emp ? emp.department : "No Dept";
+        const mode = log.work_mode ? log.work_mode.toUpperCase() : "N/A";
+
+        // Calculate Break and Pause minutes (fallback to calculating if not saved in DB)
+        const breakMinutes = log.total_break_minutes || calculateDurationMinutes(log.break_start, log.break_end);
+        const pauseMinutes = log.total_pause_minutes || calculateDurationMinutes(log.pause_start, log.pause_end);
+
+        // Calculate Net Hours Worked
+        const clockOutDate = log.clock_out ? new Date(log.clock_out) : null;
+        let netHours = "-";
+
+        // If they haven't clocked out, it uses current time to show "Live" hours worked
+        const endTime = clockOutDate || new Date();
+        const diffMs = endTime.getTime() - dateObj.getTime();
+        const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
+
+        // Format as decimal hours (e.g. 5.90h)
+        netHours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
+
+        return [
+          `"${logDate}"`,
+          `"${name}"`,
+          `"${dept}"`,
+          `"${mode}"`,
+          `"${formatTimeOnly(log.clock_in)}"`,
+          `"${formatTimeOnly(log.clock_out)}"`,
+          `"${formatTimeOnly(log.break_start)}"`,
+          `"${formatTimeOnly(log.break_end)}"`,
+          `"${formatDurationText(breakMinutes)}"`,
+          `"${formatTimeOnly(log.pause_start)}"`,
+          `"${formatTimeOnly(log.pause_end)}"`,
+          `"${formatDurationText(pauseMinutes)}"`,
+          `"${netHours}"`,
+        ].join(",");
+      });
+
+      // 3. Combine headers and data
+      const csvString = ["\uFEFF" + headers.join(","), ...csvRows].join("\n");
+
+      // 4. Trigger download
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      const fileName = `attendance_${timeframe}_${format(new Date(), "yyyy-MM-dd")}.csv`;
+      link.setAttribute("download", fileName);
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export data:", err);
+      alert("Something went wrong while exporting data.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -353,9 +593,39 @@ export function RealTimeAttendanceWidget() {
               <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Live</span>
             </div>
           </CardTitle>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={fetchData} className="h-8 w-8">
-              <RefreshCw className="h-4 w-4" />
+          <div className="flex items-center gap-2">
+            {/* Native Dropdown visually styled like a Shadcn element */}
+            <div className="relative hidden sm:block">
+              <select
+                disabled={isExporting}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    exportHistoricalCSV(e.target.value as "today" | "week" | "month");
+                    e.target.value = ""; // Reset dropdown after selection
+                  }
+                }}
+                className="appearance-none bg-transparent border rounded-md h-8 pl-8 pr-8 text-xs font-medium cursor-pointer hover:bg-muted/50 disabled:opacity-50"
+              >
+                <option value="" disabled selected>
+                  Export CSV
+                </option>
+                <option value="today">Today's Data</option>
+                <option value="week">This Week's Data</option>
+                <option value="month">This Month's Data</option>
+              </select>
+
+              {/* Icon positioning inside the select */}
+              <div className="absolute left-2.5 top-2 pointer-events-none">
+                {isExporting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                ) : (
+                  <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </div>
+            </div>
+
+            <Button variant="ghost" size="icon" onClick={fetchData} className="h-8 w-8" title="Refresh data">
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
             </Button>
           </div>
         </div>
@@ -456,7 +726,11 @@ export function RealTimeAttendanceWidget() {
                           <p className="text-sm font-medium truncate">{emp.name}</p>
                           <p className="text-[10px] text-muted-foreground">
                             {emp.department || "No Dept"} •{" "}
-                            {emp.lastAction ? formatDistanceToNow(new Date(emp.lastAction), { addSuffix: true }) : "—"}
+                            {emp.lastAction
+                              ? formatDistanceToNow(new Date(emp.lastAction), {
+                                  addSuffix: true,
+                                })
+                              : "—"}
                           </p>
                         </div>
                         <Badge variant="outline" className={cn("text-[10px] gap-1", cfg.bg, cfg.color)}>
@@ -527,7 +801,9 @@ export function RealTimeAttendanceWidget() {
                           </div>
                           <p className="text-[10px] text-muted-foreground">
                             {format(new Date(evt.time), "hh:mm a")} •{" "}
-                            {formatDistanceToNow(new Date(evt.time), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(evt.time), {
+                              addSuffix: true,
+                            })}
                           </p>
                         </div>
                         <Badge variant="outline" className={cn("text-[10px] px-1.5", cfg.bg, cfg.color)}>
