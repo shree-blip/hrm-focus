@@ -10,7 +10,23 @@ export type Permission =
   | 'view_employees_reports_only'
   | 'view_attendance_all'
   | 'view_attendance_reports_only'
-  | 'manage_salaries_all';
+  | 'manage_salaries_all'
+  | 'add_announcement'
+  | 'edit_announcement'
+  | 'delete_announcement'
+  | 'view_announcements'
+  | 'manage_documents'
+  | 'approve_leave'
+  | 'view_reports'
+  | 'manage_payroll'
+  | 'view_payroll'
+  | 'manage_onboarding'
+  | 'manage_tasks'
+  | 'view_tasks'
+  | 'manage_loans'
+  | 'view_loans'
+  | 'manage_calendar'
+  | 'manage_support';
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
   manage_access: 'Manage Access Control',
@@ -21,6 +37,31 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_attendance_all: 'View All Attendance',
   view_attendance_reports_only: 'View Reports Attendance',
   manage_salaries_all: 'Manage Salaries',
+  add_announcement: 'Add Announcement',
+  edit_announcement: 'Edit Announcement',
+  delete_announcement: 'Delete Announcement',
+  view_announcements: 'View Announcements',
+  manage_documents: 'Manage Documents',
+  approve_leave: 'Approve Leave',
+  view_reports: 'View Reports',
+  manage_payroll: 'Manage Payroll',
+  view_payroll: 'View Payroll',
+  manage_onboarding: 'Manage Onboarding',
+  manage_tasks: 'Manage Tasks',
+  view_tasks: 'View Tasks',
+  manage_loans: 'Manage Loans',
+  view_loans: 'View Loans',
+  manage_calendar: 'Manage Calendar',
+  manage_support: 'Manage Support',
+};
+
+export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
+  'Access & Users': ['manage_access', 'manage_employees', 'manage_line_managers', 'view_employees_all', 'view_employees_reports_only'],
+  'Attendance': ['view_attendance_all', 'view_attendance_reports_only'],
+  'Announcements': ['add_announcement', 'edit_announcement', 'delete_announcement', 'view_announcements'],
+  'Documents & Reports': ['manage_documents', 'view_reports'],
+  'Leave & Payroll': ['approve_leave', 'manage_payroll', 'view_payroll', 'manage_salaries_all'],
+  'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_loans', 'view_loans', 'manage_calendar', 'manage_onboarding', 'manage_support'],
 };
 
 export const ALL_PERMISSIONS: Permission[] = [
@@ -32,6 +73,22 @@ export const ALL_PERMISSIONS: Permission[] = [
   'view_attendance_all',
   'view_attendance_reports_only',
   'manage_salaries_all',
+  'add_announcement',
+  'edit_announcement',
+  'delete_announcement',
+  'view_announcements',
+  'manage_documents',
+  'approve_leave',
+  'view_reports',
+  'manage_payroll',
+  'view_payroll',
+  'manage_onboarding',
+  'manage_tasks',
+  'view_tasks',
+  'manage_loans',
+  'view_loans',
+  'manage_calendar',
+  'manage_support',
 ];
 
 interface RolePermission {

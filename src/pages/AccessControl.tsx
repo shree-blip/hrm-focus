@@ -8,14 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Users, Lock, User, Loader2, Search, Check, X, AlertTriangle } from "lucide-react";
+import { Shield, Users, Lock, User, Loader2, Search, Check, X, AlertTriangle, History, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePermissions, ALL_PERMISSIONS, PERMISSION_LABELS, Permission } from "@/hooks/usePermissions";
+import { usePermissions, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_CATEGORIES, Permission } from "@/hooks/usePermissions";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { format } from "date-fns";
 
 const ROLES = ["vp", "admin", "supervisor", "line_manager", "manager", "employee"] as const;
 type AppRole = (typeof ROLES)[number];
@@ -50,6 +51,17 @@ interface UserPermissionOverride {
   user_id: string;
   permission: string;
   enabled: boolean;
+}
+
+interface AuditLogEntry {
+  id: string;
+  target_user_id: string;
+  changed_by: string;
+  permission: string;
+  old_value: boolean | null;
+  new_value: boolean;
+  change_type: string;
+  created_at: string;
 }
 
 interface SpamUser {
@@ -88,7 +100,8 @@ const UserAvatar = ({
 
 export default function AccessControl() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isVP, isAdmin } = useAuth();
+  const isCEO = isVP;
   const {
     rolePermissions,
     hasPermission,
@@ -105,14 +118,12 @@ export default function AccessControl() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [isSecurityMonitor, setIsSecurityMonitor] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   useEffect(() => {
     if (!permLoading && !hasPermission("manage_access")) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to access this page.",
-        variant: "destructive",
-      });
+      toast({ title: "Access Denied", description: "You don't have permission to access this page.", variant: "destructive" });
       navigate("/");
     }
   }, [permLoading, hasPermission, navigate]);
@@ -329,6 +340,93 @@ export default function AccessControl() {
     const found = userOverrides.find((o) => o.user_id === userId && o.permission === permission);
     return found ? found.enabled : null;
   };
+
+  const handleUserOverrideToggle = async (targetUserId: string, permission: string) => {
+    if (!isCEO) {
+      toast({ title: "Access Denied", description: "Only CEO can modify individual permissions.", variant: "destructive" });
+      return;
+    }
+
+    const currentOverride = getUserPermissionOverride(targetUserId, permission);
+    const targetUser = users.find((u) => u.user_id === targetUserId);
+    const roleDefault = targetUser ? getPermissionForRole(targetUser.role, permission) : false;
+
+    if (currentOverride === null) {
+      // No override exists → create one (opposite of role default)
+      const newValue = !roleDefault;
+      const { error } = await supabase.from("user_permission_overrides").insert({
+        user_id: targetUserId,
+        permission,
+        enabled: newValue,
+      });
+      if (!error) {
+        await supabase.from("permission_audit_logs" as any).insert({
+          target_user_id: targetUserId,
+          changed_by: user!.id,
+          permission,
+          old_value: null,
+          new_value: newValue,
+          change_type: 'override_created',
+        });
+        toast({ title: "Override Added", description: `Custom permission ${newValue ? 'granted' : 'revoked'} for ${PERMISSION_LABELS[permission as Permission]}.` });
+      }
+    } else if (currentOverride === true) {
+      // Override is ON → flip to OFF
+      const { error } = await supabase
+        .from("user_permission_overrides")
+        .update({ enabled: false })
+        .eq("user_id", targetUserId)
+        .eq("permission", permission);
+      if (!error) {
+        await supabase.from("permission_audit_logs" as any).insert({
+          target_user_id: targetUserId,
+          changed_by: user!.id,
+          permission,
+          old_value: true,
+          new_value: false,
+          change_type: 'override_updated',
+        });
+        toast({ title: "Override Updated", description: `${PERMISSION_LABELS[permission as Permission]} set to denied.` });
+      }
+    } else {
+      // Override is OFF → remove the override (fall back to role default)
+      const { error } = await supabase
+        .from("user_permission_overrides")
+        .delete()
+        .eq("user_id", targetUserId)
+        .eq("permission", permission);
+      if (!error) {
+        await supabase.from("permission_audit_logs" as any).insert({
+          target_user_id: targetUserId,
+          changed_by: user!.id,
+          permission,
+          old_value: false,
+          new_value: roleDefault,
+          change_type: 'override_removed',
+        });
+        toast({ title: "Override Removed", description: `Reverted to role default for ${PERMISSION_LABELS[permission as Permission]}.` });
+      }
+    }
+    await fetchUserOverrides();
+  };
+
+  const fetchAuditLogs = useCallback(async (targetUserId?: string) => {
+    setAuditLoading(true);
+    let query = supabase.from("permission_audit_logs" as any).select("*").order("created_at", { ascending: false }).limit(50);
+    if (targetUserId) {
+      query = query.eq("target_user_id", targetUserId);
+    }
+    const { data, error } = await query;
+    if (!error && data) setAuditLogs(data as unknown as AuditLogEntry[]);
+    setAuditLoading(false);
+  }, []);
+
+  // Fetch audit logs when a user is selected
+  useEffect(() => {
+    if (selectedUser?.user_id) {
+      fetchAuditLogs(selectedUser.user_id);
+    }
+  }, [selectedUser, fetchAuditLogs]);
 
   const filteredUsers = users.filter((u) => {
     if (u.is_spam && !isSecurityMonitor) return false;
@@ -573,32 +671,43 @@ export default function AccessControl() {
                 <div className="space-y-2 max-h-[500px] overflow-y-auto">
                   {filteredUsers
                     .filter((u) => u.has_account)
-                    .map((u) => (
-                      <div
-                        key={u.id}
-                        onClick={() => setSelectedUser(u)}
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors",
-                          selectedUser?.id === u.id ? "bg-primary/10 border border-primary" : "hover:bg-muted",
-                        )}
-                      >
-                        <UserAvatar
-                          avatarPath={u.avatar_url || null}
-                          firstName={u.first_name}
-                          lastName={u.last_name}
-                          isSpam={u.is_spam}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium block truncate">
-                            {u.first_name} {u.last_name}
-                          </span>
-                          <span className="text-xs text-muted-foreground truncate block">{u.email}</span>
+                    .map((u) => {
+                      const overrideCount = userOverrides.filter((o) => o.user_id === u.user_id).length;
+                      return (
+                        <div
+                          key={u.id}
+                          onClick={() => setSelectedUser(u)}
+                          className={cn(
+                            "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors",
+                            selectedUser?.id === u.id ? "bg-primary/10 border border-primary" : "hover:bg-muted",
+                          )}
+                        >
+                          <UserAvatar
+                            avatarPath={u.avatar_url || null}
+                            firstName={u.first_name}
+                            lastName={u.last_name}
+                            isSpam={u.is_spam}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium block truncate">
+                              {u.first_name} {u.last_name}
+                            </span>
+                            <span className="text-xs text-muted-foreground truncate block">{u.email}</span>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <Badge variant="outline" className="text-xs">
+                              {ROLE_LABELS[u.role]}
+                            </Badge>
+                            {overrideCount > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {overrideCount} custom
+                              </Badge>
+                            )}
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                         </div>
-                        <Badge variant="outline" className="text-xs shrink-0">
-                          {ROLE_LABELS[u.role]}
-                        </Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </CardContent>
             </Card>
@@ -612,68 +721,152 @@ export default function AccessControl() {
                 </CardTitle>
                 <CardDescription>
                   {selectedUser
-                    ? `Override role-based permissions for this user. Role: ${ROLE_LABELS[selectedUser.role]}`
-                    : "Click on a user to manage their individual permission overrides"}
+                    ? <>Role: <Badge variant="outline" className="ml-1">{ROLE_LABELS[selectedUser.role]}</Badge> — Toggle to create custom overrides. Click again to cycle: <span className="font-medium">Grant → Deny → Remove (back to role default)</span></>
+                    : "Click on a user from the list to manage their individual permission overrides"}
                 </CardDescription>
+                {!isCEO && selectedUser && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                    <Lock className="h-4 w-4" />
+                    <span>View only — only the CEO can modify individual permissions</span>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {selectedUser && selectedUser.user_id ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Permission</TableHead>
-                        <TableHead className="text-center">Role Default</TableHead>
-                        <TableHead className="text-center">Override</TableHead>
-                        <TableHead className="text-center">Effective</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {ALL_PERMISSIONS.map((permission) => {
-                        const roleDefault = getPermissionForRole(selectedUser.role, permission);
-                        const override = getUserPermissionOverride(selectedUser.user_id!, permission);
-                        const effective = override !== null ? override : roleDefault;
+                  <div className="space-y-6">
+                    {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
+                      <div key={category}>
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{category}</h3>
+                        <div className="rounded-lg border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/30">
+                                <TableHead className="min-w-[180px]">Permission</TableHead>
+                                <TableHead className="text-center w-[100px]">Role Default</TableHead>
+                                <TableHead className="text-center w-[120px]">Custom Override</TableHead>
+                                <TableHead className="text-center w-[130px]">Effective Access</TableHead>
+                                <TableHead className="text-center w-[100px]">Source</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {permissions.map((permission) => {
+                                const roleDefault = getPermissionForRole(selectedUser.role, permission);
+                                const override = getUserPermissionOverride(selectedUser.user_id!, permission);
+                                const effective = override !== null ? override : roleDefault;
+                                const source = override !== null ? "Custom" : "Role";
 
-                        return (
-                          <TableRow key={permission}>
-                            <TableCell className="font-medium">{PERMISSION_LABELS[permission]}</TableCell>
-                            <TableCell className="text-center">
-                              {roleDefault ? (
-                                <Check className="h-4 w-4 text-green-500 inline" />
-                              ) : (
-                                <X className="h-4 w-4 text-red-500 inline" />
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <Switch
-                                  checked={override === true}
-                                  onCheckedChange={() => {
-                                    // keep your original logic
-                                    // (your original function was not pasted fully in this snippet)
-                                    // If you want, paste that function and I’ll wire it here too.
-                                  }}
-                                />
-                                {override !== null && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {override ? "ON" : "OFF"}
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant={effective ? "default" : "secondary"}>
-                                {effective ? "Allowed" : "Denied"}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                                return (
+                                  <TableRow key={permission}>
+                                    <TableCell className="font-medium">{PERMISSION_LABELS[permission]}</TableCell>
+                                    <TableCell className="text-center">
+                                      {roleDefault ? (
+                                        <Check className="h-4 w-4 text-primary inline" />
+                                      ) : (
+                                        <X className="h-4 w-4 text-muted-foreground inline" />
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <Switch
+                                          checked={override === true}
+                                          disabled={!isCEO}
+                                          onCheckedChange={() => handleUserOverrideToggle(selectedUser.user_id!, permission)}
+                                        />
+                                        {override !== null && (
+                                          <Badge variant={override ? "default" : "destructive"} className="text-xs">
+                                            {override ? "ON" : "OFF"}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Badge variant={effective ? "default" : "secondary"} className={cn(
+                                        effective ? "bg-primary/10 text-primary border-primary/30" : ""
+                                      )}>
+                                        {effective ? "✓ Allowed" : "✗ Denied"}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Badge variant="outline" className={cn(
+                                        "text-xs",
+                                        source === "Custom" ? "border-accent text-accent-foreground bg-accent/50" : ""
+                                      )}>
+                                        {source}
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Audit Log Section */}
+                    <div className="mt-8">
+                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <History className="h-4 w-4" />
+                        Permission Change History
+                      </h3>
+                      <div className="rounded-lg border">
+                        {auditLoading ? (
+                          <div className="flex items-center justify-center p-8">
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : auditLogs.length === 0 ? (
+                          <div className="text-center p-8 text-muted-foreground text-sm">
+                            No permission changes recorded for this user.
+                          </div>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Permission</TableHead>
+                                <TableHead>Change</TableHead>
+                                <TableHead>Changed By</TableHead>
+                                <TableHead>Date</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {auditLogs.map((log) => {
+                                const changedByUser = users.find((u) => u.user_id === log.changed_by);
+                                return (
+                                  <TableRow key={log.id}>
+                                    <TableCell className="font-medium text-sm">
+                                      {PERMISSION_LABELS[log.permission as Permission] || log.permission}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-1 text-xs">
+                                        <Badge variant={log.old_value ? "default" : "secondary"} className="text-xs">
+                                          {log.old_value === null ? "None" : log.old_value ? "ON" : "OFF"}
+                                        </Badge>
+                                        <span className="text-muted-foreground">→</span>
+                                        <Badge variant={log.new_value ? "default" : "secondary"} className="text-xs">
+                                          {log.new_value ? "ON" : "OFF"}
+                                        </Badge>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                      {changedByUser ? `${changedByUser.first_name} ${changedByUser.last_name}` : "System"}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                      {format(new Date(log.created_at), "MMM d, yyyy HH:mm")}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                     <User className="h-12 w-12 mb-4 opacity-50" />
                     <p>Select a user from the list to manage their permissions</p>
+                    <p className="text-xs mt-2">Permission flow: Role Default → Custom Override → Effective Access</p>
                   </div>
                 )}
               </CardContent>
