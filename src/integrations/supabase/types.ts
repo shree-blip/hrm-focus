@@ -1150,6 +1150,167 @@ export type Database = {
           },
         ]
       }
+      invoice_comments: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          invoice_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          invoice_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          invoice_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_comments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount: number
+          bill_to_address: string | null
+          bill_to_client_id: string | null
+          bill_to_name: string
+          created_at: string | null
+          currency: string
+          due_date: string | null
+          employee_id: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          month_of_service: string | null
+          org_id: string | null
+          payment_account_name: string | null
+          payment_account_number: string | null
+          payment_bank_name: string | null
+          payment_swift_code: string | null
+          pdf_file_path: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sender_address: string | null
+          sender_email: string | null
+          sender_name: string
+          service_description: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          bill_to_address?: string | null
+          bill_to_client_id?: string | null
+          bill_to_name: string
+          created_at?: string | null
+          currency?: string
+          due_date?: string | null
+          employee_id?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          month_of_service?: string | null
+          org_id?: string | null
+          payment_account_name?: string | null
+          payment_account_number?: string | null
+          payment_bank_name?: string | null
+          payment_swift_code?: string | null
+          pdf_file_path?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sender_address?: string | null
+          sender_email?: string | null
+          sender_name: string
+          service_description?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bill_to_address?: string | null
+          bill_to_client_id?: string | null
+          bill_to_name?: string
+          created_at?: string | null
+          currency?: string
+          due_date?: string | null
+          employee_id?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          month_of_service?: string | null
+          org_id?: string | null
+          payment_account_name?: string | null
+          payment_account_number?: string | null
+          payment_bank_name?: string | null
+          payment_swift_code?: string | null
+          pdf_file_path?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sender_address?: string | null
+          sender_email?: string | null
+          sender_name?: string
+          service_description?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_bill_to_client_id_fkey"
+            columns: ["bill_to_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_balances: {
         Row: {
           created_at: string
