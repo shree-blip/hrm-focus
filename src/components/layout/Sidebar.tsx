@@ -19,6 +19,7 @@ import {
   Landmark,
   Megaphone,
   Shield,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
