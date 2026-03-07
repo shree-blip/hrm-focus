@@ -56,6 +56,7 @@ const ALL_MENU_ITEMS: MenuItem[] = [
   { icon: TrendingUp, label: "Reports", href: "/reports", permissions: ["view_reports"] },
   { icon: Megaphone, label: "Announcements", href: "/announcements", permissions: ["add_announcement", "edit_announcement", "delete_announcement", "view_announcements"] },
   { icon: FileText, label: "Documents", href: "/documents", alwaysVisible: true },
+  { icon: Receipt, label: "Invoices", href: "/invoices", alwaysVisible: true },
   { icon: UserPlus, label: "Onboarding", href: "/onboarding", permissions: ["manage_onboarding"] },
   { icon: Wallet, label: "Payroll", href: "/payroll", permissions: ["manage_payroll", "view_payroll"] },
   { icon: Landmark, label: "Loans", href: "/loans", alwaysVisible: true },

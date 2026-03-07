@@ -112,11 +112,26 @@ export function useInvoiceComments(invoiceId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoice_comments")
-        .select("*, profiles(first_name, last_name, avatar_url)")
+        .select("*")
         .eq("invoice_id", invoiceId!)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data as InvoiceComment[];
+
+      // Fetch profile info for commenters
+      const userIds = [...new Set((data || []).map(c => c.user_id))];
+      const { data: profiles } = userIds.length
+        ? await supabase.from("profiles").select("user_id, first_name, last_name, avatar_url").in("user_id", userIds)
+        : { data: [] };
+
+      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+      return (data || []).map(c => ({
+        ...c,
+        profiles: profileMap.get(c.user_id) ? {
+          first_name: profileMap.get(c.user_id)!.first_name,
+          last_name: profileMap.get(c.user_id)!.last_name,
+          avatar_url: profileMap.get(c.user_id)!.avatar_url,
+        } : null,
+      })) as InvoiceComment[];
     },
     enabled: !!invoiceId,
   });
