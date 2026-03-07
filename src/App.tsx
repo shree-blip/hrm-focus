@@ -27,6 +27,7 @@ import AccessControl from "./pages/AccessControl";
 import LogSheet from "./pages/LogSheet";
 import Support from "./pages/Support";
 import Loans from "./pages/Loans";
+import Invoices from "./pages/Invoices";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
