@@ -551,10 +551,10 @@ export function useLeaveRequests() {
       const isOther = isOtherLeaveType(requestData.leave_type);
 
       const approveTitle = isLieu
-        ? "Leave on Lieu Approved"
+        ? "✅ Leave on Lieu Approved"
         : isOther
-          ? "Other Leave Approved"
-          : "Leave Request Approved";
+          ? "✅ Other Leave Approved"
+          : "✅ Leave Request Approved";
 
       toast({
         title: "Approved",
