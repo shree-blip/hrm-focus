@@ -1294,7 +1294,7 @@ const Reports = () => {
                             {/* Expanded breaks and pauses detail row */}
                             {hasExpandableContent && isExpanded && (
                               <tr className="bg-slate-50">
-                                <td colSpan={isVP ? 12 : 11} className="p-0">
+                                <td colSpan={canEditAttendance ? 12 : 11} className="p-0">
                                   <div className="px-12 py-3 border-b space-y-4">
                                     {/* Breaks detail */}
                                     {hasMultipleBreaks && (
