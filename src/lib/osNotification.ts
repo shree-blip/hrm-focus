@@ -1,30 +1,15 @@
 /**
- * OS-level notification helper using the standard Web Notification API.
- * Works even when the tab is backgrounded or the triggering component is unmounted.
+ * OS-level notification helper — now delegates to crossTabNotifications
+ * for leader-aware, deduplicated delivery.
+ * 
+ * Kept as a thin wrapper for backward compatibility with existing call sites.
  */
 
-const ICON_PATH = "/favicon.png";
+import { requestPermission, sendCrossTabNotification } from "./crossTabNotifications";
 
-/** Request permission once (idempotent, safe to call multiple times). */
-export async function requestNotificationPermission(): Promise<boolean> {
-  if (!("Notification" in window)) return false;
-  if (Notification.permission === "granted") return true;
-  if (Notification.permission === "denied") return false;
-  const result = await Notification.requestPermission();
-  return result === "granted";
-}
+export const requestNotificationPermission = requestPermission;
 
-/** Fire an OS notification if permission is granted. No-op otherwise. */
+/** Fire a notification through the cross-tab system (OS + broadcast) */
 export function sendOSNotification(title: string, body?: string): void {
-  if (!("Notification" in window)) return;
-  if (Notification.permission !== "granted") return;
-
-  try {
-    new Notification(title, {
-      body: body ?? undefined,
-      icon: ICON_PATH,
-    });
-  } catch {
-    // Safari on iOS doesn't support the constructor – silently ignore
-  }
+  sendCrossTabNotification(title, body);
 }

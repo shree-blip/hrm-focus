@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Bell, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { requestNotificationPermission } from "@/lib/osNotification";
+import { requestPermission } from "@/lib/crossTabNotifications";
 
 /**
  * A small banner that asks the user to enable OS-level notifications.
@@ -21,8 +21,7 @@ export function NotificationPermissionBanner() {
 
   const handleEnable = async () => {
     try {
-      // Must be called from a direct user gesture (click)
-      const granted = await requestNotificationPermission();
+      const granted = await requestPermission();
       setVisible(false);
       if (granted) {
         console.log("OS notifications enabled ✓");
