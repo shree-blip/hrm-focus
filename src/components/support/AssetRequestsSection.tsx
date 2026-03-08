@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useAssetRequests } from "@/hooks/useAssetRequests";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Plus, Package, Monitor, Check, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
