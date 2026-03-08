@@ -437,16 +437,11 @@ export function useLeaveRequests() {
         `/leave`,
       );
 
-      // Notify managers, supervisors, and line managers
-      const { data: managers } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["manager", "admin", "vp", "supervisor", "line_manager"]);
-
-      // Also get the user's direct line manager/supervisor via employee record
+      // Find the employee's direct line manager to notify
       const { data: userProfile2 } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
 
-      let lineManagerUserIds: string[] = [];
+      let targetNotifyIds: string[] = [];
+
       if (userProfile2) {
         const { data: empRecord } = await supabase
           .from("employees")
@@ -464,34 +459,44 @@ export function useLeaveRequests() {
 
             if (managerProfiles) {
               const profileIds = managerProfiles.map((m) => m.profile_id).filter(Boolean);
-              const { data: mgrUsers } = await supabase
-                .from("profiles")
-                .select("user_id")
-                .in("id", profileIds as string[]);
-              lineManagerUserIds = mgrUsers?.map((p) => p.user_id) || [];
+              if (profileIds.length > 0) {
+                const { data: mgrUsers } = await supabase
+                  .from("profiles")
+                  .select("user_id")
+                  .in("id", profileIds as string[]);
+                targetNotifyIds = mgrUsers?.map((p) => p.user_id).filter(Boolean) as string[] || [];
+              }
             }
           }
         }
       }
 
-      // Combine and deduplicate
-      const allNotifyIds = new Set([...(managers?.map((m) => m.user_id) || []), ...lineManagerUserIds]);
+      // Fallback: if no direct line manager found, notify VP/Admin
+      if (targetNotifyIds.length === 0) {
+        const { data: fallbackManagers } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["vp", "admin"]);
+        targetNotifyIds = fallbackManagers?.map((m) => m.user_id) || [];
+      }
 
-      for (const managerId of allNotifyIds) {
-        if (managerId !== user.id) {
-          const notifTitle = isLieu
-            ? "📅 Leave on Lieu Request"
-            : isOther
-              ? "📋 Other Leave Request"
-              : "New Leave Request";
-          const notifMsg = isLieu
-            ? `${userName} submitted a Leave on Lieu request for ${days} day(s). ${request.reason}`
-            : isOther
-              ? `${userName} submitted an Other Leave request (${request.leave_type.replace("Other Leave - ", "")}) for ${days} day(s).`
-              : `${userName} submitted a ${request.leave_type} request for ${days} day(s) (${formatLocalDate(request.start_date)} to ${formatLocalDate(request.end_date)}).`;
+      // Deduplicate and exclude self
+      const notifySet = new Set(targetNotifyIds);
+      notifySet.delete(user.id);
 
-          await createNotification(managerId, notifTitle, notifMsg, "leave", `/approvals`);
-        }
+      for (const managerId of notifySet) {
+        const notifTitle = isLieu
+          ? "📅 Leave on Lieu Request"
+          : isOther
+            ? "📋 Other Leave Request"
+            : "📋 New Leave Request";
+        const notifMsg = isLieu
+          ? `${userName} submitted a Leave on Lieu request for ${days} day(s). ${request.reason}`
+          : isOther
+            ? `${userName} submitted an Other Leave request (${request.leave_type.replace("Other Leave - ", "")}) for ${days} day(s).`
+            : `${userName} submitted a ${request.leave_type} request for ${days} day(s) (${formatLocalDate(request.start_date)} to ${formatLocalDate(request.end_date)}).`;
+
+        await createNotification(managerId, notifTitle, notifMsg, "leave", `/approvals`);
       }
 
       await loadAllData();
@@ -546,10 +551,10 @@ export function useLeaveRequests() {
       const isOther = isOtherLeaveType(requestData.leave_type);
 
       const approveTitle = isLieu
-        ? "Leave on Lieu Approved"
+        ? "✅ Leave on Lieu Approved"
         : isOther
-          ? "Other Leave Approved"
-          : "Leave Request Approved";
+          ? "✅ Other Leave Approved"
+          : "✅ Leave Request Approved";
 
       toast({
         title: "Approved",
@@ -627,10 +632,10 @@ export function useLeaveRequests() {
       const isOther = isOtherLeaveType(requestData.leave_type);
 
       const rejectTitle = isLieu
-        ? "Leave on Lieu Rejected"
+        ? "❌ Leave on Lieu Rejected"
         : isOther
-          ? "Other Leave Rejected"
-          : "Leave Request Rejected";
+          ? "❌ Other Leave Rejected"
+          : "❌ Leave Request Rejected";
 
       toast({
         title: "Rejected",
