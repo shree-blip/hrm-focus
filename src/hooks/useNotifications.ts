@@ -217,7 +217,7 @@ export function useNotifications() {
       console.log("[Notifications] Cleaning up subscription");
       supabase.removeChannel(channel);
     };
-  }, [user?.id, fireDesktopNotification, broadcast, navigate]);
+  }, [user?.id, broadcast, navigate]);
 
   return {
     notifications,
