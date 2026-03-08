@@ -419,7 +419,7 @@ const Leave = () => {
                 <div
                   className="h-full rounded-full transition-all duration-500 bg-primary"
                   style={{
-                    width: `${Math.min((getUsedDaysForType("Annual Leave") / 12) * 100, 100)}%`,
+                    width: `${Math.min((getUsedDaysForType("Annual Leave") / getTotalDaysForType("Annual Leave")) * 100, 100)}%`,
                   }}
                 />
               </div>
