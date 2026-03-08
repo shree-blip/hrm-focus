@@ -412,8 +412,8 @@ const Leave = () => {
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-display font-bold">{12 - getUsedDaysForType("Annual Leave")}</span>
-                <span className="text-muted-foreground">/ 12 days</span>
+                <span className="text-3xl font-display font-bold">{getTotalDaysForType("Annual Leave") - getUsedDaysForType("Annual Leave")}</span>
+                <span className="text-muted-foreground">/ {getTotalDaysForType("Annual Leave")} days</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div
