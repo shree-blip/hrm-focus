@@ -16,10 +16,8 @@ export function ActivityAlertsProvider() {
     setNavigate(navigate);
   }, [navigate, setNavigate]);
 
-  // Request OS notification permission on first load
-  useEffect(() => {
-    requestNotificationPermission();
-  }, []);
+  // NOTE: OS notification permission is requested via NotificationPermissionBanner
+  // (requires user gesture). Do NOT auto-request here — browsers silently block it.
 
   return null;
 }
