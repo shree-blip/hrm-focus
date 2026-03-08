@@ -24,25 +24,10 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const { fireDesktopNotification } = useDesktopNotification();
+  const { broadcast } = useBroadcastChannel();
 
   // Calculate unread count from notifications state (single source of truth)
   const unreadCount = notifications.filter((n) => n.is_read === false).length;
-
-  // BroadcastChannel: when another tab tells us about a notification, fire OS only
-  const { broadcast } = useBroadcastChannel(
-    useCallback(
-      (notificationFromOtherTab: Notification) => {
-        setTimeout(() => {
-          fireDesktopNotification({
-            id: notificationFromOtherTab.id,
-            title: notificationFromOtherTab.title,
-            body: notificationFromOtherTab.message,
-          });
-        }, 100);
-      },
-      [fireDesktopNotification]
-    )
-  );
 
   const fetchNotifications = useCallback(async () => {
     if (!user) {
@@ -180,17 +165,18 @@ export function useNotifications() {
             description: normalized.message,
           });
 
-          // Fire OS notification with small delay so visibilityState is accurate
+          // Fire OS notification on THIS tab if hidden/unfocused (force: false)
           setTimeout(() => {
             fireDesktopNotification({
               id: normalized.id,
               title: normalized.title,
               body: normalized.message,
+              force: false,
               onClick: normalized.link ? () => navigate(normalized.link!) : undefined,
             });
           }, 100);
 
-          // Broadcast to other tabs
+          // Tell ALL other tabs — they will fire OS notification with force: true
           broadcast(normalized);
         },
       )
