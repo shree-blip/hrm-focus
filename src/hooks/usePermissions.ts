@@ -44,13 +44,16 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_employees_reports_only: 'View Reports Only',
   view_attendance_all: 'View All Attendance',
   view_attendance_reports_only: 'View Reports Attendance',
+  view_own_attendance: 'View Own Attendance',
   manage_salaries_all: 'Manage Salaries',
   add_announcement: 'Add Announcement',
   edit_announcement: 'Edit Announcement',
   delete_announcement: 'Delete Announcement',
   view_announcements: 'View Announcements',
   manage_documents: 'Manage Documents',
+  view_documents: 'View Documents',
   approve_leave: 'Approve Leave',
+  view_leave: 'View Leave',
   view_reports: 'View Reports',
   manage_payroll: 'Manage Payroll',
   view_payroll: 'View Payroll',
@@ -61,6 +64,11 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_loans: 'View Loans',
   manage_calendar: 'Manage Calendar',
   manage_support: 'Manage Support',
+  view_support: 'View Support',
+  view_invoices: 'View Invoices',
+  manage_invoices: 'Manage Invoices',
+  view_log_sheet: 'View Log Sheet',
+  view_performance: 'View Performance',
 };
 
 export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
