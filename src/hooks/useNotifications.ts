@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { sendOSNotification } from "@/lib/osNotification";
+// OS notification is now handled by ActivityAlertsProvider via useDesktopNotification
 
 export interface Notification {
   id: string;
