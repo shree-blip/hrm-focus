@@ -408,7 +408,7 @@ const Leave = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-medium text-muted-foreground">Annual Leave</p>
-              <Badge variant="secondary">{12 - getUsedDaysForType("Annual Leave")} days left</Badge>
+              <Badge variant="secondary">{getTotalDaysForType("Annual Leave") - getUsedDaysForType("Annual Leave")} days left</Badge>
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
