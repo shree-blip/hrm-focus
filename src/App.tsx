@@ -61,7 +61,7 @@ const App = () => (
             <Route path="/announcements" element={<ProtectedRoute requiredPermission={["add_announcement", "edit_announcement", "delete_announcement", "view_announcements"]}><Announcements /></ProtectedRoute>} />
             <Route path="/access-control" element={<ProtectedRoute requiredPermission="manage_access"><AccessControl /></ProtectedRoute>} />
             <Route path="/log-sheet" element={<ProtectedRoute requiredPermission="view_log_sheet"><LogSheet /></ProtectedRoute>} />
-            <Route path="/support" element={<ProtectedRoute requiredPermission={["manage_support", "view_support"]}><Support /></ProtectedRoute>} />
+            <Route path="/support" element={<ProtectedRoute requiredPermission={["manage_support", "view_support", "view_bug_reports", "view_grievances", "view_asset_requests"]}><Support /></ProtectedRoute>} />
             <Route path="/loans" element={<ProtectedRoute requiredPermission={["manage_loans", "view_loans"]}><Loans /></ProtectedRoute>} />
             <Route path="/invoices" element={<ProtectedRoute requiredPermission={["view_invoices", "manage_invoices"]}><Invoices /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
