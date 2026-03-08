@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, X, Settings2 } from "lucide-react";
+import { Bell, X, Settings2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNotificationPermission } from "@/hooks/useNotificationPermission";
 
@@ -11,8 +11,8 @@ export function NotificationPermissionBanner() {
 
   useEffect(() => {
     if (!("Notification" in window)) return;
-    if (permission !== "default") return;
-    if (localStorage.getItem(DISMISS_KEY) === "true") return;
+    if (permission === "granted") return;
+    if (localStorage.getItem(DISMISS_KEY) === "true" && permission === "default") return;
     setVisible(true);
   }, [permission]);
 
@@ -20,7 +20,10 @@ export function NotificationPermissionBanner() {
 
   const handleEnable = async () => {
     await requestPermission();
-    setVisible(false);
+    // Re-check after request
+    if ("Notification" in window && Notification.permission === "granted") {
+      setVisible(false);
+    }
   };
 
   const handleDismiss = () => {
@@ -28,13 +31,30 @@ export function NotificationPermissionBanner() {
     setVisible(false);
   };
 
+  // When permission is denied, show helpful recovery instructions
   if (permission === "denied") {
     return (
-      <div className="flex items-center gap-3 bg-muted border border-border rounded-lg px-4 py-2.5 mx-4 mt-2 animate-in fade-in slide-in-from-top-2">
-        <Settings2 className="h-4 w-4 text-muted-foreground shrink-0" />
-        <p className="text-sm text-muted-foreground flex-1">
-          Desktop notifications are blocked. To enable them, click the lock icon in your browser address bar → Permissions → Notifications → Allow.
-        </p>
+      <div className="flex items-center gap-3 bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 mx-4 mt-2 animate-in fade-in slide-in-from-top-2">
+        <Settings2 className="h-5 w-5 text-destructive shrink-0" />
+        <div className="flex-1 space-y-1">
+          <p className="text-sm font-medium text-foreground">
+            Desktop notifications are currently blocked
+          </p>
+          <p className="text-xs text-muted-foreground">
+            To enable: Click the <span className="inline-flex items-center font-medium text-foreground">🔒 lock icon</span> in your address bar → <span className="font-medium text-foreground">Site settings</span> → Set <span className="font-medium text-foreground">Notifications</span> to <span className="font-medium text-primary">Allow</span> → Refresh the page.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            // Some browsers allow re-requesting after user resets in settings
+            handleEnable();
+          }}
+          className="shrink-0 text-xs"
+        >
+          Try Again
+        </Button>
         <button onClick={handleDismiss} className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Dismiss">
           <X className="h-4 w-4" />
         </button>
@@ -42,6 +62,7 @@ export function NotificationPermissionBanner() {
     );
   }
 
+  // Default state — ask user to enable
   return (
     <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-lg px-4 py-2.5 mx-4 mt-2 animate-in fade-in slide-in-from-top-2">
       <Bell className="h-4 w-4 text-primary shrink-0" />
