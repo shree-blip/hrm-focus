@@ -31,6 +31,9 @@ export type Permission =
   | 'manage_calendar'
   | 'manage_support'
   | 'view_support'
+  | 'view_bug_reports'
+  | 'view_grievances'
+  | 'view_asset_requests'
   | 'view_invoices'
   | 'manage_invoices'
   | 'view_log_sheet'
@@ -65,6 +68,9 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   manage_calendar: 'Manage Calendar',
   manage_support: 'Manage Support',
   view_support: 'View Support',
+  view_bug_reports: 'View Bug Reports',
+  view_grievances: 'View Grievances',
+  view_asset_requests: 'View Asset Requests',
   view_invoices: 'View Invoices',
   manage_invoices: 'Manage Invoices',
   view_log_sheet: 'View Log Sheet',
@@ -80,7 +86,7 @@ export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
   'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_calendar', 'manage_onboarding'],
   'Loans': ['manage_loans', 'view_loans'],
   'Invoices': ['view_invoices', 'manage_invoices'],
-  'Support': ['manage_support', 'view_support'],
+  'Support': ['manage_support', 'view_support', 'view_bug_reports', 'view_grievances', 'view_asset_requests'],
   'Other Modules': ['view_log_sheet', 'view_performance'],
 };
 
@@ -103,7 +109,7 @@ export const PERMISSION_ROUTE_MAP: Record<string, Permission[]> = {
   '/documents': ['manage_documents', 'view_documents'],
   '/loans': ['manage_loans', 'view_loans'],
   '/tasks': ['manage_tasks', 'view_tasks'],
-  '/support': ['manage_support', 'view_support'],
+  '/support': ['manage_support', 'view_support', 'view_bug_reports', 'view_grievances', 'view_asset_requests'],
   '/invoices': ['view_invoices', 'manage_invoices'],
   '/log-sheet': ['view_log_sheet'],
   '/performance': ['view_performance'],
