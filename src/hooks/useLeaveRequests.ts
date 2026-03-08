@@ -632,10 +632,10 @@ export function useLeaveRequests() {
       const isOther = isOtherLeaveType(requestData.leave_type);
 
       const rejectTitle = isLieu
-        ? "Leave on Lieu Rejected"
+        ? "❌ Leave on Lieu Rejected"
         : isOther
-          ? "Other Leave Rejected"
-          : "Leave Request Rejected";
+          ? "❌ Other Leave Rejected"
+          : "❌ Leave Request Rejected";
 
       toast({
         title: "Rejected",
