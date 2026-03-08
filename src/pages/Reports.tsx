@@ -1167,7 +1167,7 @@ const Reports = () => {
                         <th className="text-left p-3 font-medium">Clock Out</th>
                         <th className="text-left p-3 font-medium">Total Hrs</th>
                         <th className="text-left p-3 font-medium">Status</th>
-                        {isVP && <th className="text-left p-3 font-medium w-10">Edit</th>}
+                        {canEditAttendance && <th className="text-left p-3 font-medium w-10">Edit</th>}
                       </tr>
                     </thead>
                     <tbody>
