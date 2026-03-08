@@ -227,7 +227,7 @@ export function AssetRequestsSection() {
                           {getTypeLabel(request.request_type)}
                         </Badge>
                       </div>
-                      {canApprove && request.user_id !== user?.id && (
+                      {canViewAll && request.user_id !== user?.id && (
                         <p className="text-sm text-muted-foreground">
                           Requested by: {request.requester_name} ({request.requester_email})
                         </p>
