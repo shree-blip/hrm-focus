@@ -168,8 +168,7 @@ export function useNotifications() {
             title: normalized.title,
             description: normalized.message,
           });
-          // OS-level notification (fires even if tab is backgrounded)
-          sendOSNotification(normalized.title, normalized.message);
+          // OS-level + cross-tab notification handled by ActivityAlertsProvider
         },
       )
       .on(
