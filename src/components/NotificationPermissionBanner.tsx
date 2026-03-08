@@ -20,10 +20,18 @@ export function NotificationPermissionBanner() {
   if (!visible) return null;
 
   const handleEnable = async () => {
-    const granted = await requestNotificationPermission();
-    setVisible(false);
-    if (granted) {
-      console.log("OS notifications enabled");
+    try {
+      // Must be called from a direct user gesture (click)
+      const granted = await requestNotificationPermission();
+      setVisible(false);
+      if (granted) {
+        console.log("OS notifications enabled ✓");
+      } else {
+        console.warn("OS notifications denied or unavailable");
+      }
+    } catch (err) {
+      console.error("Failed to request notification permission:", err);
+      setVisible(false);
     }
   };
 
