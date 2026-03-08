@@ -10,13 +10,16 @@ export type Permission =
   | 'view_employees_reports_only'
   | 'view_attendance_all'
   | 'view_attendance_reports_only'
+  | 'view_own_attendance'
   | 'manage_salaries_all'
   | 'add_announcement'
   | 'edit_announcement'
   | 'delete_announcement'
   | 'view_announcements'
   | 'manage_documents'
+  | 'view_documents'
   | 'approve_leave'
+  | 'view_leave'
   | 'view_reports'
   | 'manage_payroll'
   | 'view_payroll'
@@ -26,7 +29,12 @@ export type Permission =
   | 'manage_loans'
   | 'view_loans'
   | 'manage_calendar'
-  | 'manage_support';
+  | 'manage_support'
+  | 'view_support'
+  | 'view_invoices'
+  | 'manage_invoices'
+  | 'view_log_sheet'
+  | 'view_performance';
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
   manage_access: 'Manage Access Control',
