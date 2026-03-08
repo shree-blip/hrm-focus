@@ -86,7 +86,7 @@ export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
   'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_calendar', 'manage_onboarding'],
   'Loans': ['manage_loans', 'view_loans'],
   'Invoices': ['view_invoices', 'manage_invoices'],
-  'Support': ['manage_support', 'view_support'],
+  'Support': ['manage_support', 'view_support', 'view_bug_reports', 'view_grievances', 'view_asset_requests'],
   'Other Modules': ['view_log_sheet', 'view_performance'],
 };
 
