@@ -29,6 +29,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useTeamAttendance, DateRangeType, getDateRangeFromType } from "@/hooks/useTeamAttendance";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "@/hooks/use-toast";
 import { EditAttendanceDialog } from "@/components/reports/EditAttendanceDialog";
 
