@@ -98,11 +98,15 @@ export const PERMISSION_ROUTE_MAP: Record<string, Permission[]> = {
   '/payroll': ['manage_payroll', 'view_payroll'],
   '/onboarding': ['manage_onboarding'],
   '/access-control': ['manage_access'],
-  '/attendance': ['view_attendance_all', 'view_attendance_reports_only'],
-  '/documents': ['manage_documents'],
+  '/attendance': ['view_attendance_all', 'view_attendance_reports_only', 'view_own_attendance'],
+  '/leave': ['view_leave', 'approve_leave'],
+  '/documents': ['manage_documents', 'view_documents'],
   '/loans': ['manage_loans', 'view_loans'],
   '/tasks': ['manage_tasks', 'view_tasks'],
-  '/support': ['manage_support'],
+  '/support': ['manage_support', 'view_support'],
+  '/invoices': ['view_invoices', 'manage_invoices'],
+  '/log-sheet': ['view_log_sheet'],
+  '/performance': ['view_performance'],
 };
 
 interface RolePermission {
