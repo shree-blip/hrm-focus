@@ -41,9 +41,7 @@ export function fireOSNotification({
       body,
       icon: icon ?? ICON_PATH,
       tag: id,
-      renotify: false,
-      requireInteraction: false,
-    });
+    } as NotificationOptions);
 
     const timer = setTimeout(() => n.close(), AUTO_CLOSE_MS);
 

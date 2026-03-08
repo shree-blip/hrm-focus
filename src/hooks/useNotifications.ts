@@ -23,7 +23,6 @@ export function useNotifications() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const { fireDesktopNotification } = useDesktopNotification();
   const { broadcast } = useBroadcastChannel();
 
   // Calculate unread count from notifications state (single source of truth)
