@@ -20,10 +20,9 @@ export function NotificationPermissionBanner() {
 
   const handleEnable = async () => {
     await requestPermission();
-    // Re-check after request
-    if ("Notification" in window && Notification.permission === "granted") {
-      setVisible(false);
-    }
+    // Always dismiss after attempting — in iframes the request may silently fail
+    localStorage.setItem(DISMISS_KEY, "true");
+    setVisible(false);
   };
 
   const handleDismiss = () => {
