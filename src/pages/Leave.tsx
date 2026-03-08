@@ -425,7 +425,7 @@ const Leave = () => {
               </div>
               <p className="text-xs text-muted-foreground">
                 {getUsedDaysForType("Annual Leave")} days used •{" "}
-                {((getUsedDaysForType("Annual Leave") / 12) * 100).toFixed(0)}% utilized
+                {((getUsedDaysForType("Annual Leave") / getTotalDaysForType("Annual Leave")) * 100).toFixed(0)}% utilized
               </p>
             </div>
           </CardContent>
