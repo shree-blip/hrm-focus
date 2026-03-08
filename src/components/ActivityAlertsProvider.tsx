@@ -95,9 +95,3 @@ export function ActivityAlertsProvider() {
 
   return null;
 }
-
-/** Tiny ref helper to track last notification we already processed */
-function useLastSeenNotification() {
-  const ref = { current: "" as string };
-  return ref;
-}
