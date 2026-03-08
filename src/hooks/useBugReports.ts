@@ -126,7 +126,7 @@ export function useBugReports() {
     try {
       const { error } = await supabase
         .from("bug_reports")
-        .update({ status })
+        .update({ status, updated_at: new Date().toISOString() })
         .eq("id", reportId);
 
       if (error) throw error;
