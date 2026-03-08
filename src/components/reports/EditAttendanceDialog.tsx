@@ -47,6 +47,11 @@ const fromDatetimeLocal = (localStr: string): string | null => {
   return new Date(localStr).toISOString();
 };
 
+const formatTimeShort = (isoStr: string | null): string => {
+  if (!isoStr) return "-";
+  return new Date(isoStr).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+};
+
 export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: EditAttendanceDialogProps) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
