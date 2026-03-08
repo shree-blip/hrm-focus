@@ -1264,7 +1264,7 @@ const Reports = () => {
                                   )}
                                 </div>
                               </td>
-                              {isVP && (
+                              {canEditAttendance && (
                                 <td className="p-3">
                                   <Button
                                     variant="ghost"
