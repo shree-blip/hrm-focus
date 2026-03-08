@@ -113,36 +113,8 @@ export function ActivityAlertsProvider() {
     [fireDesktopNotification, navigate],
   );
 
-  // Layer 1: Supabase Realtime subscription
-  useEffect(() => {
-    if (!user) return;
-
-    console.log("[ActivityAlerts] Setting up realtime subscription for user:", user.id);
-
-    const channel = supabase
-      .channel(`desktop-notifications-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log("[ActivityAlerts] Realtime INSERT received:", payload.new?.title);
-          processNewNotification(payload.new as NotifRow);
-        },
-      )
-      .subscribe((status) => {
-        console.log("[ActivityAlerts] Realtime subscription status:", status);
-      });
-
-    return () => {
-      console.log("[ActivityAlerts] Cleaning up realtime subscription");
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, processNewNotification]);
+  // Realtime for notifications table is handled by useNotifications hook.
+  // We only use polling here as a fallback for desktop/cross-tab notifications.
 
   // Layer 2: Polling fallback — catches anything Realtime missed
   useEffect(() => {
