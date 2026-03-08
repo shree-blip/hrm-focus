@@ -21,17 +21,14 @@ import {
 } from "@/components/ui/select";
 import { useBugReports } from "@/hooks/useBugReports";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Plus, Bug, ImagePlus, X, Loader2, Eye } from "lucide-react";
 import { format } from "date-fns";
-
-// IT team user IDs (Sagar and Bikash)
-const IT_TEAM_IDS = [
-  "744c4e71-96bf-4c43-a225-dcbb3b762080",
-];
 
 export function BugReportsSection() {
   const { bugReports, loading, submitBugReport, updateBugStatus, getScreenshotUrl } = useBugReports();
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -41,7 +38,8 @@ export function BugReportsSection() {
   const [viewingScreenshot, setViewingScreenshot] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isITTeam = user && IT_TEAM_IDS.includes(user.id);
+  // Permission-based: can this user view/manage all bug reports?
+  const canViewAll = hasPermission("view_bug_reports") || hasPermission("manage_support");
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -205,7 +203,7 @@ export function BugReportsSection() {
       <Card>
         <CardHeader>
           <CardTitle>
-            {isITTeam ? "All Bug Reports" : "My Bug Reports"}
+            {canViewAll ? "All Bug Reports" : "My Bug Reports"}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -227,7 +225,7 @@ export function BugReportsSection() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <h4 className="font-medium">{report.title}</h4>
-                      {isITTeam && (
+                      {canViewAll && (
                         <p className="text-sm text-muted-foreground">
                           Reported by: {report.reporter_name} ({report.reporter_email})
                         </p>
@@ -252,7 +250,7 @@ export function BugReportsSection() {
                         View Screenshot
                       </Button>
                     )}
-                    {isITTeam && (
+                    {canViewAll && (
                       <Select
                         value={report.status}
                         onValueChange={(value) => updateBugStatus(report.id, value)}

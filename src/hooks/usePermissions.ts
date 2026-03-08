@@ -32,8 +32,11 @@ export type Permission =
   | 'manage_support'
   | 'view_support'
   | 'view_bug_reports'
+  | 'submit_bug_reports'
   | 'view_grievances'
+  | 'submit_grievances'
   | 'view_asset_requests'
+  | 'submit_asset_requests'
   | 'view_invoices'
   | 'manage_invoices'
   | 'view_log_sheet'
@@ -69,8 +72,11 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   manage_support: 'Manage Support',
   view_support: 'View Support',
   view_bug_reports: 'View Bug Reports',
+  submit_bug_reports: 'Submit Bug Reports',
   view_grievances: 'View Grievances',
+  submit_grievances: 'Submit Grievances',
   view_asset_requests: 'View Asset Requests',
+  submit_asset_requests: 'Submit Asset Requests',
   view_invoices: 'View Invoices',
   manage_invoices: 'Manage Invoices',
   view_log_sheet: 'View Log Sheet',
@@ -86,7 +92,7 @@ export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
   'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_calendar', 'manage_onboarding'],
   'Loans': ['manage_loans', 'view_loans'],
   'Invoices': ['view_invoices', 'manage_invoices'],
-  'Support': ['manage_support', 'view_support', 'view_bug_reports', 'view_grievances', 'view_asset_requests'],
+  'Support': ['manage_support', 'view_support', 'view_bug_reports', 'submit_bug_reports', 'view_grievances', 'submit_grievances', 'view_asset_requests', 'submit_asset_requests'],
   'Other Modules': ['view_log_sheet', 'view_performance'],
 };
 
@@ -109,7 +115,7 @@ export const PERMISSION_ROUTE_MAP: Record<string, Permission[]> = {
   '/documents': ['manage_documents', 'view_documents'],
   '/loans': ['manage_loans', 'view_loans'],
   '/tasks': ['manage_tasks', 'view_tasks'],
-  '/support': ['manage_support', 'view_support', 'view_bug_reports', 'view_grievances', 'view_asset_requests'],
+  '/support': ['manage_support', 'view_support', 'view_bug_reports', 'submit_bug_reports', 'view_grievances', 'submit_grievances', 'view_asset_requests', 'submit_asset_requests'],
   '/invoices': ['view_invoices', 'manage_invoices'],
   '/log-sheet': ['view_log_sheet'],
   '/performance': ['view_performance'],

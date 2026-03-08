@@ -22,12 +22,14 @@ import {
 } from "@/components/ui/select";
 import { useAssetRequests } from "@/hooks/useAssetRequests";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Plus, Package, Monitor, Check, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 export function AssetRequestsSection() {
   const { assetRequests, loading, submitAssetRequest, approveRequest, declineRequest } = useAssetRequests();
-  const { user, isManager, isVP, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -37,7 +39,7 @@ export function AssetRequestsSection() {
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState("");
 
-  const canApprove = isManager || isVP || isAdmin;
+  const canViewAll = hasPermission("view_asset_requests") || hasPermission("manage_support");
 
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) return;
@@ -98,8 +100,8 @@ export function AssetRequestsSection() {
     return type === "it_support" ? "IT Support" : "Asset Request";
   };
 
-  // Filter requests - show all for managers, only own for regular users
-  const filteredRequests = canApprove
+  // Filter requests - show all for permitted users, only own for regular users
+  const filteredRequests = canViewAll
     ? assetRequests
     : assetRequests.filter((r) => r.user_id === user?.id);
 
@@ -197,7 +199,7 @@ export function AssetRequestsSection() {
       <Card>
         <CardHeader>
           <CardTitle>
-            {canApprove ? "All Requests" : "My Requests"}
+            {canViewAll ? "All Requests" : "My Requests"}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -225,7 +227,7 @@ export function AssetRequestsSection() {
                           {getTypeLabel(request.request_type)}
                         </Badge>
                       </div>
-                      {canApprove && request.user_id !== user?.id && (
+                      {canViewAll && request.user_id !== user?.id && (
                         <p className="text-sm text-muted-foreground">
                           Requested by: {request.requester_name} ({request.requester_email})
                         </p>
@@ -259,7 +261,7 @@ export function AssetRequestsSection() {
                     </div>
                   )}
 
-                  {canApprove && request.status === "pending" && request.user_id !== user?.id && (
+                  {canViewAll && request.status === "pending" && request.user_id !== user?.id && (
                     <div className="flex items-center gap-2 pt-2">
                       <Button
                         size="sm"

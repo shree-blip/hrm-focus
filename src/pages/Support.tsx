@@ -18,13 +18,13 @@ const Support = () => {
   const visibleTabs = useMemo(() => {
     const tabs: { value: string; label: string; icon: typeof Bug; permission: string }[] = [];
 
-    if (isSuperUser || hasPermission("view_grievances") || hasPermission("manage_support") || hasPermission("view_support")) {
+    if (isSuperUser || hasPermission("view_grievances") || hasPermission("submit_grievances") || hasPermission("manage_support") || hasPermission("view_support")) {
       tabs.push({ value: "grievances", label: "Grievances", icon: MessageSquareWarning, permission: "view_grievances" });
     }
-    if (isSuperUser || hasPermission("view_bug_reports") || hasPermission("manage_support") || hasPermission("view_support")) {
+    if (isSuperUser || hasPermission("view_bug_reports") || hasPermission("submit_bug_reports") || hasPermission("manage_support") || hasPermission("view_support")) {
       tabs.push({ value: "bugs", label: "Bug Reports", icon: Bug, permission: "view_bug_reports" });
     }
-    if (isSuperUser || hasPermission("view_asset_requests") || hasPermission("manage_support") || hasPermission("view_support")) {
+    if (isSuperUser || hasPermission("view_asset_requests") || hasPermission("submit_asset_requests") || hasPermission("manage_support") || hasPermission("view_support")) {
       tabs.push({ value: "assets", label: "Request Assets", icon: Package, permission: "view_asset_requests" });
     }
 
