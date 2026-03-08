@@ -4,6 +4,32 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast as sonnerToast } from "sonner";
 import { sendCrossTabNotification } from "@/lib/crossTabNotifications";
 
+const ICON_PATH = "/favicon.png";
+
+/** Fire an OS-level notification directly (no hook needed) */
+function fireOSNotification(title: string, body?: string, tag?: string) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  // Only fire when tab is hidden or unfocused
+  if (document.visibilityState === "visible" && document.hasFocus()) return;
+
+  try {
+    console.log("[ActivityAlerts] Firing OS notification:", title);
+    const n = new Notification(title, {
+      body: body ?? undefined,
+      icon: ICON_PATH,
+      tag: tag || `activity-${Date.now()}`,
+    });
+    setTimeout(() => n.close(), 5000);
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+  } catch (e) {
+    console.warn("[ActivityAlerts] OS notification failed:", e);
+  }
+}
+
 type AttendanceEventType = "clock_in" | "clock_out" | "break_start" | "break_end" | "pause_start" | "pause_end";
 
 interface QueuedEvent {
@@ -61,6 +87,8 @@ function flush() {
     const title = `${EVENT_ICONS[e.type]} ${e.employeeName} ${EVENT_LABELS[e.type]}`;
     sonnerToast(title, { duration: 5000 });
     sendCrossTabNotification(title);
+    // Also fire OS-level notification for background/unfocused tabs
+    fireOSNotification(title, undefined, `activity-${e.type}-${Date.now()}`);
     return;
   }
 
@@ -75,6 +103,8 @@ function flush() {
 
   sonnerToast(title, { description: body, duration: 5000 });
   sendCrossTabNotification(title, body);
+  // Also fire OS-level notification for background/unfocused tabs
+  fireOSNotification(title, body, `activity-batch-${Date.now()}`);
 }
 
 function enqueue(event: QueuedEvent) {
