@@ -7,6 +7,7 @@ import { useGrievances, STATUS_LABELS } from "@/hooks/useGrievances";
 import { SubmitGrievanceDialog } from "./SubmitGrievanceDialog";
 import { GrievanceDetailDialog } from "./GrievanceDetailDialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
