@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useActivityAlerts } from "@/hooks/useActivityAlerts";
 import { useDesktopNotification } from "@/hooks/useDesktopNotification";
