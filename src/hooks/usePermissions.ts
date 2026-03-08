@@ -109,7 +109,7 @@ export const PERMISSION_ROUTE_MAP: Record<string, Permission[]> = {
   '/documents': ['manage_documents', 'view_documents'],
   '/loans': ['manage_loans', 'view_loans'],
   '/tasks': ['manage_tasks', 'view_tasks'],
-  '/support': ['manage_support', 'view_support'],
+  '/support': ['manage_support', 'view_support', 'view_bug_reports', 'view_grievances', 'view_asset_requests'],
   '/invoices': ['view_invoices', 'manage_invoices'],
   '/log-sheet': ['view_log_sheet'],
   '/performance': ['view_performance'],
