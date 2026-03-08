@@ -1,12 +1,17 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useActivityAlerts } from "@/hooks/useActivityAlerts";
-import { requestNotificationPermission } from "@/lib/osNotification";
+import {
+  initCrossTabNotifications,
+  onCrossTabToast,
+} from "@/lib/crossTabNotifications";
+import { toast as sonnerToast } from "sonner";
 
 /**
- * Invisible provider component that wires up the activity alerts
- * system with the router's navigate function.
- * Must be rendered inside a <BrowserRouter>.
+ * Invisible provider that:
+ * 1. Wires activity alerts to the router
+ * 2. Initialises the cross-tab notification system
+ * 3. Listens for broadcasts from other tabs and shows in-app toasts
  */
 export function ActivityAlertsProvider() {
   const navigate = useNavigate();
@@ -16,8 +21,18 @@ export function ActivityAlertsProvider() {
     setNavigate(navigate);
   }, [navigate, setNavigate]);
 
-  // NOTE: OS notification permission is requested via NotificationPermissionBanner
-  // (requires user gesture). Do NOT auto-request here — browsers silently block it.
+  // Initialise cross-tab system once
+  useEffect(() => {
+    initCrossTabNotifications();
+
+    // When another tab broadcasts a notification, show an in-app toast here
+    onCrossTabToast((title, body) => {
+      sonnerToast(title, {
+        description: body,
+        duration: 5000,
+      });
+    });
+  }, []);
 
   return null;
 }
