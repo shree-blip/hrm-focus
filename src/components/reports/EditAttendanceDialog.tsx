@@ -167,6 +167,48 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
 
       if (auditError) throw auditError;
 
+      // Send notification to CEO (VP role) about the edit
+      const { data: editorProfile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("user_id", user.id)
+        .single();
+
+      const editorName = editorProfile ? `${editorProfile.first_name} ${editorProfile.last_name}` : "A manager";
+      const editDate = new Date(record.clock_in).toLocaleDateString("en-US", {
+        year: "numeric", month: "short", day: "numeric",
+      });
+
+      // Build change summary
+      const changes: string[] = [];
+      if (oldValues.clock_in !== newValues.clock_in) changes.push(`Clock In: ${formatTimeShort(oldValues.clock_in)} → ${formatTimeShort(newValues.clock_in)}`);
+      if (oldValues.clock_out !== newValues.clock_out) changes.push(`Clock Out: ${formatTimeShort(oldValues.clock_out)} → ${formatTimeShort(newValues.clock_out)}`);
+      if (oldValues.total_break_minutes !== newValues.total_break_minutes) changes.push(`Break: ${oldValues.total_break_minutes}m → ${newValues.total_break_minutes}m`);
+      if ((oldValues.total_pause_minutes || 0) !== newValues.total_pause_minutes) changes.push(`Pause: ${oldValues.total_pause_minutes || 0}m → ${newValues.total_pause_minutes}m`);
+
+      const changeSummary = changes.length > 0 ? changes.join(", ") : "Minor adjustments";
+
+      // Get all VP/CEO user IDs
+      const { data: vpUsers } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "vp" as any);
+
+      if (vpUsers && vpUsers.length > 0) {
+        for (const vp of vpUsers) {
+          if (vp.user_id !== user.id) {
+            await supabase.from("notifications").insert({
+              user_id: vp.user_id,
+              title: "⚠️ Attendance Edited",
+              message: `${editorName} edited attendance for ${record.employee_name} on ${editDate}. Changes: ${changeSummary}. Reason: ${reason.trim()}`,
+              type: "warning",
+              link: "/reports",
+              is_read: false,
+            });
+          }
+        }
+      }
+
       toast({ title: "Attendance Updated", description: `Record for ${record.employee_name} has been edited.` });
       onSaved();
       onOpenChange(false);
