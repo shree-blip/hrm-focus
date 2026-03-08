@@ -60,7 +60,7 @@ function flush() {
     const e = events[0];
     const title = `${EVENT_ICONS[e.type]} ${e.employeeName} ${EVENT_LABELS[e.type]}`;
     sonnerToast(title, { duration: 5000 });
-    sendOSNotification(title);
+    sendCrossTabNotification(title);
     return;
   }
 
