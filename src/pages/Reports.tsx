@@ -29,6 +29,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useTeamAttendance, DateRangeType, getDateRangeFromType } from "@/hooks/useTeamAttendance";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "@/hooks/use-toast";
 import { EditAttendanceDialog } from "@/components/reports/EditAttendanceDialog";
 
@@ -83,7 +84,9 @@ const getDateRangeLabel = (rangeType: DateRangeType): string => {
 
 const Reports = () => {
   const { requests, loading: leaveLoading } = useLeaveRequests();
-  const { isVP } = useAuth();
+  const { isVP, user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canEditAttendance = isVP || hasPermission('edit_attendance');
   const [dateRange, setDateRange] = useState<DateRangeType>("this-month");
 
   // Pass dateRange to the hook so it fetches data for the selected period
@@ -1164,7 +1167,7 @@ const Reports = () => {
                         <th className="text-left p-3 font-medium">Clock Out</th>
                         <th className="text-left p-3 font-medium">Total Hrs</th>
                         <th className="text-left p-3 font-medium">Status</th>
-                        {isVP && <th className="text-left p-3 font-medium w-10">Edit</th>}
+                        {canEditAttendance && <th className="text-left p-3 font-medium w-10">Edit</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -1261,7 +1264,7 @@ const Reports = () => {
                                   )}
                                 </div>
                               </td>
-                              {isVP && (
+                              {canEditAttendance && (
                                 <td className="p-3">
                                   <Button
                                     variant="ghost"
@@ -1291,7 +1294,7 @@ const Reports = () => {
                             {/* Expanded breaks and pauses detail row */}
                             {hasExpandableContent && isExpanded && (
                               <tr className="bg-slate-50">
-                                <td colSpan={isVP ? 12 : 11} className="p-0">
+                                <td colSpan={canEditAttendance ? 12 : 11} className="p-0">
                                   <div className="px-12 py-3 border-b space-y-4">
                                     {/* Breaks detail */}
                                     {hasMultipleBreaks && (

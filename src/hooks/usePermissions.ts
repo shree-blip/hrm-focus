@@ -11,6 +11,7 @@ export type Permission =
   | 'view_attendance_all'
   | 'view_attendance_reports_only'
   | 'view_own_attendance'
+  | 'edit_attendance'
   | 'manage_salaries_all'
   | 'add_announcement'
   | 'edit_announcement'
@@ -51,6 +52,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_attendance_all: 'View All Attendance',
   view_attendance_reports_only: 'View Reports Attendance',
   view_own_attendance: 'View Own Attendance',
+  edit_attendance: 'Edit Attendance',
   manage_salaries_all: 'Manage Salaries',
   add_announcement: 'Add Announcement',
   edit_announcement: 'Edit Announcement',
@@ -85,7 +87,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 
 export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
   'Access & Users': ['manage_access', 'manage_employees', 'manage_line_managers', 'view_employees_all', 'view_employees_reports_only'],
-  'Attendance': ['view_attendance_all', 'view_attendance_reports_only', 'view_own_attendance'],
+  'Attendance': ['view_attendance_all', 'view_attendance_reports_only', 'view_own_attendance', 'edit_attendance'],
   'Announcements': ['add_announcement', 'edit_announcement', 'delete_announcement', 'view_announcements'],
   'Documents & Reports': ['manage_documents', 'view_documents', 'view_reports'],
   'Leave & Payroll': ['approve_leave', 'view_leave', 'manage_payroll', 'view_payroll', 'manage_salaries_all'],
