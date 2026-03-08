@@ -150,23 +150,8 @@ const Leave = () => {
     });
   };
 
-  // Get total allocated days for a leave type from the balances table
-  const getTotalDaysForType = (leaveType: string) => {
-    const balance = balances.find((b) => b.leave_type === leaveType);
-    return balance ? balance.total_days : 20; // default 20 if not found
-  };
-
-  // Get used days from the balances table (accurate DB value)
-  const getUsedDaysFromBalance = (leaveType: string) => {
-    const balance = balances.find((b) => b.leave_type === leaveType);
-    return balance ? balance.used_days : 0;
-  };
-
   // Calculate used days for each leave type from approved requests (ONLY for current user)
   const getUsedDaysForType = (leaveType: string) => {
-    // Prefer the DB balance used_days as it's the source of truth
-    const dbUsed = getUsedDaysFromBalance(leaveType);
-    if (dbUsed > 0) return dbUsed;
     return ownRequests
       .filter((r) => r.status === "approved" && r.leave_type === leaveType && r.user_id === user?.id)
       .reduce((sum, r) => sum + r.days, 0);
@@ -342,7 +327,7 @@ const Leave = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Annual Leave Balance</p>
-                <p className="text-2xl font-bold mt-1">{getTotalDaysForType("Annual Leave") - getUsedDaysForType("Annual Leave")} days</p>
+                <p className="text-2xl font-bold mt-1">{12 - getUsedDaysForType("Annual Leave")} days</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Calendar className="h-6 w-6 text-primary" />
@@ -408,24 +393,24 @@ const Leave = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-medium text-muted-foreground">Annual Leave</p>
-              <Badge variant="secondary">{getTotalDaysForType("Annual Leave") - getUsedDaysForType("Annual Leave")} days left</Badge>
+              <Badge variant="secondary">{12 - getUsedDaysForType("Annual Leave")} days left</Badge>
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-display font-bold">{getTotalDaysForType("Annual Leave") - getUsedDaysForType("Annual Leave")}</span>
-                <span className="text-muted-foreground">/ {getTotalDaysForType("Annual Leave")} days</span>
+                <span className="text-3xl font-display font-bold">{12 - getUsedDaysForType("Annual Leave")}</span>
+                <span className="text-muted-foreground">/ 12 days</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500 bg-primary"
                   style={{
-                    width: `${Math.min((getUsedDaysForType("Annual Leave") / getTotalDaysForType("Annual Leave")) * 100, 100)}%`,
+                    width: `${Math.min((getUsedDaysForType("Annual Leave") / 12) * 100, 100)}%`,
                   }}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
                 {getUsedDaysForType("Annual Leave")} days used •{" "}
-                {((getUsedDaysForType("Annual Leave") / getTotalDaysForType("Annual Leave")) * 100).toFixed(0)}% utilized
+                {((getUsedDaysForType("Annual Leave") / 12) * 100).toFixed(0)}% utilized
               </p>
             </div>
           </CardContent>
