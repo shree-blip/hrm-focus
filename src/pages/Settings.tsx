@@ -550,6 +550,9 @@ const Settings = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Cross-Tab Notification Diagnostics */}
+          <NotificationTestPanel />
         </TabsContent>
 
         <TabsContent
