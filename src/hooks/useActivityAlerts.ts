@@ -74,7 +74,7 @@ function flush() {
   const body = parts.join(", ");
 
   sonnerToast(title, { description: body, duration: 5000 });
-  sendOSNotification(title, body);
+  sendCrossTabNotification(title, body);
 }
 
 function enqueue(event: QueuedEvent) {
