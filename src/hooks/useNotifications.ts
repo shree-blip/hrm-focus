@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-// OS notification is now handled by ActivityAlertsProvider via useDesktopNotification
+import { useDesktopNotification } from "./useDesktopNotification";
+import { useBroadcastChannel } from "./useBroadcastChannel";
 
 export interface Notification {
   id: string;
@@ -18,11 +20,29 @@ export interface Notification {
 
 export function useNotifications() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const { fireDesktopNotification } = useDesktopNotification();
 
   // Calculate unread count from notifications state (single source of truth)
   const unreadCount = notifications.filter((n) => n.is_read === false).length;
+
+  // BroadcastChannel: when another tab tells us about a notification, fire OS only
+  const { broadcast } = useBroadcastChannel(
+    useCallback(
+      (notificationFromOtherTab: Notification) => {
+        setTimeout(() => {
+          fireDesktopNotification({
+            id: notificationFromOtherTab.id,
+            title: notificationFromOtherTab.title,
+            body: notificationFromOtherTab.message,
+          });
+        }, 100);
+      },
+      [fireDesktopNotification]
+    )
+  );
 
   const fetchNotifications = useCallback(async () => {
     if (!user) {
@@ -43,10 +63,9 @@ export function useNotifications() {
         throw error;
       }
 
-      // Normalize is_read to boolean (handle null as false)
       const normalizedData = (data || []).map((n) => ({
         ...n,
-        is_read: n.is_read === true, // Convert null to false
+        is_read: n.is_read === true,
       }));
 
       setNotifications(normalizedData);
@@ -62,13 +81,9 @@ export function useNotifications() {
     async (notificationId: string) => {
       if (!user) return;
 
-      // Find the notification first to check if it's already read
       const notification = notifications.find((n) => n.id === notificationId);
-      if (!notification || notification.is_read) {
-        return; // Already read or doesn't exist
-      }
+      if (!notification || notification.is_read) return;
 
-      // Optimistic update - update state immediately
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)),
       );
@@ -82,7 +97,6 @@ export function useNotifications() {
 
         if (error) {
           console.error("Error marking notification as read:", error);
-          // Revert optimistic update on error
           setNotifications((prev) =>
             prev.map((n) => (n.id === notificationId ? { ...n, is_read: false, read_at: null } : n)),
           );
@@ -103,7 +117,6 @@ export function useNotifications() {
     const unreadNotifications = notifications.filter((n) => !n.is_read);
     if (unreadNotifications.length === 0) return;
 
-    // Optimistic update - update state immediately
     const previousNotifications = [...notifications];
     setNotifications((prev) =>
       prev.map((n) => ({ ...n, is_read: true, read_at: n.read_at || new Date().toISOString() })),
@@ -118,7 +131,6 @@ export function useNotifications() {
 
       if (error) {
         console.error("Error marking all notifications as read:", error);
-        // Revert optimistic update on error
         setNotifications(previousNotifications);
         throw error;
       }
@@ -134,11 +146,11 @@ export function useNotifications() {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Separate effect for realtime subscription to avoid re-subscribing on every fetch
+  // Realtime subscription
   useEffect(() => {
     if (!user) return;
 
-    console.log("Setting up notifications real-time subscription for user:", user.id);
+    console.log("[Notifications] Setting up realtime subscription for user:", user.id);
 
     const channel = supabase
       .channel(`notifications-realtime-${user.id}`)
@@ -151,24 +163,35 @@ export function useNotifications() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("New notification received:", payload);
+          console.log("[Notifications] New notification received:", payload);
           const newNotification = payload.new as Notification;
-          // Normalize is_read
           const normalized = {
             ...newNotification,
             is_read: newNotification.is_read === true,
           };
           setNotifications((prev) => {
-            // Prevent duplicates
             if (prev.some((n) => n.id === normalized.id)) return prev;
             return [normalized, ...prev];
           });
-          // Show toast for new notification
+
+          // Show in-app toast always
           toast({
             title: normalized.title,
             description: normalized.message,
           });
-          // OS-level + cross-tab notification handled by ActivityAlertsProvider
+
+          // Fire OS notification with small delay so visibilityState is accurate
+          setTimeout(() => {
+            fireDesktopNotification({
+              id: normalized.id,
+              title: normalized.title,
+              body: normalized.message,
+              onClick: normalized.link ? () => navigate(normalized.link!) : undefined,
+            });
+          }, 100);
+
+          // Broadcast to other tabs
+          broadcast(normalized);
         },
       )
       .on(
@@ -180,9 +203,7 @@ export function useNotifications() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("Notification updated:", payload);
           const updated = payload.new as Notification;
-          // Normalize is_read
           const normalized = {
             ...updated,
             is_read: updated.is_read === true,
@@ -199,20 +220,19 @@ export function useNotifications() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("Notification deleted:", payload);
           const deleted = payload.old as { id: string };
           setNotifications((prev) => prev.filter((n) => n.id !== deleted.id));
         },
       )
       .subscribe((status) => {
-        console.log("Notifications subscription status:", status);
+        console.log("[Notifications] Subscription status:", status);
       });
 
     return () => {
-      console.log("Cleaning up notifications subscription");
+      console.log("[Notifications] Cleaning up subscription");
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, fireDesktopNotification, broadcast, navigate]);
 
   return {
     notifications,
