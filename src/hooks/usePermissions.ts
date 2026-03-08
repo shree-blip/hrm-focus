@@ -10,13 +10,16 @@ export type Permission =
   | 'view_employees_reports_only'
   | 'view_attendance_all'
   | 'view_attendance_reports_only'
+  | 'view_own_attendance'
   | 'manage_salaries_all'
   | 'add_announcement'
   | 'edit_announcement'
   | 'delete_announcement'
   | 'view_announcements'
   | 'manage_documents'
+  | 'view_documents'
   | 'approve_leave'
+  | 'view_leave'
   | 'view_reports'
   | 'manage_payroll'
   | 'view_payroll'
@@ -26,7 +29,12 @@ export type Permission =
   | 'manage_loans'
   | 'view_loans'
   | 'manage_calendar'
-  | 'manage_support';
+  | 'manage_support'
+  | 'view_support'
+  | 'view_invoices'
+  | 'manage_invoices'
+  | 'view_log_sheet'
+  | 'view_performance';
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
   manage_access: 'Manage Access Control',
@@ -36,13 +44,16 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_employees_reports_only: 'View Reports Only',
   view_attendance_all: 'View All Attendance',
   view_attendance_reports_only: 'View Reports Attendance',
+  view_own_attendance: 'View Own Attendance',
   manage_salaries_all: 'Manage Salaries',
   add_announcement: 'Add Announcement',
   edit_announcement: 'Edit Announcement',
   delete_announcement: 'Delete Announcement',
   view_announcements: 'View Announcements',
   manage_documents: 'Manage Documents',
+  view_documents: 'View Documents',
   approve_leave: 'Approve Leave',
+  view_leave: 'View Leave',
   view_reports: 'View Reports',
   manage_payroll: 'Manage Payroll',
   view_payroll: 'View Payroll',
@@ -53,15 +64,24 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_loans: 'View Loans',
   manage_calendar: 'Manage Calendar',
   manage_support: 'Manage Support',
+  view_support: 'View Support',
+  view_invoices: 'View Invoices',
+  manage_invoices: 'Manage Invoices',
+  view_log_sheet: 'View Log Sheet',
+  view_performance: 'View Performance',
 };
 
 export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
   'Access & Users': ['manage_access', 'manage_employees', 'manage_line_managers', 'view_employees_all', 'view_employees_reports_only'],
-  'Attendance': ['view_attendance_all', 'view_attendance_reports_only'],
+  'Attendance': ['view_attendance_all', 'view_attendance_reports_only', 'view_own_attendance'],
   'Announcements': ['add_announcement', 'edit_announcement', 'delete_announcement', 'view_announcements'],
-  'Documents & Reports': ['manage_documents', 'view_reports'],
-  'Leave & Payroll': ['approve_leave', 'manage_payroll', 'view_payroll', 'manage_salaries_all'],
-  'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_loans', 'view_loans', 'manage_calendar', 'manage_onboarding', 'manage_support'],
+  'Documents & Reports': ['manage_documents', 'view_documents', 'view_reports'],
+  'Leave & Payroll': ['approve_leave', 'view_leave', 'manage_payroll', 'view_payroll', 'manage_salaries_all'],
+  'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_calendar', 'manage_onboarding'],
+  'Loans': ['manage_loans', 'view_loans'],
+  'Invoices': ['view_invoices', 'manage_invoices'],
+  'Support': ['manage_support', 'view_support'],
+  'Other Modules': ['view_log_sheet', 'view_performance'],
 };
 
 export const ALL_PERMISSIONS: Permission[] = Object.values(PERMISSION_CATEGORIES).flat();
@@ -78,11 +98,15 @@ export const PERMISSION_ROUTE_MAP: Record<string, Permission[]> = {
   '/payroll': ['manage_payroll', 'view_payroll'],
   '/onboarding': ['manage_onboarding'],
   '/access-control': ['manage_access'],
-  '/attendance': ['view_attendance_all', 'view_attendance_reports_only'],
-  '/documents': ['manage_documents'],
+  '/attendance': ['view_attendance_all', 'view_attendance_reports_only', 'view_own_attendance'],
+  '/leave': ['view_leave', 'approve_leave'],
+  '/documents': ['manage_documents', 'view_documents'],
   '/loans': ['manage_loans', 'view_loans'],
   '/tasks': ['manage_tasks', 'view_tasks'],
-  '/support': ['manage_support'],
+  '/support': ['manage_support', 'view_support'],
+  '/invoices': ['view_invoices', 'manage_invoices'],
+  '/log-sheet': ['view_log_sheet'],
+  '/performance': ['view_performance'],
 };
 
 interface RolePermission {
