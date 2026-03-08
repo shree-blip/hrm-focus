@@ -28,7 +28,8 @@ import { format } from "date-fns";
 
 export function AssetRequestsSection() {
   const { assetRequests, loading, submitAssetRequest, approveRequest, declineRequest } = useAssetRequests();
-  const { user, isManager, isVP, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -38,7 +39,7 @@ export function AssetRequestsSection() {
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState("");
 
-  const canApprove = isManager || isVP || isAdmin;
+  const canViewAll = hasPermission("view_asset_requests") || hasPermission("manage_support");
 
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) return;
