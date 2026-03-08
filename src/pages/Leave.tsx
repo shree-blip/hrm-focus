@@ -150,8 +150,23 @@ const Leave = () => {
     });
   };
 
+  // Get total allocated days for a leave type from the balances table
+  const getTotalDaysForType = (leaveType: string) => {
+    const balance = balances.find((b) => b.leave_type === leaveType);
+    return balance ? balance.total_days : 20; // default 20 if not found
+  };
+
+  // Get used days from the balances table (accurate DB value)
+  const getUsedDaysFromBalance = (leaveType: string) => {
+    const balance = balances.find((b) => b.leave_type === leaveType);
+    return balance ? balance.used_days : 0;
+  };
+
   // Calculate used days for each leave type from approved requests (ONLY for current user)
   const getUsedDaysForType = (leaveType: string) => {
+    // Prefer the DB balance used_days as it's the source of truth
+    const dbUsed = getUsedDaysFromBalance(leaveType);
+    if (dbUsed > 0) return dbUsed;
     return ownRequests
       .filter((r) => r.status === "approved" && r.leave_type === leaveType && r.user_id === user?.id)
       .reduce((sum, r) => sum + r.days, 0);
