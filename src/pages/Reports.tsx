@@ -83,7 +83,7 @@ const getDateRangeLabel = (rangeType: DateRangeType): string => {
 
 const Reports = () => {
   const { requests, loading: leaveLoading } = useLeaveRequests();
-  const { isVP } = useAuth();
+  const { isVP, user } = useAuth();
   const [dateRange, setDateRange] = useState<DateRangeType>("this-month");
 
   // Pass dateRange to the hook so it fetches data for the selected period
