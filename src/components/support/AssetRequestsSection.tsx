@@ -100,8 +100,8 @@ export function AssetRequestsSection() {
     return type === "it_support" ? "IT Support" : "Asset Request";
   };
 
-  // Filter requests - show all for managers, only own for regular users
-  const filteredRequests = canApprove
+  // Filter requests - show all for permitted users, only own for regular users
+  const filteredRequests = canViewAll
     ? assetRequests
     : assetRequests.filter((r) => r.user_id === user?.id);
 
