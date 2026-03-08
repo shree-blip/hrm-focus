@@ -26,15 +26,29 @@ export function useDesktopNotification() {
   const fireDesktopNotification = useCallback(
     ({ id, title, body, icon, onClick }: DesktopNotificationOptions) => {
       // Guard: API available?
-      if (!("Notification" in window)) return;
+      if (!("Notification" in window)) {
+        console.log("[DesktopNotif] Notification API not available");
+        return;
+      }
 
       // Guard: permission granted?
-      if (Notification.permission !== "granted") return;
+      if (Notification.permission !== "granted") {
+        console.log("[DesktopNotif] Permission not granted:", Notification.permission);
+        return;
+      }
 
       // Guard: tab must be hidden or unfocused
-      if (document.visibilityState === "visible" && document.hasFocus()) return;
+      const isHidden = document.visibilityState === "hidden";
+      const hasFocus = document.hasFocus();
+      console.log("[DesktopNotif] Checking visibility:", { isHidden, hasFocus, title });
+
+      if (!isHidden && hasFocus) {
+        console.log("[DesktopNotif] Tab is visible and focused, skipping OS notification (in-app handles it)");
+        return;
+      }
 
       try {
+        console.log("[DesktopNotif] Firing OS notification:", title);
         const notification = new Notification(title, {
           body,
           icon: icon || ICON_PATH,
@@ -50,8 +64,8 @@ export function useDesktopNotification() {
           window.focus();
           onClick?.();
         };
-      } catch {
-        // Safari iOS doesn't support Notification constructor
+      } catch (e) {
+        console.warn("[DesktopNotif] Failed to create notification:", e);
       }
     },
     [navigate]

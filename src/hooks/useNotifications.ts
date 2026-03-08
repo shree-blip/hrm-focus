@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { sendOSNotification } from "@/lib/osNotification";
+// OS notification is now handled by ActivityAlertsProvider via useDesktopNotification
 
 export interface Notification {
   id: string;
@@ -168,8 +168,7 @@ export function useNotifications() {
             title: normalized.title,
             description: normalized.message,
           });
-          // OS-level notification (fires even if tab is backgrounded)
-          sendOSNotification(normalized.title, normalized.message);
+          // OS-level + cross-tab notification handled by ActivityAlertsProvider
         },
       )
       .on(
