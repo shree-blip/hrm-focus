@@ -73,11 +73,15 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 
 export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
   'Access & Users': ['manage_access', 'manage_employees', 'manage_line_managers', 'view_employees_all', 'view_employees_reports_only'],
-  'Attendance': ['view_attendance_all', 'view_attendance_reports_only'],
+  'Attendance': ['view_attendance_all', 'view_attendance_reports_only', 'view_own_attendance'],
   'Announcements': ['add_announcement', 'edit_announcement', 'delete_announcement', 'view_announcements'],
-  'Documents & Reports': ['manage_documents', 'view_reports'],
-  'Leave & Payroll': ['approve_leave', 'manage_payroll', 'view_payroll', 'manage_salaries_all'],
-  'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_loans', 'view_loans', 'manage_calendar', 'manage_onboarding', 'manage_support'],
+  'Documents & Reports': ['manage_documents', 'view_documents', 'view_reports'],
+  'Leave & Payroll': ['approve_leave', 'view_leave', 'manage_payroll', 'view_payroll', 'manage_salaries_all'],
+  'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_calendar', 'manage_onboarding'],
+  'Loans': ['manage_loans', 'view_loans'],
+  'Invoices': ['view_invoices', 'manage_invoices'],
+  'Support': ['manage_support', 'view_support'],
+  'Other Modules': ['view_log_sheet', 'view_performance'],
 };
 
 export const ALL_PERMISSIONS: Permission[] = Object.values(PERMISSION_CATEGORIES).flat();
