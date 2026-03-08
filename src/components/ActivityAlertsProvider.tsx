@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useActivityAlerts } from "@/hooks/useActivityAlerts";
 import { useDesktopNotification } from "@/hooks/useDesktopNotification";
@@ -34,12 +34,25 @@ function formatDesktopNotification(n: { type?: string | null; title: string; mes
   return { title: n.title, body: n.message };
 }
 
+interface NotifRow {
+  id: string;
+  title: string;
+  message: string;
+  type: string | null;
+  link: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+const POLL_INTERVAL_MS = 10_000; // Poll every 10 seconds as fallback
+
 /**
  * Invisible provider that:
  * 1. Wires activity alerts to the router
  * 2. Initialises the cross-tab notification system
- * 3. Subscribes to notification INSERTs and fires desktop + cross-tab notifications
- * 4. Listens for broadcasts from other tabs and shows in-app toasts
+ * 3. Subscribes to notification INSERTs via Supabase Realtime
+ * 4. Polls for new notifications as a fallback (in case Realtime fails silently)
+ * 5. Fires desktop + cross-tab notifications for new items
  */
 export function ActivityAlertsProvider() {
   const navigate = useNavigate();
@@ -47,6 +60,7 @@ export function ActivityAlertsProvider() {
   const { fireDesktopNotification } = useDesktopNotification();
   const { user } = useAuth();
   const processedIdsRef = useRef(new Set<string>());
+  const lastPollTimeRef = useRef<string | null>(null);
 
   useEffect(() => {
     setNavigate(navigate);
@@ -56,7 +70,6 @@ export function ActivityAlertsProvider() {
   useEffect(() => {
     initCrossTabNotifications();
 
-    // When another tab broadcasts a notification, show an in-app toast here
     onCrossTabToast((title, body) => {
       console.log("[ActivityAlerts] Received cross-tab toast:", title);
       sonnerToast(title, {
@@ -66,12 +79,45 @@ export function ActivityAlertsProvider() {
     });
   }, []);
 
-  // Dedicated realtime subscription for desktop + cross-tab notifications
-  // This is separate from useNotifications to avoid hook sharing issues
+  // Process a new notification — fire desktop + cross-tab
+  const processNewNotification = useCallback(
+    (notif: NotifRow) => {
+      if (!notif?.id) return;
+      if (processedIdsRef.current.has(notif.id)) return;
+      processedIdsRef.current.add(notif.id);
+
+      // Keep the set bounded
+      if (processedIdsRef.current.size > 200) {
+        const arr = Array.from(processedIdsRef.current);
+        processedIdsRef.current = new Set(arr.slice(-100));
+      }
+
+      console.log("[ActivityAlerts] Processing notification:", notif.title, "visibility:", document.visibilityState, "hasFocus:", document.hasFocus());
+
+      const { title, body } = formatDesktopNotification(notif);
+
+      // Fire desktop (OS) notification
+      fireDesktopNotification({
+        id: notif.id,
+        title,
+        body,
+        onClick: () => {
+          if (notif.link) navigate(notif.link);
+          else navigate("/notifications");
+        },
+      });
+
+      // Broadcast via cross-tab system for other tabs
+      sendCrossTabNotification(title, body, `notif-${notif.id}`);
+    },
+    [fireDesktopNotification, navigate],
+  );
+
+  // Layer 1: Supabase Realtime subscription
   useEffect(() => {
     if (!user) return;
 
-    console.log("[ActivityAlerts] Setting up desktop notification subscription for user:", user.id);
+    console.log("[ActivityAlerts] Setting up realtime subscription for user:", user.id);
 
     const channel = supabase
       .channel(`desktop-notifications-${user.id}`)
@@ -84,55 +130,70 @@ export function ActivityAlertsProvider() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const newNotif = payload.new as {
-            id: string;
-            title: string;
-            message: string;
-            type: string | null;
-            link: string | null;
-            is_read: boolean;
-          };
-
-          if (!newNotif?.id) return;
-
-          // Deduplicate within this tab
-          if (processedIdsRef.current.has(newNotif.id)) return;
-          processedIdsRef.current.add(newNotif.id);
-
-          // Keep the set from growing unbounded
-          if (processedIdsRef.current.size > 200) {
-            const arr = Array.from(processedIdsRef.current);
-            processedIdsRef.current = new Set(arr.slice(-100));
-          }
-
-          console.log("[ActivityAlerts] New notification INSERT:", newNotif.title, "visibility:", document.visibilityState, "hasFocus:", document.hasFocus());
-
-          const { title, body } = formatDesktopNotification(newNotif);
-
-          // 1. Fire desktop (OS) notification directly (works even without cross-tab)
-          fireDesktopNotification({
-            id: newNotif.id,
-            title,
-            body,
-            onClick: () => {
-              if (newNotif.link) navigate(newNotif.link);
-              else navigate("/notifications");
-            },
-          });
-
-          // 2. Also broadcast via cross-tab system for other tabs
-          sendCrossTabNotification(title, body, `notif-${newNotif.id}`);
+          console.log("[ActivityAlerts] Realtime INSERT received:", payload.new?.title);
+          processNewNotification(payload.new as NotifRow);
         },
       )
       .subscribe((status) => {
-        console.log("[ActivityAlerts] Desktop notification subscription status:", status);
+        console.log("[ActivityAlerts] Realtime subscription status:", status);
       });
 
     return () => {
-      console.log("[ActivityAlerts] Cleaning up desktop notification subscription");
+      console.log("[ActivityAlerts] Cleaning up realtime subscription");
       supabase.removeChannel(channel);
     };
-  }, [user?.id, fireDesktopNotification, navigate]);
+  }, [user?.id, processNewNotification]);
+
+  // Layer 2: Polling fallback — catches anything Realtime missed
+  useEffect(() => {
+    if (!user) return;
+
+    // Set initial poll time to now (don't re-process old notifications)
+    if (!lastPollTimeRef.current) {
+      lastPollTimeRef.current = new Date().toISOString();
+    }
+
+    let active = true;
+
+    const poll = async () => {
+      if (!active) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("notifications")
+          .select("id, title, message, type, link, is_read, created_at")
+          .eq("user_id", user.id)
+          .eq("is_read", false)
+          .gt("created_at", lastPollTimeRef.current!)
+          .order("created_at", { ascending: true })
+          .limit(10);
+
+        if (error) {
+          console.warn("[ActivityAlerts] Poll error:", error.message);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          console.log("[ActivityAlerts] Poll found", data.length, "new notifications");
+          // Update the poll cursor to the newest notification's created_at
+          lastPollTimeRef.current = data[data.length - 1].created_at;
+
+          for (const notif of data) {
+            processNewNotification(notif as NotifRow);
+          }
+        }
+      } catch (e) {
+        console.warn("[ActivityAlerts] Poll exception:", e);
+      }
+    };
+
+    const timer = setInterval(poll, POLL_INTERVAL_MS);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [user?.id, processNewNotification]);
 
   return null;
 }
