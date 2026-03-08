@@ -30,12 +30,13 @@ const statusColors: Record<string, string> = {
 
 export function GrievanceSection() {
   const { grievances, loading, getSubmitterDisplayName, refetch, markAsViewed } = useGrievances();
-  const { user, isManager, isAdmin, isVP } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [submitOpen, setSubmitOpen] = useState(false);
   const [selectedGrievance, setSelectedGrievance] = useState<string | null>(null);
 
-  // Check if user can see submitter names (managers, admins, VPs)
-  const canSeeSubmitter = isManager || isAdmin || isVP;
+  // Permission-based: can this user see submitter names and manage grievances?
+  const canSeeSubmitter = hasPermission("view_grievances") || hasPermission("manage_support");
 
   // Handle successful grievance submission
   const handleGrievanceSubmitted = async () => {

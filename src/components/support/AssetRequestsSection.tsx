@@ -261,7 +261,7 @@ export function AssetRequestsSection() {
                     </div>
                   )}
 
-                  {canApprove && request.status === "pending" && request.user_id !== user?.id && (
+                  {canViewAll && request.status === "pending" && request.user_id !== user?.id && (
                     <div className="flex items-center gap-2 pt-2">
                       <Button
                         size="sm"
