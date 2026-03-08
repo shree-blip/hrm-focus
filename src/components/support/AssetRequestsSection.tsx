@@ -199,7 +199,7 @@ export function AssetRequestsSection() {
       <Card>
         <CardHeader>
           <CardTitle>
-            {canApprove ? "All Requests" : "My Requests"}
+            {canViewAll ? "All Requests" : "My Requests"}
           </CardTitle>
         </CardHeader>
         <CardContent>
