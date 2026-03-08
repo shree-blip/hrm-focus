@@ -22,7 +22,6 @@ interface DailyAttendanceRecord {
   break_start: string | null;
   break_end: string | null;
   total_break_minutes: number | null;
-  // Pause fields
   pause_start: string | null;
   pause_end: string | null;
   total_pause_minutes: number | null;
@@ -38,7 +37,6 @@ interface DateRange {
   end: Date;
 }
 
-// Helper function to calculate date range based on selection
 export function getDateRangeFromType(rangeType: DateRangeType): DateRange {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -75,42 +73,91 @@ export function getDateRangeFromType(rangeType: DateRangeType): DateRange {
   }
 }
 
+/**
+ * Resolve the set of user_ids a line manager / supervisor can see.
+ * Returns null if the user has org-wide access (VP/Admin/Manager roles).
+ */
+async function getTeamUserIds(userId: string): Promise<string[] | null> {
+  // Get the user's employee record
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .single();
+
+  if (!myProfile) return [];
+
+  const { data: myEmployee } = await supabase
+    .from("employees")
+    .select("id")
+    .eq("profile_id", myProfile.id)
+    .single();
+
+  if (!myEmployee) return [];
+
+  // Get team members where this user is line_manager or manager
+  const { data: teamMembers } = await supabase
+    .from("employees")
+    .select("profile_id")
+    .or(`line_manager_id.eq.${myEmployee.id},manager_id.eq.${myEmployee.id}`);
+
+  if (!teamMembers || teamMembers.length === 0) return [];
+
+  const profileIds = teamMembers.map((e) => e.profile_id).filter(Boolean);
+  if (profileIds.length === 0) return [];
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .in("id", profileIds as string[]);
+
+  return profiles?.map((p) => p.user_id).filter(Boolean) as string[] || [];
+}
+
 export function useTeamAttendance(dateRangeType?: DateRangeType) {
-  const { isManager } = useAuth();
+  const { user, isManager, isVP, isAdmin, role, isLineManager, isSupervisor } = useAuth();
   const [teamAttendance, setTeamAttendance] = useState<EmployeeAttendance[]>([]);
   const [dailyAttendance, setDailyAttendance] = useState<DailyAttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTeamAttendance = useCallback(async () => {
-    if (!isManager) {
+    if (!user || !isManager) {
       setLoading(false);
       return;
     }
 
-    // Get date range based on selection (default to this-month)
     const { start: startDate, end: endDate } = getDateRangeFromType(dateRangeType || "this-month");
 
-    // Fetch attendance logs with profile info
-    const { data: logs, error } = await supabase
+    // Determine if we need to scope to team only
+    const hasOrgWideAccess = isVP || isAdmin || role === "manager";
+    let teamUserIds: string[] | null = null;
+
+    if (!hasOrgWideAccess && (isLineManager || isSupervisor)) {
+      teamUserIds = await getTeamUserIds(user.id);
+      if (!teamUserIds || teamUserIds.length === 0) {
+        setTeamAttendance([]);
+        setDailyAttendance([]);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Fetch attendance logs
+    let query = supabase
       .from("attendance_logs")
       .select(
-        `
-        id,
-        user_id,
-        employee_id,
-        clock_in,
-        clock_out,
-        break_start,
-        break_end,
-        total_break_minutes,
-        pause_start,
-        pause_end,
-        total_pause_minutes,
-        is_edited
-      `,
+        `id, user_id, employee_id, clock_in, clock_out, break_start, break_end,
+         total_break_minutes, pause_start, pause_end, total_pause_minutes, is_edited`
       )
       .gte("clock_in", startDate.toISOString())
       .lte("clock_in", endDate.toISOString());
+
+    // Scope to team members only for line managers / supervisors
+    if (teamUserIds) {
+      query = query.in("user_id", teamUserIds);
+    }
+
+    const { data: logs, error } = await query;
 
     if (error) {
       console.error("Error fetching team attendance:", error);
@@ -118,30 +165,24 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
       return;
     }
 
-    // Fetch profiles to get names
+    // Fetch profiles and employees for name resolution
     const { data: profiles } = await supabase.from("profiles").select("user_id, first_name, last_name, email");
-
-    // Fetch employees to map employee_id to names
     const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id");
 
-    // Create a map of user_id to profile
     const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
     const employeeMap = new Map(employees?.map((e) => [e.id, e]) || []);
 
-    // Group logs by user_id and calculate totals for summary
     const userTotals = new Map<
       string,
       { hours: number; days: Set<string>; name: string; email: string; employee_id: string }
     >();
 
-    // Process daily attendance records
     const dailyRecords: DailyAttendanceRecord[] = [];
 
     logs?.forEach((log) => {
       const userId = log.user_id;
       const employeeId = log.employee_id;
 
-      // Get name from profile or employee
       let name = "Unknown";
       let email = "";
 
@@ -157,7 +198,6 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         }
       }
 
-      // Calculate hours for summary (only completed records, excluding breaks AND pauses)
       if (log.clock_out) {
         const clockIn = new Date(log.clock_in);
         const clockOut = new Date(log.clock_out);
@@ -176,7 +216,6 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         totals.days.add(dayKey);
       }
 
-      // Calculate hours for daily records (excluding breaks AND pauses)
       let hoursWorked = 0;
       if (log.clock_in && log.clock_out) {
         const clockIn = new Date(log.clock_in);
@@ -187,7 +226,6 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         hoursWorked = Math.max(0, (totalMinutes - breakMinutes - pauseMinutes) / 60);
       }
 
-      // Add to daily records with pause fields
       dailyRecords.push({
         id: log.id,
         user_id: userId,
@@ -208,7 +246,6 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
       });
     });
 
-    // Convert summary to array
     const result: EmployeeAttendance[] = Array.from(userTotals.entries()).map(([userId, data]) => ({
       user_id: userId,
       employee_id: data.employee_id,
@@ -221,12 +258,11 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
     setTeamAttendance(result.sort((a, b) => b.total_hours - a.total_hours));
     setDailyAttendance(dailyRecords.sort((a, b) => new Date(b.clock_in).getTime() - new Date(a.clock_in).getTime()));
     setLoading(false);
-  }, [isManager, dateRangeType]);
+  }, [user, isManager, isVP, isAdmin, role, isLineManager, isSupervisor, dateRangeType]);
 
   useEffect(() => {
     fetchTeamAttendance();
 
-    // Set up realtime subscription
     const attendanceChannel = supabase
       .channel("team-attendance-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, () => fetchTeamAttendance())
