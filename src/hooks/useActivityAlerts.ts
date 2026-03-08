@@ -87,6 +87,8 @@ function flush() {
     const title = `${EVENT_ICONS[e.type]} ${e.employeeName} ${EVENT_LABELS[e.type]}`;
     sonnerToast(title, { duration: 5000 });
     sendCrossTabNotification(title);
+    // Also fire OS-level notification for background/unfocused tabs
+    fireOSNotification(title, undefined, `activity-${e.type}-${Date.now()}`);
     return;
   }
 
@@ -101,6 +103,8 @@ function flush() {
 
   sonnerToast(title, { description: body, duration: 5000 });
   sendCrossTabNotification(title, body);
+  // Also fire OS-level notification for background/unfocused tabs
+  fireOSNotification(title, body, `activity-batch-${Date.now()}`);
 }
 
 function enqueue(event: QueuedEvent) {
