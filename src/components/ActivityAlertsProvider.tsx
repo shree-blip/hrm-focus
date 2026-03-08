@@ -70,8 +70,7 @@ export function ActivityAlertsProvider() {
   }, []);
 
   // Fire desktop notification for each NEW unread notification
-  // We track the last seen notification ID to only fire once
-  const lastSeenRef = useLastSeenNotification();
+  const lastSeenRef = useRef("");
 
   useEffect(() => {
     if (!notifications.length) return;
