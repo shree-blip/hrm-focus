@@ -11,6 +11,7 @@ export type Permission =
   | 'view_attendance_all'
   | 'view_attendance_reports_only'
   | 'view_own_attendance'
+  | 'edit_attendance'
   | 'manage_salaries_all'
   | 'add_announcement'
   | 'edit_announcement'
