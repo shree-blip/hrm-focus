@@ -38,9 +38,8 @@ export function useDesktopNotification() {
         const notification = new Notification(title, {
           body,
           icon: icon || ICON_PATH,
-          tag: id,        // same id → browser overwrites instead of stacking
-          renotify: false, // don't re-alert for same tag
-        });
+          tag: id, // same id → browser overwrites instead of stacking
+        } as NotificationOptions);
 
         // Auto-close after 5 seconds
         const timer = setTimeout(() => notification.close(), AUTO_CLOSE_MS);
