@@ -164,16 +164,16 @@ export function useNotifications() {
             description: normalized.message,
           });
 
-          // Fire OS notification on THIS tab if hidden/unfocused (force: false)
+          // Fire OS notification on THIS tab if hidden/unfocused
           setTimeout(() => {
-            fireDesktopNotification({
+            fireOSNotification({
               id: normalized.id,
               title: normalized.title,
               body: normalized.message,
+              link: normalized.link,
               force: false,
-              onClick: normalized.link ? () => navigate(normalized.link!) : undefined,
             });
-          }, 100);
+          }, 150);
 
           // Tell ALL other tabs — they will fire OS notification with force: true
           broadcast(normalized);
