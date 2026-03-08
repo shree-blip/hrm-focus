@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { User, Bell, Shield, Building2, Loader2, Camera, Upload, X, Eye, EyeOff, Activity } from "lucide-react";
+import { NotificationTestPanel } from "@/components/settings/NotificationTestPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/hooks/useSettings";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
@@ -549,6 +550,9 @@ const Settings = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Cross-Tab Notification Diagnostics */}
+          <NotificationTestPanel />
         </TabsContent>
 
         <TabsContent
