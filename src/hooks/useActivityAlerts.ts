@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast as sonnerToast } from "sonner";
-import { sendOSNotification } from "@/lib/osNotification";
+import { sendCrossTabNotification } from "@/lib/crossTabNotifications";
 
 type AttendanceEventType = "clock_in" | "clock_out" | "break_start" | "break_end" | "pause_start" | "pause_end";
 
