@@ -1,42 +1,53 @@
 import { useEffect, useRef, useCallback } from "react";
-import type { Notification } from "./useNotifications";
-import { useDesktopNotification } from "./useDesktopNotification";
+import { fireOSNotification } from "./useDesktopNotification";
 
-const CHANNEL_NAME = "hrm-notifications";
+const CHANNEL_NAME = "hrm-notifications-v1";
+
+export interface BroadcastPayload {
+  id: string;
+  title: string;
+  message: string;
+  link: string | null;
+}
 
 export function useBroadcastChannel() {
   const channelRef = useRef<BroadcastChannel | null>(null);
-  const { fireDesktopNotification } = useDesktopNotification();
 
   useEffect(() => {
-    if (!("BroadcastChannel" in window)) return;
+    if (!("BroadcastChannel" in window)) {
+      console.warn("[BroadcastChannel] Not supported in this browser");
+      return;
+    }
 
     const channel = new BroadcastChannel(CHANNEL_NAME);
     channelRef.current = channel;
 
-    channel.onmessage = (event) => {
-      const notification = event.data as Notification;
-      console.log("[BroadcastChannel] Received from another tab:", notification.title);
+    channel.onmessage = (event: MessageEvent<BroadcastPayload>) => {
+      const { id, title, message, link } = event.data;
+      console.log("[BroadcastChannel] Received from another tab:", title);
 
-      // Always fire OS notification for cross-tab events
-      // force: true bypasses visibility check — user is in THIS tab, not the originating tab
-      fireDesktopNotification({
-        id: notification.id,
-        title: notification.title,
-        body: notification.message,
+      fireOSNotification({
+        id,
+        title,
+        body: message,
+        link,
         force: true,
       });
     };
+
+    console.log("[BroadcastChannel] Listening on channel:", CHANNEL_NAME);
 
     return () => {
       channel.close();
       channelRef.current = null;
     };
-  }, [fireDesktopNotification]);
+  }, []);
 
-  const broadcast = useCallback((notification: Notification) => {
-    channelRef.current?.postMessage(notification);
-    console.log("[BroadcastChannel] Broadcasted to other tabs:", notification.title);
+  const broadcast = useCallback((payload: BroadcastPayload) => {
+    if (channelRef.current) {
+      channelRef.current.postMessage(payload);
+      console.log("[BroadcastChannel] Broadcasted to other tabs:", payload.title);
+    }
   }, []);
 
   return { broadcast };

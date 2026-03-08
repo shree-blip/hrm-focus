@@ -5,37 +5,22 @@ import { useNotificationPermission } from "@/hooks/useNotificationPermission";
 
 const DISMISS_KEY = "desktop-notification-banner-dismissed";
 
-/**
- * Slim, dismissible banner asking the user to enable OS-level notifications.
- * Shows only once per device — dismissal is persisted in localStorage.
- * Only renders when permission === "default" (not yet decided).
- */
 export function NotificationPermissionBanner() {
-  const { permission, requestPermission, isSupported } = useNotificationPermission();
+  const { permission, requestPermission } = useNotificationPermission();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!isSupported) return;
+    if (!("Notification" in window)) return;
     if (permission !== "default") return;
     if (localStorage.getItem(DISMISS_KEY) === "true") return;
     setVisible(true);
-  }, [permission, isSupported]);
+  }, [permission]);
 
   if (!visible) return null;
 
   const handleEnable = async () => {
-    try {
-      const result = await requestPermission();
-      setVisible(false);
-      if (result === "granted") {
-        console.log("OS notifications enabled ✓");
-      } else if (result === "denied") {
-        console.warn("OS notifications denied");
-      }
-    } catch (err) {
-      console.error("Failed to request notification permission:", err);
-      setVisible(false);
-    }
+    await requestPermission();
+    setVisible(false);
   };
 
   const handleDismiss = () => {
@@ -43,7 +28,6 @@ export function NotificationPermissionBanner() {
     setVisible(false);
   };
 
-  // If permission was denied, show a helper hint instead
   if (permission === "denied") {
     return (
       <div className="flex items-center gap-3 bg-muted border border-border rounded-lg px-4 py-2.5 mx-4 mt-2 animate-in fade-in slide-in-from-top-2">
@@ -51,11 +35,7 @@ export function NotificationPermissionBanner() {
         <p className="text-sm text-muted-foreground flex-1">
           Desktop notifications are blocked. To enable them, click the lock icon in your browser address bar → Permissions → Notifications → Allow.
         </p>
-        <button
-          onClick={handleDismiss}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Dismiss"
-        >
+        <button onClick={handleDismiss} className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Dismiss">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -71,11 +51,7 @@ export function NotificationPermissionBanner() {
       <Button size="sm" variant="default" onClick={handleEnable} className="shrink-0">
         Enable Notifications
       </Button>
-      <button
-        onClick={handleDismiss}
-        className="text-muted-foreground hover:text-foreground transition-colors"
-        aria-label="Not now"
-      >
+      <button onClick={handleDismiss} className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Not now">
         <X className="h-4 w-4" />
       </button>
     </div>

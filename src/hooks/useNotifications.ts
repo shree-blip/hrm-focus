@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { useDesktopNotification } from "./useDesktopNotification";
+import { fireOSNotification } from "./useDesktopNotification";
 import { useBroadcastChannel } from "./useBroadcastChannel";
 
 export interface Notification {
@@ -23,7 +23,6 @@ export function useNotifications() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const { fireDesktopNotification } = useDesktopNotification();
   const { broadcast } = useBroadcastChannel();
 
   // Calculate unread count from notifications state (single source of truth)
@@ -165,16 +164,16 @@ export function useNotifications() {
             description: normalized.message,
           });
 
-          // Fire OS notification on THIS tab if hidden/unfocused (force: false)
+          // Fire OS notification on THIS tab if hidden/unfocused
           setTimeout(() => {
-            fireDesktopNotification({
+            fireOSNotification({
               id: normalized.id,
               title: normalized.title,
               body: normalized.message,
+              link: normalized.link,
               force: false,
-              onClick: normalized.link ? () => navigate(normalized.link!) : undefined,
             });
-          }, 100);
+          }, 150);
 
           // Tell ALL other tabs — they will fire OS notification with force: true
           broadcast(normalized);
@@ -218,7 +217,7 @@ export function useNotifications() {
       console.log("[Notifications] Cleaning up subscription");
       supabase.removeChannel(channel);
     };
-  }, [user?.id, fireDesktopNotification, broadcast, navigate]);
+  }, [user?.id, broadcast, navigate]);
 
   return {
     notifications,
