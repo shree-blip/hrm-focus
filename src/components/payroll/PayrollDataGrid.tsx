@@ -1,18 +1,13 @@
 import { useMemo, useCallback, useRef } from "react";
 import { AgGridReact } from "ag-grid-react";
-import {
-  AllCommunityModule,
-  ModuleRegistry,
-  type ColDef,
-  type GridReadyEvent,
-  type GridApi,
-} from "ag-grid-community";
+import type { ColDef, GridReadyEvent, GridApi } from "ag-grid-community";
+import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Table2 } from "lucide-react";
-import Papa from "papaparse";
-import { saveAs } from "file-saver";
 import { format } from "date-fns";
+import { exportPayrollCSV, mapDetailToExportRow } from "@/lib/payrollCsvExport";
+import "@/styles/ag-grid-theme.css";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -64,18 +59,18 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
     () => [
       { field: "employee_name", headerName: "Employee", pinned: "left", minWidth: 180, filter: "agTextColumnFilter" },
       { field: "department", headerName: "Dept", minWidth: 120, filter: "agTextColumnFilter" },
-      { field: "hourly_rate", headerName: "Hourly Rate", minWidth: 110, valueFormatter: currencyFormatter, type: "numericColumn" },
-      { field: "required_hours", headerName: "Required Hrs", minWidth: 120, valueFormatter: hoursFormatter, type: "numericColumn" },
-      { field: "actual_hours", headerName: "Actual Hrs", minWidth: 110, valueFormatter: hoursFormatter, type: "numericColumn" },
-      { field: "payable_hours", headerName: "Payable Hrs", minWidth: 115, valueFormatter: hoursFormatter, type: "numericColumn" },
-      { field: "extra_hours", headerName: "Extra Hrs", minWidth: 100, valueFormatter: hoursFormatter, type: "numericColumn" },
-      { field: "bank_hours_used", headerName: "Bank Used", minWidth: 105, valueFormatter: hoursFormatter, type: "numericColumn" },
-      { field: "gross_pay", headerName: "Gross Pay", minWidth: 120, valueFormatter: currencyFormatter, type: "numericColumn" },
-      { field: "income_tax", headerName: "Income Tax", minWidth: 115, valueFormatter: currencyFormatter, type: "numericColumn" },
-      { field: "social_security", headerName: "Social Sec.", minWidth: 115, valueFormatter: currencyFormatter, type: "numericColumn" },
-      { field: "provident_fund", headerName: "Prov. Fund", minWidth: 115, valueFormatter: currencyFormatter, type: "numericColumn" },
-      { field: "deductions", headerName: "Total Ded.", minWidth: 115, valueFormatter: currencyFormatter, type: "numericColumn" },
-      { field: "net_pay", headerName: "Net Pay", pinned: "right", minWidth: 120, valueFormatter: currencyFormatter, type: "numericColumn",
+      { field: "hourly_rate", headerName: "Hourly Rate", minWidth: 110, valueFormatter: currencyFormatter },
+      { field: "required_hours", headerName: "Required Hrs", minWidth: 120, valueFormatter: hoursFormatter },
+      { field: "actual_hours", headerName: "Actual Hrs", minWidth: 110, valueFormatter: hoursFormatter },
+      { field: "payable_hours", headerName: "Payable Hrs", minWidth: 115, valueFormatter: hoursFormatter },
+      { field: "extra_hours", headerName: "Extra Hrs", minWidth: 100, valueFormatter: hoursFormatter },
+      { field: "bank_hours_used", headerName: "Bank Used", minWidth: 105, valueFormatter: hoursFormatter },
+      { field: "gross_pay", headerName: "Gross Pay", minWidth: 120, valueFormatter: currencyFormatter },
+      { field: "income_tax", headerName: "Income Tax", minWidth: 115, valueFormatter: currencyFormatter },
+      { field: "social_security", headerName: "Social Sec.", minWidth: 115, valueFormatter: currencyFormatter },
+      { field: "provident_fund", headerName: "Prov. Fund", minWidth: 115, valueFormatter: currencyFormatter },
+      { field: "deductions", headerName: "Total Ded.", minWidth: 115, valueFormatter: currencyFormatter },
+      { field: "net_pay", headerName: "Net Pay", pinned: "right", minWidth: 120, valueFormatter: currencyFormatter,
         cellStyle: { fontWeight: 600 },
       },
     ],
@@ -97,10 +92,24 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
   }, []);
 
   const handleDownloadCSV = useCallback(() => {
-    const csv = Papa.unparse(rows);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const fileName = `payroll-${format(new Date(periodStart + "T00:00:00"), "yyyy-MM")}-${region}.csv`;
-    saveAs(blob, fileName);
+    const exportRows = rows.map((r) =>
+      mapDetailToExportRow({
+        employee_name: r.employee_name,
+        department: r.department,
+        hourly_rate: r.hourly_rate,
+        actual_hours: r.actual_hours,
+        payable_hours: r.payable_hours,
+        extra_hours: r.extra_hours,
+        bank_hours_used: r.bank_hours_used,
+        gross_pay: r.gross_pay,
+        income_tax: r.income_tax,
+        social_security: r.social_security,
+        provident_fund: r.provident_fund,
+        deductions: r.deductions,
+        net_pay: r.net_pay,
+      }, r.required_hours)
+    );
+    exportPayrollCSV(exportRows, region, periodStart);
   }, [rows, periodStart, region]);
 
   return (
