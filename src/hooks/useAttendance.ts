@@ -440,12 +440,12 @@ export function useAttendance(weekStart?: Date) {
       // Auto-resume all paused work logs
       await autoResumeWorkLogs();
 
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "💼 Break Ended",
-        message: `You resumed work after a ${breakMinutes} minute break.`,
-        type: "attendance",
-        link: "/attendance",
+      await supabase.rpc("create_notification", {
+        p_user_id: user.id,
+        p_title: "💼 Break Ended",
+        p_message: `You resumed work after a ${breakMinutes} minute break.`,
+        p_type: "attendance",
+        p_link: "/attendance",
       });
     }
   };
