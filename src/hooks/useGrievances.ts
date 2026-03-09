@@ -363,6 +363,34 @@ export function useGrievances() {
     }
 
     toast.success("Comment added");
+
+    // Notify grievance submitter about new comment (if commenter is not the submitter)
+    if (!isInternal) {
+      const grievance = grievances.find((g) => g.id === grievanceId);
+      if (grievance && grievance.user_id !== user.id) {
+        try {
+          const { data: commenterProfile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("user_id", user.id)
+            .single();
+          const commenterName = commenterProfile
+            ? `${commenterProfile.first_name} ${commenterProfile.last_name}`
+            : "Someone";
+
+          await supabase.rpc("create_notification", {
+            p_user_id: grievance.user_id,
+            p_title: "💬 New Comment on Grievance",
+            p_message: `${commenterName} commented on your grievance "${grievance.title}".`,
+            p_type: "grievance",
+            p_link: "/support",
+          });
+        } catch (err) {
+          console.error("Error sending grievance comment notification:", err);
+        }
+      }
+    }
+
     await fetchGrievances(); // Refresh to update comment counts
     return true;
   };
