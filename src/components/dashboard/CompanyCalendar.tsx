@@ -724,7 +724,7 @@ export function CompanyCalendar() {
               <CalendarIcon className="h-5 w-5 text-primary" />
               Company Calendar
             </CardTitle>
-            {isManager && selectedDate && (
+            {canManageCalendar && selectedDate && (
               <Button size="sm" variant="outline" onClick={handleAddEventClick} className="h-8 text-xs">
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 Add Event
