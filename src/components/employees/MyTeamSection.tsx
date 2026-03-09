@@ -12,13 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, Clock, Mail, UserPlus, UserMinus, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { Users, Clock, Mail, UserPlus, UserMinus, CheckCircle2, AlertCircle, X, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { TeamMemberAttendanceDialog } from "./TeamMemberAttendanceDialog";
 import { AddToTeamDialog } from "./AddToTeamDialog";
 import { toast } from "@/hooks/use-toast";
+import { RequestPromotionDialog } from "./RequestPromotionDialog";
 
 interface TeamMember {
   id: string;
@@ -33,13 +34,24 @@ interface TeamMember {
 }
 
 export function MyTeamSection() {
-  const { user } = useAuth();
+  const { user, role, profile, isVP, isAdmin, isManager, isLineManager, isSupervisor } = useAuth();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [promotionMember, setPromotionMember] = useState<TeamMember | null>(null);
+  const [promotionOpen, setPromotionOpen] = useState(false);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [addToTeamOpen, setAddToTeamOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const badgeText = `${profile?.job_title || ""} ${role || ""}`.toLowerCase();
+  const hasBadgeRoleAccess =
+    badgeText.includes("line manager") ||
+    badgeText.includes("manager") ||
+    badgeText.includes("supervisor") ||
+    badgeText.includes("admin") ||
+    badgeText.includes("vp") ||
+    badgeText.includes("ceo");
+  const canRequestPromotion = isVP || isAdmin || isManager || isLineManager || isSupervisor || hasBadgeRoleAccess;
 
   const fetchTeamMembers = useCallback(async () => {
     if (!user) return;
@@ -219,6 +231,20 @@ export function MyTeamSection() {
                             <Clock className="h-3 w-3" />
                             Attendance
                           </Button>
+                          {canRequestPromotion && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => {
+                                setPromotionMember(member);
+                                setPromotionOpen(true);
+                              }}
+                            >
+                              <TrendingUp className="h-3 w-3" />
+                              Request Promotion
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -258,6 +284,26 @@ export function MyTeamSection() {
         onOpenChange={setAddToTeamOpen}
         currentTeamMemberIds={teamMembers.map((m) => m.id)}
         onAdded={handleTeamAdded}
+      />
+
+      <RequestPromotionDialog
+        open={promotionOpen}
+        onOpenChange={(open) => {
+          setPromotionOpen(open);
+          if (!open) {
+            setPromotionMember(null);
+          }
+        }}
+        employee={
+          promotionMember
+            ? {
+                id: String(promotionMember.id),
+                first_name: promotionMember.first_name,
+                last_name: promotionMember.last_name,
+                job_title: promotionMember.job_title,
+              }
+            : null
+        }
       />
     </>
   );

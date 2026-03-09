@@ -138,8 +138,14 @@ export function usePermissions() {
 
   // Batch-fetch user's role permissions + overrides in parallel
   const fetchEffectivePermissions = useCallback(async () => {
-    if (!user || !role) {
+    if (!user) {
+      // No user at all — no permissions needed, stop loading
       setLoading(false);
+      return;
+    }
+    if (!role) {
+      // User exists but role hasn't been fetched yet — keep loading true
+      // to prevent ProtectedRoute from checking permissions prematurely
       return;
     }
 

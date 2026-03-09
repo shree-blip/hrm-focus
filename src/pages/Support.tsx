@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bug, Package, MessageSquareWarning } from "lucide-react";
@@ -7,6 +7,7 @@ import { AssetRequestsSection } from "@/components/support/AssetRequestsSection"
 import { GrievanceSection } from "@/components/support/GrievanceSection";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 const Support = () => {
   const { hasPermission } = usePermissions();
@@ -31,7 +32,15 @@ const Support = () => {
     return tabs;
   }, [isSuperUser, hasPermission]);
 
-  const [activeTab, setActiveTab] = useState(() => visibleTabs[0]?.value || "bugs");
+  const [activeTab, setActiveTab] = usePersistentState("support:activeTab", "bugs");
+
+  useEffect(() => {
+    if (visibleTabs.length === 0) return;
+    const hasActiveTab = visibleTabs.some((tab) => tab.value === activeTab);
+    if (!hasActiveTab) {
+      setActiveTab(visibleTabs[0].value);
+    }
+  }, [activeTab, setActiveTab, visibleTabs]);
 
   if (visibleTabs.length === 0) {
     return (

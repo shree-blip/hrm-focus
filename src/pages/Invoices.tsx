@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Printer, Upload, Send } from "lucide-react";
 import { toast } from "sonner";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import InvoiceForm from "@/components/invoices/InvoiceForm";
 import InvoicePreview from "@/components/invoices/InvoicePreview";
 import MyInvoicesList from "@/components/invoices/MyInvoicesList";
@@ -36,6 +37,7 @@ const defaultForm: InvoiceFormData = {
 
 export default function Invoices() {
   const { isVP } = useAuth();
+  const [vpTab, setVpTab] = usePersistentState("invoices:vpTab", "submissions");
   const [view, setView] = useState<"list" | "create" | "view">("list");
   const [formData, setFormData] = useState<InvoiceFormData>(defaultForm);
   const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
@@ -192,7 +194,7 @@ export default function Invoices() {
       <div className="p-4 md:p-6">
         <h1 className="text-2xl font-bold mb-4">Invoices</h1>
         {isVP ? (
-          <Tabs defaultValue="submissions">
+          <Tabs value={vpTab} onValueChange={setVpTab}>
             <TabsList>
               <TabsTrigger value="mine">My Invoices</TabsTrigger>
               <TabsTrigger value="submissions">Submissions</TabsTrigger>

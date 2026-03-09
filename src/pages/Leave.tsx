@@ -29,29 +29,30 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "@/hooks/use-toast";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 // Special leave subtypes configuration
-export const SPECIAL_LEAVE_TYPES = {
+const SPECIAL_LEAVE_TYPES = {
   "Wedding Leave": { days: 15, color: "bg-pink-500" },
   "Bereavement Leave": { days: 15, color: "bg-slate-500" },
   "Maternity Leave": { days: 98, color: "bg-purple-500" },
   "Paternity Leave": { days: 22, color: "bg-indigo-500" },
 } as const;
 
-export type SpecialLeaveType = keyof typeof SPECIAL_LEAVE_TYPES;
+type SpecialLeaveType = keyof typeof SPECIAL_LEAVE_TYPES;
 
 // Helper to check if a leave type is "Leave on Lieu"
-export const isLeaveOnLieuType = (leaveType: string) => {
+const isLeaveOnLieuType = (leaveType: string) => {
   return leaveType.startsWith("Leave on Lieu");
 };
 
 // Helper to check if a leave type is "Other Leave"
-export const isOtherLeaveType = (leaveType: string) => {
+const isOtherLeaveType = (leaveType: string) => {
   return leaveType.startsWith("Other Leave");
 };
 
 // Legacy support: also check old "Leave on Leave" prefix
-export const isLeaveOnLeaveType = (leaveType: string) => {
+const isLeaveOnLeaveType = (leaveType: string) => {
   return leaveType.startsWith("Leave on Leave") || leaveType.startsWith("Leave on Lieu");
 };
 
@@ -60,13 +61,13 @@ const Leave = () => {
   const { requests, ownRequests, teamLeaves, balances, loading, createRequest, approveRequest, rejectRequest } =
     useLeaveRequests();
   const { unreadCount } = useNotifications();
-  const [activeTab, setActiveTab] = useState("all");
-  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<{
+  const [activeTab, setActiveTab] = usePersistentState("leave:activeTab", "all");
+  const [requestDialogOpen, setRequestDialogOpen] = usePersistentState("leave:requestDialogOpen", false);
+  const [rejectDialogOpen, setRejectDialogOpen] = usePersistentState("leave:rejectDialogOpen", false);
+  const [selectedRequest, setSelectedRequest] = usePersistentState<{
     id: string;
     name: string;
-  } | null>(null);
+  } | null>("leave:selectedRequest", null);
   const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
 
   // Function to get requests for display based on user role and active tab
@@ -132,6 +133,13 @@ const Leave = () => {
   const handleOpenRejectDialog = (id: string, name: string) => {
     setSelectedRequest({ id, name });
     setRejectDialogOpen(true);
+  };
+
+  const handleRejectDialogOpenChange = (open: boolean) => {
+    setRejectDialogOpen(open);
+    if (!open) {
+      setSelectedRequest(null);
+    }
   };
 
   const handleReject = async (reason: string) => {
@@ -980,7 +988,7 @@ const Leave = () => {
       />
       <RejectReasonDialog
         open={rejectDialogOpen}
-        onOpenChange={setRejectDialogOpen}
+        onOpenChange={handleRejectDialogOpenChange}
         onConfirm={handleReject}
         employeeName={selectedRequest?.name || ""}
       />

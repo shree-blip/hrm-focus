@@ -41,6 +41,7 @@ import { ClientReportDownload } from "@/components/logsheet/ClientReportDownload
 import { useWorkLogs, WorkLogInput, calcMinutesBetween } from "@/hooks/useWorkLogs";
 import { useClients } from "@/hooks/useClients";
 import { useClientAlerts, ClientAlert } from "@/hooks/useClientAlerts";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import {
@@ -419,6 +420,7 @@ export default function LogSheet() {
 
   // Check if user can add clients (line_manager, manager, vp, admin only - not employees)
   const canAddClient = isLineManager || isManager || isVP || isAdmin;
+  const [activeMainTab, setActiveMainTab] = usePersistentState("logsheet:activeMainTab", "my-logs");
 
   // ── Dialog / overlay state ────────────────────────────────────────────
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -692,7 +694,7 @@ export default function LogSheet() {
         </div>
 
         {/* ────────── MAIN TABS ────────── */}
-        <Tabs defaultValue="my-logs" className="space-y-4">
+        <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="space-y-4">
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="my-logs" className="gap-2">
               <FileText className="h-4 w-4" />

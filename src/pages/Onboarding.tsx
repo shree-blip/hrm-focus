@@ -46,6 +46,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 const onboardingSteps = [
   { icon: FileText, title: "Offer Letter", description: "Generate and send offer letter for signature" },
@@ -71,11 +72,17 @@ const Onboarding = () => {
   } = useOnboarding();
   const { employees } = useEmployees();
 
-  const [activeTab, setActiveTab] = useState<"onboarding" | "offboarding">("onboarding");
-  const [newHireDialogOpen, setNewHireDialogOpen] = useState(false);
-  const [offboardingDialogOpen, setOffboardingDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [workflowToDelete, setWorkflowToDelete] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = usePersistentState<"onboarding" | "offboarding">(
+    "onboarding:activeTab",
+    "onboarding",
+  );
+  const [newHireDialogOpen, setNewHireDialogOpen] = usePersistentState("onboarding:newHireDialogOpen", false);
+  const [offboardingDialogOpen, setOffboardingDialogOpen] = usePersistentState("onboarding:offboardingDialogOpen", false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = usePersistentState("onboarding:deleteDialogOpen", false);
+  const [workflowToDelete, setWorkflowToDelete] = usePersistentState<string | null>(
+    "onboarding:workflowToDelete",
+    null,
+  );
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [lastWorkingDate, setLastWorkingDate] = useState("");
   const [offboardingReason, setOffboardingReason] = useState("");

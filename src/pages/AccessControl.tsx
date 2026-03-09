@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { format } from "date-fns";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 const ROLES = ["vp", "admin", "supervisor", "line_manager", "manager", "employee"] as const;
 type AppRole = (typeof ROLES)[number];
@@ -120,6 +121,7 @@ export default function AccessControl() {
   const [isSecurityMonitor, setIsSecurityMonitor] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [activeTab, setActiveTab] = usePersistentState("accessControl:activeTab", "users");
 
   useEffect(() => {
     if (!permLoading && !hasPermission("manage_access")) {
@@ -439,6 +441,12 @@ export default function AccessControl() {
     );
   });
 
+  useEffect(() => {
+    if (!isSecurityMonitor && activeTab === "security") {
+      setActiveTab("users");
+    }
+  }, [activeTab, isSecurityMonitor, setActiveTab]);
+
   if (loading || permLoading) {
     return (
       <DashboardLayout>
@@ -450,7 +458,6 @@ export default function AccessControl() {
   }
 
   if (!hasPermission("manage_access")) return null;
-
   return (
     <DashboardLayout>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
@@ -463,7 +470,7 @@ export default function AccessControl() {
         </div>
       </div>
 
-      <Tabs defaultValue="users" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />

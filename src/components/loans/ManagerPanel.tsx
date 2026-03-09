@@ -10,6 +10,7 @@ import { LoanStatusTimeline } from "./LoanStatusTimeline";
 import { SIMPLIFIED_STATUS_LABELS } from "@/lib/loanCalculations";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { format } from "date-fns";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 interface ManagerPanelProps {
   pendingRequests: any[];
@@ -18,6 +19,7 @@ interface ManagerPanelProps {
 }
 
 export function ManagerPanel({ pendingRequests, history, onDecision }: ManagerPanelProps) {
+  const [activeTab, setActiveTab] = usePersistentState("loans:managerPanelTab", "pending");
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +45,7 @@ export function ManagerPanel({ pendingRequests, history, onDecision }: ManagerPa
   };
 
   return (
-    <Tabs defaultValue="pending">
+    <Tabs value={activeTab} onValueChange={setActiveTab}>
       <TabsList>
         <TabsTrigger value="pending">Pending Requests ({pendingRequests.length})</TabsTrigger>
         <TabsTrigger value="history">History</TabsTrigger>

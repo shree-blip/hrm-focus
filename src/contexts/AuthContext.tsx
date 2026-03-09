@@ -138,9 +138,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(null);
             sessionStorage.setItem("auth_rejected", "not_allowed");
           } else {
-            fetchProfile(session.user.id);
-            fetchRole(session.user.id);
-            fetchLineManagerStatus(session.user.id);
+            // Await role & profile so ProtectedRoute has permissions before rendering
+            await Promise.all([
+              fetchProfile(session.user.id),
+              fetchRole(session.user.id),
+              fetchLineManagerStatus(session.user.id),
+            ]);
           }
         }
       }

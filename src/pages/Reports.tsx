@@ -30,6 +30,7 @@ import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useTeamAttendance, DateRangeType, getDateRangeFromType } from "@/hooks/useTeamAttendance";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import { toast } from "@/hooks/use-toast";
 import { EditAttendanceDialog } from "@/components/reports/EditAttendanceDialog";
 
@@ -97,7 +98,7 @@ const Reports = () => {
     refetch: refetchAttendance,
   } = useTeamAttendance(dateRange);
 
-  const [activeTab, setActiveTab] = useState("daily");
+  const [activeTab, setActiveTab] = usePersistentState("reports:activeTab", "daily");
   const [searchDate, setSearchDate] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());

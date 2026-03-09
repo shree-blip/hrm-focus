@@ -17,6 +17,7 @@ import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { useActivityAlerts } from "@/hooks/useActivityAlerts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 const Settings = () => {
   const { user, profile, refreshProfile } = useAuth();
@@ -27,6 +28,7 @@ const Settings = () => {
   const { signedUrl: avatarSignedUrl } = useAvatarUrl(profile?.avatar_url);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = usePersistentState("settings:activeTab", "profile");
   const [saving, setSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -316,7 +318,7 @@ const Settings = () => {
         <p className="text-muted-foreground mt-1">Manage your account and system preferences</p>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList
           className="animate-slide-up opacity-0"
           style={{ animationDelay: "100ms", animationFillMode: "forwards" }}

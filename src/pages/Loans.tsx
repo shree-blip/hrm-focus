@@ -6,8 +6,10 @@ import { VPPanel } from "@/components/loans/VPPanel";
 import { LoanCalculator } from "@/components/loans/LoanCalculator";
 import { useLoans } from "@/hooks/useLoans";
 import { Loader2 } from "lucide-react";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 export default function Loans() {
+  const [activeTab, setActiveTab] = usePersistentState("loans:activeTab", "my-loans");
   const {
     myLoans,
     loading,
@@ -25,6 +27,7 @@ export default function Loans() {
     disburseLoan,
     deleteLoanRequest,
   } = useLoans();
+  const normalizedActiveTab = !isVP && activeTab === "vp" ? "my-loans" : activeTab;
 
   if (loading) {
     return (
@@ -44,7 +47,7 @@ export default function Loans() {
           <p className="text-muted-foreground">Manage loan requests and approvals</p>
         </div>
 
-        <Tabs defaultValue="my-loans">
+        <Tabs value={normalizedActiveTab} onValueChange={setActiveTab}>
           <TabsList className="flex-wrap">
             <TabsTrigger value="my-loans">My Loans</TabsTrigger>
             <TabsTrigger value="calculator">Calculator</TabsTrigger>

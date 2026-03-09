@@ -25,15 +25,19 @@ import {
   TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 const Approvals = () => {
   const { user, role, isVP } = useAuth();
   const { requests, loading, approveRequest, rejectRequest, refetch } = useLeaveRequests();
   const { pendingApprovals: pendingPromotions } = usePromotions();
-  const [section, setSection] = useState<"leave" | "promotions">("leave");
-  const [activeTab, setActiveTab] = useState("pending");
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<{ id: string; name: string } | null>(null);
+  const [section, setSection] = usePersistentState<"leave" | "promotions">("approvals:section", "leave");
+  const [activeTab, setActiveTab] = usePersistentState("approvals:activeTab", "pending");
+  const [rejectDialogOpen, setRejectDialogOpen] = usePersistentState("approvals:rejectDialogOpen", false);
+  const [selectedRequest, setSelectedRequest] = usePersistentState<{ id: string; name: string } | null>(
+    "approvals:selectedRequest",
+    null,
+  );
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   // Filter requests based on approval stage
@@ -67,6 +71,13 @@ const Approvals = () => {
       setSelectedRequest(null);
       setProcessingId(null);
       refetch();
+    }
+  };
+
+  const handleRejectDialogOpenChange = (open: boolean) => {
+    setRejectDialogOpen(open);
+    if (!open) {
+      setSelectedRequest(null);
     }
   };
 
@@ -325,7 +336,7 @@ const Approvals = () => {
 
       <RejectReasonDialog
         open={rejectDialogOpen}
-        onOpenChange={setRejectDialogOpen}
+        onOpenChange={handleRejectDialogOpenChange}
         onConfirm={handleReject}
         employeeName={selectedRequest?.name || ""}
       />

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { formatDistanceToNow } from "date-fns";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 const getNotificationIcon = (type: string | null) => {
   switch (type) {
@@ -30,7 +31,7 @@ const getNotificationIcon = (type: string | null) => {
 const Notifications = () => {
   const { notifications, loading, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const { announcements, loading: announcementsLoading } = useAnnouncements();
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = usePersistentState("notifications:filter", "all");
 
   // Combine notifications and announcements (announcements as notification items)
   const announcementNotifications = announcements.map((a) => ({

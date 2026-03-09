@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,10 @@ import { Mail, Phone, MapPin, Building, Briefcase, Users, Loader2, TrendingUp } 
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { RequestPromotionDialog } from "@/components/employees/RequestPromotionDialog";
+
+const LazyRequestPromotionDialog = lazy(() =>
+  import("@/components/employees/RequestPromotionDialog").then((module) => ({ default: module.RequestPromotionDialog })),
+);
 
 interface Employee {
   id: number | string;
@@ -40,10 +43,20 @@ interface EmployeeProfileDialogProps {
 }
 
 export function EmployeeProfileDialog({ employee, open, onOpenChange }: EmployeeProfileDialogProps) {
-  const { isManager, isLineManager, isVP, isAdmin } = useAuth();
+  const { role, profile, isVP, isAdmin, isManager, isLineManager, isSupervisor } = useAuth();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
   const [promotionOpen, setPromotionOpen] = useState(false);
+  const badgeText = `${profile?.job_title || ""} ${role || ""}`.toLowerCase();
+  const hasBadgeRoleAccess =
+    badgeText.includes("line manager") ||
+    badgeText.includes("manager") ||
+    badgeText.includes("supervisor") ||
+    badgeText.includes("admin") ||
+    badgeText.includes("vp") ||
+    badgeText.includes("ceo");
+  const canRequestPromotionInTeamTab =
+    isVP || isAdmin || isManager || isLineManager || isSupervisor || hasBadgeRoleAccess;
 
   useEffect(() => {
     if (open && employee?.id) {
@@ -160,22 +173,17 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
             </div>
           </div>
 
-          {/* Request Promotion Button — visible to line managers, managers, VPs, and admins */}
-          {(isLineManager || isManager || isVP || isAdmin) && employee.status === "active" && (
+          {/* Team Section - Only shown if this employee has team members */}
+          {canRequestPromotionInTeamTab && !loadingTeam && teamMembers.length === 0 && (
             <>
               <Separator />
-              <Button
-                variant="outline"
-                className="w-full gap-2"
-                onClick={() => setPromotionOpen(true)}
-              >
+              <Button variant="outline" className="w-full gap-2" onClick={() => setPromotionOpen(true)}>
                 <TrendingUp className="h-4 w-4" />
                 Request Promotion
               </Button>
             </>
           )}
 
-          {/* Team Section - Only shown if this employee has team members */}
           {loadingTeam ? (
             <>
               <Separator />
@@ -187,10 +195,23 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
             <>
               <Separator />
               <div className="space-y-3">
-                <h4 className="text-sm font-medium flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" />
-                  Team Members ({teamMembers.length})
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    Team Members ({teamMembers.length})
+                  </h4>
+                  {canRequestPromotionInTeamTab && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => setPromotionOpen(true)}
+                    >
+                      <TrendingUp className="h-4 w-4" />
+                      Request Promotion
+                    </Button>
+                  )}
+                </div>
                 <div className="rounded-lg border overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -251,11 +272,9 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
       </DialogContent>
 
       {/* Promotion Request Dialog */}
-      <RequestPromotionDialog
-        open={promotionOpen}
-        onOpenChange={setPromotionOpen}
-        employee={employee}
-      />
+      <Suspense fallback={null}>
+        <LazyRequestPromotionDialog open={promotionOpen} onOpenChange={setPromotionOpen} employee={employee} />
+      </Suspense>
     </Dialog>
   );
 }

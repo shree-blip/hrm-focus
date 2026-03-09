@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Search,
   Plus,
@@ -22,6 +23,7 @@ import {
   Users,
   UserPlus,
   UserMinus,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
@@ -30,6 +32,7 @@ import { TimesheetDialog } from "@/components/employees/TimesheetDialog";
 import { DeactivateDialog } from "@/components/employees/DeactivateDialog";
 import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
 import { AddToTeamDialog } from "@/components/employees/AddToTeamDialog";
+import { RequestPromotionDialog } from "@/components/employees/RequestPromotionDialog";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useAuth } from "@/contexts/AuthContext";
 import { MyTeamSection } from "@/components/employees/MyTeamSection";
@@ -90,6 +93,10 @@ const Employees = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [timesheetOpen, setTimesheetOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [promotionPickerOpen, setPromotionPickerOpen] = useState(false);
+  const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
+  const [promotionEmployeeId, setPromotionEmployeeId] = useState<string>("");
+  const [promotionTarget, setPromotionTarget] = useState<any | null>(null);
 
   // If user is a line manager/supervisor (not VP), only show My Team — hide full directory
   const showFullDirectory = isVP || (!isLineManager && !isSupervisor);
@@ -342,6 +349,33 @@ const Employees = () => {
     await deactivateEmployee(employeeId.toString());
   };
 
+  const handleOpenPromotionPicker = () => {
+    setPromotionEmployeeId("");
+    setPromotionPickerOpen(true);
+  };
+
+  const handleStartPromotionRequest = () => {
+    const target = employees.find((emp) => String(emp.id) === promotionEmployeeId);
+    if (!target) {
+      toast({
+        title: "Select Employee",
+        description: "Please select an employee to request promotion.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPromotionTarget({
+      id: String(target.id),
+      first_name: target.first_name,
+      last_name: target.last_name,
+      name: `${target.first_name} ${target.last_name}`,
+      job_title: target.job_title,
+    });
+    setPromotionPickerOpen(false);
+    setPromotionDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -368,12 +402,20 @@ const Employees = () => {
                 : "View your colleagues"}
           </p>
         </div>
-        {canCreateEmployee && (
-          <Button className="gap-2 shadow-md" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Add Employee
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {isManager && (
+            <Button variant="outline" className="gap-2" onClick={handleOpenPromotionPicker}>
+              <TrendingUp className="h-4 w-4" />
+              Request Promotion
+            </Button>
+          )}
+          {canCreateEmployee && (
+            <Button className="gap-2 shadow-md" onClick={() => setAddDialogOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Add Employee
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* My Team Section - for Line Managers and Supervisors */}
@@ -774,6 +816,46 @@ const Employees = () => {
           targetEmployeeId={managingEmployeeId}
         />
       )}
+
+      {/* Header Request Promotion picker */}
+      <Dialog open={promotionPickerOpen} onOpenChange={setPromotionPickerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select employee for promotion request</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={promotionEmployeeId} onValueChange={setPromotionEmployeeId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose employee" />
+              </SelectTrigger>
+              <SelectContent>
+                {employees.map((emp) => (
+                  <SelectItem key={emp.id} value={String(emp.id)}>
+                    {emp.first_name} {emp.last_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setPromotionPickerOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleStartPromotionRequest}>Continue</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <RequestPromotionDialog
+        open={promotionDialogOpen}
+        onOpenChange={(open) => {
+          setPromotionDialogOpen(open);
+          if (!open) {
+            setPromotionTarget(null);
+          }
+        }}
+        employee={promotionTarget}
+      />
     </DashboardLayout>
   );
 };
