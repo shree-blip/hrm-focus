@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 });
 
 async function sendEmail(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   logId: string,
   to: string,
   subject: string,
