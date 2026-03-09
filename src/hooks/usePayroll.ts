@@ -100,11 +100,19 @@ export function usePayroll() {
       return;
     }
 
+    // Use local date components to avoid UTC shift
+    const formatLocal = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
     const { data, error } = await supabase
       .from("payroll_runs")
       .insert({
-        period_start: periodStart.toISOString().split("T")[0],
-        period_end: periodEnd.toISOString().split("T")[0],
+        period_start: formatLocal(periodStart),
+        period_end: formatLocal(periodEnd),
         region,
         status: "draft",
       })
