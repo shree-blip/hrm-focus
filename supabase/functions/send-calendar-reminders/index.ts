@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
       for (const email of batch) {
         try {
           const { error: sendError } = await resend.emails.send({
-            from: "Focus Your Finance <hello@focusyourfinance.com>",
+            from: "Focus Your Finance <noreply@notifications.focusyourfinance.com>",
             to: [email],
             subject: `📋 Upcoming: ${customEvents.length} event${customEvents.length > 1 ? "s" : ""} tomorrow – ${formattedDate}`,
             html: `

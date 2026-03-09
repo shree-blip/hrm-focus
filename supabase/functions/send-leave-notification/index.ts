@@ -201,7 +201,7 @@ async function sendEmailWithRetry(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "HRM Focus <noreply@focusyourfinance.com>",
+        from: "HRM Focus <noreply@notifications.focusyourfinance.com>",
         to: [to],
         subject,
         html,
