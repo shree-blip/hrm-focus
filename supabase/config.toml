@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.send-attendance-edit-notification]
 verify_jwt = false
+
+[functions.send-team-assignment-notification]
+verify_jwt = false
