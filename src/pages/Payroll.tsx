@@ -277,7 +277,7 @@ const Payroll = () => {
       // ── Fetch active (disbursed) loans for EMI deduction ──
       const { data: activeLoans } = await supabase
         .from("loan_requests")
-        .select("id, employee_id, user_id, amount, remaining_balance, term_months, interest_rate, estimated_monthly_installment, status, created_at")
+        .select("id, employee_id, user_id, amount, term_months, interest_rate, estimated_monthly_installment, status, created_at")
         .in("status", ["disbursed"]);
 
       // Build map: employee_id → array of active loans
@@ -288,7 +288,7 @@ const Payroll = () => {
         if (!loan.employee_id) return;
         const emi = loan.estimated_monthly_installment
           || calculateEMI(Number(loan.amount), loan.interest_rate ?? FIXED_ANNUAL_RATE, loan.term_months);
-        const remaining = Number(loan.remaining_balance ?? loan.amount);
+        const remaining = Number(loan.amount);
         if (remaining <= 0) return;
         const arr = loansByEmployee.get(loan.employee_id) || [];
         arr.push({ id: loan.id, emi: Math.round(emi * 100) / 100, remainingBalance: remaining });
@@ -489,7 +489,7 @@ const Payroll = () => {
             toast({ title: "Warning", description: "Payroll run created but failed to save details: " + detailError.message, variant: "destructive" });
             // Abort: don't record EMI deductions or overtime if details failed
             setIsCalculating(false);
-            await refetch();
+            await refetchEmployees();
             setModalParam(null);
             return;
           }

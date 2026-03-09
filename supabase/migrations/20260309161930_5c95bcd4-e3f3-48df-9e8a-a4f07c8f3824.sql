@@ -1,0 +1,1 @@
+ALTER TABLE public.loan_requests ADD COLUMN IF NOT EXISTS remaining_balance numeric DEFAULT NULL;

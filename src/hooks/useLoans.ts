@@ -510,11 +510,11 @@ export function useLoans() {
     // Fetch current loan to compute remaining balance
     const { data: loan } = await supabase
       .from("loan_requests")
-      .select("remaining_balance, amount")
+      .select("amount")
       .eq("id", loanId)
       .single();
 
-    const currentBalance = Number(loan?.remaining_balance ?? loan?.amount ?? 0);
+    const currentBalance = Number(loan?.amount ?? 0);
     const newBalance = Math.max(0, currentBalance - amount);
 
     const { data, error } = await supabase.from("loan_repayments").insert({

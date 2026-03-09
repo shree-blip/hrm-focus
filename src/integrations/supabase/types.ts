@@ -1932,6 +1932,7 @@ export type Database = {
           position_level: string | null
           prior_outstanding_amount: number | null
           reason_type: string
+          remaining_balance: number | null
           signed_at: string | null
           status: string
           submitted_at: string | null
@@ -1959,6 +1960,7 @@ export type Database = {
           position_level?: string | null
           prior_outstanding_amount?: number | null
           reason_type: string
+          remaining_balance?: number | null
           signed_at?: string | null
           status?: string
           submitted_at?: string | null
@@ -1986,6 +1988,7 @@ export type Database = {
           position_level?: string | null
           prior_outstanding_amount?: number | null
           reason_type?: string
+          remaining_balance?: number | null
           signed_at?: string | null
           status?: string
           submitted_at?: string | null
@@ -2527,7 +2530,6 @@ export type Database = {
           hourly_rate: number | null
           id: string
           income_tax: number
-          loan_emi: number
           net_pay: number | null
           payable_hours: number | null
           payroll_run_id: string
@@ -2548,7 +2550,6 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           income_tax?: number
-          loan_emi?: number
           net_pay?: number | null
           payable_hours?: number | null
           payroll_run_id: string
@@ -2569,7 +2570,6 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           income_tax?: number
-          loan_emi?: number
           net_pay?: number | null
           payable_hours?: number | null
           payroll_run_id?: string

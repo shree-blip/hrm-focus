@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
 });
 
 async function createNotificationLog(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   data: {
     recipient_email: string;
     event_type: string;
@@ -177,7 +177,7 @@ async function createNotificationLog(
 }
 
 async function sendEmailWithRetry(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   logId: string,
   to: string,
   subject: string,
