@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.retry-failed-notifications]
 verify_jwt = false
+
+[functions.send-attendance-reminder]
+verify_jwt = false
