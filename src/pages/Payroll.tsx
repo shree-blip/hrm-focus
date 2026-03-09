@@ -827,7 +827,7 @@ const Payroll = () => {
                       recentPayrolls.map((payroll, index) => (
                         <TableRow key={payroll.id} className="animate-fade-in" style={{ animationDelay: `${500 + index * 50}ms` }}>
                           <TableCell className="font-medium">
-                            {format(new Date(payroll.period_start), "MMM d")} - {format(new Date(payroll.period_end), "MMM d, yyyy")}
+                            {format(new Date(payroll.period_start + "T00:00:00"), "MMM d")} - {format(new Date(payroll.period_end + "T00:00:00"), "MMM d, yyyy")}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {payroll.processed_at
