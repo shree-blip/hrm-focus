@@ -164,24 +164,35 @@ const Payroll = () => {
 
       if (logsError) throw logsError;
 
-      // Calculate hours per employee
-      const employeeHoursMap = new Map<string, { userId: string; actualHours: number; daysWorked: Set<string> }>();
+      // Build maps keyed by both employee_id and user_id for flexible matching
+      const hoursByEmployeeId = new Map<string, { userId: string; actualHours: number }>();
+      const hoursByUserId = new Map<string, { actualHours: number }>();
 
       lastMonthLogs?.forEach(log => {
         if (!log.clock_out) return;
-        const empId = log.employee_id || log.user_id;
         const clockIn = new Date(log.clock_in);
         const clockOut = new Date(log.clock_out);
         const breakMin = log.total_break_minutes || 0;
         const pauseMin = log.total_pause_minutes || 0;
         const netHours = Math.max(0, (clockOut.getTime() - clockIn.getTime() - (breakMin + pauseMin) * 60000) / 3600000);
 
-        if (!employeeHoursMap.has(empId)) {
-          employeeHoursMap.set(empId, { userId: log.user_id, actualHours: 0, daysWorked: new Set() });
+        // Index by employee_id
+        if (log.employee_id) {
+          const existing = hoursByEmployeeId.get(log.employee_id);
+          if (existing) {
+            existing.actualHours += netHours;
+          } else {
+            hoursByEmployeeId.set(log.employee_id, { userId: log.user_id, actualHours: netHours });
+          }
         }
-        const entry = employeeHoursMap.get(empId)!;
-        entry.actualHours += netHours;
-        entry.daysWorked.add(clockIn.toISOString().split("T")[0]);
+
+        // Index by user_id
+        const existingUser = hoursByUserId.get(log.user_id);
+        if (existingUser) {
+          existingUser.actualHours += netHours;
+        } else {
+          hoursByUserId.set(log.user_id, { actualHours: netHours });
+        }
       });
 
       // Standard monthly hours: Nepal = 26 days × 8h = 208h, US = 22 days × 8h = 176h
