@@ -85,6 +85,46 @@ export function useLeaveRequests() {
     }
   };
 
+  // Send leave notification via edge function (email + in-app for managers/admin)
+  const sendLeaveNotification = async (payload: {
+    leave_request_id: string;
+    event_type: "submitted" | "approved" | "rejected";
+    employee_name: string;
+    employee_email?: string;
+    leave_type: string;
+    start_date: string;
+    end_date: string;
+    days: number;
+    reason?: string;
+    rejection_reason?: string;
+    approver_name?: string;
+    target_user_ids: string[];
+    target_emails?: string[];
+    requesting_user_id: string;
+  }) => {
+    try {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/send-leave-notification`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!res.ok) {
+        const body = await res.text();
+        console.error("send-leave-notification failed:", res.status, body);
+      }
+    } catch (err) {
+      console.error("Failed to call send-leave-notification:", err);
+    }
+  };
+
   // Fetch user's own requests
   const fetchOwnRequests = useCallback(async () => {
     if (!user) return [];
