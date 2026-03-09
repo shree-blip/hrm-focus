@@ -81,7 +81,8 @@ const Payroll = () => {
   const validTabs = ["overview", "attendance", "employees", "calculator", "contractor", "my-payslips"] as const;
   type TabType = typeof validTabs[number];
   const tabParam = searchParams.get("tab") as TabType | null;
-  const activeTab: TabType = tabParam && validTabs.includes(tabParam) ? tabParam : "overview";
+  const defaultTab: TabType = isVP ? "overview" : "my-payslips";
+  const activeTab: TabType = tabParam && validTabs.includes(tabParam) ? tabParam : defaultTab;
 
   const setActiveTab = (tab: TabType) => {
     setSearchParams(prev => {
