@@ -1079,6 +1079,23 @@ const Payroll = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* AG Grid Detail View for a selected payroll run */}
+          {viewRunId && viewRunRows.length > 0 && viewRunPeriod && (
+            <div className="mt-6 space-y-4">
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" onClick={handleCloseRunView}>
+                  Close Detail View
+                </Button>
+              </div>
+              <PayrollDataGrid
+                rows={viewRunRows}
+                region={region}
+                periodStart={viewRunPeriod.start}
+                periodEnd={viewRunPeriod.end}
+              />
+            </div>
+          )}
         </>
       ) : activeTab === "attendance" ? (
         /* Employee Attendance Tab */
