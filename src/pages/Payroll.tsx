@@ -386,7 +386,7 @@ const Payroll = () => {
           await supabase.from("payroll_run_details").insert(detailInserts);
         }
 
-        // Save extra hours to overtime_bank
+        // Save NEW extra hours to overtime_bank for this period
         if (overtimeRecords.length > 0) {
           const bankInserts = overtimeRecords.map(rec => ({
             user_id: rec.user_id,
@@ -397,10 +397,19 @@ const Payroll = () => {
             standard_hours: rec.standard_hours,
             actual_hours: rec.actual_hours,
             extra_hours: rec.extra_hours,
+            used_hours: 0,
           }));
 
           await supabase.from("overtime_bank").upsert(bankInserts, {
             onConflict: "user_id,period_month,period_year",
+          });
+        }
+
+        // Apply time bank deductions (update used_hours on older records)
+        for (const update of timeBankUpdates) {
+          await supabase.rpc("increment_used_hours", {
+            record_id: update.id,
+            hours_to_add: update.addUsedHours,
           });
         }
 
