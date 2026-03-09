@@ -213,7 +213,10 @@ const Payroll = () => {
       }> = [];
 
       regionEmployees.forEach(emp => {
-        if (!emp.hourly_rate || emp.hourly_rate <= 0) return;
+        // Include employees with either hourly_rate or salary
+        const hasHourlyRate = emp.hourly_rate && emp.hourly_rate > 0;
+        const hasSalary = emp.salary && emp.salary > 0;
+        if (!hasHourlyRate && !hasSalary) return;
 
         // Find hours for this employee
         let actualHours = 0;
@@ -225,11 +228,41 @@ const Payroll = () => {
           userId = byEmpId.userId;
         }
 
-        // Cap payable hours at standard (no overtime pay)
-        const payableHours = Math.min(actualHours, standardMonthlyHours);
-        const extraHours = Math.max(0, actualHours - standardMonthlyHours);
+        // Also try matching via user_id from profiles
+        if (!byEmpId && emp.profile_id) {
+          for (const [, val] of employeeHoursMap.entries()) {
+            // Check if any attendance log user matches this employee's profile
+            const matchingEmp = employees.find(e => e.id === emp.id);
+            if (matchingEmp) {
+              // Try to find by user_id
+              for (const [key, v] of employeeHoursMap.entries()) {
+                if (key === emp.id) {
+                  actualHours = v.actualHours;
+                  userId = v.userId;
+                  break;
+                }
+              }
+            }
+            break;
+          }
+        }
 
-        const grossPay = payableHours * emp.hourly_rate;
+        let grossPay = 0;
+        let payableHours = actualHours;
+        let extraHours = 0;
+
+        if (hasHourlyRate) {
+          // Hourly: cap at standard hours, no overtime pay
+          payableHours = Math.min(actualHours, standardMonthlyHours);
+          extraHours = Math.max(0, actualHours - standardMonthlyHours);
+          grossPay = payableHours * emp.hourly_rate!;
+        } else if (hasSalary) {
+          // Salaried: monthly salary = annual / 12
+          grossPay = emp.salary! / 12;
+          payableHours = actualHours;
+          extraHours = Math.max(0, actualHours - standardMonthlyHours);
+        }
+
         totalGross += grossPay;
         employeeCount++;
 
@@ -238,7 +271,7 @@ const Payroll = () => {
           user_id: userId,
           employee_name: `${emp.first_name} ${emp.last_name}`,
           department: emp.department || "",
-          hourly_rate: emp.hourly_rate,
+          hourly_rate: emp.hourly_rate || 0,
           actual_hours: Math.round(actualHours * 10) / 10,
           payable_hours: Math.round(payableHours * 10) / 10,
           extra_hours: Math.round(extraHours * 10) / 10,
