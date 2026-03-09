@@ -35,7 +35,7 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
   const allowedTerms = Array.from({ length: 24 }, (_, i) => i + 1);
 
   const canSubmit = hasPolicy && amount > 0 &&
-    (termMonths === 0 || termMonths <= 24) &&
+    termMonths >= 1 && termMonths <= 24 &&
     autoDeductionConsent && eSignature.trim().length > 0;
 
   // EMI preview calculation
