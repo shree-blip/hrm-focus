@@ -2516,6 +2516,7 @@ export type Database = {
       payroll_run_details: {
         Row: {
           actual_hours: number | null
+          bank_hours_used: number
           created_at: string
           deductions: number | null
           department: string | null
@@ -2532,6 +2533,7 @@ export type Database = {
         }
         Insert: {
           actual_hours?: number | null
+          bank_hours_used?: number
           created_at?: string
           deductions?: number | null
           department?: string | null
@@ -2548,6 +2550,7 @@ export type Database = {
         }
         Update: {
           actual_hours?: number | null
+          bank_hours_used?: number
           created_at?: string
           deductions?: number | null
           department?: string | null
