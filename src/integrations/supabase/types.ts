@@ -2433,6 +2433,83 @@ export type Database = {
         }
         Relationships: []
       }
+      overtime_bank: {
+        Row: {
+          actual_hours: number
+          converted_to_leave: boolean
+          created_at: string
+          employee_id: string | null
+          extra_hours: number
+          id: string
+          leave_days_converted: number | null
+          payroll_run_id: string | null
+          period_month: number
+          period_year: number
+          standard_hours: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_hours?: number
+          converted_to_leave?: boolean
+          created_at?: string
+          employee_id?: string | null
+          extra_hours?: number
+          id?: string
+          leave_days_converted?: number | null
+          payroll_run_id?: string | null
+          period_month: number
+          period_year: number
+          standard_hours?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_hours?: number
+          converted_to_leave?: boolean
+          created_at?: string
+          employee_id?: string | null
+          extra_hours?: number
+          id?: string
+          leave_days_converted?: number | null
+          payroll_run_id?: string | null
+          period_month?: number
+          period_year?: number
+          standard_hours?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "overtime_bank_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_bank_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_bank_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_bank_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_runs: {
         Row: {
           created_at: string
