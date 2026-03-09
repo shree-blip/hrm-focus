@@ -53,7 +53,7 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
     setSubmitting(true);
     await onSubmit({
       amount,
-      term_months: termMonths || null,
+      term_months: termMonths,
       reason_type: reasonType,
       reason_details: reasonDetails,
       auto_deduction_consent: autoDeductionConsent,
