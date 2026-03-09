@@ -9,6 +9,7 @@ import { useMilestones } from "@/hooks/useMilestones";
 import { useCalendarEvents, CalendarEvent } from "@/hooks/useCalendarEvents";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { AddCalendarEventDialog } from "@/components/dashboard/AddCalendarEventDialog";
 import { cn } from "@/lib/utils";
 
