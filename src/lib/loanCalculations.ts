@@ -1,7 +1,7 @@
-// Loan calculation utilities - 3% fixed interest, reducing balance amortization
+// Loan calculation utilities - 5% fixed interest, reducing balance amortization
 
 /** Fixed annual interest rate for all loans */
-export const FIXED_ANNUAL_RATE = 3;
+export const FIXED_ANNUAL_RATE = 5;
 
 export const SIMPLIFIED_STATUSES = [
   "draft",

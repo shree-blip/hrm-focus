@@ -32,10 +32,10 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
   if (!employeeData) return null;
 
   const hasPolicy = !!loanPolicy;
-  const allowedTerms = Array.from({ length: 24 }, (_, i) => i + 1);
+  const allowedTerms = Array.from({ length: 6 }, (_, i) => i + 1);
 
   const canSubmit = hasPolicy && amount > 0 &&
-    termMonths >= 1 && termMonths <= 24 &&
+    termMonths >= 1 && termMonths <= 6 &&
     autoDeductionConsent && eSignature.trim().length > 0;
 
   // EMI preview calculation
@@ -99,7 +99,7 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
               <CheckCircle2 className="h-4 w-4 text-green-500" />
               <AlertDescription>
                 Interest: {FIXED_ANNUAL_RATE}% p.a. (fixed) · 
-                Term: optional, up to 24 months
+                Term: up to 6 months
               </AlertDescription>
             </Alert>
 

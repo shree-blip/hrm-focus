@@ -57,7 +57,7 @@ export function LoanCalculator({ interestRate = 5 }: LoanCalculatorProps) {
   const [lang, setLang] = useState<'en' | 'np'>('en');
 
   const L = lang === 'np' ? LABELS_NP : LABELS_EN;
-  const terms = Array.from({ length: 24 }, (_, i) => i + 1);
+  const terms = Array.from({ length: 6 }, (_, i) => i + 1);
 
   const emi = calculateEMI(amount, interestRate, term);
   const schedule = generateAmortizationSchedule(amount, interestRate, term);
