@@ -56,6 +56,7 @@ import { PayslipsPreviewDialog } from "@/components/payroll/PayslipsPreviewDialo
 import { EditEmployeeSalaryDialog } from "@/components/payroll/EditEmployeeSalaryDialog";
 import { NepalPayrollTable } from "@/components/payroll/NepalPayrollTable";
 import { SalaryBreakdownDialog } from "@/components/payroll/SalaryBreakdownDialog";
+import { RunPayrollDialog } from "@/components/payroll/RunPayrollDialog";
 
 const Payroll = () => {
   const { isVP, isManager, profile, user } = useAuth();
