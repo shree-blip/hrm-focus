@@ -1256,14 +1256,14 @@ const Payroll = () => {
       {/* Dialogs */}
       <RunPayrollDialog
         open={showRunPayrollDialog}
-        onOpenChange={setShowRunPayrollDialog}
+        onOpenChange={(open) => setModalParam(open ? "runPayroll" : null)}
         onRun={handleRunPayroll}
         isProcessing={isCalculating}
       />
 
       <PayslipsPreviewDialog
         open={showPayslipsPreview}
-        onOpenChange={setShowPayslipsPreview}
+        onOpenChange={(open) => setModalParam(open ? "payslips" : null)}
         employees={regionEmployees}
         region={region}
         taxRates={taxRates}
@@ -1272,7 +1272,7 @@ const Payroll = () => {
 
       <EditEmployeeSalaryDialog
         open={showEditSalary}
-        onOpenChange={setShowEditSalary}
+        onOpenChange={(open) => setModalParam(open ? "editSalary" : null)}
         employee={selectedEmployee}
         employees={employees}
         onSave={handleSaveEmployee}
@@ -1280,7 +1280,7 @@ const Payroll = () => {
 
       <SalaryBreakdownDialog
         open={showMyBreakdown}
-        onOpenChange={setShowMyBreakdown}
+        onOpenChange={(open) => setModalParam(open ? "myBreakdown" : null)}
         employee={selectedEmployee}
         editable={false}
       />
