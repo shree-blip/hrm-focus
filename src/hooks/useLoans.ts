@@ -232,6 +232,26 @@ export function useLoans() {
 
     if (lr) {
       await logAudit(lr.id, "loan_submitted", { amount: data.amount, term: data.term_months });
+
+      // Notify VP about the new loan request
+      try {
+        const { data: empProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", user.id)
+          .single();
+        const empName = empProfile ? `${empProfile.first_name} ${empProfile.last_name}` : "An employee";
+
+        await supabase.rpc("create_notification", {
+          p_user_id: vpUserId,
+          p_title: "💰 New Loan Request",
+          p_message: `${empName} submitted a loan request for ${data.amount.toLocaleString()} (${data.term_months} months).`,
+          p_type: "loan",
+          p_link: "/loans",
+        });
+      } catch (err) {
+        console.error("Error sending loan notification:", err);
+      }
     }
 
     toast({ title: "Loan Request Submitted", description: "Your request has been sent to the VP for approval." });
@@ -261,6 +281,25 @@ export function useLoans() {
     });
 
     await logAudit(loanId, `manager_${decision}`, { comment });
+
+    // Notify the loan requester about the manager's decision
+    try {
+      const loan = pendingForManager.find((l) => l.id === loanId);
+      if (loan) {
+        await supabase.rpc("create_notification", {
+          p_user_id: loan.user_id,
+          p_title: decision === "approved" ? "✅ Loan Forwarded to VP" : "❌ Loan Rejected",
+          p_message: decision === "approved"
+            ? `Your loan request has been approved by your manager and forwarded to the VP. Comment: ${comment}`
+            : `Your loan request has been rejected by your manager. Reason: ${comment}`,
+          p_type: "loan",
+          p_link: "/loans",
+        });
+      }
+    } catch (err) {
+      console.error("Error sending loan decision notification:", err);
+    }
+
     toast({ title: decision === "approved" ? "Forwarded to VP" : "Loan Rejected", description: comment });
     await refetchAll();
   };
@@ -296,6 +335,37 @@ export function useLoans() {
     });
 
     await logAudit(loanId, `vp_${decision}`, { comment, disbursementDate, autoPayroll });
+
+    // Notify the employee and their manager about the VP decision
+    try {
+      const loan = vpQueue.find((l) => l.id === loanId);
+      if (loan) {
+        // Notify employee
+        await supabase.rpc("create_notification", {
+          p_user_id: loan.user_id,
+          p_title: decision === "approved" ? "✅ Loan Approved" : "❌ Loan Rejected",
+          p_message: decision === "approved"
+            ? `Your loan request has been approved by the VP. Comment: ${comment}`
+            : `Your loan request has been rejected by the VP. Reason: ${comment}`,
+          p_type: "loan",
+          p_link: "/loans",
+        });
+
+        // Notify manager if they exist
+        if (loan.manager_user_id && loan.manager_user_id !== user.id) {
+          await supabase.rpc("create_notification", {
+            p_user_id: loan.manager_user_id,
+            p_title: decision === "approved" ? "✅ Loan Approved by VP" : "❌ Loan Rejected by VP",
+            p_message: `The loan request from ${loan.employees?.first_name || "an employee"} ${loan.employees?.last_name || ""} has been ${decision} by the VP.`,
+            p_type: "loan",
+            p_link: "/loans",
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error sending VP loan decision notification:", err);
+    }
+
     toast({ title: decision === "approved" ? "Loan Approved" : "Loan Rejected", description: comment });
     await refetchAll();
   };

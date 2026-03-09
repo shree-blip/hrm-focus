@@ -106,6 +106,35 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
     if (error) {
       toast({ title: "Error", description: "Failed to post comment.", variant: "destructive" });
     } else {
+      // Notify task assignees and creator about the new comment
+      try {
+        const { data: taskData } = await supabase.from("tasks").select("title, created_by").eq("id", taskId).single();
+        const { data: assignees } = await supabase.from("task_assignees").select("user_id").eq("task_id", taskId);
+        const { data: commenterProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", user.id)
+          .single();
+        const commenterName = commenterProfile
+          ? `${commenterProfile.first_name} ${commenterProfile.last_name}`
+          : "Someone";
+
+        const notifySet = new Set<string>();
+        if (taskData?.created_by && taskData.created_by !== user.id) notifySet.add(taskData.created_by);
+        assignees?.forEach((a) => { if (a.user_id !== user.id) notifySet.add(a.user_id); });
+
+        for (const targetId of notifySet) {
+          await supabase.rpc("create_notification", {
+            p_user_id: targetId,
+            p_title: "💬 New Task Comment",
+            p_message: `${commenterName} commented on "${taskData?.title || "a task"}".`,
+            p_type: "task",
+            p_link: "/tasks",
+          });
+        }
+      } catch (err) {
+        console.error("Error sending task comment notifications:", err);
+      }
       setNewComment("");
     }
     setSubmitting(false);

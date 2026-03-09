@@ -3555,6 +3555,17 @@ export type Database = {
         Args: { _member_ids: string[]; _name: string }
         Returns: string
       }
+      create_notification: {
+        Args: {
+          p_link?: string
+          p_message: string
+          p_org_id?: string
+          p_title: string
+          p_type?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       get_all_user_ids_for_sharing: { Args: never; Returns: string[] }
       get_employee_id_for_user: { Args: { _user_id: string }; Returns: string }
       get_management_user_ids: { Args: never; Returns: string[] }

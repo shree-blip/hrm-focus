@@ -223,6 +223,42 @@ export function useGrievances() {
 
       toast.success("Grievance submitted successfully");
 
+      // Notify HR/admin about new grievance
+      try {
+        const { data: adminUsers } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["admin", "vp"]);
+
+        const { data: submitterProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", user.id)
+          .single();
+
+        const submitterName = grievance.is_anonymous
+          ? "Anonymous"
+          : submitterProfile
+            ? `${submitterProfile.first_name} ${submitterProfile.last_name}`
+            : "An employee";
+
+        if (adminUsers) {
+          for (const admin of adminUsers) {
+            if (admin.user_id !== user.id) {
+              await supabase.rpc("create_notification", {
+                p_user_id: admin.user_id,
+                p_title: "🚨 New Grievance Submitted",
+                p_message: `${submitterName} submitted a ${grievance.priority} priority grievance: "${grievance.title}"`,
+                p_type: "grievance",
+                p_link: "/support",
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error sending grievance notifications:", err);
+      }
+
       // Immediately refresh the list
       await fetchGrievances();
 
@@ -235,6 +271,9 @@ export function useGrievances() {
   };
 
   const updateGrievanceStatus = async (id: string, status: string) => {
+    // Get grievance info before updating
+    const grievance = grievances.find((g) => g.id === id);
+
     const { error } = await supabase
       .from("grievances" as any)
       .update({ status } as any)
@@ -246,6 +285,22 @@ export function useGrievances() {
     }
 
     toast.success("Status updated");
+
+    // Notify the grievance submitter about status change
+    if (grievance && grievance.user_id !== user?.id) {
+      try {
+        await supabase.rpc("create_notification", {
+          p_user_id: grievance.user_id,
+          p_title: "📋 Grievance Status Updated",
+          p_message: `Your grievance "${grievance.title}" status changed to ${STATUS_LABELS[status] || status}.`,
+          p_type: "grievance",
+          p_link: "/support",
+        });
+      } catch (err) {
+        console.error("Error sending grievance status notification:", err);
+      }
+    }
+
     await fetchGrievances();
     return true;
   };
@@ -308,6 +363,34 @@ export function useGrievances() {
     }
 
     toast.success("Comment added");
+
+    // Notify grievance submitter about new comment (if commenter is not the submitter)
+    if (!isInternal) {
+      const grievance = grievances.find((g) => g.id === grievanceId);
+      if (grievance && grievance.user_id !== user.id) {
+        try {
+          const { data: commenterProfile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("user_id", user.id)
+            .single();
+          const commenterName = commenterProfile
+            ? `${commenterProfile.first_name} ${commenterProfile.last_name}`
+            : "Someone";
+
+          await supabase.rpc("create_notification", {
+            p_user_id: grievance.user_id,
+            p_title: "💬 New Comment on Grievance",
+            p_message: `${commenterName} commented on your grievance "${grievance.title}".`,
+            p_type: "grievance",
+            p_link: "/support",
+          });
+        } catch (err) {
+          console.error("Error sending grievance comment notification:", err);
+        }
+      }
+    }
+
     await fetchGrievances(); // Refresh to update comment counts
     return true;
   };

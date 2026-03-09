@@ -184,6 +184,37 @@ export function useDocuments() {
 
     toast({ title: "Document Uploaded", description: `${file.name} uploaded successfully` });
 
+    // Notify the employee if document was uploaded for them
+    if (employeeId) {
+      try {
+        const { data: empData } = await supabase
+          .from("employees")
+          .select("profile_id")
+          .eq("id", employeeId)
+          .single();
+
+        if (empData?.profile_id) {
+          const { data: empProfile } = await supabase
+            .from("profiles")
+            .select("user_id")
+            .eq("id", empData.profile_id)
+            .single();
+
+          if (empProfile && empProfile.user_id !== user.id) {
+            await supabase.rpc("create_notification", {
+              p_user_id: empProfile.user_id,
+              p_title: "📄 New Document",
+              p_message: `A new ${category} document "${file.name}" has been uploaded for you.`,
+              p_type: "document",
+              p_link: "/documents",
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error sending document notification:", err);
+      }
+    }
+
     fetchDocuments();
     return { error: null };
   };

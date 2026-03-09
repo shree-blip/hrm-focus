@@ -143,12 +143,12 @@ export function useAttendance(weekStart?: Date) {
           description: "You've been working for nearly 8 hours. Consider clocking out soon!",
         });
 
-        supabase.from("notifications").insert({
-          user_id: user.id,
-          title: "⏰ 8-Hour Work Reminder",
-          message: "You've been working for nearly 8 hours. Consider clocking out in the next 10 minutes.",
-          type: "attendance",
-          link: "/attendance",
+        supabase.rpc("create_notification", {
+          p_user_id: user.id,
+          p_title: "⏰ 8-Hour Work Reminder",
+          p_message: "You've been working for nearly 8 hours. Consider clocking out in the next 10 minutes.",
+          p_type: "attendance",
+          p_link: "/attendance",
         });
       }
     };
@@ -272,12 +272,12 @@ export function useAttendance(weekStart?: Date) {
       });
 
       // Create notification for clock-in
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "⏰ Clocked In",
-        message: `You clocked in at ${new Date().toLocaleTimeString()} (${type} time).`,
-        type: "attendance",
-        link: "/attendance",
+      await supabase.rpc("create_notification", {
+        p_user_id: user.id,
+        p_title: "⏰ Clocked In",
+        p_message: `You clocked in at ${new Date().toLocaleTimeString()} (${type} time).`,
+        p_type: "attendance",
+        p_link: "/attendance",
       });
     }
   };
@@ -371,12 +371,12 @@ export function useAttendance(weekStart?: Date) {
     toast({ title: "Clocked Out", description: "Your time has been recorded. All active logs have been closed." });
 
     // Create notification for clock-out
-    await supabase.from("notifications").insert({
-      user_id: user.id,
-      title: "⏰ Clocked Out",
-      message: `You clocked out at ${clockOutTime.toLocaleTimeString()}. Your time has been recorded.`,
-      type: "attendance",
-      link: "/attendance",
+    await supabase.rpc("create_notification", {
+      p_user_id: user.id,
+      p_title: "⏰ Clocked Out",
+      p_message: `You clocked out at ${clockOutTime.toLocaleTimeString()}. Your time has been recorded.`,
+      p_type: "attendance",
+      p_link: "/attendance",
     });
   };
 
@@ -403,12 +403,12 @@ export function useAttendance(weekStart?: Date) {
       // Auto-pause all active work logs
       await autoPauseWorkLogs("break");
 
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "☕ Break Started",
-        message: `You started a break at ${new Date().toLocaleTimeString()}.`,
-        type: "attendance",
-        link: "/attendance",
+      await supabase.rpc("create_notification", {
+        p_user_id: user.id,
+        p_title: "☕ Break Started",
+        p_message: `You started a break at ${new Date().toLocaleTimeString()}.`,
+        p_type: "attendance",
+        p_link: "/attendance",
       });
     }
   };
@@ -440,12 +440,12 @@ export function useAttendance(weekStart?: Date) {
       // Auto-resume all paused work logs
       await autoResumeWorkLogs();
 
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "💼 Break Ended",
-        message: `You resumed work after a ${breakMinutes} minute break.`,
-        type: "attendance",
-        link: "/attendance",
+      await supabase.rpc("create_notification", {
+        p_user_id: user.id,
+        p_title: "💼 Break Ended",
+        p_message: `You resumed work after a ${breakMinutes} minute break.`,
+        p_type: "attendance",
+        p_link: "/attendance",
       });
     }
   };
@@ -473,12 +473,12 @@ export function useAttendance(weekStart?: Date) {
       // Auto-pause all active work logs
       await autoPauseWorkLogs("paused");
 
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "⏸️ Clock Paused",
-        message: `You paused your clock at ${new Date().toLocaleTimeString()}.`,
-        type: "attendance",
-        link: "/attendance",
+      await supabase.rpc("create_notification", {
+        p_user_id: user.id,
+        p_title: "⏸️ Clock Paused",
+        p_message: `You paused your clock at ${new Date().toLocaleTimeString()}.`,
+        p_type: "attendance",
+        p_link: "/attendance",
       });
     }
   };
@@ -514,12 +514,12 @@ export function useAttendance(weekStart?: Date) {
       // Auto-resume all paused work logs
       await autoResumeWorkLogs();
 
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "▶️ Clock Resumed",
-        message: `You resumed work after a ${pauseMinutes} minute pause.${newWorkMode === "wfh" ? " Now working from home." : newWorkMode === "wfo" ? " Now working from office." : ""}`,
-        type: "attendance",
-        link: "/attendance",
+      await supabase.rpc("create_notification", {
+        p_user_id: user.id,
+        p_title: "▶️ Clock Resumed",
+        p_message: `You resumed work after a ${pauseMinutes} minute pause.${newWorkMode === "wfh" ? " Now working from home." : newWorkMode === "wfo" ? " Now working from office." : ""}`,
+        p_type: "attendance",
+        p_link: "/attendance",
       });
     }
   };

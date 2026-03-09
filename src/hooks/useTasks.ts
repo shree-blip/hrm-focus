@@ -226,12 +226,12 @@ export function useTasks() {
           // Create notifications for all assignees (except self)
           for (const assigneeId of task.assignee_ids) {
             if (assigneeId !== userId) {
-              await supabase.from("notifications").insert({
-                user_id: assigneeId,
-                title: "New Task Assigned",
-                message: `${creatorName} assigned you a new task: "${task.title}"`,
-                type: "task",
-                link: "/tasks",
+              await supabase.rpc("create_notification", {
+                p_user_id: assigneeId,
+                p_title: "New Task Assigned",
+                p_message: `${creatorName} assigned you a new task: "${task.title}"`,
+                p_type: "task",
+                p_link: "/tasks",
               });
             }
           }
@@ -344,12 +344,12 @@ export function useTasks() {
           // Notify new assignees only
           for (const assigneeId of newAssigneeIds) {
             if (assigneeId !== userId) {
-              await supabase.from("notifications").insert({
-                user_id: assigneeId,
-                title: "Task Assigned",
-                message: `${assignerName} assigned you to a task: "${taskData?.title || "Untitled"}"`,
-                type: "task",
-                link: "/tasks",
+              await supabase.rpc("create_notification", {
+                p_user_id: assigneeId,
+                p_title: "Task Assigned",
+                p_message: `${assignerName} assigned you to a task: "${taskData?.title || "Untitled"}"`,
+                p_type: "task",
+                p_link: "/tasks",
               });
             }
           }
@@ -396,12 +396,12 @@ export function useTasks() {
         if (assignees) {
           for (const assignee of assignees) {
             if (assignee.user_id !== userId) {
-              await supabase.from("notifications").insert({
-                user_id: assignee.user_id,
-                title: "📋 Task Status Updated",
-                message: `${moverName} moved "${taskData?.title || "a task"}" to ${statusLabels[newStatus] || newStatus}.`,
-                type: "task",
-                link: "/tasks",
+              await supabase.rpc("create_notification", {
+                p_user_id: assignee.user_id,
+                p_title: "📋 Task Status Updated",
+                p_message: `${moverName} moved "${taskData?.title || "a task"}" to ${statusLabels[newStatus] || newStatus}.`,
+                p_type: "task",
+                p_link: "/tasks",
               });
             }
           }

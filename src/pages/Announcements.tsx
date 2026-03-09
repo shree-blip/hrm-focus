@@ -185,12 +185,12 @@ const Announcements = () => {
 
         for (const profile of allProfiles) {
           if (profile.user_id !== user.id) {
-            await supabase.from("notifications").insert({
-              user_id: profile.user_id,
-              title: "📢 New Announcement",
-              message: `${creatorName} posted: "${formData.title.trim()}"`,
-              type: "announcement",
-              link: "/announcements",
+            await supabase.rpc("create_notification", {
+              p_user_id: profile.user_id,
+              p_title: "📢 New Announcement",
+              p_message: `${creatorName} posted: "${formData.title.trim()}"`,
+              p_type: "announcement",
+              p_link: "/announcements",
             });
           }
         }
