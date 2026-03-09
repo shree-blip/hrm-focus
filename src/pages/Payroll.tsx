@@ -103,6 +103,9 @@ const Payroll = () => {
 
   const [selectedEmployee, setSelectedEmployee] = useState<typeof employees[0] | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [viewRunId, setViewRunId] = useState<string | null>(searchParams.get("runId"));
+  const [viewRunRows, setViewRunRows] = useState<PayrollRow[]>([]);
+  const [viewRunPeriod, setViewRunPeriod] = useState<{ start: string; end: string } | null>(null);
 
   // Derive modal open states from URL
   const showPayslipsPreview = modalParam === "payslips";
