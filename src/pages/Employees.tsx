@@ -286,6 +286,34 @@ const Employees = () => {
 
       if (res?.error) throw res.error;
 
+      // Auto-whitelist the email for signup
+      if (res?.id) {
+        const { error: whitelistError } = await supabase
+          .from("allowed_signups")
+          .upsert(
+            {
+              email: data.email.trim().toLowerCase(),
+              employee_id: res.id,
+              invited_by: user?.id || null,
+              invited_at: new Date().toISOString(),
+              is_used: false,
+            },
+            { onConflict: "email" }
+          );
+
+        if (whitelistError) {
+          console.error("Failed to whitelist email:", whitelistError);
+          // Try insert without upsert (email column may not have unique constraint)
+          await supabase.from("allowed_signups").insert({
+            email: data.email.trim().toLowerCase(),
+            employee_id: res.id,
+            invited_by: user?.id || null,
+            invited_at: new Date().toISOString(),
+            is_used: false,
+          });
+        }
+      }
+
       setAddDialogOpen(false);
     } catch (err: any) {
       console.error("Add employee failed:", err);
