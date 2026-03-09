@@ -501,6 +501,21 @@ const Employees = () => {
                         </Badge>
                       </TableCell>
 
+                      {isManager && (
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              employee.profile_id
+                                ? "border-success/50 text-success bg-success/10"
+                                : "border-warning/50 text-warning bg-warning/10",
+                            )}
+                          >
+                            {employee.profile_id ? "Registered" : "Pending Signup"}
+                          </Badge>
+                        </TableCell>
+                      )}
+
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
