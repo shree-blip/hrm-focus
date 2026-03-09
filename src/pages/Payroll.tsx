@@ -1016,7 +1016,7 @@ const Payroll = () => {
                     <TableHead>Employee</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Job Title</TableHead>
-                    <TableHead className="text-right">Base Salary</TableHead>
+                    <TableHead className="text-right">Monthly Salary</TableHead>
                     <TableHead className="text-right">Income Tax</TableHead>
                     <TableHead className="text-right">Social Security</TableHead>
                     <TableHead className="text-right">Provident Fund</TableHead>
