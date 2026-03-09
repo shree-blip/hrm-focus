@@ -15,13 +15,23 @@ import { InvoiceFormData, Invoice, useCreateInvoice, useSubmitInvoice, uploadInv
 const today = new Date().toISOString().split("T")[0];
 
 const defaultForm: InvoiceFormData = {
-  sender_name: "", sender_address: "", sender_email: "",
-  bill_to_client_id: "", bill_to_name: "", bill_to_address: "",
-  invoice_number: "", invoice_date: today, due_date: "",
-  month_of_service: "", service_description: "",
-  amount: 0, currency: "NPR",
-  payment_account_name: "", payment_bank_name: "",
-  payment_account_number: "", payment_swift_code: "",
+  sender_name: "",
+  sender_address: "",
+  sender_email: "",
+  bill_to_client_id: "",
+  bill_to_name: "",
+  bill_to_address: "",
+  invoice_number: "",
+  invoice_date: today,
+  due_date: "",
+  month_of_service: "",
+  service_description: "",
+  amount: 0,
+  currency: "NPR",
+  payment_account_name: "",
+  payment_bank_name: "",
+  payment_account_number: "",
+  payment_swift_code: "",
 };
 
 export default function Invoices() {
@@ -37,7 +47,7 @@ export default function Invoices() {
   const submitMut = useSubmitInvoice();
 
   const handleChange = useCallback((partial: Partial<InvoiceFormData>) => {
-    setFormData(prev => ({ ...prev, ...partial }));
+    setFormData((prev) => ({ ...prev, ...partial }));
   }, []);
 
   const handleViewInvoice = (inv: Invoice) => {
@@ -77,10 +87,22 @@ export default function Invoices() {
   };
 
   const validate = () => {
-    if (!formData.sender_name) { toast.error("Sender name is required"); return false; }
-    if (!formData.bill_to_name) { toast.error("Bill to name is required"); return false; }
-    if (!formData.invoice_number) { toast.error("Invoice number is required"); return false; }
-    if (!formData.amount || formData.amount <= 0) { toast.error("Amount must be greater than 0"); return false; }
+    if (!formData.sender_name) {
+      toast.error("Sender name is required");
+      return false;
+    }
+    if (!formData.bill_to_name) {
+      toast.error("Bill to name is required");
+      return false;
+    }
+    if (!formData.invoice_number) {
+      toast.error("Invoice number is required");
+      return false;
+    }
+    if (!formData.amount || formData.amount <= 0) {
+      toast.error("Amount must be greater than 0");
+      return false;
+    }
     return true;
   };
 
@@ -96,7 +118,10 @@ export default function Invoices() {
   const handleUploadAndSubmit = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast.error("PDF must be under 10MB"); return; }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("PDF must be under 10MB");
+      return;
+    }
     if (!validate()) return;
     setUploading(true);
     try {
@@ -128,9 +153,13 @@ export default function Invoices() {
   const editorView = (
     <>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <Button variant="ghost" size="sm" onClick={handleBack}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+        <Button variant="ghost" size="sm" onClick={handleBack}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back
+        </Button>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="h-4 w-4 mr-1" /> Print</Button>
+          <Button variant="outline" size="sm" onClick={handlePrint}>
+            <Printer className="h-4 w-4 mr-1" /> Print
+          </Button>
           <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
             <Upload className="h-4 w-4 mr-1" /> {uploading ? "Uploading…" : "Upload PDF & Submit"}
           </Button>
@@ -144,7 +173,9 @@ export default function Invoices() {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Invoice Details</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Invoice Details</CardTitle>
+          </CardHeader>
           <CardContent>
             <InvoiceForm formData={formData} onChange={handleChange} disabled={view === "view"} />
           </CardContent>
@@ -163,16 +194,24 @@ export default function Invoices() {
         {isVP ? (
           <Tabs defaultValue="submissions">
             <TabsList>
-              <TabsTrigger value="submissions">Submissions</TabsTrigger>
               <TabsTrigger value="mine">My Invoices</TabsTrigger>
+              <TabsTrigger value="submissions">Submissions</TabsTrigger>
             </TabsList>
-            <TabsContent value="submissions"><VPInvoicePanel /></TabsContent>
+            <TabsContent value="submissions">
+              <VPInvoicePanel />
+            </TabsContent>
             <TabsContent value="mine">
-              {view === "list" ? <MyInvoicesList onCreateNew={handleCreateNew} onViewInvoice={handleViewInvoice} /> : editorView}
+              {view === "list" ? (
+                <MyInvoicesList onCreateNew={handleCreateNew} onViewInvoice={handleViewInvoice} />
+              ) : (
+                editorView
+              )}
             </TabsContent>
           </Tabs>
+        ) : view === "list" ? (
+          <MyInvoicesList onCreateNew={handleCreateNew} onViewInvoice={handleViewInvoice} />
         ) : (
-          view === "list" ? <MyInvoicesList onCreateNew={handleCreateNew} onViewInvoice={handleViewInvoice} /> : editorView
+          editorView
         )}
       </div>
     </DashboardLayout>
