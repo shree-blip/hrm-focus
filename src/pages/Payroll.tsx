@@ -46,6 +46,7 @@ import {
   Cell,
 } from "recharts";
 import { usePayroll } from "@/hooks/usePayroll";
+import { supabase } from "@/integrations/supabase/client";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTeamAttendance } from "@/hooks/useTeamAttendance";
 import { useAuth } from "@/contexts/AuthContext";
