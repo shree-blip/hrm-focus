@@ -1932,6 +1932,7 @@ export type Database = {
           position_level: string | null
           prior_outstanding_amount: number | null
           reason_type: string
+          remaining_balance: number | null
           signed_at: string | null
           status: string
           submitted_at: string | null
@@ -1959,6 +1960,7 @@ export type Database = {
           position_level?: string | null
           prior_outstanding_amount?: number | null
           reason_type: string
+          remaining_balance?: number | null
           signed_at?: string | null
           status?: string
           submitted_at?: string | null
@@ -1986,6 +1988,7 @@ export type Database = {
           position_level?: string | null
           prior_outstanding_amount?: number | null
           reason_type?: string
+          remaining_balance?: number | null
           signed_at?: string | null
           status?: string
           submitted_at?: string | null

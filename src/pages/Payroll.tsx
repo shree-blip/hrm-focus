@@ -489,7 +489,7 @@ const Payroll = () => {
             toast({ title: "Warning", description: "Payroll run created but failed to save details: " + detailError.message, variant: "destructive" });
             // Abort: don't record EMI deductions or overtime if details failed
             setIsCalculating(false);
-            await refetch();
+            await refetchEmployees();
             setModalParam(null);
             return;
           }
