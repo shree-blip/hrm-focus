@@ -107,11 +107,9 @@ export function useDocuments() {
         // Compliance - visible to uploader, admin, VP, and the assigned employee
         if (doc.category === "Compliance") {
           if (doc.uploaded_by === user.id) return true;
-          if (isAdmin || isVP) return true;
+          if (canManageDocs) return true;
           // Employee can see their own compliance docs
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
-          // Managers/line managers who uploaded can also view
-          if (isManager || isLineManager) return true;
           return false;
         }
 
