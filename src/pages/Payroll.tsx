@@ -797,18 +797,17 @@ const Payroll = () => {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead>Pay Period</TableHead>
+                      <TableHead>Run Date</TableHead>
                       <TableHead>Employees</TableHead>
-                      <TableHead>Gross Pay</TableHead>
-                      <TableHead>Net Pay</TableHead>
+                      <TableHead>Total Payroll</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Processed</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {recentPayrolls.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                           No payroll runs found for {region}
                         </TableCell>
                       </TableRow>
@@ -818,9 +817,15 @@ const Payroll = () => {
                           <TableCell className="font-medium">
                             {format(new Date(payroll.period_start), "MMM d")} - {format(new Date(payroll.period_end), "MMM d, yyyy")}
                           </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {payroll.processed_at
+                              ? format(new Date(payroll.processed_at), "MMM d, yyyy h:mm a")
+                              : format(new Date(payroll.created_at), "MMM d, yyyy h:mm a")}
+                          </TableCell>
                           <TableCell>{payroll.employee_count || "-"}</TableCell>
-                          <TableCell>{region === "US" ? "$" : "₨"}{(payroll.total_gross || 0).toLocaleString()}</TableCell>
-                          <TableCell>{region === "US" ? "$" : "₨"}{(payroll.total_net || 0).toLocaleString()}</TableCell>
+                          <TableCell className="font-semibold">
+                            {region === "US" ? "$" : "₨"}{(payroll.total_gross || 0).toLocaleString()}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={cn(
                               payroll.status === "completed" && "border-success text-success bg-success/10",
@@ -830,15 +835,25 @@ const Payroll = () => {
                               {payroll.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {payroll.processed_at ? format(new Date(payroll.processed_at), "MMM d") : "-"}
-                          </TableCell>
                           <TableCell>
-                            {isVP && payroll.status === "draft" && (
-                              <Button size="sm" onClick={() => processPayroll(payroll.id)}>
-                                Process
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {payroll.status === "completed" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5"
+                                  onClick={() => handleDownloadRunCSV(payroll.id, payroll.period_start, payroll.period_end)}
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                  CSV
+                                </Button>
+                              )}
+                              {isVP && payroll.status === "draft" && (
+                                <Button size="sm" onClick={() => processPayroll(payroll.id)}>
+                                  Process
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
