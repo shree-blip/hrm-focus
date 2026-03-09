@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, User, AlertCircle, Info } from "lucide-react";
+import { DollarSign, User, AlertCircle, Info, Calculator } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { calculateMonthlyWorkingHours, HOURS_PER_DAY } from "@/lib/payrollHours";
 
 interface Employee {
   id: string;
@@ -67,10 +68,14 @@ export function EditEmployeeSalaryDialog({
   const [insurancePremium, setInsurancePremium] = useState<string>("0");
   const [includeDashain, setIncludeDashain] = useState(false);
 
+  // Standard monthly working hours for the current month
+  const standardMonthlyHours = useMemo(() => {
+    const { requiredHours } = calculateMonthlyWorkingHours(new Date());
+    return requiredHours;
+  }, []);
+
   useEffect(() => {
     if (employee) {
-      setSalary(employee.salary?.toString() || "");
-      setHourlyRate(employee.hourly_rate?.toString() || "");
       setPayType(employee.pay_type || "salary");
       setManagerId(employee.manager_id || "none");
       setIncomeTax(employee.income_tax?.toString() || "0");
@@ -80,8 +85,68 @@ export function EditEmployeeSalaryDialog({
       setInsurancePremium(employee.insurance_premium?.toString() || "0");
       setIncludeDashain(employee.include_dashain_bonus ?? false);
       setValidationError("");
+
+      // Initialize salary/hourlyRate from employee data based on pay type
+      const pt = employee.pay_type || "salary";
+      if (pt === "hourly") {
+        setHourlyRate(employee.hourly_rate?.toString() || "");
+        setSalary("");
+      } else if (pt === "monthly") {
+        // Monthly pay type: salary field stores the monthly value
+        setSalary(employee.salary?.toString() || "");
+        setHourlyRate(employee.hourly_rate?.toString() || "");
+      } else {
+        // Annual pay type
+        setSalary(employee.salary?.toString() || "");
+        setHourlyRate(employee.hourly_rate?.toString() || "");
+      }
     }
   }, [employee]);
+
+  // ── Derived compensation values (auto-calculated in real time) ──
+  const derivedValues = useMemo(() => {
+    const monthlyHours = standardMonthlyHours > 0 ? standardMonthlyHours : 160; // fallback
+
+    if (payType === "salary") {
+      // User enters annual salary → derive monthly & hourly
+      const annual = parseFloat(salary) || 0;
+      const monthly = annual / 12;
+      const hourly = monthlyHours > 0 ? monthly / monthlyHours : 0;
+      return { annual, monthly, hourly, inputLabel: "Annual Salary" };
+    }
+    if (payType === "monthly") {
+      // User enters monthly salary → derive annual & hourly
+      const monthly = parseFloat(salary) || 0;
+      const annual = monthly * 12;
+      const hourly = monthlyHours > 0 ? monthly / monthlyHours : 0;
+      return { annual, monthly, hourly, inputLabel: "Monthly Salary" };
+    }
+    // hourly
+    const hourly = parseFloat(hourlyRate) || 0;
+    const monthly = hourly * monthlyHours;
+    const annual = monthly * 12;
+    return { annual, monthly, hourly, inputLabel: "Hourly Rate" };
+  }, [payType, salary, hourlyRate, standardMonthlyHours]);
+
+  // When pay type changes, pre-fill the input from the derived value of the
+  // previous type so the conversion is seamless.
+  const handlePayTypeChange = (newType: string) => {
+    const prev = derivedValues;
+    setPayType(newType);
+    setValidationError("");
+
+    if (newType === "salary") {
+      setSalary(prev.annual > 0 ? Math.round(prev.annual).toString() : "");
+      setHourlyRate("");
+    } else if (newType === "monthly") {
+      setSalary(prev.monthly > 0 ? Math.round(prev.monthly).toString() : "");
+      setHourlyRate("");
+    } else {
+      // hourly
+      setHourlyRate(prev.hourly > 0 ? prev.hourly.toFixed(2) : "");
+      setSalary("");
+    }
+  };
 
   const validateNumeric = (value: string): boolean => {
     if (value === "" || value === "0") return true;
@@ -187,12 +252,18 @@ export function EditEmployeeSalaryDialog({
       return;
     }
 
-    const salaryValue = parseFloat(salary) || null;
-
+    // Save the canonical input value AND the derived values so they're
+    // available everywhere (Manage Salary list, payroll calculations, exports).
     const updates: Partial<Employee> = {
       pay_type: payType,
-      salary: (payType === "salary" || payType === "monthly") ? salaryValue : null,
-      hourly_rate: payType === "hourly" ? (parseFloat(hourlyRate) || null) : null,
+      // For salary types, store the user's input. For hourly, store derived annual.
+      salary: payType === "hourly"
+        ? (derivedValues.annual > 0 ? Math.round(derivedValues.annual) : null)
+        : (parseFloat(salary) || null),
+      // For hourly type, store the entered rate. For salary types, store derived hourly.
+      hourly_rate: payType === "hourly"
+        ? (parseFloat(hourlyRate) || null)
+        : (derivedValues.hourly > 0 ? Math.round(derivedValues.hourly * 100) / 100 : null),
       manager_id: managerId === "none" ? null : managerId,
       income_tax: parseFloat(incomeTax) || 0,
       social_security: parseFloat(socialSecurity) || 0,
@@ -238,7 +309,7 @@ export function EditEmployeeSalaryDialog({
 
           <div className="space-y-2">
             <Label>Pay Type</Label>
-            <Select value={payType} onValueChange={setPayType}>
+            <Select value={payType} onValueChange={handlePayTypeChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select pay type" />
               </SelectTrigger>
@@ -250,30 +321,74 @@ export function EditEmployeeSalaryDialog({
             </Select>
           </div>
 
-          {payType === "salary" || payType === "monthly" ? (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="salary">
-                  {payType === "monthly" ? "Monthly Salary" : "Base Salary (Annual)"}
-                </Label>
-                <Input
-                  id="salary"
-                  type="number"
-                  min="0"
-                  placeholder={payType === "monthly" ? "Enter monthly salary" : "Enter annual salary"}
-                  value={salary}
-                  onChange={(e) => {
-                    setSalary(e.target.value);
-                    setValidationError("");
-                  }}
-                />
-                {payType === "monthly" && salary && (
-                  <p className="text-xs text-muted-foreground">
-                    Annual equivalent: Rs. {((parseFloat(salary) || 0) * 12).toLocaleString()}
-                  </p>
-                )}
-              </div>
+          {/* ─── Primary compensation input ─── */}
+          {payType === "hourly" ? (
+            <div className="space-y-2">
+              <Label htmlFor="hourlyRate">Hourly Rate (NPR)</Label>
+              <Input
+                id="hourlyRate"
+                type="number"
+                min="0"
+                placeholder="Enter hourly rate"
+                value={hourlyRate}
+                onChange={(e) => {
+                  setHourlyRate(e.target.value);
+                  setValidationError("");
+                }}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="salary">
+                {payType === "monthly" ? "Monthly Salary (NPR)" : "Annual Salary (NPR)"}
+              </Label>
+              <Input
+                id="salary"
+                type="number"
+                min="0"
+                placeholder={payType === "monthly" ? "Enter monthly salary" : "Enter annual salary"}
+                value={salary}
+                onChange={(e) => {
+                  setSalary(e.target.value);
+                  setValidationError("");
+                }}
+              />
+            </div>
+          )}
 
+          {/* ─── Auto-calculated compensation breakdown ─── */}
+          {(derivedValues.annual > 0 || derivedValues.monthly > 0 || derivedValues.hourly > 0) && (
+            <div className="p-3 bg-secondary/50 rounded-lg space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Calculator className="h-3.5 w-3.5" />
+                Auto-calculated ({standardMonthlyHours}h/month standard)
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className={payType === "salary" ? "opacity-50" : ""}>
+                  <span className="text-xs text-muted-foreground block">Annual</span>
+                  <span className="font-semibold">
+                    Rs. {Math.round(derivedValues.annual).toLocaleString()}
+                  </span>
+                </div>
+                <div className={payType === "monthly" ? "opacity-50" : ""}>
+                  <span className="text-xs text-muted-foreground block">Monthly</span>
+                  <span className="font-semibold">
+                    Rs. {Math.round(derivedValues.monthly).toLocaleString()}
+                  </span>
+                </div>
+                <div className={payType === "hourly" ? "opacity-50" : ""}>
+                  <span className="text-xs text-muted-foreground block">Hourly</span>
+                  <span className="font-semibold">
+                    Rs. {derivedValues.hourly.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── Deduction fields (salary/monthly types only) ─── */}
+          {(payType === "salary" || payType === "monthly") && (
+            <>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="incomeTax">Income Tax</Label>
@@ -319,12 +434,12 @@ export function EditEmployeeSalaryDialog({
                 </div>
               </div>
 
-              {/* Auto-calculate button */}
+              {/* Auto-calculate deductions button */}
               {autoCalculations && (
                 <div className="p-3 bg-secondary/50 rounded-lg space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">
-                      Auto-calculated (pro-rated {proRatedMonths}/12 months)
+                      Auto-calculated deductions (pro-rated {proRatedMonths}/12 months)
                     </span>
                     <Button size="sm" variant="outline" onClick={handleApplyAutoCalc} className="h-7 text-xs">
                       Apply
@@ -365,21 +480,6 @@ export function EditEmployeeSalaryDialog({
                 )}
               </div>
             </>
-          ) : (
-            <div className="space-y-2">
-              <Label htmlFor="hourlyRate">Hourly Rate</Label>
-              <Input
-                id="hourlyRate"
-                type="number"
-                min="0"
-                placeholder="Enter hourly rate"
-                value={hourlyRate}
-                onChange={(e) => {
-                  setHourlyRate(e.target.value);
-                  setValidationError("");
-                }}
-              />
-            </div>
           )}
 
           {/* Nepal-specific fields */}
