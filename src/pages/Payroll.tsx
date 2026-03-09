@@ -277,7 +277,7 @@ const Payroll = () => {
       // ── Fetch active (disbursed) loans for EMI deduction ──
       const { data: activeLoans } = await supabase
         .from("loan_requests")
-        .select("id, employee_id, user_id, amount, remaining_balance, term_months, interest_rate, estimated_monthly_installment, status, created_at")
+        .select("id, employee_id, user_id, amount, term_months, interest_rate, estimated_monthly_installment, status, created_at")
         .in("status", ["disbursed"]);
 
       // Build map: employee_id → array of active loans
