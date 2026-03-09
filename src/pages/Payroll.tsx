@@ -703,7 +703,7 @@ const Payroll = () => {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Avg. Salary</p>
+                      <p className="text-sm text-muted-foreground">Avg. Monthly Salary</p>
                       <p className="text-lg font-display font-medium mt-1 text-muted-foreground">Restricted</p>
                       <p className="text-xs text-muted-foreground mt-1">VP access only</p>
                     </div>
