@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
           message = `${milestone.first_name} ${milestone.last_name} celebrates ${yearsText} with the company today! Congratulations! 🎉`;
         }
 
-        notifications.push({ user_id: userId, title, message, type: "celebration", link: "/notifications" });
+        notifications.push({ user_id: userId, title, message, type: "info", link: "/notifications" });
       }
     }
 
