@@ -518,7 +518,8 @@ const Payroll = () => {
       if (emp.pay_type === "hourly" && emp.hourly_rate) {
         grossPay = hoursWorked * emp.hourly_rate;
       } else if (emp.salary) {
-        grossPay = emp.salary / 12;
+        // salary is monthly gross
+        grossPay = emp.salary;
       }
 
       let deductions = 0;
