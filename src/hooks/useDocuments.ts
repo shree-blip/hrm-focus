@@ -185,15 +185,47 @@ export function useDocuments() {
 
     toast({ title: "Document Uploaded", description: `${file.name} uploaded successfully` });
 
-    // Notify the employee if document was uploaded for them
-    if (employeeId) {
+    // Get uploader info for email notifications
+    const { data: uploaderProfile } = await supabase
+      .from("profiles")
+      .select("first_name, last_name, email")
+      .eq("user_id", user.id)
+      .single();
+
+    const uploaderName = uploaderProfile
+      ? `${uploaderProfile.first_name} ${uploaderProfile.last_name}`
+      : "User";
+    const uploaderEmail = uploaderProfile?.email || "";
+
+    // Determine if this is a manager uploading for an employee or an employee uploading
+    const isManagerUploadingForEmployee = employeeId && (isAdmin || isVP || isManager || isLineManager);
+
+    if (isManagerUploadingForEmployee && employeeId) {
+      // Manager/VP uploaded for employee → notify the employee
       try {
+        // Get employee name
         const { data: empData } = await supabase
           .from("employees")
-          .select("profile_id")
+          .select("first_name, last_name, profile_id")
           .eq("id", employeeId)
           .single();
 
+        const employeeName = empData ? `${empData.first_name} ${empData.last_name}` : "Employee";
+
+        // Send email notification
+        await supabase.functions.invoke("send-document-upload-notification", {
+          body: {
+            uploader_name: uploaderName,
+            uploader_email: uploaderEmail,
+            document_name: file.name,
+            document_category: category,
+            employee_id: employeeId,
+            employee_name: employeeName,
+            notify_type: "manager_upload",
+          },
+        });
+
+        // Also send in-app notification to employee
         if (empData?.profile_id) {
           const { data: empProfile } = await supabase
             .from("profiles")
@@ -205,14 +237,67 @@ export function useDocuments() {
             await supabase.rpc("create_notification", {
               p_user_id: empProfile.user_id,
               p_title: "📄 New Document",
-              p_message: `A new ${category} document "${file.name}" has been uploaded for you.`,
+              p_message: `A new ${category} document "${file.name}" has been uploaded for you by ${uploaderName}.`,
               p_type: "document",
               p_link: "/documents",
             });
           }
         }
-      } catch (err) {
-        console.error("Error sending document notification:", err);
+      } catch (emailErr) {
+        console.error("Error sending document email notification:", emailErr);
+      }
+    } else {
+      // Employee uploaded → notify VP and line manager
+      try {
+        // Get the user's employee record to find their line manager
+        const { data: userProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
+
+        let userEmployeeId: string | undefined;
+        if (userProfile) {
+          const { data: empRecord } = await supabase
+            .from("employees")
+            .select("id")
+            .eq("profile_id", userProfile.id)
+            .maybeSingle();
+          userEmployeeId = empRecord?.id;
+        }
+
+        await supabase.functions.invoke("send-document-upload-notification", {
+          body: {
+            uploader_name: uploaderName,
+            uploader_email: uploaderEmail,
+            document_name: file.name,
+            document_category: category,
+            employee_id: userEmployeeId,
+            notify_type: "employee_upload",
+          },
+        });
+
+        // Send in-app notifications to VP/Admin
+        const { data: vpUsers } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["vp", "admin"]);
+
+        if (vpUsers) {
+          for (const vp of vpUsers) {
+            if (vp.user_id !== user.id) {
+              await supabase.rpc("create_notification", {
+                p_user_id: vp.user_id,
+                p_title: "📄 Document Uploaded",
+                p_message: `${uploaderName} uploaded a ${category} document: "${file.name}"`,
+                p_type: "document",
+                p_link: "/documents",
+              });
+            }
+          }
+        }
+      } catch (emailErr) {
+        console.error("Error sending document email notification:", emailErr);
       }
     }
 
