@@ -359,6 +359,7 @@ const Payroll = () => {
     toast({ title: "Downloaded", description: `Payroll CSV for ${format(new Date(periodStart), "MMMM yyyy")} exported` });
   };
 
+  const handleExport = () => {
     // Export with employee data
     const currencySymbol = region === "US" ? "$" : "Rs.";
     const taxRates = getTaxRates();
