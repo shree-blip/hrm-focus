@@ -656,7 +656,7 @@ const Payroll = () => {
 
   const handleEditEmployee = (employee: typeof employees[0]) => {
     setSelectedEmployee(employee);
-    setShowEditSalary(true);
+    setModalParam("editSalary", employee.id);
   };
 
   const handleSaveEmployee = async (employeeId: string, updates: Partial<typeof employees[0]>) => {
