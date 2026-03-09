@@ -76,7 +76,7 @@ export function ManagerPanel({ pendingRequests, history, onDecision }: ManagerPa
                   {pendingRequests.map((loan) => (
                     <TableRow key={loan.id}>
                       <TableCell className="text-sm font-medium">{getEmpName(loan)}</TableCell>
-                      <TableCell className="font-medium">${Number(loan.amount).toLocaleString()}</TableCell>
+                      <TableCell className="font-medium">NPR {Number(loan.amount).toLocaleString()}</TableCell>
                       <TableCell>{loan.term_months}mo</TableCell>
                       <TableCell><Badge variant="outline">{loan.reason_type}</Badge></TableCell>
                       <TableCell className="text-xs">{loan.submitted_at ? format(new Date(loan.submitted_at), 'MMM dd') : '-'}</TableCell>
@@ -114,7 +114,7 @@ export function ManagerPanel({ pendingRequests, history, onDecision }: ManagerPa
                   {history.map((loan) => (
                     <TableRow key={loan.id}>
                       <TableCell className="text-sm">{getEmpName(loan)}</TableCell>
-                      <TableCell>${Number(loan.amount).toLocaleString()}</TableCell>
+                      <TableCell>NPR {Number(loan.amount).toLocaleString()}</TableCell>
                       <TableCell>{loan.term_months}mo</TableCell>
                       <TableCell>
                         <Badge variant={statusColor(loan.status) as any}>
@@ -142,9 +142,9 @@ export function ManagerPanel({ pendingRequests, history, onDecision }: ManagerPa
             <div className="space-y-4">
               <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
                 <p><strong>Employee:</strong> {getEmpName(selectedLoan)}</p>
-                <p><strong>Amount:</strong> ${Number(selectedLoan.amount).toLocaleString()}</p>
+                <p><strong>Amount:</strong> NPR {Number(selectedLoan.amount).toLocaleString()}</p>
                 <p><strong>Term:</strong> {selectedLoan.term_months} months</p>
-                <p><strong>EMI:</strong> ${Number(selectedLoan.estimated_monthly_installment || 0).toFixed(2)}/mo</p>
+                <p><strong>EMI:</strong> NPR {Number(selectedLoan.estimated_monthly_installment || 0).toFixed(2)}/mo</p>
                 <p><strong>Reason:</strong> {selectedLoan.reason_type}</p>
                 <p><strong>Position:</strong> {selectedLoan.employees?.position_level || selectedLoan.position_level}</p>
               </div>

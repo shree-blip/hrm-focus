@@ -35,7 +35,7 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
   const allowedTerms = Array.from({ length: 24 }, (_, i) => i + 1);
 
   const canSubmit = hasPolicy && amount > 0 &&
-    termMonths > 0 && termMonths <= 24 &&
+    (termMonths === 0 || termMonths <= 24) &&
     autoDeductionConsent && eSignature.trim().length > 0;
 
   // EMI preview calculation
@@ -53,7 +53,7 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
     setSubmitting(true);
     await onSubmit({
       amount,
-      term_months: termMonths,
+      term_months: termMonths || null,
       reason_type: reasonType,
       reason_details: reasonDetails,
       auto_deduction_consent: autoDeductionConsent,
@@ -99,7 +99,7 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
               <CheckCircle2 className="h-4 w-4 text-green-500" />
               <AlertDescription>
                 Interest: {FIXED_ANNUAL_RATE}% p.a. (fixed) · 
-                Terms: 1–24 months
+                Term: optional, up to 24 months
               </AlertDescription>
             </Alert>
 
@@ -115,9 +115,9 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
             </div>
 
             <div>
-              <Label>Term (months)</Label>
-              <Select value={termMonths ? String(termMonths) : ''} onValueChange={(v) => setTermMonths(parseInt(v))}>
-                <SelectTrigger><SelectValue placeholder="Select term" /></SelectTrigger>
+              <Label>Term (months) <span className="text-muted-foreground text-xs">— optional</span></Label>
+              <Select value={termMonths ? String(termMonths) : ''} onValueChange={(v) => setTermMonths(v ? parseInt(v) : 0)}>
+                <SelectTrigger><SelectValue placeholder="Select term (optional)" /></SelectTrigger>
                 <SelectContent>
                   {allowedTerms.map(m => (
                     <SelectItem key={m} value={String(m)}>{m} month{m > 1 ? 's' : ''}</SelectItem>
