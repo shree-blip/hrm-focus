@@ -230,7 +230,7 @@ export function PersonalReportsWidget() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Target className="h-4 w-4 text-info" />
-                <span className="text-sm font-medium">Monthly Target</span>
+                <span className="text-sm font-medium">Performance Metrix</span>
               </div>
               <span className="text-2xl font-bold text-info">{progressPercent}%</span>
             </div>
