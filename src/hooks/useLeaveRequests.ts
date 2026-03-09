@@ -772,7 +772,33 @@ export function useLeaveRequests() {
         `/leave`,
       );
 
-      // Send email notification to employee about rejection
+      // Also notify VP/Admin about the rejection
+      const { data: vpAdminReject } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["vp", "admin"]);
+
+      const rejectNotifyIds = [requestData.user_id];
+      const rejectEmails: string[] = requestProfile?.email ? [requestProfile.email] : [];
+
+      for (const va of vpAdminReject || []) {
+        if (va.user_id !== user.id && va.user_id !== requestData.user_id) {
+          rejectNotifyIds.push(va.user_id);
+          await createNotification(
+            va.user_id,
+            rejectTitle,
+            `${userName}'s ${requestData.leave_type} request for ${requestData.days} day(s) has been rejected by ${managerName}. Reason: ${rejectionReason}`,
+            "leave",
+            `/leave`,
+          );
+        }
+        const { data: vaProfile } = await supabase.from("profiles").select("email").eq("user_id", va.user_id).single();
+        if (vaProfile?.email && !rejectEmails.includes(vaProfile.email)) {
+          rejectEmails.push(vaProfile.email);
+        }
+      }
+
+      // Send email notification to employee + VP/Admin about rejection
       await sendLeaveNotification({
         leave_request_id: requestId,
         event_type: "rejected",
@@ -784,8 +810,8 @@ export function useLeaveRequests() {
         days: requestData.days,
         rejection_reason: rejectionReason,
         approver_name: managerName,
-        target_user_ids: [requestData.user_id],
-        target_emails: requestProfile?.email ? [requestProfile.email] : [],
+        target_user_ids: rejectNotifyIds,
+        target_emails: rejectEmails,
         requesting_user_id: user.id,
       });
 
