@@ -445,6 +445,9 @@ const Payroll = () => {
             extra_hours: d.extra_hours,
             bank_hours_used: d.bank_hours_used,
             gross_pay: d.gross_pay,
+            income_tax: d.income_tax,
+            social_security: d.social_security,
+            provident_fund: d.provident_fund,
             deductions: d.deductions,
             net_pay: d.net_pay,
           }));
