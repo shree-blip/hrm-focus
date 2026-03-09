@@ -786,7 +786,7 @@ export function CompanyCalendar() {
               <div className="flex items-center justify-between px-1">
                 <p className="text-sm font-medium text-foreground">{formatDateFull(selectedDate)}</p>
                 <div className="flex items-center gap-1">
-                  {isManager && (
+                  {canManageCalendar && (
                     <Button
                       variant="ghost"
                       size="sm"
