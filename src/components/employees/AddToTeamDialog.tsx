@@ -152,12 +152,12 @@ export function AddToTeamDialog({
             .single();
 
           if (profile) {
-            await supabase.from("notifications").insert({
-              user_id: profile.user_id,
-              title: "👥 Added to Team",
-              message: `You have been added to ${result.manager_name || "your manager"}'s team.`,
-              type: "team",
-              link: "/employees",
+            await supabase.rpc("create_notification", {
+              p_user_id: profile.user_id,
+              p_title: "👥 Added to Team",
+              p_message: `You have been added to ${result.manager_name || "your manager"}'s team.`,
+              p_type: "team",
+              p_link: "/employees",
             });
           }
         }
