@@ -445,7 +445,7 @@ const Payroll = () => {
     const currencySymbol = region === "US" ? "$" : "Rs.";
     const headers = [
       "Employee Name", "Department", "Hourly Rate",
-      "Actual Hours", "Payable Hours", "Extra Hours",
+      "Actual Hours", "Payable Hours", "Extra Hours", "Bank Hours Used",
       "Gross Pay", "Deductions", "Net Pay"
     ];
 
@@ -456,8 +456,10 @@ const Payroll = () => {
       d.actual_hours || 0,
       d.payable_hours || 0,
       d.extra_hours || 0,
+      d.bank_hours_used || 0,
       d.gross_pay || 0,
       d.deductions || 0,
+      d.net_pay || 0,
       d.net_pay || 0,
     ].join(","));
 
