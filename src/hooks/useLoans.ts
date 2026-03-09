@@ -68,8 +68,9 @@ export function useLoans() {
   }, [user]);
 
   const fetchManagerQueue = useCallback(async () => {
-    if (!user || !isLineManager) return;
+    if (!user) return;
     try {
+      // Fetch loans assigned to this user as manager (works for any role)
       const { data: pending, error: pendingErr } = await supabase
         .from("loan_requests")
         .select(
@@ -99,17 +100,18 @@ export function useLoans() {
     } catch (err) {
       console.error("Unexpected error in fetchManagerQueue:", err);
     }
-  }, [user, isLineManager]);
+  }, [user]);
 
   const fetchVPQueue = useCallback(async () => {
     if (!user || !isVP) return;
     try {
+      // VP sees both pending_manager and pending_vp loans for full pipeline oversight
       const { data: pending, error: vpPendErr } = await supabase
         .from("loan_requests")
         .select(
           "*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)",
         )
-        .eq("status", "pending_vp")
+        .in("status", ["pending_manager", "pending_vp"])
         .order("created_at", { ascending: false });
       if (vpPendErr) {
         console.error("Error fetching VP queue:", vpPendErr.message);
@@ -241,6 +243,16 @@ export function useLoans() {
       return null;
     }
 
+    // If no manager was assigned (employee has no line_manager/manager),
+    // skip manager step and go directly to VP review
+    if (lr && !lr.manager_user_id) {
+      await supabase
+        .from("loan_requests")
+        .update({ status: "pending_vp" })
+        .eq("id", lr.id);
+      lr.status = "pending_vp";
+    }
+
     if (lr && data.reason_details) {
       await supabase.from("loan_request_confidential").insert({
         loan_request_id: lr.id,
@@ -287,7 +299,12 @@ export function useLoans() {
       }
     }
 
-    toast({ title: "Loan Request Submitted", description: "Your request has been sent to your manager for approval." });
+    toast({
+      title: "Loan Request Submitted",
+      description: lr?.manager_user_id
+        ? "Your request has been sent to your manager for approval."
+        : "Your request has been sent directly to the VP for approval.",
+    });
     await refetchAll();
     return lr;
   };
@@ -518,7 +535,7 @@ export function useLoans() {
     } else {
       toast({
         title: "Repayment Recorded",
-        description: `Remaining balance: $${Number(result?.remaining_balance || 0).toFixed(2)}`,
+        description: `Remaining balance: NPR ${Number(result?.remaining_balance || 0).toFixed(2)}`,
       });
     }
 
@@ -556,6 +573,7 @@ export function useLoans() {
     repayments,
     isLineManager,
     isVP,
+    hasManagerData: pendingForManager.length > 0 || managerHistory.length > 0,
     createLoanRequest,
     managerDecision,
     vpDecision,

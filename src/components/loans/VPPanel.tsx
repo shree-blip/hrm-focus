@@ -126,6 +126,7 @@ export function VPPanel({
                   <TableHead>Employee</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Term</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -136,6 +137,11 @@ export function VPPanel({
                     <TableCell className="text-sm font-medium">{getEmpName(loan)}</TableCell>
                     <TableCell className="font-medium">NPR {Number(loan.amount).toLocaleString()}</TableCell>
                     <TableCell>{loan.term_months}mo</TableCell>
+                    <TableCell>
+                      <Badge variant={loan.status === 'pending_manager' ? 'secondary' : 'outline'}>
+                        {loan.status === 'pending_manager' ? 'Awaiting Manager' : 'Awaiting You'}
+                      </Badge>
+                    </TableCell>
                     <TableCell><Badge variant="outline">{loan.reason_type}</Badge></TableCell>
                     <TableCell>
                       <Button size="sm" onClick={() => setSelectedLoan(loan)}>Review</Button>
@@ -324,8 +330,14 @@ export function VPPanel({
       <Dialog open={!!selectedLoan} onOpenChange={() => { setSelectedLoan(null); setComment(''); setDisbursementDate(''); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>CEO Final Decision</DialogTitle>
-            <DialogDescription>Approve or reject this loan request</DialogDescription>
+            <DialogTitle>
+              {selectedLoan?.status === 'pending_manager' ? 'Direct CEO Review (Skipping Manager)' : 'CEO Final Decision'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedLoan?.status === 'pending_manager'
+                ? 'This loan is pending manager review. You can approve or reject it directly.'
+                : 'Approve or reject this loan request'}
+            </DialogDescription>
           </DialogHeader>
           {selectedLoan && (
             <div className="space-y-4">

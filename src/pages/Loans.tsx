@@ -24,6 +24,7 @@ export default function Loans() {
     repayments,
     isLineManager,
     isVP,
+    hasManagerData,
     createLoanRequest,
     managerDecision,
     vpDecision,
@@ -33,10 +34,12 @@ export default function Loans() {
     fetchRepayments,
   } = useLoans();
 
+  const showManagerTab = isLineManager || hasManagerData;
+
   // Normalize tab if user doesn't have permission for the current tab
   let normalizedActiveTab = activeTab;
   if (!isVP && activeTab === "vp") normalizedActiveTab = "my-loans";
-  if (!isLineManager && activeTab === "manager") normalizedActiveTab = "my-loans";
+  if (!showManagerTab && activeTab === "manager") normalizedActiveTab = "my-loans";
 
   if (loading) {
     return (
@@ -60,7 +63,7 @@ export default function Loans() {
           <TabsList className="flex-wrap">
             <TabsTrigger value="my-loans">My Loans</TabsTrigger>
             <TabsTrigger value="calculator">Calculator</TabsTrigger>
-            {isLineManager && <TabsTrigger value="manager">Manager Review</TabsTrigger>}
+            {showManagerTab && <TabsTrigger value="manager">Manager Review</TabsTrigger>}
             {isVP && <TabsTrigger value="vp">CEO / Finance</TabsTrigger>}
           </TabsList>
 
@@ -85,7 +88,7 @@ export default function Loans() {
             </div>
           </TabsContent>
 
-          {isLineManager && (
+          {showManagerTab && (
             <TabsContent value="manager">
               <ManagerPanel
                 pendingRequests={pendingForManager}
