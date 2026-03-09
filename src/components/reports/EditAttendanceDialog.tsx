@@ -175,11 +175,12 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
       // Send notification to CEO (VP role) about the edit
       const { data: editorProfile } = await supabase
         .from("profiles")
-        .select("first_name, last_name")
+        .select("first_name, last_name, email")
         .eq("user_id", user.id)
         .single();
 
       const editorName = editorProfile ? `${editorProfile.first_name} ${editorProfile.last_name}` : "A manager";
+      const editorEmail = editorProfile?.email || "";
       const editDate = new Date(record.clock_in).toLocaleDateString("en-US", {
         year: "numeric", month: "short", day: "numeric",
       });
@@ -193,7 +194,7 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
 
       const changeSummary = changes.length > 0 ? changes.join(", ") : "Minor adjustments";
 
-      // Get all VP/CEO user IDs
+      // Get all VP/CEO user IDs for in-app notifications
       const { data: vpUsers } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -211,6 +212,22 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
             });
           }
         }
+      }
+
+      // Send email notification to VPs via edge function
+      try {
+        await supabase.functions.invoke("send-attendance-edit-notification", {
+          body: {
+            editor_name: editorName,
+            editor_email: editorEmail,
+            employee_name: record.employee_name,
+            edit_date: editDate,
+            change_summary: changeSummary,
+            reason: reason.trim(),
+          },
+        });
+      } catch (emailErr) {
+        console.error("Failed to send attendance edit email:", emailErr);
       }
 
       toast({ title: "Attendance Updated", description: `Record for ${record.employee_name} has been edited.` });
