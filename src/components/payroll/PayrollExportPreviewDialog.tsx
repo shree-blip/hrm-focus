@@ -38,6 +38,7 @@ interface Employee {
   pay_type: string | null;
   salary: number | null;
   hourly_rate: number | null;
+  user_id?: string;
 }
 
 interface Attendance {
@@ -167,7 +168,7 @@ export function PayrollExportPreviewDialog({
       }
 
       // Leave adjustment
-      const userId = (emp as any).user_id || "";
+      const userId = emp.user_id || "";
       const empLeave = userId ? leaveByUserId.get(userId) : undefined;
       const paidLeaveDays = empLeave?.paidLeaveDays || 0;
       const unpaidLeaveDays = empLeave?.unpaidLeaveDays || 0;

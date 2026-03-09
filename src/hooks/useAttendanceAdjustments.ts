@@ -3,6 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
+export interface AttendanceLogRecord {
+  clock_in: string;
+  clock_out: string | null;
+  total_break_minutes: number;
+  total_pause_minutes: number;
+  clock_type: string | null;
+}
+
 export interface AdjustmentRequest {
   id: string;
   attendance_log_id: string;
@@ -18,9 +26,13 @@ export interface AdjustmentRequest {
   reviewed_at: string | null;
   created_at: string;
   // joined fields
-  attendance_log?: any;
+  attendance_log?: AttendanceLogRecord | null;
   requester_profile?: { first_name: string; last_name: string } | null;
 }
+
+// Table not yet in generated Database types — confine the cast here
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const adjTable = () => (supabase as unknown as any).from("attendance_adjustment_requests");
 
 export function useAttendanceAdjustments() {
   const { user, isManager, isVP, isAdmin, isLineManager } = useAuth();
@@ -31,14 +43,13 @@ export function useAttendanceAdjustments() {
   // Fetch requests the current user submitted
   const fetchMyRequests = useCallback(async () => {
     if (!user) return;
-    const { data, error } = await (supabase as any)
-      .from("attendance_adjustment_requests")
+    const { data, error } = await adjTable()
       .select("*")
       .eq("requested_by", user.id)
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      setMyRequests(data);
+      setMyRequests(data as AdjustmentRequest[]);
     }
   }, [user]);
 
@@ -48,8 +59,7 @@ export function useAttendanceAdjustments() {
     if (!isManager && !isVP && !isAdmin && !isLineManager) return;
 
     // Managers see adjustment requests via RLS (the policy handles team scoping)
-    const { data, error } = await (supabase as any)
-      .from("attendance_adjustment_requests")
+    const { data, error } = await adjTable()
       .select("*")
       .order("created_at", { ascending: false });
 
@@ -60,11 +70,11 @@ export function useAttendanceAdjustments() {
 
     if (data) {
       // Filter out own requests — managers shouldn't review their own
-      const teamOnly = data.filter((r: any) => r.requested_by !== user.id);
+      const teamOnly = (data as AdjustmentRequest[]).filter((r) => r.requested_by !== user.id);
 
       // Enrich with requester profile and attendance log
       const enriched = await Promise.all(
-        teamOnly.map(async (req: any) => {
+        teamOnly.map(async (req) => {
           const [profileRes, logRes] = await Promise.all([
             supabase.from("profiles").select("first_name, last_name").eq("user_id", req.requested_by).single(),
             supabase.from("attendance_logs").select("clock_in, clock_out, total_break_minutes, total_pause_minutes, clock_type").eq("id", req.attendance_log_id).single(),
@@ -91,8 +101,7 @@ export function useAttendanceAdjustments() {
   }) => {
     if (!user) return;
 
-    const { error } = await (supabase as any)
-      .from("attendance_adjustment_requests")
+    const { error } = await adjTable()
       .insert({
         attendance_log_id: data.attendance_log_id,
         requested_by: user.id,
@@ -121,8 +130,7 @@ export function useAttendanceAdjustments() {
   ) => {
     if (!user) return;
 
-    const { error } = await (supabase as any)
-      .from("attendance_adjustment_requests")
+    const { error } = await adjTable()
       .update({
         status: decision,
         reviewer_id: user.id,

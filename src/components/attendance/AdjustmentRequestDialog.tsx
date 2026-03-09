@@ -44,7 +44,7 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
     log.clock_out ? format(new Date(log.clock_out), "HH:mm") : "",
   );
   const [breakMinutes, setBreakMinutes] = useState(log.total_break_minutes || 0);
-  const [pauseMinutes, setPauseMinutes] = useState((log as any).total_pause_minutes || 0);
+  const [pauseMinutes, setPauseMinutes] = useState(log.total_pause_minutes || 0);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -53,7 +53,14 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
     setSubmitting(true);
 
     // Build proposed values — only include fields that changed
-    const proposed: any = {
+    const proposed: {
+      attendance_log_id: string;
+      reason: string;
+      proposed_clock_in?: string;
+      proposed_clock_out?: string;
+      proposed_break_minutes?: number;
+      proposed_pause_minutes?: number;
+    } = {
       attendance_log_id: log.id,
       reason: reason.trim(),
     };
@@ -73,7 +80,7 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
       proposed.proposed_break_minutes = breakMinutes;
     }
 
-    if (pauseMinutes !== ((log as any).total_pause_minutes || 0)) {
+    if (pauseMinutes !== (log.total_pause_minutes || 0)) {
       proposed.proposed_pause_minutes = pauseMinutes;
     }
 
@@ -102,7 +109,7 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
             <p><strong>Clock In:</strong> {format(clockInDate, "hh:mm a")}</p>
             <p><strong>Clock Out:</strong> {log.clock_out ? format(new Date(log.clock_out), "hh:mm a") : "Not clocked out"}</p>
             <p><strong>Break:</strong> {log.total_break_minutes || 0} min</p>
-            <p><strong>Pause:</strong> {(log as any).total_pause_minutes || 0} min</p>
+            <p><strong>Pause:</strong> {log.total_pause_minutes || 0} min</p>
           </div>
 
           {/* Corrected values */}

@@ -20,6 +20,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 
+interface LoanEmployee {
+  first_name?: string;
+  last_name?: string;
+}
+
+interface LoanRequestItem {
+  id: string;
+  amount: number;
+  term_months?: number;
+  submitted_at?: string;
+  status: string;
+  employees?: LoanEmployee;
+}
+
 export function LoanRequestsWidget() {
   const { pendingForManager, vpQueue, managerDecision, vpDecision, loading } = useLoans();
   const { isVP, isLineManager } = useAuth();
@@ -39,14 +53,14 @@ export function LoanRequestsWidget() {
   const pendingCount = requests.length;
   const displayRequests = requests.slice(0, 5);
 
-  const getEmployeeName = (req: any): string => {
+  const getEmployeeName = (req: LoanRequestItem): string => {
     if (req.employees?.first_name || req.employees?.last_name) {
       return `${req.employees.first_name || ""} ${req.employees.last_name || ""}`.trim();
     }
     return "Unknown Employee";
   };
 
-  const getInitials = (req: any): string => {
+  const getInitials = (req: LoanRequestItem): string => {
     if (req.employees?.first_name && req.employees?.last_name) {
       return `${req.employees.first_name[0]}${req.employees.last_name[0]}`.toUpperCase();
     }
@@ -96,7 +110,7 @@ export function LoanRequestsWidget() {
       const decision = action === "approve" ? "approved" : "rejected";
 
       // Find the loan to determine which decision function to call
-      const loan = requests.find((r: any) => r.id === loanId);
+      const loan = requests.find((r: LoanRequestItem) => r.id === loanId);
       if (!loan) return;
 
       if (loan.status === "pending_manager") {
@@ -142,7 +156,7 @@ export function LoanRequestsWidget() {
               No pending loan requests
             </div>
           ) : (
-            displayRequests.map((req: any) => {
+            displayRequests.map((req: LoanRequestItem) => {
               const name = getEmployeeName(req);
               const canActAsManager = req.status === "pending_manager" && !isVP;
               const canActAsVP = isVP && (req.status === "pending_vp" || req.status === "pending_manager");
