@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,13 +64,57 @@ const Payroll = () => {
   const { payrollRuns, loading, region, setRegion, createPayrollRun, processPayroll, getTaxRates } = usePayroll();
   const { employees, updateEmployee, refetch: refetchEmployees } = useEmployees();
   const { teamAttendance, loading: attendanceLoading } = useTeamAttendance();
-  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "employees" | "calculator" | "contractor">("overview");
-  const [showPayslipsPreview, setShowPayslipsPreview] = useState(false);
-  const [showEditSalary, setShowEditSalary] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const validTabs = ["overview", "attendance", "employees", "calculator", "contractor"] as const;
+  type TabType = typeof validTabs[number];
+  const tabParam = searchParams.get("tab") as TabType | null;
+  const activeTab: TabType = tabParam && validTabs.includes(tabParam) ? tabParam : "overview";
+
+  const setActiveTab = (tab: TabType) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tab);
+      // Clear modal params when switching tabs
+      next.delete("modal");
+      next.delete("empId");
+      return next;
+    }, { replace: true });
+  };
+
+  const modalParam = searchParams.get("modal");
+  const modalEmpId = searchParams.get("empId");
+
+  const setModalParam = (modal: string | null, empId?: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (modal) {
+        next.set("modal", modal);
+        if (empId) next.set("empId", empId);
+      } else {
+        next.delete("modal");
+        next.delete("empId");
+      }
+      return next;
+    }, { replace: true });
+  };
+
   const [selectedEmployee, setSelectedEmployee] = useState<typeof employees[0] | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
-  const [showMyBreakdown, setShowMyBreakdown] = useState(false);
-  const [showRunPayrollDialog, setShowRunPayrollDialog] = useState(false);
+
+  // Derive modal open states from URL
+  const showPayslipsPreview = modalParam === "payslips";
+  const showEditSalary = modalParam === "editSalary";
+  const showMyBreakdown = modalParam === "myBreakdown";
+  const showRunPayrollDialog = modalParam === "runPayroll";
+
+  // Restore selected employee from URL param on mount/change
+  useEffect(() => {
+    if (modalEmpId && employees.length > 0) {
+      const emp = employees.find(e => e.id === modalEmpId);
+      if (emp) setSelectedEmployee(emp);
+    }
+  }, [modalEmpId, employees]);
 
   // Filter employees by region (case-insensitive)
   const regionEmployees = employees.filter(e => 
@@ -261,6 +306,9 @@ const Payroll = () => {
         extra_hours: number;
         bank_hours_used: number;
         gross_pay: number;
+        income_tax: number;
+        social_security: number;
+        provident_fund: number;
         deductions: number;
         net_pay: number;
       }> = [];
@@ -321,7 +369,21 @@ const Payroll = () => {
 
         grossPay = payableHours * hourlyRate;
 
+        // Calculate deductions from employee record (stored monthly amounts)
+        const incomeTax = emp.income_tax || 0;
+        const socialSecurity = emp.social_security || 0;
+        const providentFund = emp.provident_fund || 0;
+        
+        // Prorate deductions based on pay period vs full month
+        const prorationFactor = standardMonthlyHours > 0 ? standardHoursInRange / standardMonthlyHours : 1;
+        const proratedIncomeTax = Math.round(incomeTax * prorationFactor * 100) / 100;
+        const proratedSocialSecurity = Math.round(socialSecurity * prorationFactor * 100) / 100;
+        const proratedProvidentFund = Math.round(providentFund * prorationFactor * 100) / 100;
+        const empDeductions = proratedIncomeTax + proratedSocialSecurity + proratedProvidentFund;
+        const netPay = grossPay - empDeductions;
+
         totalGross += grossPay;
+        totalDeductions += empDeductions;
         employeeCount++;
 
         employeePayrollDetails.push({
@@ -335,8 +397,11 @@ const Payroll = () => {
           extra_hours: Math.round(extraHours * 10) / 10,
           bank_hours_used: Math.round(bankHoursUsed * 10) / 10,
           gross_pay: Math.round(grossPay * 100) / 100,
-          deductions: 0,
-          net_pay: Math.round(grossPay * 100) / 100,
+          income_tax: proratedIncomeTax,
+          social_security: proratedSocialSecurity,
+          provident_fund: proratedProvidentFund,
+          deductions: Math.round(empDeductions * 100) / 100,
+          net_pay: Math.round(netPay * 100) / 100,
         });
 
         if (userId) {
@@ -380,6 +445,9 @@ const Payroll = () => {
             extra_hours: d.extra_hours,
             bank_hours_used: d.bank_hours_used,
             gross_pay: d.gross_pay,
+            income_tax: d.income_tax,
+            social_security: d.social_security,
+            provident_fund: d.provident_fund,
             deductions: d.deductions,
             net_pay: d.net_pay,
           }));
@@ -420,7 +488,7 @@ const Payroll = () => {
           title: `Payroll Processed — ${periodLabel}`,
           description: `${employeeCount} employees | Total: ${currencySymbol}${totalGross.toLocaleString(undefined, { maximumFractionDigits: 0 })}. Extra hours saved.`,
         });
-        setShowRunPayrollDialog(false);
+        setModalParam(null);
       }
     } catch (err) {
       console.error("Payroll error:", err);
@@ -446,22 +514,32 @@ const Payroll = () => {
     const headers = [
       "Employee Name", "Department", "Hourly Rate",
       "Actual Hours", "Payable Hours", "Extra Hours", "Bank Hours Used",
-      "Gross Pay", "Deductions", "Net Pay"
+      "Gross Pay", "Income Tax", "Social Security", "Provident Fund",
+      "Total Deductions", "Net Pay"
     ];
 
-    const rows = details.map((d: any) => [
-      `"${d.employee_name}"`,
-      d.department || "",
-      d.hourly_rate || 0,
-      d.actual_hours || 0,
-      d.payable_hours || 0,
-      d.extra_hours || 0,
-      d.bank_hours_used || 0,
-      d.gross_pay || 0,
-      d.deductions || 0,
-      d.net_pay || 0,
-      d.net_pay || 0,
-    ].join(","));
+    const rows = details.map((d: any) => {
+      // Attempt to extract individual deduction fields; fall back to 0
+      const incomeTax = d.income_tax ?? 0;
+      const socialSecurity = d.social_security ?? 0;
+      const providentFund = d.provident_fund ?? 0;
+      const totalDed = d.deductions || (incomeTax + socialSecurity + providentFund);
+      return [
+        `"${d.employee_name}"`,
+        d.department || "",
+        d.hourly_rate || 0,
+        d.actual_hours || 0,
+        d.payable_hours || 0,
+        d.extra_hours || 0,
+        d.bank_hours_used || 0,
+        d.gross_pay || 0,
+        incomeTax,
+        socialSecurity,
+        providentFund,
+        totalDed,
+        d.net_pay || 0,
+      ].join(",");
+    });
 
     const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -486,11 +564,14 @@ const Payroll = () => {
       "Department",
       "Job Title",
       "Pay Type",
-      "Annual Salary",
+      "Monthly Salary",
       "Hourly Rate",
       "Hours Worked",
       "Gross Pay",
-      "Deductions",
+      "Income Tax",
+      "Social Security",
+      "Provident Fund",
+      "Total Deductions",
       "Net Pay"
     ];
 
@@ -502,27 +583,13 @@ const Payroll = () => {
       if (emp.pay_type === "hourly" && emp.hourly_rate) {
         grossPay = hoursWorked * emp.hourly_rate;
       } else if (emp.salary) {
-        // salary is monthly gross
         grossPay = emp.salary;
       }
 
-      let totalDeductions = 0;
-      if (region === "US") {
-        totalDeductions = grossPay * (
-          (taxRates.federal || 0) + 
-          (taxRates.state || 0) + 
-          (taxRates.fica || 0) + 
-          (taxRates.medicare || 0)
-        );
-      } else {
-        const rates = taxRates as { incomeTax: number; socialSecurity: number; providentFund: number };
-        totalDeductions = grossPay * (
-          (rates.incomeTax || 0) + 
-          (rates.socialSecurity || 0) + 
-          (rates.providentFund || 0)
-        );
-      }
-
+      const incomeTax = emp.income_tax || 0;
+      const socialSecurity = emp.social_security || 0;
+      const providentFund = emp.provident_fund || 0;
+      const totalDeductions = incomeTax + socialSecurity + providentFund;
       const netPay = grossPay - totalDeductions;
 
       return [
@@ -535,6 +602,9 @@ const Payroll = () => {
         emp.hourly_rate || 0,
         hoursWorked.toFixed(1),
         grossPay.toFixed(2),
+        incomeTax.toFixed(2),
+        socialSecurity.toFixed(2),
+        providentFund.toFixed(2),
         totalDeductions.toFixed(2),
         netPay.toFixed(2)
       ].join(",");
@@ -611,7 +681,7 @@ const Payroll = () => {
 
   const handleEditEmployee = (employee: typeof employees[0]) => {
     setSelectedEmployee(employee);
-    setShowEditSalary(true);
+    setModalParam("editSalary", employee.id);
   };
 
   const handleSaveEmployee = async (employeeId: string, updates: Partial<typeof employees[0]>) => {
@@ -664,7 +734,7 @@ const Payroll = () => {
             Export
           </Button>
           {isVP && (
-            <Button className="gap-2 shadow-md" onClick={() => setShowRunPayrollDialog(true)} disabled={isCalculating}>
+            <Button className="gap-2 shadow-md" onClick={() => setModalParam("runPayroll")} disabled={isCalculating}>
               {isCalculating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
               {isCalculating ? "Processing..." : "Run Payroll"}
             </Button>
@@ -881,7 +951,7 @@ const Payroll = () => {
                   <Button 
                     variant="outline" 
                     className="w-full justify-start gap-2 mb-2"
-                    onClick={() => setShowPayslipsPreview(true)}
+                    onClick={() => setModalParam("payslips")}
                   >
                     <FileText className="h-4 w-4" />
                     Preview Payslips
@@ -1167,7 +1237,7 @@ const Payroll = () => {
                         });
                         if (myEmployee && myEmployee.salary) {
                           setSelectedEmployee(myEmployee);
-                          setShowMyBreakdown(true);
+                          setModalParam("myBreakdown", myEmployee.id);
                         } else {
                           toast({ title: "No salary data", description: "Your salary information has not been set up yet.", variant: "destructive" });
                         }
@@ -1211,14 +1281,14 @@ const Payroll = () => {
       {/* Dialogs */}
       <RunPayrollDialog
         open={showRunPayrollDialog}
-        onOpenChange={setShowRunPayrollDialog}
+        onOpenChange={(open) => setModalParam(open ? "runPayroll" : null)}
         onRun={handleRunPayroll}
         isProcessing={isCalculating}
       />
 
       <PayslipsPreviewDialog
         open={showPayslipsPreview}
-        onOpenChange={setShowPayslipsPreview}
+        onOpenChange={(open) => setModalParam(open ? "payslips" : null)}
         employees={regionEmployees}
         region={region}
         taxRates={taxRates}
@@ -1227,7 +1297,7 @@ const Payroll = () => {
 
       <EditEmployeeSalaryDialog
         open={showEditSalary}
-        onOpenChange={setShowEditSalary}
+        onOpenChange={(open) => setModalParam(open ? "editSalary" : null)}
         employee={selectedEmployee}
         employees={employees}
         onSave={handleSaveEmployee}
@@ -1235,7 +1305,7 @@ const Payroll = () => {
 
       <SalaryBreakdownDialog
         open={showMyBreakdown}
-        onOpenChange={setShowMyBreakdown}
+        onOpenChange={(open) => setModalParam(open ? "myBreakdown" : null)}
         employee={selectedEmployee}
         editable={false}
       />
