@@ -378,6 +378,7 @@ const Payroll = () => {
             actual_hours: d.actual_hours,
             payable_hours: d.payable_hours,
             extra_hours: d.extra_hours,
+            bank_hours_used: d.bank_hours_used,
             gross_pay: d.gross_pay,
             deductions: d.deductions,
             net_pay: d.net_pay,
