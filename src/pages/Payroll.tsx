@@ -58,7 +58,7 @@ import { NepalPayrollTable } from "@/components/payroll/NepalPayrollTable";
 import { SalaryBreakdownDialog } from "@/components/payroll/SalaryBreakdownDialog";
 
 const Payroll = () => {
-  const { isVP, isManager, profile } = useAuth();
+  const { isVP, isManager, profile, user } = useAuth();
   const { payrollRuns, loading, region, setRegion, createPayrollRun, processPayroll, getTaxRates } = usePayroll();
   const { employees, updateEmployee, refetch: refetchEmployees } = useEmployees();
   const { teamAttendance, loading: attendanceLoading } = useTeamAttendance();
