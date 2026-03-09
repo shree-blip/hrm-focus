@@ -17,6 +17,7 @@ export interface PayrollExportRow {
   "Income Tax": number;
   "Social Security": number;
   "Provident Fund": number;
+  "Loan EMI": number;
   "Total Deductions": number;
   "Net Pay": number;
 }
@@ -77,6 +78,8 @@ export function mapDetailToExportRow(
     totalDed = d.deductions || (incomeTax + socialSecurity + providentFund);
   }
 
+  const loanEmi = d.loan_emi || 0;
+
   return {
     "Employee Name": d.employee_name,
     Department: d.department || "",
@@ -91,7 +94,8 @@ export function mapDetailToExportRow(
     "Income Tax": incomeTax,
     "Social Security": socialSecurity,
     "Provident Fund": providentFund,
-    "Total Deductions": totalDed,
-    "Net Pay": d.net_pay || (grossPay - totalDed),
+    "Loan EMI": loanEmi,
+    "Total Deductions": totalDed + loanEmi,
+    "Net Pay": d.net_pay || (grossPay - totalDed - loanEmi),
   };
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { calculateEMI, LoanPolicy } from "@/lib/loanCalculations";
+import { calculateEMI, generateAmortizationSchedule, FIXED_ANNUAL_RATE, LoanPolicy } from "@/lib/loanCalculations";
 
 export function useLoans() {
   const { user, isAdmin, isVP, isLineManager } = useAuth();
@@ -11,6 +11,8 @@ export function useLoans() {
   const [managerHistory, setManagerHistory] = useState<any[]>([]);
   const [vpQueue, setVpQueue] = useState<any[]>([]);
   const [vpHistory, setVpHistory] = useState<any[]>([]);
+  const [activeDisbursed, setActiveDisbursed] = useState<any[]>([]);
+  const [repayments, setRepayments] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [employeeData, setEmployeeData] = useState<any>(null);
   const [loanPolicy, setLoanPolicy] = useState<LoanPolicy | null>(null);
@@ -119,12 +121,25 @@ export function useLoans() {
         .select(
           "*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)",
         )
-        .in("status", ["approved", "rejected", "disbursed"])
+        .in("status", ["approved", "rejected", "disbursed", "closed"])
         .order("created_at", { ascending: false });
       if (vpHistErr) {
         console.error("Error fetching VP history:", vpHistErr.message);
       }
       if (history) setVpHistory(history);
+
+      // Fetch active disbursed loans (for repayment tracking)
+      const { data: disbursed, error: disbErr } = await supabase
+        .from("loan_requests")
+        .select(
+          "*, employees!loan_requests_employee_id_fkey(first_name, last_name, employee_id, department, position_level)",
+        )
+        .eq("status", "disbursed")
+        .order("created_at", { ascending: false });
+      if (disbErr) {
+        console.error("Error fetching disbursed loans:", disbErr.message);
+      }
+      if (disbursed) setActiveDisbursed(disbursed);
     } catch (err) {
       console.error("Unexpected error in fetchVPQueue:", err);
     }
@@ -148,6 +163,10 @@ export function useLoans() {
       .on("postgres_changes", { event: "*", schema: "public", table: "loan_requests" }, () => {
         fetchMyLoans();
         fetchManagerQueue();
+        fetchVPQueue();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "loan_repayments" }, () => {
+        fetchMyLoans();
         fetchVPQueue();
       })
       .subscribe();
@@ -185,7 +204,7 @@ export function useLoans() {
   }) => {
     if (!user || !employeeData || !loanPolicy) return null;
 
-    const emi = calculateEMI(data.amount, loanPolicy.interest_rate, data.term_months);
+    const emi = calculateEMI(data.amount, FIXED_ANNUAL_RATE, data.term_months);
     const vpUserId = await resolveVP();
 
     if (!vpUserId) {
@@ -201,7 +220,7 @@ export function useLoans() {
         org_id: employeeData.org_id,
         amount: data.amount,
         term_months: data.term_months,
-        interest_rate: loanPolicy.interest_rate,
+        interest_rate: FIXED_ANNUAL_RATE,
         reason_type: data.reason_type,
         estimated_monthly_installment: emi,
         auto_deduction_consent: data.auto_deduction_consent,
@@ -210,7 +229,7 @@ export function useLoans() {
         signed_at: new Date().toISOString(),
         position_level: employeeData.position_level,
         max_eligible_amount: loanPolicy.max_loan,
-        status: "pending_vp",
+        status: "pending_manager",
         submitted_at: new Date().toISOString(),
         vp_user_id: vpUserId,
       })
@@ -269,7 +288,7 @@ export function useLoans() {
       }
     }
 
-    toast({ title: "Loan Request Submitted", description: "Your request has been sent to the VP for approval." });
+    toast({ title: "Loan Request Submitted", description: "Your request has been sent to your manager for approval." });
     await refetchAll();
     return lr;
   };
@@ -419,15 +438,39 @@ export function useLoans() {
 
   const disburseLoan = async (loanId: string, disbursementDate: string) => {
     if (!user) return;
-    const { error } = await supabase.from("loan_requests").update({ status: "disbursed" }).eq("id", loanId);
+
+    // Find the loan to get amount/term for amortization schedule
+    const allLoans = [...vpHistory, ...vpQueue, ...activeDisbursed];
+    const loan = allLoans.find((l) => l.id === loanId);
+    let amortizationSchedule = null;
+    let remainingBalance = loan?.amount || 0;
+
+    if (loan) {
+      amortizationSchedule = generateAmortizationSchedule(
+        Number(loan.amount),
+        FIXED_ANNUAL_RATE,
+        loan.term_months,
+      );
+      remainingBalance = Number(loan.amount);
+    }
+
+    const { error } = await supabase
+      .from("loan_requests")
+      .update({
+        status: "disbursed",
+        disbursed_at: new Date().toISOString(),
+        remaining_balance: remainingBalance,
+        amortization_schedule: amortizationSchedule,
+      })
+      .eq("id", loanId);
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
-    await logAudit(loanId, "loan_disbursed", { disbursementDate });
-    toast({ title: "Loan Disbursed" });
+    await logAudit(loanId, "loan_disbursed", { disbursementDate, remainingBalance });
+    toast({ title: "Loan Disbursed", description: "Amortization schedule has been stored." });
     await refetchAll();
   };
 
@@ -445,6 +488,56 @@ export function useLoans() {
     await refetchAll();
   };
 
+  const recordRepayment = async (loanId: string, amount: number) => {
+    if (!user) return;
+
+    const { data, error } = await supabase.rpc("record_loan_repayment", {
+      p_loan_request_id: loanId,
+      p_amount: amount,
+      p_recorded_by: user.id,
+    });
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    const result = data as any;
+    if (result && !result.success) {
+      toast({ title: "Error", description: result.error || "Failed to record repayment", variant: "destructive" });
+      return;
+    }
+
+    if (result?.auto_closed) {
+      toast({ title: "Loan Closed", description: "All repayments complete. Loan has been automatically closed." });
+    } else {
+      toast({
+        title: "Repayment Recorded",
+        description: `Remaining balance: $${Number(result?.remaining_balance || 0).toFixed(2)}`,
+      });
+    }
+
+    await refetchAll();
+  };
+
+  const fetchRepayments = async (loanId: string) => {
+    const { data, error } = await supabase
+      .from("loan_repayments")
+      .select("*")
+      .eq("loan_request_id", loanId)
+      .order("month_number", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching repayments:", error.message);
+      return [];
+    }
+
+    if (data) {
+      setRepayments((prev) => ({ ...prev, [loanId]: data }));
+    }
+    return data || [];
+  };
+
   return {
     myLoans,
     loading,
@@ -454,6 +547,8 @@ export function useLoans() {
     managerHistory,
     vpQueue,
     vpHistory,
+    activeDisbursed,
+    repayments,
     isLineManager,
     isVP,
     createLoanRequest,
@@ -461,6 +556,8 @@ export function useLoans() {
     vpDecision,
     disburseLoan,
     deleteLoanRequest,
+    recordRepayment,
+    fetchRepayments,
     refetchAll,
   };
 }

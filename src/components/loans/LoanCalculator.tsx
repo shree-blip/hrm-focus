@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Calculator, Languages } from "lucide-react";
-import { calculateEMI, generateAmortizationSchedule, getTotalInterest, getTotalPayment } from "@/lib/loanCalculations";
+import { calculateEMI, generateAmortizationSchedule, getTotalInterest, getTotalPayment, FIXED_ANNUAL_RATE } from "@/lib/loanCalculations";
 
 const LABELS_EN = {
   title: "Loan Calculator",

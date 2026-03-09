@@ -1,21 +1,28 @@
-// Loan calculation utilities - dynamic interest from policy, reducing balance amortization
+// Loan calculation utilities - 3% fixed interest, reducing balance amortization
+
+/** Fixed annual interest rate for all loans */
+export const FIXED_ANNUAL_RATE = 3;
 
 export const SIMPLIFIED_STATUSES = [
   "draft",
+  "pending_manager",
   "pending_vp",
   "approved",
   "rejected",
   "disbursed",
+  "closed",
 ] as const;
 
 export type SimplifiedLoanStatus = (typeof SIMPLIFIED_STATUSES)[number];
 
 export const SIMPLIFIED_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
+  pending_manager: "Pending Manager",
   pending_vp: "Pending VP",
   approved: "Approved",
   rejected: "Rejected",
   disbursed: "Disbursed",
+  closed: "Closed",
 };
 
 export interface LoanPolicy {

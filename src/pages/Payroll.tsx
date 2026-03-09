@@ -62,6 +62,7 @@ import { PayrollDataGrid, type PayrollRow } from "@/components/payroll/PayrollDa
 import { PayrollExportPreviewDialog } from "@/components/payroll/PayrollExportPreviewDialog";
 import { exportPayrollCSV, mapDetailToExportRow } from "@/lib/payrollCsvExport";
 import { calculateWorkingHours, calculateMonthlyWorkingHours, hourlyRateFromSalary, calculateDeductions, HOURS_PER_DAY } from "@/lib/payrollHours";
+import { calculateEMI, FIXED_ANNUAL_RATE } from "@/lib/loanCalculations";
 
 const Payroll = () => {
   const { isVP, isManager, profile, user } = useAuth();
@@ -108,6 +109,7 @@ const Payroll = () => {
   const [viewRunId, setViewRunId] = useState<string | null>(searchParams.get("runId"));
   const [viewRunRows, setViewRunRows] = useState<PayrollRow[]>([]);
   const [viewRunPeriod, setViewRunPeriod] = useState<{ start: string; end: string } | null>(null);
+  const [activeLoansForPreview, setActiveLoansForPreview] = useState<any[]>([]);
 
   // Derive modal open states from URL
   const showPayslipsPreview = modalParam === "payslips";
@@ -123,6 +125,18 @@ const Payroll = () => {
       if (emp) setSelectedEmployee(emp);
     }
   }, [modalEmpId, employees]);
+
+  // Fetch active (disbursed) loans for export preview
+  useEffect(() => {
+    if (!isVP) return;
+    supabase
+      .from("loan_requests")
+      .select("id, employee_id, amount, term_months, interest_rate, remaining_balance, estimated_monthly_installment, status, disbursed_at")
+      .in("status", ["disbursed"])
+      .then(({ data }) => {
+        if (data) setActiveLoansForPreview(data);
+      });
+  }, [isVP]);
 
   // Filter employees by region (case-insensitive)
   const regionEmployees = employees.filter(e => 
@@ -262,6 +276,32 @@ const Payroll = () => {
       // Track time bank updates to apply after payroll
       const timeBankUpdates: { id: string; addUsedHours: number }[] = [];
 
+      // ── Fetch active (disbursed) loans for EMI deduction ──
+      const { data: activeLoans } = await supabase
+        .from("loan_requests")
+        .select("id, employee_id, user_id, amount, term_months, interest_rate, remaining_balance, estimated_monthly_installment, status, disbursed_at")
+        .in("status", ["disbursed"]);
+
+      // Build map: employee_id → array of active loans
+      const loansByEmployee = new Map<string, Array<{
+        id: string; emi: number; remainingBalance: number;
+      }>>();
+      activeLoans?.forEach(loan => {
+        if (!loan.employee_id) return;
+        // Only deduct if loan was disbursed before or during the pay period end
+        if (loan.disbursed_at && new Date(loan.disbursed_at) > periodEnd) return;
+        const emi = loan.estimated_monthly_installment
+          || calculateEMI(Number(loan.amount), loan.interest_rate ?? FIXED_ANNUAL_RATE, loan.term_months);
+        const remaining = Number(loan.remaining_balance ?? loan.amount);
+        if (remaining <= 0) return;
+        const arr = loansByEmployee.get(loan.employee_id) || [];
+        arr.push({ id: loan.id, emi: Math.round(emi * 100) / 100, remainingBalance: remaining });
+        loansByEmployee.set(loan.employee_id, arr);
+      });
+
+      // Track EMI deductions to record via RPC after payroll run is created
+      const emiDeductions: Array<{ loanId: string; amount: number }> = [];
+
       let totalGross = 0;
       let totalDeductions = 0;
       let employeeCount = 0;
@@ -287,6 +327,7 @@ const Payroll = () => {
         income_tax: number;
         social_security: number;
         provident_fund: number;
+        loan_emi: number;
         deductions: number;
         net_pay: number;
       }> = [];
@@ -349,10 +390,29 @@ const Payroll = () => {
 
         // Calculate deductions using system formulas (rate × gross pay)
         const ded = calculateDeductions(grossPay, region);
-        const netPay = grossPay - ded.totalDeductions;
+
+        // ── EMI deduction for active loans ──
+        let totalLoanEmi = 0;
+        const empLoans = loansByEmployee.get(emp.id);
+        if (empLoans) {
+          for (const loan of empLoans) {
+            // Cap EMI: remaining balance or EMI, whichever is smaller
+            let emiAmount = Math.min(loan.emi, loan.remainingBalance);
+            // Prevent negative net pay: cap total EMI so net >= 0
+            const availableForEmi = grossPay - ded.totalDeductions - totalLoanEmi;
+            if (availableForEmi <= 0) break;
+            emiAmount = Math.min(emiAmount, availableForEmi);
+            if (emiAmount <= 0) break;
+            emiAmount = Math.round(emiAmount * 100) / 100;
+            totalLoanEmi += emiAmount;
+            emiDeductions.push({ loanId: loan.id, amount: emiAmount });
+          }
+        }
+
+        const netPay = grossPay - ded.totalDeductions - totalLoanEmi;
 
         totalGross += grossPay;
-        totalDeductions += ded.totalDeductions;
+        totalDeductions += ded.totalDeductions + totalLoanEmi;
         employeeCount++;
 
         employeePayrollDetails.push({
@@ -369,7 +429,8 @@ const Payroll = () => {
           income_tax: ded.incomeTax,
           social_security: ded.socialSecurity,
           provident_fund: ded.providentFund,
-          deductions: ded.totalDeductions,
+          loan_emi: totalLoanEmi,
+          deductions: ded.totalDeductions + totalLoanEmi,
           net_pay: Math.round(netPay * 100) / 100,
         });
 
@@ -417,11 +478,22 @@ const Payroll = () => {
             income_tax: d.income_tax,
             social_security: d.social_security,
             provident_fund: d.provident_fund,
+            loan_emi: d.loan_emi,
             deductions: d.deductions,
             net_pay: d.net_pay,
           }));
 
           await supabase.from("payroll_run_details").insert(detailInserts);
+        }
+
+        // Record EMI deductions via RPC (creates loan_repayments + updates balances)
+        for (const emi of emiDeductions) {
+          await (supabase.rpc as any)("record_payroll_emi_deduction", {
+            p_loan_request_id: emi.loanId,
+            p_payroll_run_id: result.id,
+            p_emi_amount: emi.amount,
+            p_recorded_by: user?.id,
+          });
         }
 
         // Save NEW extra hours to overtime_bank for this period
@@ -519,6 +591,7 @@ const Payroll = () => {
       income_tax: d.income_tax ?? 0,
       social_security: d.social_security ?? 0,
       provident_fund: d.provident_fund ?? 0,
+      loan_emi: d.loan_emi ?? 0,
       deductions: d.deductions || 0,
       net_pay: d.net_pay || 0,
     }));
@@ -1334,6 +1407,7 @@ const Payroll = () => {
         employees={regionEmployees}
         region={region}
         teamAttendance={teamAttendance}
+        activeLoans={activeLoansForPreview}
       />
     </DashboardLayout>
   );

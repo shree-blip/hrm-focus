@@ -25,6 +25,7 @@ import {
   hourlyRateFromSalary,
   calculateDeductions,
 } from "@/lib/payrollHours";
+import { calculateEMI, FIXED_ANNUAL_RATE } from "@/lib/loanCalculations";
 
 interface Employee {
   id: string;
@@ -49,6 +50,15 @@ interface PayrollExportPreviewDialogProps {
   employees: Employee[];
   region: string;
   teamAttendance: Attendance[];
+  activeLoans?: Array<{
+    id: string;
+    employee_id: string | null;
+    amount: number;
+    term_months: number;
+    interest_rate: number | null;
+    remaining_balance: number | null;
+    estimated_monthly_installment: number | null;
+  }>;
 }
 
 interface PreviewRow {
@@ -64,6 +74,7 @@ interface PreviewRow {
   incomeTax: number;
   socialSecurity: number;
   providentFund: number;
+  loanEmi: number;
   totalDeductions: number;
   netPay: number;
 }
@@ -74,12 +85,25 @@ export function PayrollExportPreviewDialog({
   employees,
   region,
   teamAttendance,
+  activeLoans,
 }: PayrollExportPreviewDialogProps) {
   const currencySymbol = region === "US" ? "$" : "₨";
 
   const { rows, workDays, monthlyReqHours } = useMemo(() => {
     const { workDays, requiredHours } = calculateMonthlyWorkingHours(new Date());
     const result: PreviewRow[] = [];
+
+    // Build loan map: employee_id → total EMI
+    const emiByEmployee = new Map<string, number>();
+    activeLoans?.forEach(loan => {
+      if (!loan.employee_id) return;
+      const remaining = Number(loan.remaining_balance ?? loan.amount);
+      if (remaining <= 0) return;
+      const emi = loan.estimated_monthly_installment
+        || calculateEMI(Number(loan.amount), loan.interest_rate ?? FIXED_ANNUAL_RATE, loan.term_months);
+      const prev = emiByEmployee.get(loan.employee_id) || 0;
+      emiByEmployee.set(loan.employee_id, prev + Math.min(Math.round(emi * 100) / 100, remaining));
+    });
 
     employees.forEach((emp) => {
       const attendance = teamAttendance.find((a) => a.employee_id === emp.id);
@@ -98,7 +122,13 @@ export function PayrollExportPreviewDialog({
 
       // Calculate deductions from system formulas (rate × gross pay)
       const ded = calculateDeductions(grossPay, region);
-      const netPay = grossPay - ded.totalDeductions;
+
+      // Loan EMI (capped to avoid negative net)
+      let loanEmi = emiByEmployee.get(emp.id) || 0;
+      const availableForEmi = grossPay - ded.totalDeductions;
+      if (loanEmi > availableForEmi) loanEmi = Math.max(0, availableForEmi);
+
+      const netPay = grossPay - ded.totalDeductions - loanEmi;
 
       result.push({
         name: `${emp.first_name} ${emp.last_name}`,
@@ -113,13 +143,14 @@ export function PayrollExportPreviewDialog({
         incomeTax: ded.incomeTax,
         socialSecurity: ded.socialSecurity,
         providentFund: ded.providentFund,
-        totalDeductions: ded.totalDeductions,
+        loanEmi: Math.round(loanEmi * 100) / 100,
+        totalDeductions: ded.totalDeductions + loanEmi,
         netPay: Math.round(netPay * 100) / 100,
       });
     });
 
     return { rows: result, workDays, monthlyReqHours: requiredHours };
-  }, [employees, teamAttendance, region]);
+  }, [employees, teamAttendance, region, activeLoans]);
 
   const totals = useMemo(() => {
     return rows.reduce(
@@ -128,10 +159,11 @@ export function PayrollExportPreviewDialog({
         incomeTax: acc.incomeTax + r.incomeTax,
         socialSecurity: acc.socialSecurity + r.socialSecurity,
         providentFund: acc.providentFund + r.providentFund,
+        loanEmi: acc.loanEmi + r.loanEmi,
         totalDeductions: acc.totalDeductions + r.totalDeductions,
         netPay: acc.netPay + r.netPay,
       }),
-      { grossPay: 0, incomeTax: 0, socialSecurity: 0, providentFund: 0, totalDeductions: 0, netPay: 0 }
+      { grossPay: 0, incomeTax: 0, socialSecurity: 0, providentFund: 0, loanEmi: 0, totalDeductions: 0, netPay: 0 }
     );
   }, [rows]);
 
@@ -149,6 +181,7 @@ export function PayrollExportPreviewDialog({
       "Income Tax": r.incomeTax,
       "Social Security": r.socialSecurity,
       "Provident Fund": r.providentFund,
+      "Loan EMI": r.loanEmi,
       "Total Deductions": r.totalDeductions,
       "Net Pay": r.netPay,
     }));
@@ -198,6 +231,7 @@ export function PayrollExportPreviewDialog({
                 <TableHead className="text-right">Income Tax</TableHead>
                 <TableHead className="text-right">Social Sec</TableHead>
                 <TableHead className="text-right">Prov Fund</TableHead>
+                <TableHead className="text-right">Loan EMI</TableHead>
                 <TableHead className="text-right">Total Ded</TableHead>
                 <TableHead className="text-right font-semibold">
                   Net Pay
@@ -208,7 +242,7 @@ export function PayrollExportPreviewDialog({
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={14}
+                    colSpan={15}
                     className="text-center py-8 text-muted-foreground"
                   >
                     No employees found for this region
@@ -252,6 +286,9 @@ export function PayrollExportPreviewDialog({
                       <TableCell className="text-right text-muted-foreground">
                         {fmt(r.providentFund)}
                       </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {r.loanEmi > 0 ? fmt(r.loanEmi) : "-"}
+                      </TableCell>
                       <TableCell className="text-right text-destructive">
                         {fmt(r.totalDeductions)}
                       </TableCell>
@@ -277,6 +314,9 @@ export function PayrollExportPreviewDialog({
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {fmt(totals.providentFund)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {totals.loanEmi > 0 ? fmt(totals.loanEmi) : "-"}
                     </TableCell>
                     <TableCell className="text-right text-destructive">
                       {fmt(totals.totalDeductions)}

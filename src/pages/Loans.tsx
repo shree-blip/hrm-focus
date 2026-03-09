@@ -5,6 +5,7 @@ import { ManagerPanel } from "@/components/loans/ManagerPanel";
 import { VPPanel } from "@/components/loans/VPPanel";
 import { LoanCalculator } from "@/components/loans/LoanCalculator";
 import { useLoans } from "@/hooks/useLoans";
+import { FIXED_ANNUAL_RATE } from "@/lib/loanCalculations";
 import { Loader2 } from "lucide-react";
 import { usePersistentState } from "@/hooks/usePersistentState";
 
@@ -19,6 +20,8 @@ export default function Loans() {
     managerHistory,
     vpQueue,
     vpHistory,
+    activeDisbursed,
+    repayments,
     isLineManager,
     isVP,
     createLoanRequest,
@@ -26,8 +29,14 @@ export default function Loans() {
     vpDecision,
     disburseLoan,
     deleteLoanRequest,
+    recordRepayment,
+    fetchRepayments,
   } = useLoans();
-  const normalizedActiveTab = !isVP && activeTab === "vp" ? "my-loans" : activeTab;
+
+  // Normalize tab if user doesn't have permission for the current tab
+  let normalizedActiveTab = activeTab;
+  if (!isVP && activeTab === "vp") normalizedActiveTab = "my-loans";
+  if (!isLineManager && activeTab === "manager") normalizedActiveTab = "my-loans";
 
   if (loading) {
     return (
@@ -51,6 +60,7 @@ export default function Loans() {
           <TabsList className="flex-wrap">
             <TabsTrigger value="my-loans">My Loans</TabsTrigger>
             <TabsTrigger value="calculator">Calculator</TabsTrigger>
+            {isLineManager && <TabsTrigger value="manager">Manager Review</TabsTrigger>}
             {isVP && <TabsTrigger value="vp">CEO / Finance</TabsTrigger>}
           </TabsList>
 
@@ -61,6 +71,8 @@ export default function Loans() {
               loanPolicy={loanPolicy}
               onCreateLoan={createLoanRequest}
               onDeleteLoan={deleteLoanRequest}
+              fetchRepayments={fetchRepayments}
+              repayments={repayments}
               isVP={isVP}
             />
           </TabsContent>
@@ -69,15 +81,34 @@ export default function Loans() {
             <div className="max-w-xl">
               <LoanCalculator
                 maxAmount={loanPolicy?.max_loan ?? 2500}
-                interestRate={loanPolicy?.interest_rate ?? 5}
+                interestRate={FIXED_ANNUAL_RATE}
                 allowedTerms={loanPolicy?.allowed_terms}
               />
             </div>
           </TabsContent>
 
+          {isLineManager && (
+            <TabsContent value="manager">
+              <ManagerPanel
+                pendingRequests={pendingForManager}
+                history={managerHistory}
+                onDecision={managerDecision}
+              />
+            </TabsContent>
+          )}
+
           {isVP && (
             <TabsContent value="vp">
-              <VPPanel vpQueue={vpQueue} vpHistory={vpHistory} onDecision={vpDecision} onDisburse={disburseLoan} />
+              <VPPanel
+                vpQueue={vpQueue}
+                vpHistory={vpHistory}
+                activeDisbursed={activeDisbursed}
+                repayments={repayments}
+                onDecision={vpDecision}
+                onDisburse={disburseLoan}
+                onRecordRepayment={recordRepayment}
+                fetchRepayments={fetchRepayments}
+              />
             </TabsContent>
           )}
         </Tabs>

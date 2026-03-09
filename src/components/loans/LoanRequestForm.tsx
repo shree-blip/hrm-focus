@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { LoanPolicy } from "@/lib/loanCalculations";
-import { AlertTriangle, CheckCircle2, Shield } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LoanPolicy, FIXED_ANNUAL_RATE, calculateEMI, generateAmortizationSchedule, getTotalInterest, getTotalPayment } from "@/lib/loanCalculations";
+import { AlertTriangle, CheckCircle2, Shield, Calculator } from "lucide-react";
 
 interface LoanRequestFormProps {
   open: boolean;
@@ -37,6 +38,16 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
   const canSubmit = hasPolicy && amount > 0 && amount <= maxAmount &&
     termMonths > 0 && allowedTerms.includes(termMonths) &&
     autoDeductionConsent && eSignature.trim().length > 0;
+
+  // EMI preview calculation
+  const emiPreview = useMemo(() => {
+    if (amount <= 0 || termMonths <= 0) return null;
+    const emi = calculateEMI(amount, FIXED_ANNUAL_RATE, termMonths);
+    const schedule = generateAmortizationSchedule(amount, FIXED_ANNUAL_RATE, termMonths);
+    const totalInterest = getTotalInterest(schedule);
+    const totalPayment = getTotalPayment(schedule);
+    return { emi, schedule, totalInterest, totalPayment };
+  }, [amount, termMonths]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -89,7 +100,7 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
               <CheckCircle2 className="h-4 w-4 text-green-500" />
               <AlertDescription>
                 Max loan: <Badge variant="secondary">${maxAmount.toLocaleString()}</Badge> · 
-                Interest: {loanPolicy.interest_rate}% p.a. · 
+                Interest: {FIXED_ANNUAL_RATE}% p.a. (fixed) · 
                 Terms: {allowedTerms.join(', ')} months
               </AlertDescription>
             </Alert>
@@ -140,6 +151,57 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
                 rows={2}
               />
             </div>
+
+            {/* EMI Preview */}
+            {emiPreview && (
+              <div className="space-y-3 border rounded-lg p-3">
+                <p className="text-sm font-medium flex items-center gap-1">
+                  <Calculator className="h-4 w-4" /> Repayment Preview
+                  <Badge variant="outline" className="ml-auto text-xs">{FIXED_ANNUAL_RATE}% p.a. · Reducing Balance</Badge>
+                </p>
+                <div className="grid grid-cols-3 gap-2 p-2 bg-muted rounded-md text-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Monthly EMI</p>
+                    <p className="text-sm font-bold text-primary">${emiPreview.emi.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total Interest</p>
+                    <p className="text-sm font-bold">${emiPreview.totalInterest.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total Payment</p>
+                    <p className="text-sm font-bold">${emiPreview.totalPayment.toFixed(2)}</p>
+                  </div>
+                </div>
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    View amortization schedule
+                  </summary>
+                  <Table className="mt-2">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs p-1">Month</TableHead>
+                        <TableHead className="text-xs p-1">EMI</TableHead>
+                        <TableHead className="text-xs p-1">Principal</TableHead>
+                        <TableHead className="text-xs p-1">Interest</TableHead>
+                        <TableHead className="text-xs p-1">Balance</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {emiPreview.schedule.map((row) => (
+                        <TableRow key={row.month}>
+                          <TableCell className="text-xs p-1">{row.month}</TableCell>
+                          <TableCell className="text-xs p-1">${row.emi.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs p-1">${row.principal.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs p-1">${row.interest.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs p-1">${row.closingBalance.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </details>
+              </div>
+            )}
 
             <div className="space-y-3 p-3 border rounded-lg">
               <div className="flex items-center gap-2">

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,31 +7,49 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import ForgotPassword from "./pages/ForgotPassword";
-import Profile from "./pages/Profile";
-import Employees from "./pages/Employees";
-import Attendance from "./pages/Attendance";
-import Leave from "./pages/Leave";
-import Approvals from "./pages/Approvals";
-import Tasks from "./pages/Tasks";
-import Payroll from "./pages/Payroll";
-import Performance from "./pages/Performance";
-import Documents from "./pages/Documents";
-import Onboarding from "./pages/Onboarding";
-import Settings from "./pages/Settings";
-import Notifications from "./pages/Notifications";
-import Reports from "./pages/Reports";
-import Announcements from "./pages/Announcements";
-import AccessControl from "./pages/AccessControl";
-import LogSheet from "./pages/LogSheet";
-import Support from "./pages/Support";
-import Loans from "./pages/Loans";
-import Invoices from "./pages/Invoices";
-import NotFound from "./pages/NotFound";
+import { Loader2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+// Lazy-load all page components for code-splitting
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Employees = lazy(() => import("./pages/Employees"));
+const Attendance = lazy(() => import("./pages/Attendance"));
+const Leave = lazy(() => import("./pages/Leave"));
+const Approvals = lazy(() => import("./pages/Approvals"));
+const Tasks = lazy(() => import("./pages/Tasks"));
+const Payroll = lazy(() => import("./pages/Payroll"));
+const Performance = lazy(() => import("./pages/Performance"));
+const Documents = lazy(() => import("./pages/Documents"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Announcements = lazy(() => import("./pages/Announcements"));
+const AccessControl = lazy(() => import("./pages/AccessControl"));
+const LogSheet = lazy(() => import("./pages/LogSheet"));
+const Support = lazy(() => import("./pages/Support"));
+const Loans = lazy(() => import("./pages/Loans"));
+const Invoices = lazy(() => import("./pages/Invoices"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,   // 5 min — avoid refetches on tab switches
+      gcTime: 10 * 60 * 1000,     // 10 min garbage collection
+      refetchOnWindowFocus: false, // prevent refetch storms on alt-tab
+      retry: 1,                    // single retry instead of default 3
+    },
+  },
+});
+
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -40,7 +59,8 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <ActivityAlertsProvider />
-          <Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Auth />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -66,6 +86,7 @@ const App = () => (
             <Route path="/invoices" element={<ProtectedRoute requiredPermission={["view_invoices", "manage_invoices"]}><Invoices /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

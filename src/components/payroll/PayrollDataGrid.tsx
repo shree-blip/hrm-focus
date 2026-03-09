@@ -26,6 +26,7 @@ export interface PayrollRow {
   income_tax: number;
   social_security: number;
   provident_fund: number;
+  loan_emi: number;
   deductions: number;
   net_pay: number;
 }
@@ -72,6 +73,7 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
       { field: "income_tax", headerName: "Income Tax", minWidth: 115, valueFormatter: currencyFormatter },
       { field: "social_security", headerName: "Social Sec.", minWidth: 115, valueFormatter: currencyFormatter },
       { field: "provident_fund", headerName: "Prov. Fund", minWidth: 115, valueFormatter: currencyFormatter },
+      { field: "loan_emi", headerName: "Loan EMI", minWidth: 110, valueFormatter: currencyFormatter },
       { field: "deductions", headerName: "Total Ded.", minWidth: 115, valueFormatter: currencyFormatter },
       { field: "net_pay", headerName: "Net Pay", pinned: "right", minWidth: 120, valueFormatter: currencyFormatter,
         cellStyle: { fontWeight: 600 },
@@ -112,6 +114,7 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
         income_tax: r.income_tax,
         social_security: r.social_security,
         provident_fund: r.provident_fund,
+        loan_emi: r.loan_emi,
         deductions: r.deductions,
         net_pay: r.net_pay,
       }, rangeReqHours, monthlyReqHours, workDays, region)

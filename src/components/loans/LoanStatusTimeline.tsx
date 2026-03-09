@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Circle, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Circle, Clock, XCircle, Lock } from "lucide-react";
 import { SIMPLIFIED_STATUSES, SIMPLIFIED_STATUS_LABELS, SimplifiedLoanStatus } from "@/lib/loanCalculations";
 
 interface LoanStatusTimelineProps {
@@ -9,6 +9,7 @@ interface LoanStatusTimelineProps {
 export function LoanStatusTimeline({ currentStatus }: LoanStatusTimelineProps) {
   const currentIndex = SIMPLIFIED_STATUSES.indexOf(currentStatus as SimplifiedLoanStatus);
   const isRejected = currentStatus === 'rejected';
+  const isClosed = currentStatus === 'closed';
 
   const displayStatuses = SIMPLIFIED_STATUSES.filter(s => s !== 'rejected');
 
@@ -25,19 +26,28 @@ export function LoanStatusTimeline({ currentStatus }: LoanStatusTimelineProps) {
           const statusIndex = SIMPLIFIED_STATUSES.indexOf(status);
           const isPast = !isRejected && statusIndex < currentIndex;
           const isCurrent = status === currentStatus;
-          const Icon = isCurrent ? Clock : isPast ? CheckCircle2 : Circle;
+          const isClosedStep = status === 'closed';
+          const Icon = isClosedStep && isClosed
+            ? Lock
+            : isCurrent
+            ? Clock
+            : isPast
+            ? CheckCircle2
+            : Circle;
 
           return (
             <div key={status} className="flex items-center">
               <div className="flex flex-col items-center min-w-[70px]">
                 <Icon className={cn("h-4 w-4 mb-1",
                   isPast && "text-green-500",
-                  isCurrent && "text-primary",
+                  isCurrent && !isClosedStep && "text-primary",
+                  isClosed && isClosedStep && "text-green-500",
                   !isPast && !isCurrent && "text-muted-foreground/40"
                 )} />
                 <span className={cn("text-[10px] text-center leading-tight",
                   isCurrent && "font-bold text-primary",
                   isPast && "text-green-600",
+                  isClosed && isClosedStep && "font-bold text-green-600",
                   !isPast && !isCurrent && "text-muted-foreground/50"
                 )}>
                   {SIMPLIFIED_STATUS_LABELS[status]}
