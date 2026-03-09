@@ -2661,118 +2661,6 @@ export type Database = {
           },
         ]
       }
-      promotion_requests: {
-        Row: {
-          id: string
-          employee_id: string
-          requested_by: string
-          current_title: string | null
-          current_salary: number | null
-          new_title: string
-          new_salary: number
-          effective_date: string
-          reason: string | null
-          status: string
-          reviewed_by: string | null
-          reviewed_at: string | null
-          rejection_reason: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          employee_id: string
-          requested_by: string
-          current_title?: string | null
-          current_salary?: number | null
-          new_title: string
-          new_salary: number
-          effective_date: string
-          reason?: string | null
-          status?: string
-          reviewed_by?: string | null
-          reviewed_at?: string | null
-          rejection_reason?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          employee_id?: string
-          requested_by?: string
-          current_title?: string | null
-          current_salary?: number | null
-          new_title?: string
-          new_salary?: number
-          effective_date?: string
-          reason?: string | null
-          status?: string
-          reviewed_by?: string | null
-          reviewed_at?: string | null
-          rejection_reason?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "promotion_requests_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      promotion_history: {
-        Row: {
-          id: string
-          promotion_request_id: string | null
-          employee_id: string
-          previous_title: string | null
-          new_title: string
-          previous_salary: number | null
-          new_salary: number
-          effective_date: string
-          approved_by: string | null
-          reason: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          promotion_request_id?: string | null
-          employee_id: string
-          previous_title?: string | null
-          new_title: string
-          previous_salary?: number | null
-          new_salary: number
-          effective_date: string
-          approved_by?: string | null
-          reason?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          promotion_request_id?: string | null
-          employee_id?: string
-          previous_title?: string | null
-          new_title?: string
-          previous_salary?: number | null
-          new_salary?: number
-          effective_date?: string
-          approved_by?: string | null
-          reason?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "promotion_history_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       payslip_files: {
         Row: {
           created_at: string
@@ -2992,6 +2880,153 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotion_history: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          effective_date: string
+          employee_id: string
+          id: string
+          new_salary: number
+          new_title: string
+          previous_salary: number | null
+          previous_title: string | null
+          promotion_request_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          effective_date: string
+          employee_id: string
+          id?: string
+          new_salary: number
+          new_title: string
+          previous_salary?: number | null
+          previous_title?: string | null
+          promotion_request_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          effective_date?: string
+          employee_id?: string
+          id?: string
+          new_salary?: number
+          new_title?: string
+          previous_salary?: number | null
+          previous_title?: string | null
+          promotion_request_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_history_promotion_request_id_fkey"
+            columns: ["promotion_request_id"]
+            isOneToOne: false
+            referencedRelation: "promotion_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotion_requests: {
+        Row: {
+          created_at: string
+          current_salary: number | null
+          current_title: string | null
+          effective_date: string
+          employee_id: string
+          id: string
+          new_salary: number
+          new_title: string
+          reason: string | null
+          rejection_reason: string | null
+          requested_by: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_salary?: number | null
+          current_title?: string | null
+          effective_date: string
+          employee_id: string
+          id?: string
+          new_salary: number
+          new_title: string
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_by: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_salary?: number | null
+          current_title?: string | null
+          effective_date?: string
+          employee_id?: string
+          id?: string
+          new_salary?: number
+          new_title?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_by?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
