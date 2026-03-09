@@ -371,12 +371,12 @@ export function useAttendance(weekStart?: Date) {
     toast({ title: "Clocked Out", description: "Your time has been recorded. All active logs have been closed." });
 
     // Create notification for clock-out
-    await supabase.from("notifications").insert({
-      user_id: user.id,
-      title: "⏰ Clocked Out",
-      message: `You clocked out at ${clockOutTime.toLocaleTimeString()}. Your time has been recorded.`,
-      type: "attendance",
-      link: "/attendance",
+    await supabase.rpc("create_notification", {
+      p_user_id: user.id,
+      p_title: "⏰ Clocked Out",
+      p_message: `You clocked out at ${clockOutTime.toLocaleTimeString()}. Your time has been recorded.`,
+      p_type: "attendance",
+      p_link: "/attendance",
     });
   };
 
