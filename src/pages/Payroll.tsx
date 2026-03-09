@@ -515,47 +515,59 @@ const Payroll = () => {
       return;
     }
 
-    const currencySymbol = region === "US" ? "$" : "Rs.";
-    const headers = [
-      "Employee Name", "Department", "Hourly Rate",
-      "Actual Hours", "Payable Hours", "Extra Hours", "Bank Hours Used",
-      "Gross Pay", "Income Tax", "Social Security", "Provident Fund",
-      "Total Deductions", "Net Pay"
-    ];
+    const exportRows = details.map((d: any) => mapDetailToExportRow(d));
+    exportPayrollCSV(exportRows, region, periodStart);
+    toast({ title: "Downloaded", description: `Payroll CSV for ${format(new Date(periodStart + "T00:00:00"), "MMMM yyyy")} exported` });
+  };
 
-    const rows = details.map((d: any) => {
-      // Attempt to extract individual deduction fields; fall back to 0
-      const incomeTax = d.income_tax ?? 0;
-      const socialSecurity = d.social_security ?? 0;
-      const providentFund = d.provident_fund ?? 0;
-      const totalDed = d.deductions || (incomeTax + socialSecurity + providentFund);
-      return [
-        `"${d.employee_name}"`,
-        d.department || "",
-        d.hourly_rate || 0,
-        d.actual_hours || 0,
-        d.payable_hours || 0,
-        d.extra_hours || 0,
-        d.bank_hours_used || 0,
-        d.gross_pay || 0,
-        incomeTax,
-        socialSecurity,
-        providentFund,
-        totalDed,
-        d.net_pay || 0,
-      ].join(",");
-    });
+  const handleViewRunDetails = async (runId: string, periodStart: string, periodEnd: string) => {
+    const { data: details, error } = await supabase
+      .from("payroll_run_details")
+      .select("*")
+      .eq("payroll_run_id", runId)
+      .order("employee_name");
 
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `payroll-${format(new Date(periodStart), "yyyy-MM")}-${region}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (error || !details || details.length === 0) {
+      toast({ title: "No Data", description: "No payroll details found for this run", variant: "destructive" });
+      return;
+    }
 
-    toast({ title: "Downloaded", description: `Payroll CSV for ${format(new Date(periodStart), "MMMM yyyy")} exported` });
+    const rows: PayrollRow[] = details.map((d: any) => ({
+      employee_name: d.employee_name,
+      department: d.department || "",
+      hourly_rate: d.hourly_rate || 0,
+      required_hours: d.payable_hours || 0,
+      actual_hours: d.actual_hours || 0,
+      payable_hours: d.payable_hours || 0,
+      extra_hours: d.extra_hours || 0,
+      bank_hours_used: d.bank_hours_used || 0,
+      gross_pay: d.gross_pay || 0,
+      income_tax: d.income_tax ?? 0,
+      social_security: d.social_security ?? 0,
+      provident_fund: d.provident_fund ?? 0,
+      deductions: d.deductions || 0,
+      net_pay: d.net_pay || 0,
+    }));
+
+    setViewRunRows(rows);
+    setViewRunPeriod({ start: periodStart, end: periodEnd });
+    setViewRunId(runId);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set("runId", runId);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleCloseRunView = () => {
+    setViewRunId(null);
+    setViewRunRows([]);
+    setViewRunPeriod(null);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete("runId");
+      return next;
+    }, { replace: true });
   };
 
   const handleExport = () => {
