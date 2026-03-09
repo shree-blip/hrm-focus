@@ -288,7 +288,7 @@ const Payroll = () => {
         if (!loan.employee_id) return;
         const emi = loan.estimated_monthly_installment
           || calculateEMI(Number(loan.amount), loan.interest_rate ?? FIXED_ANNUAL_RATE, loan.term_months);
-        const remaining = Number(loan.remaining_balance ?? loan.amount);
+        const remaining = Number(loan.amount);
         if (remaining <= 0) return;
         const arr = loansByEmployee.get(loan.employee_id) || [];
         arr.push({ id: loan.id, emi: Math.round(emi * 100) / 100, remainingBalance: remaining });
