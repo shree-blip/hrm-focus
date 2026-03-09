@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
+import { usePromotions } from "@/hooks/usePromotions";
 import { useAuth } from "@/contexts/AuthContext";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
+import { PromotionApprovalQueue } from "@/components/employees/PromotionApprovalQueue";
 import { format } from "date-fns";
 import { 
   Check, 
@@ -19,13 +21,16 @@ import {
   ArrowUpRight,
   CheckCircle2,
   XCircle,
-  RotateCcw
+  RotateCcw,
+  TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Approvals = () => {
   const { user, role, isVP } = useAuth();
   const { requests, loading, approveRequest, rejectRequest, refetch } = useLeaveRequests();
+  const { pendingApprovals: pendingPromotions } = usePromotions();
+  const [section, setSection] = useState<"leave" | "promotions">("leave");
   const [activeTab, setActiveTab] = useState("pending");
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<{ id: string; name: string } | null>(null);
@@ -189,12 +194,30 @@ const Approvals = () => {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-warning/10 border border-warning/20">
             <Clock className="h-4 w-4 text-warning" />
-            <span className="text-sm font-medium text-warning">{pendingRequests.length} Pending</span>
+            <span className="text-sm font-medium text-warning">
+              {pendingRequests.length + pendingPromotions.length} Pending
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      {/* Top-level section tabs */}
+      <Tabs value={section} onValueChange={(v) => setSection(v as "leave" | "promotions")} className="mb-6">
+        <TabsList>
+          <TabsTrigger value="leave" className="gap-2">
+            <Calendar className="h-4 w-4" />
+            Leave ({pendingRequests.length})
+          </TabsTrigger>
+          <TabsTrigger value="promotions" className="gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Promotions ({pendingPromotions.length})
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {section === "leave" && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card className="animate-slide-up">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -306,6 +329,12 @@ const Approvals = () => {
         onConfirm={handleReject}
         employeeName={selectedRequest?.name || ""}
       />
+        </>
+      )}
+
+      {section === "promotions" && (
+        <PromotionApprovalQueue />
+      )}
     </DashboardLayout>
   );
 };

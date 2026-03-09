@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Table2 } from "lucide-react";
 import { format } from "date-fns";
 import { exportPayrollCSV, mapDetailToExportRow } from "@/lib/payrollCsvExport";
+import { calculateWorkingHours, calculateMonthlyWorkingHours } from "@/lib/payrollHours";
 import "@/styles/ag-grid-theme.css";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -15,6 +16,7 @@ export interface PayrollRow {
   employee_name: string;
   department: string;
   hourly_rate: number;
+  total_working_days: number;
   required_hours: number;
   actual_hours: number;
   payable_hours: number;
@@ -60,6 +62,7 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
       { field: "employee_name", headerName: "Employee", pinned: "left", minWidth: 180, filter: "agTextColumnFilter" },
       { field: "department", headerName: "Dept", minWidth: 120, filter: "agTextColumnFilter" },
       { field: "hourly_rate", headerName: "Hourly Rate", minWidth: 110, valueFormatter: currencyFormatter },
+      { field: "total_working_days", headerName: "Working Days", minWidth: 115 },
       { field: "required_hours", headerName: "Required Hrs", minWidth: 120, valueFormatter: hoursFormatter },
       { field: "actual_hours", headerName: "Actual Hrs", minWidth: 110, valueFormatter: hoursFormatter },
       { field: "payable_hours", headerName: "Payable Hrs", minWidth: 115, valueFormatter: hoursFormatter },
@@ -92,6 +95,10 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
   }, []);
 
   const handleDownloadCSV = useCallback(() => {
+    // Recalculate required hours from the period dates for CSV accuracy
+    const { workDays, requiredHours: rangeReqHours } = calculateWorkingHours(periodStart, periodEnd);
+    const { requiredHours: monthlyReqHours } = calculateMonthlyWorkingHours(periodStart);
+
     const exportRows = rows.map((r) =>
       mapDetailToExportRow({
         employee_name: r.employee_name,
@@ -107,10 +114,10 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
         provident_fund: r.provident_fund,
         deductions: r.deductions,
         net_pay: r.net_pay,
-      }, r.required_hours)
+      }, rangeReqHours, monthlyReqHours, workDays, region)
     );
     exportPayrollCSV(exportRows, region, periodStart);
-  }, [rows, periodStart, region]);
+  }, [rows, periodStart, periodEnd, region]);
 
   return (
     <Card className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>

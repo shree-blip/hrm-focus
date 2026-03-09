@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, Phone, MapPin, Building, Briefcase, Users, Loader2 } from "lucide-react";
+import { Mail, Phone, MapPin, Building, Briefcase, Users, Loader2, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { RequestPromotionDialog } from "@/components/employees/RequestPromotionDialog";
 
 interface Employee {
   id: number | string;
@@ -37,8 +40,10 @@ interface EmployeeProfileDialogProps {
 }
 
 export function EmployeeProfileDialog({ employee, open, onOpenChange }: EmployeeProfileDialogProps) {
+  const { isManager, isLineManager, isVP, isAdmin } = useAuth();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
+  const [promotionOpen, setPromotionOpen] = useState(false);
 
   useEffect(() => {
     if (open && employee?.id) {
@@ -155,6 +160,21 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
             </div>
           </div>
 
+          {/* Request Promotion Button — visible to line managers, managers, VPs, and admins */}
+          {(isLineManager || isManager || isVP || isAdmin) && employee.status === "active" && (
+            <>
+              <Separator />
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => setPromotionOpen(true)}
+              >
+                <TrendingUp className="h-4 w-4" />
+                Request Promotion
+              </Button>
+            </>
+          )}
+
           {/* Team Section - Only shown if this employee has team members */}
           {loadingTeam ? (
             <>
@@ -229,6 +249,13 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
           ) : null}
         </div>
       </DialogContent>
+
+      {/* Promotion Request Dialog */}
+      <RequestPromotionDialog
+        open={promotionOpen}
+        onOpenChange={setPromotionOpen}
+        employee={employee}
+      />
     </Dialog>
   );
 }

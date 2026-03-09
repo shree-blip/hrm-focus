@@ -59,7 +59,9 @@ import { NepalPayrollTable } from "@/components/payroll/NepalPayrollTable";
 import { SalaryBreakdownDialog } from "@/components/payroll/SalaryBreakdownDialog";
 import { RunPayrollDialog } from "@/components/payroll/RunPayrollDialog";
 import { PayrollDataGrid, type PayrollRow } from "@/components/payroll/PayrollDataGrid";
+import { PayrollExportPreviewDialog } from "@/components/payroll/PayrollExportPreviewDialog";
 import { exportPayrollCSV, mapDetailToExportRow } from "@/lib/payrollCsvExport";
+import { calculateWorkingHours, calculateMonthlyWorkingHours, hourlyRateFromSalary, calculateDeductions, HOURS_PER_DAY } from "@/lib/payrollHours";
 
 const Payroll = () => {
   const { isVP, isManager, profile, user } = useAuth();
@@ -112,6 +114,7 @@ const Payroll = () => {
   const showEditSalary = modalParam === "editSalary";
   const showMyBreakdown = modalParam === "myBreakdown";
   const showRunPayrollDialog = modalParam === "runPayroll";
+  const showExportPreview = modalParam === "exportPreview";
 
   // Restore selected employee from URL param on mount/change
   useEffect(() => {
@@ -188,44 +191,14 @@ const Payroll = () => {
       const startDateStr = formatLocalDate(periodStart) + "T00:00:00";
       const endDateStr = formatLocalDate(periodEnd) + "T23:59:59.999";
 
-      // Calculate working days in this range (Mon-Fri for US, Mon-Sat for Nepal)
-      const workDaysInRange = (() => {
-        let count = 0;
-        const d = new Date(periodStart);
-        while (d <= periodEnd) {
-          const dow = d.getDay(); // 0=Sun
-          if (region === "Nepal") {
-            // Nepal: Mon-Sat (skip Sun)
-            if (dow !== 0) count++;
-          } else {
-            // US: Mon-Fri
-            if (dow !== 0 && dow !== 6) count++;
-          }
-          d.setDate(d.getDate() + 1);
-        }
-        return count;
-      })();
+      // Calculate working days & required hours for the pay-period range
+      // Uses 2 weekly offs (Sat + Sun) and 8 hrs/day for all regions
+      const { workDays: workDaysInRange, requiredHours: standardHoursInRange } =
+        calculateWorkingHours(periodStart, periodEnd);
 
-      const standardHoursPerDay = 8;
-      const standardHoursInRange = workDaysInRange * standardHoursPerDay;
-
-      // Also compute total working days in the full month (for prorating monthly salary)
-      const fullMonthStart = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1);
-      const fullMonthEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
-      let workDaysInFullMonth = 0;
-      {
-        const d = new Date(fullMonthStart);
-        while (d <= fullMonthEnd) {
-          const dow = d.getDay();
-          if (region === "Nepal") {
-            if (dow !== 0) workDaysInFullMonth++;
-          } else {
-            if (dow !== 0 && dow !== 6) workDaysInFullMonth++;
-          }
-          d.setDate(d.getDate() + 1);
-        }
-      }
-      const standardMonthlyHours = workDaysInFullMonth * standardHoursPerDay;
+      // Full-month working hours (for prorating monthly salary → hourly rate)
+      const { requiredHours: standardMonthlyHours } =
+        calculateMonthlyWorkingHours(periodStart);
 
       // Fetch attendance for the selected period
       const { data: periodLogs, error: logsError } = await supabase
@@ -346,7 +319,7 @@ const Payroll = () => {
         if (hasHourlyRate) {
           hourlyRate = emp.hourly_rate!;
         } else if (hasSalary) {
-          hourlyRate = standardMonthlyHours > 0 ? emp.salary! / standardMonthlyHours : 0;
+          hourlyRate = hourlyRateFromSalary(emp.salary!, standardMonthlyHours);
         }
 
         // TIME BANK ADJUSTMENT: if employee worked fewer hours than required,
@@ -374,21 +347,12 @@ const Payroll = () => {
 
         grossPay = payableHours * hourlyRate;
 
-        // Calculate deductions from employee record (stored monthly amounts)
-        const incomeTax = emp.income_tax || 0;
-        const socialSecurity = emp.social_security || 0;
-        const providentFund = emp.provident_fund || 0;
-        
-        // Prorate deductions based on pay period vs full month
-        const prorationFactor = standardMonthlyHours > 0 ? standardHoursInRange / standardMonthlyHours : 1;
-        const proratedIncomeTax = Math.round(incomeTax * prorationFactor * 100) / 100;
-        const proratedSocialSecurity = Math.round(socialSecurity * prorationFactor * 100) / 100;
-        const proratedProvidentFund = Math.round(providentFund * prorationFactor * 100) / 100;
-        const empDeductions = proratedIncomeTax + proratedSocialSecurity + proratedProvidentFund;
-        const netPay = grossPay - empDeductions;
+        // Calculate deductions using system formulas (rate × gross pay)
+        const ded = calculateDeductions(grossPay, region);
+        const netPay = grossPay - ded.totalDeductions;
 
         totalGross += grossPay;
-        totalDeductions += empDeductions;
+        totalDeductions += ded.totalDeductions;
         employeeCount++;
 
         employeePayrollDetails.push({
@@ -402,10 +366,10 @@ const Payroll = () => {
           extra_hours: Math.round(extraHours * 10) / 10,
           bank_hours_used: Math.round(bankHoursUsed * 10) / 10,
           gross_pay: Math.round(grossPay * 100) / 100,
-          income_tax: proratedIncomeTax,
-          social_security: proratedSocialSecurity,
-          provident_fund: proratedProvidentFund,
-          deductions: Math.round(empDeductions * 100) / 100,
+          income_tax: ded.incomeTax,
+          social_security: ded.socialSecurity,
+          provident_fund: ded.providentFund,
+          deductions: ded.totalDeductions,
           net_pay: Math.round(netPay * 100) / 100,
         });
 
@@ -515,7 +479,13 @@ const Payroll = () => {
       return;
     }
 
-    const exportRows = details.map((d: any) => mapDetailToExportRow(d));
+    // Recalculate required hours from the period dates so CSV is accurate
+    const { workDays: rangeWorkDays, requiredHours: rangeRequiredHours } = calculateWorkingHours(periodStart, periodEnd);
+    const { requiredHours: monthlyRequiredHours } = calculateMonthlyWorkingHours(periodStart);
+
+    const exportRows = details.map((d: any) =>
+      mapDetailToExportRow(d, rangeRequiredHours, monthlyRequiredHours, rangeWorkDays, region)
+    );
     exportPayrollCSV(exportRows, region, periodStart);
     toast({ title: "Downloaded", description: `Payroll CSV for ${format(new Date(periodStart + "T00:00:00"), "MMMM yyyy")} exported` });
   };
@@ -532,11 +502,15 @@ const Payroll = () => {
       return;
     }
 
+    // Recalculate required hours from the stored period dates
+    const { workDays: rangeWorkDays, requiredHours: rangeRequiredHours } = calculateWorkingHours(periodStart, periodEnd);
+
     const rows: PayrollRow[] = details.map((d: any) => ({
       employee_name: d.employee_name,
       department: d.department || "",
       hourly_rate: d.hourly_rate || 0,
-      required_hours: d.payable_hours || 0,
+      total_working_days: rangeWorkDays,
+      required_hours: rangeRequiredHours,
       actual_hours: d.actual_hours || 0,
       payable_hours: d.payable_hours || 0,
       extra_hours: d.extra_hours || 0,
@@ -573,7 +547,9 @@ const Payroll = () => {
   const handleExport = () => {
     // Export with employee data
     const currencySymbol = region === "US" ? "$" : "Rs.";
-    const taxRates = getTaxRates();
+
+    // Calculate required hours for the current month (general export uses current month)
+    const { requiredHours: monthlyReqHours } = calculateMonthlyWorkingHours(new Date());
     
     const headers = [
       "Employee Name",
@@ -583,7 +559,10 @@ const Payroll = () => {
       "Pay Type",
       "Monthly Salary",
       "Hourly Rate",
-      "Hours Worked",
+      "Required Hours",
+      "Actual Hours",
+      "Payable Hours",
+      "Extra Hours",
       "Gross Pay",
       "Income Tax",
       "Social Security",
@@ -594,20 +573,23 @@ const Payroll = () => {
 
     const rows = regionEmployees.map(emp => {
       const attendance = teamAttendance.find(a => a.employee_id === emp.id);
-      const hoursWorked = attendance?.total_hours || 0;
-      
-      let grossPay = 0;
+      const actualHours = attendance?.total_hours || 0;
+
+      // Derive hourly rate
+      let empHourlyRate = 0;
       if (emp.pay_type === "hourly" && emp.hourly_rate) {
-        grossPay = hoursWorked * emp.hourly_rate;
+        empHourlyRate = emp.hourly_rate;
       } else if (emp.salary) {
-        grossPay = emp.salary;
+        empHourlyRate = hourlyRateFromSalary(emp.salary, monthlyReqHours);
       }
 
-      const incomeTax = emp.income_tax || 0;
-      const socialSecurity = emp.social_security || 0;
-      const providentFund = emp.provident_fund || 0;
-      const totalDeductions = incomeTax + socialSecurity + providentFund;
-      const netPay = grossPay - totalDeductions;
+      // Payable = min(actual, required), extra = anything above required
+      const payableHours = Math.min(actualHours, monthlyReqHours);
+      const extraHours = Math.max(0, actualHours - monthlyReqHours);
+      const grossPay = payableHours * empHourlyRate;
+
+      const ded = calculateDeductions(grossPay, region);
+      const netPay = grossPay - ded.totalDeductions;
 
       return [
         `"${emp.first_name} ${emp.last_name}"`,
@@ -616,13 +598,16 @@ const Payroll = () => {
         emp.job_title || "",
         emp.pay_type || "salary",
         emp.salary || 0,
-        emp.hourly_rate || 0,
-        hoursWorked.toFixed(1),
+        empHourlyRate.toFixed(2),
+        monthlyReqHours.toFixed(1),
+        actualHours.toFixed(1),
+        payableHours.toFixed(1),
+        extraHours.toFixed(1),
         grossPay.toFixed(2),
-        incomeTax.toFixed(2),
-        socialSecurity.toFixed(2),
-        providentFund.toFixed(2),
-        totalDeductions.toFixed(2),
+        ded.incomeTax.toFixed(2),
+        ded.socialSecurity.toFixed(2),
+        ded.providentFund.toFixed(2),
+        ded.totalDeductions.toFixed(2),
         netPay.toFixed(2)
       ].join(",");
     });
@@ -650,41 +635,29 @@ const Payroll = () => {
     // Simulate calculation delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const taxRates = getTaxRates();
+    const { requiredHours: monthlyReqHours } = calculateMonthlyWorkingHours(new Date());
     let totalGross = 0;
     let totalDeductions = 0;
     
     regionEmployees.forEach(emp => {
       const attendance = teamAttendance.find(a => a.employee_id === emp.id);
-      const hoursWorked = attendance?.total_hours || 0;
+      const actualHours = attendance?.total_hours || 0;
       
-      let grossPay = 0;
+      // Derive hourly rate
+      let empHourlyRate = 0;
       if (emp.pay_type === "hourly" && emp.hourly_rate) {
-        grossPay = hoursWorked * emp.hourly_rate;
+        empHourlyRate = emp.hourly_rate;
       } else if (emp.salary) {
-        // salary is monthly gross
-        grossPay = emp.salary;
+        empHourlyRate = hourlyRateFromSalary(emp.salary, monthlyReqHours);
       }
 
-      let deductions = 0;
-      if (region === "US") {
-        deductions = grossPay * (
-          (taxRates.federal || 0) + 
-          (taxRates.state || 0) + 
-          (taxRates.fica || 0) + 
-          (taxRates.medicare || 0)
-        );
-      } else {
-        const rates = taxRates as { incomeTax: number; socialSecurity: number; providentFund: number };
-        deductions = grossPay * (
-          (rates.incomeTax || 0) + 
-          (rates.socialSecurity || 0) + 
-          (rates.providentFund || 0)
-        );
-      }
+      const payableHours = Math.min(actualHours, monthlyReqHours);
+      const grossPay = payableHours * empHourlyRate;
+
+      const ded = calculateDeductions(grossPay, region);
 
       totalGross += grossPay;
-      totalDeductions += deductions;
+      totalDeductions += ded.totalDeductions;
     });
 
     const currencySymbol = region === "US" ? "$" : "₨";
@@ -746,7 +719,7 @@ const Payroll = () => {
               <SelectItem value="Nepal">🇳🇵 Nepal</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2" onClick={handleExport}>
+          <Button variant="outline" className="gap-2" onClick={() => setModalParam("exportPreview")}>
             <Download className="h-4 w-4" />
             Export
           </Button>
@@ -1353,6 +1326,14 @@ const Payroll = () => {
         onOpenChange={(open) => setModalParam(open ? "myBreakdown" : null)}
         employee={selectedEmployee}
         editable={false}
+      />
+
+      <PayrollExportPreviewDialog
+        open={showExportPreview}
+        onOpenChange={(open) => setModalParam(open ? "exportPreview" : null)}
+        employees={regionEmployees}
+        region={region}
+        teamAttendance={teamAttendance}
       />
     </DashboardLayout>
   );
