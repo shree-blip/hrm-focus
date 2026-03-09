@@ -273,7 +273,7 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
 
       {/* Promotion Request Dialog */}
       <Suspense fallback={null}>
-        <LazyRequestPromotionDialog open={promotionOpen} onOpenChange={setPromotionOpen} employee={employee} />
+        <LazyRequestPromotionDialog open={promotionOpen} onOpenChange={setPromotionOpen} employee={employee ? { ...employee, id: String(employee.id) } : null} />
       </Suspense>
     </Dialog>
   );
