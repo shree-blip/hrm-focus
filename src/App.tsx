@@ -7,32 +7,60 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
 
+/**
+ * Lazy-load with automatic retry + reload on chunk failures.
+ * When a deploy invalidates old chunks, instead of a blank screen
+ * the user gets at most one automatic reload.
+ */
+function lazyRetry(factory: () => Promise<{ default: React.ComponentType<any> }>) {
+  return lazy(() =>
+    factory().catch((err) => {
+      // If this is a chunk-load error and we haven't already retried, reload
+      const isChunkError =
+        err?.message?.includes("Failed to fetch dynamically imported module") ||
+        err?.message?.includes("Importing a module script failed") ||
+        err?.message?.includes("Loading chunk") ||
+        err?.message?.includes("Loading CSS chunk");
+
+      if (isChunkError && !sessionStorage.getItem("chunk_retry")) {
+        sessionStorage.setItem("chunk_retry", "1");
+        window.location.reload();
+        // Return a never-resolving promise so React doesn't render an error
+        return new Promise(() => {});
+      }
+      sessionStorage.removeItem("chunk_retry");
+      throw err;
+    })
+  );
+}
+
 // Lazy-load all page components for code-splitting
-const Index = lazy(() => import("./pages/Index"));
-const Auth = lazy(() => import("./pages/Auth"));
-const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Employees = lazy(() => import("./pages/Employees"));
-const Attendance = lazy(() => import("./pages/Attendance"));
-const Leave = lazy(() => import("./pages/Leave"));
-const Approvals = lazy(() => import("./pages/Approvals"));
-const Tasks = lazy(() => import("./pages/Tasks"));
-const Payroll = lazy(() => import("./pages/Payroll"));
-const Performance = lazy(() => import("./pages/Performance"));
-const Documents = lazy(() => import("./pages/Documents"));
-const Onboarding = lazy(() => import("./pages/Onboarding"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Notifications = lazy(() => import("./pages/Notifications"));
-const Reports = lazy(() => import("./pages/Reports"));
-const Announcements = lazy(() => import("./pages/Announcements"));
-const AccessControl = lazy(() => import("./pages/AccessControl"));
-const LogSheet = lazy(() => import("./pages/LogSheet"));
-const Support = lazy(() => import("./pages/Support"));
-const Loans = lazy(() => import("./pages/Loans"));
-const Invoices = lazy(() => import("./pages/Invoices"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const Index = lazyRetry(() => import("./pages/Index"));
+const Auth = lazyRetry(() => import("./pages/Auth"));
+const ForgotPassword = lazyRetry(() => import("./pages/ForgotPassword"));
+const Profile = lazyRetry(() => import("./pages/Profile"));
+const Employees = lazyRetry(() => import("./pages/Employees"));
+const Attendance = lazyRetry(() => import("./pages/Attendance"));
+const Leave = lazyRetry(() => import("./pages/Leave"));
+const Approvals = lazyRetry(() => import("./pages/Approvals"));
+const Tasks = lazyRetry(() => import("./pages/Tasks"));
+const Payroll = lazyRetry(() => import("./pages/Payroll"));
+const Performance = lazyRetry(() => import("./pages/Performance"));
+const Documents = lazyRetry(() => import("./pages/Documents"));
+const Onboarding = lazyRetry(() => import("./pages/Onboarding"));
+const Settings = lazyRetry(() => import("./pages/Settings"));
+const Notifications = lazyRetry(() => import("./pages/Notifications"));
+const Reports = lazyRetry(() => import("./pages/Reports"));
+const Announcements = lazyRetry(() => import("./pages/Announcements"));
+const AccessControl = lazyRetry(() => import("./pages/AccessControl"));
+const LogSheet = lazyRetry(() => import("./pages/LogSheet"));
+const Support = lazyRetry(() => import("./pages/Support"));
+const Loans = lazyRetry(() => import("./pages/Loans"));
+const Invoices = lazyRetry(() => import("./pages/Invoices"));
+const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,6 +80,7 @@ const PageLoader = () => (
 );
 
 const App = () => (
+  <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -91,6 +120,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
