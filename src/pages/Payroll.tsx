@@ -561,11 +561,14 @@ const Payroll = () => {
       "Department",
       "Job Title",
       "Pay Type",
-      "Annual Salary",
+      "Monthly Salary",
       "Hourly Rate",
       "Hours Worked",
       "Gross Pay",
-      "Deductions",
+      "Income Tax",
+      "Social Security",
+      "Provident Fund",
+      "Total Deductions",
       "Net Pay"
     ];
 
@@ -577,27 +580,13 @@ const Payroll = () => {
       if (emp.pay_type === "hourly" && emp.hourly_rate) {
         grossPay = hoursWorked * emp.hourly_rate;
       } else if (emp.salary) {
-        // salary is monthly gross
         grossPay = emp.salary;
       }
 
-      let totalDeductions = 0;
-      if (region === "US") {
-        totalDeductions = grossPay * (
-          (taxRates.federal || 0) + 
-          (taxRates.state || 0) + 
-          (taxRates.fica || 0) + 
-          (taxRates.medicare || 0)
-        );
-      } else {
-        const rates = taxRates as { incomeTax: number; socialSecurity: number; providentFund: number };
-        totalDeductions = grossPay * (
-          (rates.incomeTax || 0) + 
-          (rates.socialSecurity || 0) + 
-          (rates.providentFund || 0)
-        );
-      }
-
+      const incomeTax = emp.income_tax || 0;
+      const socialSecurity = emp.social_security || 0;
+      const providentFund = emp.provident_fund || 0;
+      const totalDeductions = incomeTax + socialSecurity + providentFund;
       const netPay = grossPay - totalDeductions;
 
       return [
@@ -610,6 +599,9 @@ const Payroll = () => {
         emp.hourly_rate || 0,
         hoursWorked.toFixed(1),
         grossPay.toFixed(2),
+        incomeTax.toFixed(2),
+        socialSecurity.toFixed(2),
+        providentFund.toFixed(2),
         totalDeductions.toFixed(2),
         netPay.toFixed(2)
       ].join(",");
