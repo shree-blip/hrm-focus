@@ -1212,7 +1212,7 @@ const Payroll = () => {
                         });
                         if (myEmployee && myEmployee.salary) {
                           setSelectedEmployee(myEmployee);
-                          setShowMyBreakdown(true);
+                          setModalParam("myBreakdown", myEmployee.id);
                         } else {
                           toast({ title: "No salary data", description: "Your salary information has not been set up yet.", variant: "destructive" });
                         }
