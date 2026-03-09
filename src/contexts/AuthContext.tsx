@@ -251,6 +251,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setProfile(null);
     setRole(null);
+    setIsLineManager(false);
+    setCanCreateEmployee(false);
   };
 
   const isManager = role === "manager" || role === "vp" || role === "admin" || role === "supervisor" || role === "line_manager";

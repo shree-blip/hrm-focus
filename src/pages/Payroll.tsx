@@ -150,18 +150,16 @@ const Payroll = () => {
     ? employeesWithSalary.reduce((sum, e) => sum + (e.salary || 0), 0) / employeesWithSalary.length 
     : 0;
 
-  // Generate chart data from payroll runs - show all 12 months of 2025
-  const all2025Months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  // Generate chart data from payroll runs - show all 12 months of the current year
+  const chartYear = new Date().getFullYear();
+  const allMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   
-  const payrollData = all2025Months.map((monthName, index) => {
-    const monthStart = new Date(2025, index, 1);
-    const monthEnd = new Date(2025, index + 1, 0);
-    
+  const payrollData = allMonths.map((monthName, index) => {
     // Find matching payroll run for this month
     const run = payrollRuns.find(r => {
       if (r.region !== region) return false;
       const runStart = new Date(r.period_start);
-      return runStart.getFullYear() === 2025 && runStart.getMonth() === index;
+      return runStart.getFullYear() === chartYear && runStart.getMonth() === index;
     });
     
     return {
@@ -173,7 +171,7 @@ const Payroll = () => {
   // Filter to show only months with data, or all if we have full year
   const displayPayrollData = payrollData.filter(d => d.amount > 0).length > 0 
     ? payrollData 
-    : all2025Months.map((month, i) => ({ 
+    : allMonths.map((month, i) => ({ 
         month, 
         amount: region === "Nepal" 
           ? 1250000 + (i * 35000) // NPR values
@@ -185,9 +183,9 @@ const Payroll = () => {
     .sort((a, b) => new Date(b.period_end).getTime() - new Date(a.period_end).getTime())
     .slice(0, 6);
   
-  // Next payroll is Feb 1, 2026
-  const nextPayrollDate = new Date(2026, 1, 1);
+  // Next payroll: 1st of next month (or current month if today is before the 1st)
   const today = new Date();
+  const nextPayrollDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
   const daysLeft = Math.ceil((nextPayrollDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
   // Helper to format date as YYYY-MM-DD using local timezone
@@ -489,6 +487,11 @@ const Payroll = () => {
           if (detailError) {
             console.error("Failed to insert payroll run details:", detailError);
             toast({ title: "Warning", description: "Payroll run created but failed to save details: " + detailError.message, variant: "destructive" });
+            // Abort: don't record EMI deductions or overtime if details failed
+            setIsCalculating(false);
+            await refetch();
+            setModalParam(null);
+            return;
           }
         }
 

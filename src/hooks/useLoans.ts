@@ -507,35 +507,46 @@ export function useLoans() {
   const recordRepayment = async (loanId: string, amount: number) => {
     if (!user) return;
 
+    // Fetch current loan to compute remaining balance
+    const { data: loan } = await supabase
+      .from("loan_requests")
+      .select("remaining_balance, amount")
+      .eq("id", loanId)
+      .single();
+
+    const currentBalance = Number(loan?.remaining_balance ?? loan?.amount ?? 0);
+    const newBalance = Math.max(0, currentBalance - amount);
+
     const { data, error } = await supabase.from("loan_repayments").insert({
       loan_request_id: loanId,
       total_amount: amount,
       principal_amount: amount,
       interest_amount: 0,
-      remaining_balance: 0,
+      remaining_balance: newBalance,
       due_date: new Date().toISOString().split("T")[0],
       month_number: 0,
       status: "paid",
       user_id: user.id,
-    });
+    }).select().single();
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
-    const result = data as any;
-    if (result && !result.success) {
-      toast({ title: "Error", description: result.error || "Failed to record repayment", variant: "destructive" });
-      return;
+    // Update loan remaining_balance
+    const updates: any = { remaining_balance: newBalance };
+    if (newBalance <= 0) {
+      updates.status = "closed";
     }
+    await supabase.from("loan_requests").update(updates).eq("id", loanId);
 
-    if (result?.auto_closed) {
+    if (newBalance <= 0) {
       toast({ title: "Loan Closed", description: "All repayments complete. Loan has been automatically closed." });
     } else {
       toast({
         title: "Repayment Recorded",
-        description: `Remaining balance: NPR ${Number(result?.remaining_balance || 0).toFixed(2)}`,
+        description: `Remaining balance: NPR ${newBalance.toFixed(2)}`,
       });
     }
 

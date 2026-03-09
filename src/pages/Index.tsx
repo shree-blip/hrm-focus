@@ -87,13 +87,14 @@ const Index = () => {
       }
       return "No one on leave today";
     } else {
+      // Check if the current user is on leave today first
+      if (onLeaveToday.some((r) => r.user_id === profile?.user_id)) {
+        return "You're on leave today";
+      }
       if (onLeaveToday.length > 0) {
         const names = onLeaveToday.map((r) => (r.profile ? `${r.profile.first_name}` : "Someone")).slice(0, 3);
         const extra = onLeaveToday.length > 3 ? ` +${onLeaveToday.length - 3} more` : "";
         return `On leave: ${names.join(", ")}${extra}`;
-      }
-      if (onLeaveToday.some((r) => r.user_id === profile?.user_id)) {
-        return "You're on leave today";
       }
       return "View leave balance";
     }
