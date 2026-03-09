@@ -121,9 +121,155 @@ const Payroll = () => {
   const daysLeft = Math.ceil((nextPayrollDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
   const handleRunPayroll = async () => {
-    const periodStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const periodEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    await createPayrollRun(periodStart, periodEnd);
+    // Always run payroll for the LAST completed month
+    const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0); // last day of prev month
+    const lastMonthStart = new Date(lastMonthEnd.getFullYear(), lastMonthEnd.getMonth(), 1);
+    const payrollMonth = lastMonthStart.getMonth(); // 0-indexed
+    const payrollYear = lastMonthStart.getFullYear();
+
+    const monthName = lastMonthStart.toLocaleString("default", { month: "long", year: "numeric" });
+
+    // Check if payroll already exists for this period
+    const existingRun = payrollRuns.find(r => {
+      const s = new Date(r.period_start);
+      return s.getFullYear() === payrollYear && s.getMonth() === payrollMonth && r.region === region;
+    });
+    if (existingRun) {
+      toast({ title: "Already Exists", description: `Payroll for ${monthName} has already been run.`, variant: "destructive" });
+      return;
+    }
+
+    setIsCalculating(true);
+
+    try {
+      // Fetch last month's attendance for all employees
+      const { data: lastMonthLogs, error: logsError } = await supabase
+        .from("attendance_logs")
+        .select("user_id, employee_id, clock_in, clock_out, total_break_minutes, total_pause_minutes")
+        .gte("clock_in", lastMonthStart.toISOString())
+        .lte("clock_in", lastMonthEnd.toISOString() + "T23:59:59.999Z");
+
+      if (logsError) throw logsError;
+
+      // Calculate hours per employee
+      const employeeHoursMap = new Map<string, { userId: string; actualHours: number; daysWorked: Set<string> }>();
+
+      lastMonthLogs?.forEach(log => {
+        if (!log.clock_out) return;
+        const empId = log.employee_id || log.user_id;
+        const clockIn = new Date(log.clock_in);
+        const clockOut = new Date(log.clock_out);
+        const breakMin = log.total_break_minutes || 0;
+        const pauseMin = log.total_pause_minutes || 0;
+        const netHours = Math.max(0, (clockOut.getTime() - clockIn.getTime() - (breakMin + pauseMin) * 60000) / 3600000);
+
+        if (!employeeHoursMap.has(empId)) {
+          employeeHoursMap.set(empId, { userId: log.user_id, actualHours: 0, daysWorked: new Set() });
+        }
+        const entry = employeeHoursMap.get(empId)!;
+        entry.actualHours += netHours;
+        entry.daysWorked.add(clockIn.toISOString().split("T")[0]);
+      });
+
+      // Standard monthly hours: Nepal = 26 days × 8h = 208h, US = 22 days × 8h = 176h
+      const standardMonthlyHours = region === "Nepal" ? 208 : 176;
+
+      let totalGross = 0;
+      let totalDeductions = 0;
+      let employeeCount = 0;
+      const overtimeRecords: Array<{
+        user_id: string;
+        employee_id: string;
+        standard_hours: number;
+        actual_hours: number;
+        extra_hours: number;
+      }> = [];
+
+      regionEmployees.forEach(emp => {
+        if (!emp.hourly_rate || emp.hourly_rate <= 0) return;
+
+        // Find hours for this employee
+        let actualHours = 0;
+        let userId = "";
+
+        // Try matching by employee id first
+        const byEmpId = employeeHoursMap.get(emp.id);
+        if (byEmpId) {
+          actualHours = byEmpId.actualHours;
+          userId = byEmpId.userId;
+        } else {
+          // Try matching via profile
+          for (const [key, val] of employeeHoursMap.entries()) {
+            if (val.userId && employees.find(e => e.id === emp.id && e.profile_id)) {
+              // Match by user_id through profile lookup
+            }
+          }
+        }
+
+        // Cap payable hours at standard (no overtime pay)
+        const payableHours = Math.min(actualHours, standardMonthlyHours);
+        const extraHours = Math.max(0, actualHours - standardMonthlyHours);
+
+        const grossPay = payableHours * emp.hourly_rate;
+        totalGross += grossPay;
+        employeeCount++;
+
+        if (userId) {
+          overtimeRecords.push({
+            user_id: userId,
+            employee_id: emp.id,
+            standard_hours: standardMonthlyHours,
+            actual_hours: Math.round(actualHours * 10) / 10,
+            extra_hours: Math.round(extraHours * 10) / 10,
+          });
+        }
+      });
+
+      // Create the payroll run
+      const result = await createPayrollRun(lastMonthStart, lastMonthEnd);
+
+      if (result) {
+        // Update the payroll run with calculated totals
+        await supabase
+          .from("payroll_runs")
+          .update({
+            total_gross: Math.round(totalGross * 100) / 100,
+            total_net: Math.round((totalGross - totalDeductions) * 100) / 100,
+            total_deductions: Math.round(totalDeductions * 100) / 100,
+            employee_count: employeeCount,
+          })
+          .eq("id", result.id);
+
+        // Save overtime/extra hours to overtime_bank
+        if (overtimeRecords.length > 0) {
+          const bankInserts = overtimeRecords.map(rec => ({
+            user_id: rec.user_id,
+            employee_id: rec.employee_id,
+            payroll_run_id: result.id,
+            period_month: payrollMonth + 1, // 1-indexed
+            period_year: payrollYear,
+            standard_hours: rec.standard_hours,
+            actual_hours: rec.actual_hours,
+            extra_hours: rec.extra_hours,
+          }));
+
+          await supabase.from("overtime_bank").upsert(bankInserts, {
+            onConflict: "user_id,period_month,period_year",
+          });
+        }
+
+        const currencySymbol = region === "US" ? "$" : "₨";
+        toast({
+          title: `Payroll Processed — ${monthName}`,
+          description: `${employeeCount} employees | Total: ${currencySymbol}${totalGross.toLocaleString(undefined, { maximumFractionDigits: 0 })}. Extra hours saved for leave conversion.`,
+        });
+      }
+    } catch (err) {
+      console.error("Payroll error:", err);
+      toast({ title: "Error", description: "Failed to run payroll. Please try again.", variant: "destructive" });
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   const handleExport = () => {
