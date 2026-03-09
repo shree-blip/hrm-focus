@@ -740,6 +740,23 @@ export function useLeaveRequests() {
         `/leave`,
       );
 
+      // Send email notification to employee about rejection
+      await sendLeaveNotification({
+        leave_request_id: requestId,
+        event_type: "rejected",
+        employee_name: userName,
+        employee_email: requestProfile?.email || undefined,
+        leave_type: requestData.leave_type,
+        start_date: requestData.start_date,
+        end_date: requestData.end_date,
+        days: requestData.days,
+        rejection_reason: rejectionReason,
+        approver_name: managerName,
+        target_user_ids: [requestData.user_id],
+        target_emails: requestProfile?.email ? [requestProfile.email] : [],
+        requesting_user_id: user.id,
+      });
+
       await loadAllData();
     }
   };
