@@ -473,12 +473,12 @@ export function useAttendance(weekStart?: Date) {
       // Auto-pause all active work logs
       await autoPauseWorkLogs("paused");
 
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "⏸️ Clock Paused",
-        message: `You paused your clock at ${new Date().toLocaleTimeString()}.`,
-        type: "attendance",
-        link: "/attendance",
+      await supabase.rpc("create_notification", {
+        p_user_id: user.id,
+        p_title: "⏸️ Clock Paused",
+        p_message: `You paused your clock at ${new Date().toLocaleTimeString()}.`,
+        p_type: "attendance",
+        p_link: "/attendance",
       });
     }
   };
