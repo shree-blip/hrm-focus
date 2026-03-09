@@ -85,6 +85,46 @@ export function useLeaveRequests() {
     }
   };
 
+  // Send leave notification via edge function (email + in-app for managers/admin)
+  const sendLeaveNotification = async (payload: {
+    leave_request_id: string;
+    event_type: "submitted" | "approved" | "rejected";
+    employee_name: string;
+    employee_email?: string;
+    leave_type: string;
+    start_date: string;
+    end_date: string;
+    days: number;
+    reason?: string;
+    rejection_reason?: string;
+    approver_name?: string;
+    target_user_ids: string[];
+    target_emails?: string[];
+    requesting_user_id: string;
+  }) => {
+    try {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/send-leave-notification`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!res.ok) {
+        const body = await res.text();
+        console.error("send-leave-notification failed:", res.status, body);
+      }
+    } catch (err) {
+      console.error("Failed to call send-leave-notification:", err);
+    }
+  };
+
   // Fetch user's own requests
   const fetchOwnRequests = useCallback(async () => {
     if (!user) return [];
@@ -498,6 +538,32 @@ export function useLeaveRequests() {
         await createNotification(managerId, notifTitle, notifMsg, "leave", `/approvals`);
       }
 
+      // Send email notifications via edge function
+      const managerEmails: string[] = [];
+      for (const managerId of notifySet) {
+        const { data: mgrProfile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("user_id", managerId)
+          .single();
+        if (mgrProfile?.email) managerEmails.push(mgrProfile.email);
+      }
+
+      await sendLeaveNotification({
+        leave_request_id: newRequest.id,
+        event_type: "submitted",
+        employee_name: userName,
+        employee_email: user.email || undefined,
+        leave_type: request.leave_type,
+        start_date: formatLocalDate(request.start_date),
+        end_date: formatLocalDate(request.end_date),
+        days,
+        reason: request.reason,
+        target_user_ids: Array.from(notifySet),
+        target_emails: managerEmails,
+        requesting_user_id: user.id,
+      });
+
       await loadAllData();
     }
   };
@@ -575,6 +641,22 @@ export function useLeaveRequests() {
         "leave",
         `/leave`,
       );
+
+      // Send email notification to employee about approval
+      await sendLeaveNotification({
+        leave_request_id: requestId,
+        event_type: "approved",
+        employee_name: userName,
+        employee_email: requestProfile?.email || undefined,
+        leave_type: requestData.leave_type,
+        start_date: requestData.start_date,
+        end_date: requestData.end_date,
+        days: requestData.days,
+        approver_name: managerName,
+        target_user_ids: [requestData.user_id],
+        target_emails: requestProfile?.email ? [requestProfile.email] : [],
+        requesting_user_id: user.id,
+      });
 
       await loadAllData();
     }
@@ -657,6 +739,23 @@ export function useLeaveRequests() {
         "leave",
         `/leave`,
       );
+
+      // Send email notification to employee about rejection
+      await sendLeaveNotification({
+        leave_request_id: requestId,
+        event_type: "rejected",
+        employee_name: userName,
+        employee_email: requestProfile?.email || undefined,
+        leave_type: requestData.leave_type,
+        start_date: requestData.start_date,
+        end_date: requestData.end_date,
+        days: requestData.days,
+        rejection_reason: rejectionReason,
+        approver_name: managerName,
+        target_user_ids: [requestData.user_id],
+        target_emails: requestProfile?.email ? [requestProfile.email] : [],
+        requesting_user_id: user.id,
+      });
 
       await loadAllData();
     }
