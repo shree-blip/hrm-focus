@@ -202,13 +202,12 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
       if (vpUsers && vpUsers.length > 0) {
         for (const vp of vpUsers) {
           if (vp.user_id !== user.id) {
-            await supabase.from("notifications").insert({
-              user_id: vp.user_id,
-              title: "⚠️ Attendance Edited",
-              message: `${editorName} edited attendance for ${record.employee_name} on ${editDate}. Changes: ${changeSummary}. Reason: ${reason.trim()}`,
-              type: "warning",
-              link: "/reports",
-              is_read: false,
+            await supabase.rpc("create_notification", {
+              p_user_id: vp.user_id,
+              p_title: "⚠️ Attendance Edited",
+              p_message: `${editorName} edited attendance for ${record.employee_name} on ${editDate}. Changes: ${changeSummary}. Reason: ${reason.trim()}`,
+              p_type: "warning",
+              p_link: "/reports",
             });
           }
         }

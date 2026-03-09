@@ -396,12 +396,12 @@ export function useTasks() {
         if (assignees) {
           for (const assignee of assignees) {
             if (assignee.user_id !== userId) {
-              await supabase.from("notifications").insert({
-                user_id: assignee.user_id,
-                title: "📋 Task Status Updated",
-                message: `${moverName} moved "${taskData?.title || "a task"}" to ${statusLabels[newStatus] || newStatus}.`,
-                type: "task",
-                link: "/tasks",
+              await supabase.rpc("create_notification", {
+                p_user_id: assignee.user_id,
+                p_title: "📋 Task Status Updated",
+                p_message: `${moverName} moved "${taskData?.title || "a task"}" to ${statusLabels[newStatus] || newStatus}.`,
+                p_type: "task",
+                p_link: "/tasks",
               });
             }
           }

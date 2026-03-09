@@ -170,12 +170,12 @@ export function AddToTeamDialog({
         if (vpUsers) {
           for (const vp of vpUsers) {
             if (vp.user_id !== user?.id) {
-              await supabase.from("notifications").insert({
-                user_id: vp.user_id,
-                title: "👥 Team Update",
-                message: `${emp.first_name} ${emp.last_name} has been added to ${result.manager_name || "a manager"}'s team.`,
-                type: "team",
-                link: "/employees",
+              await supabase.rpc("create_notification", {
+                p_user_id: vp.user_id,
+                p_title: "👥 Team Update",
+                p_message: `${emp.first_name} ${emp.last_name} has been added to ${result.manager_name || "a manager"}'s team.`,
+                p_type: "team",
+                p_link: "/employees",
               });
             }
           }

@@ -514,12 +514,12 @@ export function useAttendance(weekStart?: Date) {
       // Auto-resume all paused work logs
       await autoResumeWorkLogs();
 
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "▶️ Clock Resumed",
-        message: `You resumed work after a ${pauseMinutes} minute pause.${newWorkMode === "wfh" ? " Now working from home." : newWorkMode === "wfo" ? " Now working from office." : ""}`,
-        type: "attendance",
-        link: "/attendance",
+      await supabase.rpc("create_notification", {
+        p_user_id: user.id,
+        p_title: "▶️ Clock Resumed",
+        p_message: `You resumed work after a ${pauseMinutes} minute pause.${newWorkMode === "wfh" ? " Now working from home." : newWorkMode === "wfo" ? " Now working from office." : ""}`,
+        p_type: "attendance",
+        p_link: "/attendance",
       });
     }
   };

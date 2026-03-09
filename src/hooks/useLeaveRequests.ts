@@ -69,13 +69,12 @@ export function useLeaveRequests() {
     link: string | null = "/leave",
   ) => {
     try {
-      const { error } = await supabase.from("notifications").insert({
-        user_id: userId,
-        title,
-        message,
-        type,
-        link,
-        is_read: false,
+      const { error } = await supabase.rpc("create_notification", {
+        p_user_id: userId,
+        p_title: title,
+        p_message: message,
+        p_type: type,
+        p_link: link,
       });
 
       if (error) {
