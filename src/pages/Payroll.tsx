@@ -69,6 +69,7 @@ const Payroll = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<typeof employees[0] | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [showMyBreakdown, setShowMyBreakdown] = useState(false);
+  const [showRunPayrollDialog, setShowRunPayrollDialog] = useState(false);
 
   // Filter employees by region (case-insensitive)
   const regionEmployees = employees.filter(e => 
