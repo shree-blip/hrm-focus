@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.send-team-assignment-notification]
 verify_jwt = false
+
+[functions.send-document-upload-notification]
+verify_jwt = false
