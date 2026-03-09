@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "@/hooks/use-toast";
 
 // Private categories that only uploader and admin can see
@@ -30,6 +31,8 @@ export interface UploaderInfo {
 
 export function useDocuments() {
   const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canManageDocs = isAdmin || isVP || isManager || hasPermission('manage_documents');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploaderNames, setUploaderNames] = useState<UploaderInfo>({});
   const [loading, setLoading] = useState(true);
@@ -43,7 +46,7 @@ export function useDocuments() {
       // Step 1: Fetch managed employees first (if user is manager/line manager)
       let managedEmployeeIds: string[] = [];
 
-      if (isManager || isLineManager) {
+      if (canManageDocs || isLineManager) {
         const { data: managedProfiles, error: managedError } = await supabase
           .from("profiles")
           .select("user_id")
@@ -88,14 +91,14 @@ export function useDocuments() {
         // Leave Evidence - visible to uploader, admin, VP, manager, or line manager
         if (doc.category === LEAVE_EVIDENCE_CATEGORY) {
           if (doc.uploaded_by === user.id) return true;
-          if (isAdmin || isVP || isManager || isLineManager) return true;
+          if (canManageDocs || isLineManager) return true;
           return false;
         }
 
         // Contracts - visible to uploader (VP), admin, VP, and the assigned employee
         if (doc.category === "Contracts") {
           if (doc.uploaded_by === user.id) return true;
-          if (isAdmin || isVP) return true;
+          if (canManageDocs) return true;
           // Employee can see their own contract
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
           return false;
@@ -104,11 +107,9 @@ export function useDocuments() {
         // Compliance - visible to uploader, admin, VP, and the assigned employee
         if (doc.category === "Compliance") {
           if (doc.uploaded_by === user.id) return true;
-          if (isAdmin || isVP) return true;
+          if (canManageDocs) return true;
           // Employee can see their own compliance docs
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
-          // Managers/line managers who uploaded can also view
-          if (isManager || isLineManager) return true;
           return false;
         }
 
@@ -140,7 +141,7 @@ export function useDocuments() {
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, isVP, isManager, isLineManager]);
+  }, [user, canManageDocs, isLineManager]);
 
   useEffect(() => {
     fetchDocuments();

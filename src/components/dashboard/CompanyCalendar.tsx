@@ -9,6 +9,7 @@ import { useMilestones } from "@/hooks/useMilestones";
 import { useCalendarEvents, CalendarEvent } from "@/hooks/useCalendarEvents";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { AddCalendarEventDialog } from "@/components/dashboard/AddCalendarEventDialog";
 import { cn } from "@/lib/utils";
 
@@ -474,6 +475,8 @@ export function CompanyCalendar() {
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
 
   const { isManager } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canManageCalendar = isManager || hasPermission('manage_calendar');
 
   const {
     loading: milestonesLoading,
@@ -721,7 +724,7 @@ export function CompanyCalendar() {
               <CalendarIcon className="h-5 w-5 text-primary" />
               Company Calendar
             </CardTitle>
-            {isManager && selectedDate && (
+            {canManageCalendar && selectedDate && (
               <Button size="sm" variant="outline" onClick={handleAddEventClick} className="h-8 text-xs">
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 Add Event
@@ -770,7 +773,7 @@ export function CompanyCalendar() {
                 <CustomDayCell
                   date={date}
                   customEventsForDate={getCustomEventsForDate(date)}
-                  isManager={isManager}
+                  isManager={canManageCalendar}
                   onAddClick={handleAddEventFromCell}
                 />
               ),
@@ -783,7 +786,7 @@ export function CompanyCalendar() {
               <div className="flex items-center justify-between px-1">
                 <p className="text-sm font-medium text-foreground">{formatDateFull(selectedDate)}</p>
                 <div className="flex items-center gap-1">
-                  {isManager && (
+                  {canManageCalendar && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -894,7 +897,7 @@ export function CompanyCalendar() {
                 <div className="p-3 rounded-lg bg-muted/30 border border-border/50 text-center">
                   <p className="text-sm text-muted-foreground">
                     No events on this date
-                    {isManager && " — click 'Add' to create one"}
+                    {canManageCalendar && " — click 'Add' to create one"}
                   </p>
                 </div>
               )}
