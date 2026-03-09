@@ -2447,6 +2447,7 @@ export type Database = {
           period_year: number
           standard_hours: number
           updated_at: string
+          used_hours: number
           user_id: string
         }
         Insert: {
@@ -2462,6 +2463,7 @@ export type Database = {
           period_year: number
           standard_hours?: number
           updated_at?: string
+          used_hours?: number
           user_id: string
         }
         Update: {
@@ -2477,6 +2479,7 @@ export type Database = {
           period_year?: number
           standard_hours?: number
           updated_at?: string
+          used_hours?: number
           user_id?: string
         }
         Relationships: [
@@ -2513,6 +2516,7 @@ export type Database = {
       payroll_run_details: {
         Row: {
           actual_hours: number | null
+          bank_hours_used: number
           created_at: string
           deductions: number | null
           department: string | null
@@ -2529,6 +2533,7 @@ export type Database = {
         }
         Insert: {
           actual_hours?: number | null
+          bank_hours_used?: number
           created_at?: string
           deductions?: number | null
           department?: string | null
@@ -2545,6 +2550,7 @@ export type Database = {
         }
         Update: {
           actual_hours?: number | null
+          bank_hours_used?: number
           created_at?: string
           deductions?: number | null
           department?: string | null
@@ -3837,6 +3843,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_used_hours: {
+        Args: { hours_to_add: number; record_id: string }
+        Returns: undefined
       }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }

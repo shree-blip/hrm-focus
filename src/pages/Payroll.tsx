@@ -215,6 +215,30 @@ const Payroll = () => {
         }
       });
 
+      // Fetch existing time bank balances for all employees
+      const { data: timeBankData } = await supabase
+        .from("overtime_bank")
+        .select("user_id, employee_id, id, extra_hours, used_hours")
+        .eq("converted_to_leave", false);
+
+      // Build time bank map: employee_id -> available hours & record ids
+      const timeBankByEmployee = new Map<string, { available: number; records: { id: string; available: number }[] }>();
+      timeBankData?.forEach(rec => {
+        const empId = rec.employee_id || "";
+        const available = (rec.extra_hours || 0) - (rec.used_hours || 0);
+        if (available <= 0) return;
+        const existing = timeBankByEmployee.get(empId);
+        if (existing) {
+          existing.available += available;
+          existing.records.push({ id: rec.id, available });
+        } else {
+          timeBankByEmployee.set(empId, { available, records: [{ id: rec.id, available }] });
+        }
+      });
+
+      // Track time bank updates to apply after payroll
+      const timeBankUpdates: { id: string; addUsedHours: number }[] = [];
+
       let totalGross = 0;
       let totalDeductions = 0;
       let employeeCount = 0;
@@ -235,6 +259,7 @@ const Payroll = () => {
         actual_hours: number;
         payable_hours: number;
         extra_hours: number;
+        bank_hours_used: number;
         gross_pay: number;
         deductions: number;
         net_pay: number;
@@ -260,22 +285,41 @@ const Payroll = () => {
         }
 
         let grossPay = 0;
-        let payableHours = actualHours;
-        let extraHours = 0;
+        let payableHours = Math.min(actualHours, standardHoursInRange);
+        let extraHours = Math.max(0, actualHours - standardHoursInRange);
         let hourlyRate = 0;
+        let bankHoursUsed = 0;
 
         if (hasHourlyRate) {
           hourlyRate = emp.hourly_rate!;
-          payableHours = Math.min(actualHours, standardHoursInRange);
-          extraHours = Math.max(0, actualHours - standardHoursInRange);
-          grossPay = payableHours * hourlyRate;
         } else if (hasSalary) {
-          // salary is MONTHLY gross — derive hourly rate from full month hours
           hourlyRate = standardMonthlyHours > 0 ? emp.salary! / standardMonthlyHours : 0;
-          payableHours = Math.min(actualHours, standardHoursInRange);
-          extraHours = Math.max(0, actualHours - standardHoursInRange);
-          grossPay = payableHours * hourlyRate;
         }
+
+        // TIME BANK ADJUSTMENT: if employee worked fewer hours than required,
+        // cover the gap from their stored time bank
+        if (payableHours < standardHoursInRange) {
+          const missingHours = standardHoursInRange - payableHours;
+          const bank = timeBankByEmployee.get(emp.id);
+          if (bank && bank.available > 0) {
+            const coveredHours = Math.min(missingHours, bank.available);
+            payableHours += coveredHours;
+            bankHoursUsed = coveredHours;
+
+            // Deduct from bank records (FIFO)
+            let remaining = coveredHours;
+            for (const rec of bank.records) {
+              if (remaining <= 0) break;
+              const deduct = Math.min(remaining, rec.available);
+              timeBankUpdates.push({ id: rec.id, addUsedHours: deduct });
+              rec.available -= deduct;
+              remaining -= deduct;
+            }
+            bank.available -= coveredHours;
+          }
+        }
+
+        grossPay = payableHours * hourlyRate;
 
         totalGross += grossPay;
         employeeCount++;
@@ -289,6 +333,7 @@ const Payroll = () => {
           actual_hours: Math.round(actualHours * 10) / 10,
           payable_hours: Math.round(payableHours * 10) / 10,
           extra_hours: Math.round(extraHours * 10) / 10,
+          bank_hours_used: Math.round(bankHoursUsed * 10) / 10,
           gross_pay: Math.round(grossPay * 100) / 100,
           deductions: 0,
           net_pay: Math.round(grossPay * 100) / 100,
@@ -333,6 +378,7 @@ const Payroll = () => {
             actual_hours: d.actual_hours,
             payable_hours: d.payable_hours,
             extra_hours: d.extra_hours,
+            bank_hours_used: d.bank_hours_used,
             gross_pay: d.gross_pay,
             deductions: d.deductions,
             net_pay: d.net_pay,
@@ -341,7 +387,7 @@ const Payroll = () => {
           await supabase.from("payroll_run_details").insert(detailInserts);
         }
 
-        // Save extra hours to overtime_bank
+        // Save NEW extra hours to overtime_bank for this period
         if (overtimeRecords.length > 0) {
           const bankInserts = overtimeRecords.map(rec => ({
             user_id: rec.user_id,
@@ -352,10 +398,19 @@ const Payroll = () => {
             standard_hours: rec.standard_hours,
             actual_hours: rec.actual_hours,
             extra_hours: rec.extra_hours,
+            used_hours: 0,
           }));
 
           await supabase.from("overtime_bank").upsert(bankInserts, {
             onConflict: "user_id,period_month,period_year",
+          });
+        }
+
+        // Apply time bank deductions (update used_hours on older records)
+        for (const update of timeBankUpdates) {
+          await (supabase.rpc as any)("increment_used_hours", {
+            record_id: update.id,
+            hours_to_add: update.addUsedHours,
           });
         }
 
@@ -390,7 +445,7 @@ const Payroll = () => {
     const currencySymbol = region === "US" ? "$" : "Rs.";
     const headers = [
       "Employee Name", "Department", "Hourly Rate",
-      "Actual Hours", "Payable Hours", "Extra Hours",
+      "Actual Hours", "Payable Hours", "Extra Hours", "Bank Hours Used",
       "Gross Pay", "Deductions", "Net Pay"
     ];
 
@@ -401,8 +456,10 @@ const Payroll = () => {
       d.actual_hours || 0,
       d.payable_hours || 0,
       d.extra_hours || 0,
+      d.bank_hours_used || 0,
       d.gross_pay || 0,
       d.deductions || 0,
+      d.net_pay || 0,
       d.net_pay || 0,
     ].join(","));
 

@@ -1,0 +1,1 @@
+ALTER TABLE public.overtime_bank ADD COLUMN IF NOT EXISTS used_hours numeric NOT NULL DEFAULT 0;
