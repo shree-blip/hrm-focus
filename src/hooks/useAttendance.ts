@@ -143,12 +143,12 @@ export function useAttendance(weekStart?: Date) {
           description: "You've been working for nearly 8 hours. Consider clocking out soon!",
         });
 
-        supabase.from("notifications").insert({
-          user_id: user.id,
-          title: "⏰ 8-Hour Work Reminder",
-          message: "You've been working for nearly 8 hours. Consider clocking out in the next 10 minutes.",
-          type: "attendance",
-          link: "/attendance",
+        supabase.rpc("create_notification", {
+          p_user_id: user.id,
+          p_title: "⏰ 8-Hour Work Reminder",
+          p_message: "You've been working for nearly 8 hours. Consider clocking out in the next 10 minutes.",
+          p_type: "attendance",
+          p_link: "/attendance",
         });
       }
     };
