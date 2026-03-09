@@ -403,12 +403,12 @@ export function useAttendance(weekStart?: Date) {
       // Auto-pause all active work logs
       await autoPauseWorkLogs("break");
 
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "☕ Break Started",
-        message: `You started a break at ${new Date().toLocaleTimeString()}.`,
-        type: "attendance",
-        link: "/attendance",
+      await supabase.rpc("create_notification", {
+        p_user_id: user.id,
+        p_title: "☕ Break Started",
+        p_message: `You started a break at ${new Date().toLocaleTimeString()}.`,
+        p_type: "attendance",
+        p_link: "/attendance",
       });
     }
   };
