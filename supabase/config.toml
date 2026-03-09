@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.send-calendar-reminders]
 verify_jwt = false
+
+[functions.send-leave-notification]
+verify_jwt = false
+
+[functions.retry-failed-notifications]
+verify_jwt = false
