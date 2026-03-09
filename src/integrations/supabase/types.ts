@@ -3841,6 +3841,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_used_hours: {
+        Args: { hours_to_add: number; record_id: string }
+        Returns: undefined
+      }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
