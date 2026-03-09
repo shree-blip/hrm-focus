@@ -12,6 +12,7 @@ import { RealTimeAttendanceWidget } from "@/components/dashboard/RealTimeAttenda
 
 import { PersonalReportsWidget } from "@/components/dashboard/PersonalReportsWidget";
 import { TeamReportsWidget } from "@/components/dashboard/TeamReportsWidget";
+import { LoanRequestsWidget } from "@/components/dashboard/LoanRequestsWidget";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -204,6 +205,7 @@ const Index = () => {
             <TasksWidget />
             <LeaveWidget />
           </div>
+          {isManager && <LoanRequestsWidget />}
           <div id="company-calendar">
             <CompanyCalendar />
           </div>
