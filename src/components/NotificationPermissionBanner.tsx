@@ -7,14 +7,13 @@ const DISMISS_KEY = "desktop-notification-banner-dismissed";
 
 export function NotificationPermissionBanner() {
   const { permission, requestPermission } = useNotificationPermission();
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (!("Notification" in window)) return;
-    if (permission === "granted") return;
-    if (localStorage.getItem(DISMISS_KEY) === "true" && permission === "default") return;
-    setVisible(true);
-  }, [permission]);
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === "undefined") return false;
+    if (!("Notification" in window)) return false;
+    if (Notification.permission === "granted") return false;
+    if (localStorage.getItem(DISMISS_KEY) === "true") return false;
+    return true;
+  });
 
   if (!visible) return null;
 
