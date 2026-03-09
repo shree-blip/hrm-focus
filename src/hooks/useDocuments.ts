@@ -141,7 +141,7 @@ export function useDocuments() {
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, isVP, isManager, isLineManager]);
+  }, [user, canManageDocs, isLineManager]);
 
   useEffect(() => {
     fetchDocuments();
