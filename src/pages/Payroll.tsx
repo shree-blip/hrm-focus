@@ -1152,6 +1152,13 @@ const Payroll = () => {
       ) : null}
 
       {/* Dialogs */}
+      <RunPayrollDialog
+        open={showRunPayrollDialog}
+        onOpenChange={setShowRunPayrollDialog}
+        onRun={handleRunPayroll}
+        isProcessing={isCalculating}
+      />
+
       <PayslipsPreviewDialog
         open={showPayslipsPreview}
         onOpenChange={setShowPayslipsPreview}
