@@ -58,6 +58,8 @@ import { EditEmployeeSalaryDialog } from "@/components/payroll/EditEmployeeSalar
 import { NepalPayrollTable } from "@/components/payroll/NepalPayrollTable";
 import { SalaryBreakdownDialog } from "@/components/payroll/SalaryBreakdownDialog";
 import { RunPayrollDialog } from "@/components/payroll/RunPayrollDialog";
+import { PayrollDataGrid, type PayrollRow } from "@/components/payroll/PayrollDataGrid";
+import { exportPayrollCSV, mapDetailToExportRow } from "@/lib/payrollCsvExport";
 
 const Payroll = () => {
   const { isVP, isManager, profile, user } = useAuth();
@@ -101,6 +103,9 @@ const Payroll = () => {
 
   const [selectedEmployee, setSelectedEmployee] = useState<typeof employees[0] | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [viewRunId, setViewRunId] = useState<string | null>(searchParams.get("runId"));
+  const [viewRunRows, setViewRunRows] = useState<PayrollRow[]>([]);
+  const [viewRunPeriod, setViewRunPeriod] = useState<{ start: string; end: string } | null>(null);
 
   // Derive modal open states from URL
   const showPayslipsPreview = modalParam === "payslips";
@@ -510,47 +515,59 @@ const Payroll = () => {
       return;
     }
 
-    const currencySymbol = region === "US" ? "$" : "Rs.";
-    const headers = [
-      "Employee Name", "Department", "Hourly Rate",
-      "Actual Hours", "Payable Hours", "Extra Hours", "Bank Hours Used",
-      "Gross Pay", "Income Tax", "Social Security", "Provident Fund",
-      "Total Deductions", "Net Pay"
-    ];
+    const exportRows = details.map((d: any) => mapDetailToExportRow(d));
+    exportPayrollCSV(exportRows, region, periodStart);
+    toast({ title: "Downloaded", description: `Payroll CSV for ${format(new Date(periodStart + "T00:00:00"), "MMMM yyyy")} exported` });
+  };
 
-    const rows = details.map((d: any) => {
-      // Attempt to extract individual deduction fields; fall back to 0
-      const incomeTax = d.income_tax ?? 0;
-      const socialSecurity = d.social_security ?? 0;
-      const providentFund = d.provident_fund ?? 0;
-      const totalDed = d.deductions || (incomeTax + socialSecurity + providentFund);
-      return [
-        `"${d.employee_name}"`,
-        d.department || "",
-        d.hourly_rate || 0,
-        d.actual_hours || 0,
-        d.payable_hours || 0,
-        d.extra_hours || 0,
-        d.bank_hours_used || 0,
-        d.gross_pay || 0,
-        incomeTax,
-        socialSecurity,
-        providentFund,
-        totalDed,
-        d.net_pay || 0,
-      ].join(",");
-    });
+  const handleViewRunDetails = async (runId: string, periodStart: string, periodEnd: string) => {
+    const { data: details, error } = await supabase
+      .from("payroll_run_details")
+      .select("*")
+      .eq("payroll_run_id", runId)
+      .order("employee_name");
 
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `payroll-${format(new Date(periodStart), "yyyy-MM")}-${region}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (error || !details || details.length === 0) {
+      toast({ title: "No Data", description: "No payroll details found for this run", variant: "destructive" });
+      return;
+    }
 
-    toast({ title: "Downloaded", description: `Payroll CSV for ${format(new Date(periodStart), "MMMM yyyy")} exported` });
+    const rows: PayrollRow[] = details.map((d: any) => ({
+      employee_name: d.employee_name,
+      department: d.department || "",
+      hourly_rate: d.hourly_rate || 0,
+      required_hours: d.payable_hours || 0,
+      actual_hours: d.actual_hours || 0,
+      payable_hours: d.payable_hours || 0,
+      extra_hours: d.extra_hours || 0,
+      bank_hours_used: d.bank_hours_used || 0,
+      gross_pay: d.gross_pay || 0,
+      income_tax: d.income_tax ?? 0,
+      social_security: d.social_security ?? 0,
+      provident_fund: d.provident_fund ?? 0,
+      deductions: d.deductions || 0,
+      net_pay: d.net_pay || 0,
+    }));
+
+    setViewRunRows(rows);
+    setViewRunPeriod({ start: periodStart, end: periodEnd });
+    setViewRunId(runId);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set("runId", runId);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleCloseRunView = () => {
+    setViewRunId(null);
+    setViewRunRows([]);
+    setViewRunPeriod(null);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete("runId");
+      return next;
+    }, { replace: true });
   };
 
   const handleExport = () => {
@@ -1026,15 +1043,26 @@ const Payroll = () => {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {payroll.status === "completed" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="gap-1.5"
-                                  onClick={() => handleDownloadRunCSV(payroll.id, payroll.period_start, payroll.period_end)}
-                                >
-                                  <Download className="h-3.5 w-3.5" />
-                                  CSV
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    onClick={() => handleViewRunDetails(payroll.id, payroll.period_start, payroll.period_end)}
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                    View
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    onClick={() => handleDownloadRunCSV(payroll.id, payroll.period_start, payroll.period_end)}
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                    CSV
+                                  </Button>
+                                </>
                               )}
                               {isVP && payroll.status === "draft" && (
                                 <Button size="sm" onClick={() => processPayroll(payroll.id)}>
@@ -1051,6 +1079,23 @@ const Payroll = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* AG Grid Detail View for a selected payroll run */}
+          {viewRunId && viewRunRows.length > 0 && viewRunPeriod && (
+            <div className="mt-6 space-y-4">
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" onClick={handleCloseRunView}>
+                  Close Detail View
+                </Button>
+              </div>
+              <PayrollDataGrid
+                rows={viewRunRows}
+                region={region}
+                periodStart={viewRunPeriod.start}
+                periodEnd={viewRunPeriod.end}
+              />
+            </div>
+          )}
         </>
       ) : activeTab === "attendance" ? (
         /* Employee Attendance Tab */
