@@ -68,7 +68,7 @@ const EmployeeAvatar = ({ employee }: { employee: any }) => {
 
 const Employees = () => {
   const { employees, loading, createEmployee, updateEmployee, deactivateEmployee } = useEmployees();
-  const { isManager, isVP, isLineManager, isSupervisor, canCreateEmployee } = useAuth();
+  const { user, isManager, isVP, isLineManager, isSupervisor, canCreateEmployee } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -286,6 +286,34 @@ const Employees = () => {
 
       if (res?.error) throw res.error;
 
+      // Auto-whitelist the email for signup
+      if (res?.id) {
+        const { error: whitelistError } = await supabase
+          .from("allowed_signups")
+          .upsert(
+            {
+              email: data.email.trim().toLowerCase(),
+              employee_id: res.id,
+              invited_by: user?.id || null,
+              invited_at: new Date().toISOString(),
+              is_used: false,
+            },
+            { onConflict: "email" }
+          );
+
+        if (whitelistError) {
+          console.error("Failed to whitelist email:", whitelistError);
+          // Try insert without upsert (email column may not have unique constraint)
+          await supabase.from("allowed_signups").insert({
+            email: data.email.trim().toLowerCase(),
+            employee_id: res.id,
+            invited_by: user?.id || null,
+            invited_at: new Date().toISOString(),
+            is_used: false,
+          });
+        }
+      }
+
       setAddDialogOpen(false);
     } catch (err: any) {
       console.error("Add employee failed:", err);
@@ -413,6 +441,7 @@ const Employees = () => {
                   <TableHead className="font-semibold">Department</TableHead>
                   <TableHead className="font-semibold">Location</TableHead>
                   <TableHead className="font-semibold">Status</TableHead>
+                  {isManager && <TableHead className="font-semibold">Account</TableHead>}
                   <TableHead className="font-semibold">Contact</TableHead>
                 </TableRow>
               </TableHeader>
@@ -420,7 +449,7 @@ const Employees = () => {
               <TableBody>
                 {filteredEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={isManager ? 7 : 6} className="text-center py-8 text-muted-foreground">
                       No employees found
                     </TableCell>
                   </TableRow>
@@ -471,6 +500,21 @@ const Employees = () => {
                           {employee.status || "active"}
                         </Badge>
                       </TableCell>
+
+                      {isManager && (
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              employee.profile_id
+                                ? "border-success/50 text-success bg-success/10"
+                                : "border-warning/50 text-warning bg-warning/10",
+                            )}
+                          >
+                            {employee.profile_id ? "Registered" : "Pending Signup"}
+                          </Badge>
+                        </TableCell>
+                      )}
 
                       <TableCell>
                         <div className="flex items-center gap-2">
