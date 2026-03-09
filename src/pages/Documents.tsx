@@ -151,6 +151,8 @@ interface DisplayDocument {
 
 const Documents = () => {
   const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canManageDocs = isAdmin || isVP || isManager || hasPermission('manage_documents');
   const { employees } = useEmployees();
   const {
     documents: realDocuments,
