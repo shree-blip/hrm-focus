@@ -926,7 +926,7 @@ const Payroll = () => {
                   <Button 
                     variant="outline" 
                     className="w-full justify-start gap-2 mb-2"
-                    onClick={() => setShowPayslipsPreview(true)}
+                    onClick={() => setModalParam("payslips")}
                   >
                     <FileText className="h-4 w-4" />
                     Preview Payslips
