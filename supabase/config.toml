@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.send-document-upload-notification]
 verify_jwt = false
+
+[functions.send-loan-notification]
+verify_jwt = false

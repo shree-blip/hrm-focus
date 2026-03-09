@@ -233,21 +233,36 @@ export function useLoans() {
     if (lr) {
       await logAudit(lr.id, "loan_submitted", { amount: data.amount, term: data.term_months });
 
-      // Notify VP about the new loan request
+      // Notify VP (in-app + email)
       try {
         const { data: empProfile } = await supabase
           .from("profiles")
-          .select("first_name, last_name")
+          .select("first_name, last_name, email")
           .eq("user_id", user.id)
           .single();
         const empName = empProfile ? `${empProfile.first_name} ${empProfile.last_name}` : "An employee";
+        const empEmail = empProfile?.email || "";
 
+        // In-app notification
         await supabase.rpc("create_notification", {
           p_user_id: vpUserId,
           p_title: "💰 New Loan Request",
           p_message: `${empName} submitted a loan request for ${data.amount.toLocaleString()} (${data.term_months} months).`,
           p_type: "loan",
           p_link: "/loans",
+        });
+
+        // Email notification to VP
+        await supabase.functions.invoke("send-loan-notification", {
+          body: {
+            event_type: "submitted",
+            employee_name: empName,
+            employee_email: empEmail,
+            amount: data.amount,
+            term_months: data.term_months,
+            emi,
+            reason_type: data.reason_type,
+          },
         });
       } catch (err) {
         console.error("Error sending loan notification:", err);
@@ -340,7 +355,15 @@ export function useLoans() {
     try {
       const loan = vpQueue.find((l) => l.id === loanId);
       if (loan) {
-        // Notify employee
+        // Get VP profile for email signature
+        const { data: vpProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", user.id)
+          .single();
+        const vpName = vpProfile ? `${vpProfile.first_name} ${vpProfile.last_name}` : "CEO";
+
+        // Notify employee (in-app)
         await supabase.rpc("create_notification", {
           p_user_id: loan.user_id,
           p_title: decision === "approved" ? "✅ Loan Approved" : "❌ Loan Rejected",
@@ -350,6 +373,30 @@ export function useLoans() {
           p_type: "loan",
           p_link: "/loans",
         });
+
+        // Notify employee (email)
+        const { data: employeeProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, email")
+          .eq("user_id", loan.user_id)
+          .single();
+
+        if (employeeProfile?.email) {
+          const employeeName = `${employeeProfile.first_name} ${employeeProfile.last_name}`;
+          await supabase.functions.invoke("send-loan-notification", {
+            body: {
+              event_type: decision,
+              employee_name: employeeName,
+              employee_email: employeeProfile.email,
+              amount: loan.amount,
+              term_months: loan.term_months,
+              emi: loan.estimated_monthly_installment,
+              reason_type: loan.reason_type,
+              comment,
+              vp_name: vpName,
+            },
+          });
+        }
 
         // Notify manager if they exist
         if (loan.manager_user_id && loan.manager_user_id !== user.id) {
