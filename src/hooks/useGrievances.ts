@@ -223,6 +223,42 @@ export function useGrievances() {
 
       toast.success("Grievance submitted successfully");
 
+      // Notify HR/admin about new grievance
+      try {
+        const { data: adminUsers } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["admin", "vp"]);
+
+        const { data: submitterProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", user.id)
+          .single();
+
+        const submitterName = grievance.is_anonymous
+          ? "Anonymous"
+          : submitterProfile
+            ? `${submitterProfile.first_name} ${submitterProfile.last_name}`
+            : "An employee";
+
+        if (adminUsers) {
+          for (const admin of adminUsers) {
+            if (admin.user_id !== user.id) {
+              await supabase.rpc("create_notification", {
+                p_user_id: admin.user_id,
+                p_title: "🚨 New Grievance Submitted",
+                p_message: `${submitterName} submitted a ${grievance.priority} priority grievance: "${grievance.title}"`,
+                p_type: "grievance",
+                p_link: "/support",
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error sending grievance notifications:", err);
+      }
+
       // Immediately refresh the list
       await fetchGrievances();
 
