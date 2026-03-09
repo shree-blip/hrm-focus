@@ -271,6 +271,9 @@ export function useGrievances() {
   };
 
   const updateGrievanceStatus = async (id: string, status: string) => {
+    // Get grievance info before updating
+    const grievance = grievances.find((g) => g.id === id);
+
     const { error } = await supabase
       .from("grievances" as any)
       .update({ status } as any)
@@ -282,6 +285,22 @@ export function useGrievances() {
     }
 
     toast.success("Status updated");
+
+    // Notify the grievance submitter about status change
+    if (grievance && grievance.user_id !== user?.id) {
+      try {
+        await supabase.rpc("create_notification", {
+          p_user_id: grievance.user_id,
+          p_title: "📋 Grievance Status Updated",
+          p_message: `Your grievance "${grievance.title}" status changed to ${STATUS_LABELS[status] || status}.`,
+          p_type: "grievance",
+          p_link: "/support",
+        });
+      } catch (err) {
+        console.error("Error sending grievance status notification:", err);
+      }
+    }
+
     await fetchGrievances();
     return true;
   };
