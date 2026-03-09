@@ -1043,15 +1043,26 @@ const Payroll = () => {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {payroll.status === "completed" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="gap-1.5"
-                                  onClick={() => handleDownloadRunCSV(payroll.id, payroll.period_start, payroll.period_end)}
-                                >
-                                  <Download className="h-3.5 w-3.5" />
-                                  CSV
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    onClick={() => handleViewRunDetails(payroll.id, payroll.period_start, payroll.period_end)}
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                    View
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    onClick={() => handleDownloadRunCSV(payroll.id, payroll.period_start, payroll.period_end)}
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                    CSV
+                                  </Button>
+                                </>
                               )}
                               {isVP && payroll.status === "draft" && (
                                 <Button size="sm" onClick={() => processPayroll(payroll.id)}>
