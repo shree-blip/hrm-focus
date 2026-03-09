@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -127,17 +127,26 @@ export function useTasks() {
     }
   }, [userId]);
 
+  // Debounce realtime to prevent cascading re-fetches
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     fetchTasks();
+
+    const debouncedFetch = () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      realtimeTimerRef.current = setTimeout(() => fetchTasks(), 500);
+    };
 
     // Set up real-time subscription
     const channel = supabase
       .channel("tasks-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchTasks())
-      .on("postgres_changes", { event: "*", schema: "public", table: "task_assignees" }, () => fetchTasks())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, debouncedFetch)
+      .on("postgres_changes", { event: "*", schema: "public", table: "task_assignees" }, debouncedFetch)
       .subscribe();
 
     return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [fetchTasks]);

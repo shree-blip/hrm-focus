@@ -3,6 +3,7 @@ import { Clock, Play, Square, Coffee, Loader2, Briefcase, Pause, Home } from "lu
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useAttendance } from "@/hooks/useAttendance";
@@ -223,8 +224,23 @@ export function ClockWidget() {
         className="overflow-hidden animate-slide-up opacity-0"
         style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
       >
-        <CardContent className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-5 w-5 rounded" />
+            <Skeleton className="h-5 w-28" />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col items-center gap-3">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <div className="flex justify-between">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-12" />
+          </div>
+          <Skeleton className="h-2 w-full rounded-full" />
         </CardContent>
       </Card>
     );

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Megaphone, Pin, CalendarDays, Loader2 } from "lucide-react";
+import { Megaphone, Pin, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -43,8 +44,17 @@ export function AnnouncementsWidget() {
             Announcements
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <CardContent className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-start gap-3 p-2">
+              <Skeleton className="h-4 w-4 mt-0.5 rounded" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+              <Skeleton className="h-4 w-12" />
+            </div>
+          ))}
         </CardContent>
       </Card>
     );

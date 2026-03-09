@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -260,15 +260,24 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
     setLoading(false);
   }, [user, isManager, isVP, isAdmin, role, isLineManager, isSupervisor, dateRangeType]);
 
+  // Debounce realtime to prevent cascading re-fetches
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     fetchTeamAttendance();
 
+    const debouncedFetch = () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      realtimeTimerRef.current = setTimeout(() => fetchTeamAttendance(), 500);
+    };
+
     const attendanceChannel = supabase
       .channel("team-attendance-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, () => fetchTeamAttendance())
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, debouncedFetch)
       .subscribe();
 
     return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       supabase.removeChannel(attendanceChannel);
     };
   }, [fetchTeamAttendance]);

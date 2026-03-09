@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useAuth } from "@/contexts/AuthContext";
@@ -137,7 +138,18 @@ export function LeaveWidget() {
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <div className="text-center py-4 text-muted-foreground">Loading...</div>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-2 rounded-lg">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-2/3" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+            ))}
+          </div>
         ) : displayRequests.length === 0 ? (
           <div className="text-center py-4 text-muted-foreground">
             {isManager ? "No pending leave requests" : "No leave requests"}

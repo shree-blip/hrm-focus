@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -142,22 +142,31 @@ export function useEmployees() {
   }, [fetchEmployees]);
 
   // ✅ Set up realtime subscription for both employees AND profiles changes
+  // Debounce to prevent cascading re-fetches when multiple changes fire rapidly
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
+    const debouncedRefetch = () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      realtimeTimerRef.current = setTimeout(() => fetchEmployees(true), 500);
+    };
+
     const employeesChannel = supabase
       .channel("employees-changes")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "employees" },
-        () => fetchEmployees(true), // Force refetch on realtime changes
+        debouncedRefetch,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "profiles" },
-        () => fetchEmployees(true), // ✅ Also refetch when profiles change (avatar updates)
+        debouncedRefetch, // ✅ Also refetch when profiles change (avatar updates)
       )
       .subscribe();
 
     return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       supabase.removeChannel(employeesChannel);
     };
   }, []);

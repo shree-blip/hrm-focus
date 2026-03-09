@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -342,8 +342,16 @@ export function useLeaveRequests() {
     setLoading(false);
   }, [fetchRequests, fetchBalances]);
 
+  // Debounce realtime to prevent cascading re-fetches
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     loadAllData();
+
+    const debouncedLoad = () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      realtimeTimerRef.current = setTimeout(() => loadAllData(), 500);
+    };
 
     const channel = supabase
       .channel("leave-changes")
@@ -354,13 +362,12 @@ export function useLeaveRequests() {
           schema: "public",
           table: "leave_requests",
         },
-        () => {
-          loadAllData();
-        },
+        debouncedLoad,
       )
       .subscribe();
 
     return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [loadAllData, user]);

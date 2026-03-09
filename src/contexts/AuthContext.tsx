@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -52,6 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLineManager, setIsLineManager] = useState(false);
   const [canCreateEmployee, setCanCreateEmployee] = useState(false);
 
+  // Track whether the user was already validated in this browser session
+  // so TOKEN_REFRESHED doesn't re-check allowlist (the main cause of random logouts)
+  const allowlistValidatedRef = useRef(false);
+
+  // Prevent running init logic from both getSession and onAuthStateChange simultaneously
+  const initRunRef = useRef(false);
 
   // Check if email exists as an allowed signup/login email (uses a backend RPC to avoid RLS issues)
   const checkAllowlist = async (email: string): Promise<boolean> => {
@@ -80,23 +86,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
 
+  // Helper to load profile, role, line-manager status for a user
+  const initUserData = async (userId: string) => {
+    await Promise.all([
+      fetchProfile(userId),
+      fetchRole(userId),
+      fetchLineManagerStatus(userId),
+    ]);
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      // Always keep session/user state in sync
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
 
-      // Check allowlist for any login event
-      if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
-        const email = session.user.email;
+      if (currentSession?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION")) {
+        const email = currentSession.user.email;
+        const userId = currentSession.user.id;
+
+        if (event === "TOKEN_REFRESHED") {
+          // On token refresh, SKIP allowlist re-check — the user was already
+          // validated on SIGNED_IN or session restore. Re-checking the allowlist
+          // RPC on every token refresh caused random logouts when the RPC
+          // returned an error (network blip, rate-limit, timeout).
+          // Still refresh profile/role in case they changed.
+          setTimeout(() => initUserData(userId), 0);
+          return;
+        }
+
+        if (event === "INITIAL_SESSION") {
+          // This fires when getSession() resolves — handled in getSession block below.
+          // Skip to avoid double-init.
+          return;
+        }
+
+        // SIGNED_IN — first login in this tab
         if (email) {
-          // Use setTimeout to prevent deadlock, then check allowlist
           setTimeout(async () => {
             const isAllowed = await checkAllowlist(email);
             if (!isAllowed) {
-              // Sign out immediately if not on allowlist
               console.warn(`Email ${email} not on allowlist, signing out`);
               await supabase.auth.signOut();
               setUser(null);
@@ -105,31 +137,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setRole(null);
               setIsLineManager(false);
               setCanCreateEmployee(false);
-              // Store rejection reason for UI to display
               sessionStorage.setItem("auth_rejected", "not_allowed");
               return;
             }
 
-            // Allowed - fetch profile and role
-            fetchProfile(session.user.id);
-            fetchRole(session.user.id);
-            fetchLineManagerStatus(session.user.id);
+            allowlistValidatedRef.current = true;
+            await initUserData(userId);
           }, 0);
         }
-      } else if (!session?.user) {
+      } else if (!currentSession?.user) {
         setProfile(null);
         setRole(null);
         setIsLineManager(false);
         setCanCreateEmployee(false);
+        allowlistValidatedRef.current = false;
       }
     });
 
     // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const email = session.user.email;
+    supabase.auth.getSession().then(async ({ data: { session: existingSession } }) => {
+      if (initRunRef.current) {
+        // onAuthStateChange already handled this
+        setLoading(false);
+        return;
+      }
+      initRunRef.current = true;
+
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
+      if (existingSession?.user) {
+        const email = existingSession.user.email;
         if (email) {
           const isAllowed = await checkAllowlist(email);
           if (!isAllowed) {
@@ -138,12 +175,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(null);
             sessionStorage.setItem("auth_rejected", "not_allowed");
           } else {
-            // Await role & profile so ProtectedRoute has permissions before rendering
-            await Promise.all([
-              fetchProfile(session.user.id),
-              fetchRole(session.user.id),
-              fetchLineManagerStatus(session.user.id),
-            ]);
+            allowlistValidatedRef.current = true;
+            await initUserData(existingSession.user.id);
           }
         }
       }

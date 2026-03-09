@@ -1,18 +1,16 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { StatCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ClockWidget } from "@/components/dashboard/ClockWidget";
 import { TasksWidget } from "@/components/dashboard/TasksWidget";
 import { LeaveWidget } from "@/components/dashboard/LeaveWidget";
 import { TeamWidget } from "@/components/dashboard/TeamWidget";
-import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { AnnouncementsWidget } from "@/components/dashboard/AnnouncementsWidget";
-import { CompanyCalendar } from "@/components/dashboard/CompanyCalendar";
 import { DailyTimelineWidget } from "@/components/dashboard/DailyTimelineWidget";
 import { RealTimeAttendanceWidget } from "@/components/dashboard/RealTimeAttendanceWidget";
 
 import { PersonalReportsWidget } from "@/components/dashboard/PersonalReportsWidget";
 import { TeamReportsWidget } from "@/components/dashboard/TeamReportsWidget";
-import { LoanRequestsWidget } from "@/components/dashboard/LoanRequestsWidget";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -20,7 +18,16 @@ import { useTasks } from "@/hooks/useTasks";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useAttendance } from "@/hooks/useAttendance";
 import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, lazy, Suspense } from "react";
+import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+
+// Lazy load heavy below-fold components
+const PerformanceChart = lazy(() =>
+  import("@/components/dashboard/PerformanceChart").then((m) => ({ default: m.PerformanceChart }))
+);
+const CompanyCalendar = lazy(() =>
+  import("@/components/dashboard/CompanyCalendar").then((m) => ({ default: m.CompanyCalendar }))
+);
 
 const Index = () => {
   const { profile, role, isManager } = useAuth();
@@ -201,14 +208,17 @@ const Index = () => {
         {/* Left Column - 2/3 width */}
         <div className="lg:col-span-2 space-y-6">
           {isManager ? <TeamReportsWidget /> : <PersonalReportsWidget />}
-          <PerformanceChart />
+          <Suspense fallback={<ChartSkeleton delay={350} />}>
+            <PerformanceChart />
+          </Suspense>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TasksWidget />
             <LeaveWidget />
           </div>
-          {isManager && <LoanRequestsWidget />}
           <div id="company-calendar">
-            <CompanyCalendar />
+            <Suspense fallback={<WidgetCardSkeleton delay={400} />}>
+              <CompanyCalendar />
+            </Suspense>
           </div>
         </div>
 

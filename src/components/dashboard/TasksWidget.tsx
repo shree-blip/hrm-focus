@@ -2,6 +2,7 @@ import { CheckCircle2, Circle, Clock, ArrowRight, AlertCircle } from "lucide-rea
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { useTasks } from "@/hooks/useTasks";
@@ -49,7 +50,17 @@ export function TasksWidget() {
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? (
-          <div className="text-center py-4 text-muted-foreground text-sm">Loading tasks...</div>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 rounded-lg">
+                <Skeleton className="h-5 w-5 rounded-full mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : displayTasks.length === 0 ? (
           <div className="text-center py-4 text-muted-foreground text-sm">No tasks found</div>
         ) : (

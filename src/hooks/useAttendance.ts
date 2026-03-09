@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -551,11 +551,11 @@ export function useAttendance(weekStart?: Date) {
   };
 
   /**
-   * Calculates net work hours for the month.
+   * Calculates net work hours for the month (memoized).
    * Formula: (clock_out - clock_in) - total_break_minutes - total_pause_minutes
    * Both breaks (lunch/rest) and pauses (hybrid commute transitions) are non-working states.
    */
-  const getMonthlyHours = () => {
+  const monthlyHours = useMemo(() => {
     let totalMinutes = 0;
     monthlyLogs.forEach((log) => {
       if (log.clock_in && log.clock_out) {
@@ -568,7 +568,7 @@ export function useAttendance(weekStart?: Date) {
       }
     });
     return Math.round((totalMinutes / 60) * 10) / 10;
-  };
+  }, [monthlyLogs]);
 
   /**
    * Returns a detailed breakdown for admin/reporting:
@@ -612,7 +612,7 @@ export function useAttendance(weekStart?: Date) {
     startPause,
     endPause,
     status: getStatus(),
-    monthlyHours: getMonthlyHours(),
+    monthlyHours,
     /** Returns net_work_hours, total_break_time (min), total_pause_time (min) for any log array */
     getTimeBreakdown,
     refetch: () => {
