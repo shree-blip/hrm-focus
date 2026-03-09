@@ -279,7 +279,7 @@ const Payroll = () => {
       // ── Fetch active (disbursed) loans for EMI deduction ──
       const { data: activeLoans } = await supabase
         .from("loan_requests")
-        .select("id, employee_id, user_id, amount, term_months, interest_rate, remaining_balance, estimated_monthly_installment, status, disbursed_at")
+        .select("id, employee_id, user_id, amount, term_months, interest_rate, estimated_monthly_installment, status, created_at")
         .in("status", ["disbursed"]);
 
       // Build map: employee_id → array of active loans
@@ -288,11 +288,9 @@ const Payroll = () => {
       }>>();
       activeLoans?.forEach(loan => {
         if (!loan.employee_id) return;
-        // Only deduct if loan was disbursed before or during the pay period end
-        if (loan.disbursed_at && new Date(loan.disbursed_at) > periodEnd) return;
         const emi = loan.estimated_monthly_installment
           || calculateEMI(Number(loan.amount), loan.interest_rate ?? FIXED_ANNUAL_RATE, loan.term_months);
-        const remaining = Number(loan.remaining_balance ?? loan.amount);
+        const remaining = Number(loan.amount);
         if (remaining <= 0) return;
         const arr = loansByEmployee.get(loan.employee_id) || [];
         arr.push({ id: loan.id, emi: Math.round(emi * 100) / 100, remainingBalance: remaining });

@@ -491,10 +491,16 @@ export function useLoans() {
   const recordRepayment = async (loanId: string, amount: number) => {
     if (!user) return;
 
-    const { data, error } = await supabase.rpc("record_loan_repayment", {
-      p_loan_request_id: loanId,
-      p_amount: amount,
-      p_recorded_by: user.id,
+    const { data, error } = await supabase.from("loan_repayments").insert({
+      loan_request_id: loanId,
+      total_amount: amount,
+      principal_amount: amount,
+      interest_amount: 0,
+      remaining_balance: 0,
+      due_date: new Date().toISOString().split("T")[0],
+      month_number: 0,
+      status: "paid",
+      user_id: user.id,
     });
 
     if (error) {
