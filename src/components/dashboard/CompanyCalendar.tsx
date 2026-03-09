@@ -475,6 +475,8 @@ export function CompanyCalendar() {
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
 
   const { isManager } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canManageCalendar = isManager || hasPermission('manage_calendar');
 
   const {
     loading: milestonesLoading,
