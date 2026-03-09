@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "HRM Focus <noreply@focusyourfinance.com>",
+            from: "HRM Focus <noreply@notifications.focusyourfinance.com>",
             to: [log.recipient_email],
             subject,
             html,

@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: "HRM Focus <noreply@focusyourfinance.com>",
+              from: "HRM Focus <noreply@notifications.focusyourfinance.com>",
               to: [employee.email],
               subject: "⏰ 8-Hour Work Reminder - Don't Forget to Clock Out!",
               html: buildReminderEmail(
