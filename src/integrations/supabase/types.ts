@@ -2526,9 +2526,12 @@ export type Database = {
           gross_pay: number | null
           hourly_rate: number | null
           id: string
+          income_tax: number
           net_pay: number | null
           payable_hours: number | null
           payroll_run_id: string
+          provident_fund: number
+          social_security: number
           user_id: string | null
         }
         Insert: {
@@ -2543,9 +2546,12 @@ export type Database = {
           gross_pay?: number | null
           hourly_rate?: number | null
           id?: string
+          income_tax?: number
           net_pay?: number | null
           payable_hours?: number | null
           payroll_run_id: string
+          provident_fund?: number
+          social_security?: number
           user_id?: string | null
         }
         Update: {
@@ -2560,9 +2566,12 @@ export type Database = {
           gross_pay?: number | null
           hourly_rate?: number | null
           id?: string
+          income_tax?: number
           net_pay?: number | null
           payable_hours?: number | null
           payroll_run_id?: string
+          provident_fund?: number
+          social_security?: number
           user_id?: string | null
         }
         Relationships: [
