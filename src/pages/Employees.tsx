@@ -441,6 +441,7 @@ const Employees = () => {
                   <TableHead className="font-semibold">Department</TableHead>
                   <TableHead className="font-semibold">Location</TableHead>
                   <TableHead className="font-semibold">Status</TableHead>
+                  {isManager && <TableHead className="font-semibold">Account</TableHead>}
                   <TableHead className="font-semibold">Contact</TableHead>
                 </TableRow>
               </TableHeader>
