@@ -121,18 +121,6 @@ const Payroll = () => {
     }
   }, [modalEmpId, employees]);
 
-  // Restore payroll run detail view from URL on mount
-  useEffect(() => {
-    const runIdParam = searchParams.get("runId");
-    if (runIdParam && viewRunRows.length === 0 && recentPayrolls.length > 0) {
-      const run = recentPayrolls.find(r => r.id === runIdParam);
-      if (run && run.status === "completed") {
-        handleViewRunDetails(run.id, run.period_start, run.period_end);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recentPayrolls]);
-
   // Filter employees by region (case-insensitive)
   const regionEmployees = employees.filter(e => 
     e.location?.toLowerCase().includes(region.toLowerCase())
