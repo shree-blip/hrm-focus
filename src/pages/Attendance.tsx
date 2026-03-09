@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const Attendance = () => {
-  const { user, isManager } = useAuth();
+  const { user, isManager, isLineManager } = useAuth();
   const [clockType, setClockType] = useState<"payroll" | "billable">("payroll");
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const currentDate = new Date();
@@ -653,7 +653,7 @@ const Attendance = () => {
       </Card>
 
       {/* Manager: Team Adjustment Requests */}
-      {isManager && teamRequests.length > 0 && (
+      {(isManager || isLineManager) && teamRequests.length > 0 && (
         <ManagerAdjustmentPanel
           requests={teamRequests}
           onReview={async (id, decision, comment) => {

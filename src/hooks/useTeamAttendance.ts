@@ -121,7 +121,7 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
   const [loading, setLoading] = useState(true);
 
   const fetchTeamAttendance = useCallback(async () => {
-    if (!user || !isManager) {
+    if (!user || (!isManager && !isLineManager)) {
       setLoading(false);
       return;
     }
