@@ -43,6 +43,7 @@ import { ShareDocumentDialog } from "@/components/documents/ShareDocumentDialog"
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmployees } from "@/hooks/useEmployees";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // Mock data for display when no real documents exist
 const mockDocuments = [
