@@ -110,6 +110,7 @@ const Payroll = () => {
   const [viewRunRows, setViewRunRows] = useState<PayrollRow[]>([]);
   const [viewRunPeriod, setViewRunPeriod] = useState<{ start: string; end: string } | null>(null);
   const [activeLoansForPreview, setActiveLoansForPreview] = useState<any[]>([]);
+  const [approvedLeavesForPreview, setApprovedLeavesForPreview] = useState<any[]>([]);
 
   // Derive modal open states from URL
   const showPayslipsPreview = modalParam === "payslips";
@@ -135,6 +136,23 @@ const Payroll = () => {
       .in("status", ["disbursed"])
       .then(({ data }) => {
         if (data) setActiveLoansForPreview(data);
+      });
+  }, [isVP]);
+
+  // Fetch approved leaves for the current month (export preview)
+  useEffect(() => {
+    if (!isVP) return;
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
+    supabase
+      .from("leave_requests")
+      .select("user_id, leave_type, start_date, end_date, days")
+      .eq("status", "approved")
+      .lte("start_date", monthEnd)
+      .gte("end_date", monthStart)
+      .then(({ data }) => {
+        if (data) setApprovedLeavesForPreview(data);
       });
   }, [isVP]);
 
@@ -298,6 +316,51 @@ const Payroll = () => {
       // Track EMI deductions to record via RPC after payroll run is created
       const emiDeductions: Array<{ loanId: string; amount: number }> = [];
 
+      // ── Fetch approved leaves that overlap with the pay period ──
+      const { data: approvedLeaves } = await supabase
+        .from("leave_requests")
+        .select("user_id, leave_type, start_date, end_date, days")
+        .eq("status", "approved")
+        .lte("start_date", formatLocalDate(periodEnd))
+        .gte("end_date", formatLocalDate(periodStart));
+
+      // Helper: count working days (Mon-Fri) within a date range
+      const countWorkDaysInRange = (start: Date, end: Date): number => {
+        let count = 0;
+        const d = new Date(start);
+        d.setHours(0, 0, 0, 0);
+        const e = new Date(end);
+        e.setHours(0, 0, 0, 0);
+        while (d <= e) {
+          const dow = d.getDay();
+          if (dow !== 0 && dow !== 6) count++;
+          d.setDate(d.getDate() + 1);
+        }
+        return count;
+      };
+
+      // Build map: user_id → { paidLeaveDays, unpaidLeaveDays }
+      const UNPAID_LEAVE_TYPES = ["Other Leave"];
+      const leaveByUserId = new Map<string, { paidLeaveDays: number; unpaidLeaveDays: number }>();
+      approvedLeaves?.forEach(leave => {
+        // Calculate overlapping working days between leave and pay period
+        const ls = new Date(leave.start_date + "T00:00:00");
+        const le = new Date(leave.end_date + "T00:00:00");
+        const overlapStart = ls > periodStart ? ls : periodStart;
+        const overlapEnd = le < periodEnd ? le : periodEnd;
+        if (overlapStart > overlapEnd) return;
+        const overlapDays = countWorkDaysInRange(overlapStart, overlapEnd);
+        if (overlapDays <= 0) return;
+
+        const existing = leaveByUserId.get(leave.user_id) || { paidLeaveDays: 0, unpaidLeaveDays: 0 };
+        if (UNPAID_LEAVE_TYPES.includes(leave.leave_type)) {
+          existing.unpaidLeaveDays += overlapDays;
+        } else {
+          existing.paidLeaveDays += overlapDays;
+        }
+        leaveByUserId.set(leave.user_id, existing);
+      });
+
       let totalGross = 0;
       let totalDeductions = 0;
       let employeeCount = 0;
@@ -319,6 +382,8 @@ const Payroll = () => {
         payable_hours: number;
         extra_hours: number;
         bank_hours_used: number;
+        paid_leave_days: number;
+        unpaid_leave_days: number;
         gross_pay: number;
         income_tax: number;
         social_security: number;
@@ -348,8 +413,6 @@ const Payroll = () => {
         }
 
         let grossPay = 0;
-        let payableHours = Math.min(actualHours, standardHoursInRange);
-        let extraHours = Math.max(0, actualHours - standardHoursInRange);
         let hourlyRate = 0;
         let bankHoursUsed = 0;
 
@@ -359,10 +422,23 @@ const Payroll = () => {
           hourlyRate = hourlyRateFromSalary(emp.salary!, standardMonthlyHours);
         }
 
-        // TIME BANK ADJUSTMENT: if employee worked fewer hours than required,
+        // ── Leave adjustment ──
+        const empLeave = userId ? leaveByUserId.get(userId) : undefined;
+        const paidLeaveDays = empLeave?.paidLeaveDays || 0;
+        const unpaidLeaveDays = empLeave?.unpaidLeaveDays || 0;
+        const totalLeaveDays = paidLeaveDays + unpaidLeaveDays;
+
+        // Adjusted required hours = standard hours minus all leave hours
+        const adjustedRequiredHours = Math.max(0, standardHoursInRange - totalLeaveDays * HOURS_PER_DAY);
+
+        // Payable/extra hours are calculated against adjusted required hours
+        let payableHours = Math.min(actualHours, adjustedRequiredHours);
+        let extraHours = Math.max(0, actualHours - adjustedRequiredHours);
+
+        // TIME BANK ADJUSTMENT: if employee worked fewer hours than adjusted required,
         // cover the gap from their stored time bank
-        if (payableHours < standardHoursInRange) {
-          const missingHours = standardHoursInRange - payableHours;
+        if (payableHours < adjustedRequiredHours) {
+          const missingHours = adjustedRequiredHours - payableHours;
           const bank = timeBankByEmployee.get(emp.id);
           if (bank && bank.available > 0) {
             const coveredHours = Math.min(missingHours, bank.available);
@@ -381,6 +457,10 @@ const Payroll = () => {
             bank.available -= coveredHours;
           }
         }
+
+        // Add paid leave hours (employee gets paid for these without working)
+        const paidLeaveHours = paidLeaveDays * HOURS_PER_DAY;
+        payableHours += paidLeaveHours;
 
         grossPay = payableHours * hourlyRate;
 
@@ -421,6 +501,8 @@ const Payroll = () => {
           payable_hours: Math.round(payableHours * 10) / 10,
           extra_hours: Math.round(extraHours * 10) / 10,
           bank_hours_used: Math.round(bankHoursUsed * 10) / 10,
+          paid_leave_days: paidLeaveDays,
+          unpaid_leave_days: unpaidLeaveDays,
           gross_pay: Math.round(grossPay * 100) / 100,
           income_tax: ded.incomeTax,
           social_security: ded.socialSecurity,
@@ -474,6 +556,8 @@ const Payroll = () => {
             payable_hours: d.payable_hours,
             extra_hours: d.extra_hours,
             bank_hours_used: d.bank_hours_used,
+            paid_leave_days: d.paid_leave_days,
+            unpaid_leave_days: d.unpaid_leave_days,
             gross_pay: d.gross_pay,
             income_tax: d.income_tax,
             social_security: d.social_security,
@@ -596,6 +680,8 @@ const Payroll = () => {
       payable_hours: d.payable_hours || 0,
       extra_hours: d.extra_hours || 0,
       bank_hours_used: d.bank_hours_used || 0,
+      paid_leave_days: d.paid_leave_days || 0,
+      unpaid_leave_days: d.unpaid_leave_days || 0,
       gross_pay: d.gross_pay || 0,
       income_tax: d.income_tax ?? 0,
       social_security: d.social_security ?? 0,
@@ -1417,6 +1503,7 @@ const Payroll = () => {
         region={region}
         teamAttendance={teamAttendance}
         activeLoans={activeLoansForPreview}
+        approvedLeaves={approvedLeavesForPreview}
       />
     </DashboardLayout>
   );

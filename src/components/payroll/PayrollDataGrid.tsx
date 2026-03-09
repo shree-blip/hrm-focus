@@ -22,6 +22,8 @@ export interface PayrollRow {
   payable_hours: number;
   extra_hours: number;
   bank_hours_used: number;
+  paid_leave_days: number;
+  unpaid_leave_days: number;
   gross_pay: number;
   income_tax: number;
   social_security: number;
@@ -69,6 +71,8 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
       { field: "payable_hours", headerName: "Payable Hrs", minWidth: 115, valueFormatter: hoursFormatter },
       { field: "extra_hours", headerName: "Extra Hrs", minWidth: 100, valueFormatter: hoursFormatter },
       { field: "bank_hours_used", headerName: "Bank Used", minWidth: 105, valueFormatter: hoursFormatter },
+      { field: "paid_leave_days", headerName: "Paid Leave", minWidth: 105 },
+      { field: "unpaid_leave_days", headerName: "Unpaid Leave", minWidth: 115 },
       { field: "gross_pay", headerName: "Gross Pay", minWidth: 120, valueFormatter: currencyFormatter },
       { field: "income_tax", headerName: "Income Tax", minWidth: 115, valueFormatter: currencyFormatter },
       { field: "social_security", headerName: "Social Sec.", minWidth: 115, valueFormatter: currencyFormatter },
@@ -110,6 +114,8 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
         payable_hours: r.payable_hours,
         extra_hours: r.extra_hours,
         bank_hours_used: r.bank_hours_used,
+        paid_leave_days: r.paid_leave_days,
+        unpaid_leave_days: r.unpaid_leave_days,
         gross_pay: r.gross_pay,
         income_tax: r.income_tax,
         social_security: r.social_security,

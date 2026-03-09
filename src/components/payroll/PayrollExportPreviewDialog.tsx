@@ -24,6 +24,7 @@ import {
   calculateMonthlyWorkingHours,
   hourlyRateFromSalary,
   calculateDeductions,
+  HOURS_PER_DAY,
 } from "@/lib/payrollHours";
 import { calculateEMI, FIXED_ANNUAL_RATE } from "@/lib/loanCalculations";
 
@@ -59,6 +60,13 @@ interface PayrollExportPreviewDialogProps {
     remaining_balance: number | null;
     estimated_monthly_installment: number | null;
   }>;
+  approvedLeaves?: Array<{
+    user_id: string;
+    leave_type: string;
+    start_date: string;
+    end_date: string;
+    days: number;
+  }>;
 }
 
 interface PreviewRow {
@@ -70,6 +78,8 @@ interface PreviewRow {
   actualHours: number;
   payableHours: number;
   extraHours: number;
+  paidLeaveDays: number;
+  unpaidLeaveDays: number;
   grossPay: number;
   incomeTax: number;
   socialSecurity: number;
@@ -86,6 +96,7 @@ export function PayrollExportPreviewDialog({
   region,
   teamAttendance,
   activeLoans,
+  approvedLeaves,
 }: PayrollExportPreviewDialogProps) {
   const currencySymbol = region === "US" ? "$" : "₨";
 
@@ -105,6 +116,45 @@ export function PayrollExportPreviewDialog({
       emiByEmployee.set(loan.employee_id, prev + Math.min(Math.round(emi * 100) / 100, remaining));
     });
 
+    // Build leave map: user_id → { paidLeaveDays, unpaidLeaveDays }
+    // For preview we use the whole current month as the pay period
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const UNPAID_LEAVE_TYPES = ["Other Leave"];
+
+    const countWorkDaysInRange = (start: Date, end: Date): number => {
+      let count = 0;
+      const d = new Date(start);
+      d.setHours(0, 0, 0, 0);
+      const e = new Date(end);
+      e.setHours(0, 0, 0, 0);
+      while (d <= e) {
+        const dow = d.getDay();
+        if (dow !== 0 && dow !== 6) count++;
+        d.setDate(d.getDate() + 1);
+      }
+      return count;
+    };
+
+    const leaveByUserId = new Map<string, { paidLeaveDays: number; unpaidLeaveDays: number }>();
+    approvedLeaves?.forEach(leave => {
+      const ls = new Date(leave.start_date + "T00:00:00");
+      const le = new Date(leave.end_date + "T00:00:00");
+      const overlapStart = ls > monthStart ? ls : monthStart;
+      const overlapEnd = le < monthEnd ? le : monthEnd;
+      if (overlapStart > overlapEnd) return;
+      const overlapDays = countWorkDaysInRange(overlapStart, overlapEnd);
+      if (overlapDays <= 0) return;
+      const existing = leaveByUserId.get(leave.user_id) || { paidLeaveDays: 0, unpaidLeaveDays: 0 };
+      if (UNPAID_LEAVE_TYPES.includes(leave.leave_type)) {
+        existing.unpaidLeaveDays += overlapDays;
+      } else {
+        existing.paidLeaveDays += overlapDays;
+      }
+      leaveByUserId.set(leave.user_id, existing);
+    });
+
     employees.forEach((emp) => {
       const attendance = teamAttendance.find((a) => a.employee_id === emp.id);
       const actualHours = attendance?.total_hours || 0;
@@ -116,8 +166,20 @@ export function PayrollExportPreviewDialog({
         empHourlyRate = hourlyRateFromSalary(emp.salary, requiredHours);
       }
 
-      const payableHours = Math.min(actualHours, requiredHours);
-      const extraHours = Math.max(0, actualHours - requiredHours);
+      // Leave adjustment
+      const userId = (emp as any).user_id || "";
+      const empLeave = userId ? leaveByUserId.get(userId) : undefined;
+      const paidLeaveDays = empLeave?.paidLeaveDays || 0;
+      const unpaidLeaveDays = empLeave?.unpaidLeaveDays || 0;
+      const totalLeaveDays = paidLeaveDays + unpaidLeaveDays;
+
+      const adjustedRequiredHours = Math.max(0, requiredHours - totalLeaveDays * HOURS_PER_DAY);
+      let payableHours = Math.min(actualHours, adjustedRequiredHours);
+      const extraHours = Math.max(0, actualHours - adjustedRequiredHours);
+
+      // Add paid leave hours
+      payableHours += paidLeaveDays * HOURS_PER_DAY;
+
       const grossPay = payableHours * empHourlyRate;
 
       // Calculate deductions from system formulas (rate × gross pay)
@@ -139,6 +201,8 @@ export function PayrollExportPreviewDialog({
         actualHours: Math.round(actualHours * 10) / 10,
         payableHours: Math.round(payableHours * 10) / 10,
         extraHours: Math.round(extraHours * 10) / 10,
+        paidLeaveDays,
+        unpaidLeaveDays,
         grossPay: Math.round(grossPay * 100) / 100,
         incomeTax: ded.incomeTax,
         socialSecurity: ded.socialSecurity,
@@ -150,7 +214,7 @@ export function PayrollExportPreviewDialog({
     });
 
     return { rows: result, workDays, monthlyReqHours: requiredHours };
-  }, [employees, teamAttendance, region, activeLoans]);
+  }, [employees, teamAttendance, region, activeLoans, approvedLeaves]);
 
   const totals = useMemo(() => {
     return rows.reduce(
@@ -177,6 +241,8 @@ export function PayrollExportPreviewDialog({
       "Actual Hours": r.actualHours,
       "Payable Hours": r.payableHours,
       "Extra Hours": r.extraHours,
+      "Paid Leave Days": r.paidLeaveDays,
+      "Unpaid Leave Days": r.unpaidLeaveDays,
       "Gross Pay": r.grossPay,
       "Income Tax": r.incomeTax,
       "Social Security": r.socialSecurity,
@@ -227,6 +293,8 @@ export function PayrollExportPreviewDialog({
                 <TableHead className="text-right">Actual</TableHead>
                 <TableHead className="text-right">Payable</TableHead>
                 <TableHead className="text-right">Extra</TableHead>
+                <TableHead className="text-right">Paid Lv</TableHead>
+                <TableHead className="text-right">Unpaid Lv</TableHead>
                 <TableHead className="text-right">Gross</TableHead>
                 <TableHead className="text-right">Income Tax</TableHead>
                 <TableHead className="text-right">Social Sec</TableHead>
@@ -242,7 +310,7 @@ export function PayrollExportPreviewDialog({
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={15}
+                    colSpan={17}
                     className="text-center py-8 text-muted-foreground"
                   >
                     No employees found for this region
@@ -275,6 +343,12 @@ export function PayrollExportPreviewDialog({
                         {r.extraHours}h
                       </TableCell>
                       <TableCell className="text-right">
+                        {r.paidLeaveDays > 0 ? r.paidLeaveDays : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {r.unpaidLeaveDays > 0 ? r.unpaidLeaveDays : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
                         {fmt(r.grossPay)}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
@@ -302,7 +376,7 @@ export function PayrollExportPreviewDialog({
                     <TableCell className="sticky left-0 bg-background">
                       Total ({rows.length} employees)
                     </TableCell>
-                    <TableCell colSpan={7}></TableCell>
+                    <TableCell colSpan={9}></TableCell>
                     <TableCell className="text-right">
                       {fmt(totals.grossPay)}
                     </TableCell>

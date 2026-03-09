@@ -2532,10 +2532,12 @@ export type Database = {
           income_tax: number
           loan_emi: number | null
           net_pay: number | null
+          paid_leave_days: number
           payable_hours: number | null
           payroll_run_id: string
           provident_fund: number
           social_security: number
+          unpaid_leave_days: number
           user_id: string | null
         }
         Insert: {
@@ -2553,10 +2555,12 @@ export type Database = {
           income_tax?: number
           loan_emi?: number | null
           net_pay?: number | null
+          paid_leave_days?: number
           payable_hours?: number | null
           payroll_run_id: string
           provident_fund?: number
           social_security?: number
+          unpaid_leave_days?: number
           user_id?: string | null
         }
         Update: {
@@ -2574,10 +2578,12 @@ export type Database = {
           income_tax?: number
           loan_emi?: number | null
           net_pay?: number | null
+          paid_leave_days?: number
           payable_hours?: number | null
           payroll_run_id?: string
           provident_fund?: number
           social_security?: number
+          unpaid_leave_days?: number
           user_id?: string | null
         }
         Relationships: [

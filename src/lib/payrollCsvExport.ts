@@ -13,6 +13,8 @@ export interface PayrollExportRow {
   "Payable Hours": number;
   "Extra Hours": number;
   "Bank Hours Used": number;
+  "Paid Leave Days": number;
+  "Unpaid Leave Days": number;
   "Gross Pay": number;
   "Income Tax": number;
   "Social Security": number;
@@ -90,6 +92,8 @@ export function mapDetailToExportRow(
     "Payable Hours": d.payable_hours || 0,
     "Extra Hours": d.extra_hours || 0,
     "Bank Hours Used": d.bank_hours_used || 0,
+    "Paid Leave Days": d.paid_leave_days || 0,
+    "Unpaid Leave Days": d.unpaid_leave_days || 0,
     "Gross Pay": grossPay,
     "Income Tax": incomeTax,
     "Social Security": socialSecurity,
