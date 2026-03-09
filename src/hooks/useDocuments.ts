@@ -98,7 +98,7 @@ export function useDocuments() {
         // Contracts - visible to uploader (VP), admin, VP, and the assigned employee
         if (doc.category === "Contracts") {
           if (doc.uploaded_by === user.id) return true;
-          if (isAdmin || isVP) return true;
+          if (canManageDocs) return true;
           // Employee can see their own contract
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
           return false;
