@@ -1,0 +1,207 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
+
+export interface AdjustmentRequest {
+  id: string;
+  attendance_log_id: string;
+  requested_by: string;
+  reviewer_id: string | null;
+  proposed_clock_in: string | null;
+  proposed_clock_out: string | null;
+  proposed_break_minutes: number | null;
+  proposed_pause_minutes: number | null;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  reviewer_comment: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  // joined fields
+  attendance_log?: any;
+  requester_profile?: { first_name: string; last_name: string } | null;
+}
+
+export function useAttendanceAdjustments() {
+  const { user, isManager, isVP, isAdmin, isLineManager } = useAuth();
+  const [myRequests, setMyRequests] = useState<AdjustmentRequest[]>([]);
+  const [teamRequests, setTeamRequests] = useState<AdjustmentRequest[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch requests the current user submitted
+  const fetchMyRequests = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await (supabase as any)
+      .from("attendance_adjustment_requests")
+      .select("*")
+      .eq("requested_by", user.id)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setMyRequests(data);
+    }
+  }, [user]);
+
+  // Fetch pending requests for team (line manager / VP / admin)
+  const fetchTeamRequests = useCallback(async () => {
+    if (!user) return;
+    if (!isManager && !isVP && !isAdmin && !isLineManager) return;
+
+    // Managers see adjustment requests via RLS (the policy handles team scoping)
+    const { data, error } = await (supabase as any)
+      .from("attendance_adjustment_requests")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching team adjustment requests:", error.message);
+      return;
+    }
+
+    if (data) {
+      // Filter out own requests — managers shouldn't review their own
+      const teamOnly = data.filter((r: any) => r.requested_by !== user.id);
+
+      // Enrich with requester profile and attendance log
+      const enriched = await Promise.all(
+        teamOnly.map(async (req: any) => {
+          const [profileRes, logRes] = await Promise.all([
+            supabase.from("profiles").select("first_name, last_name").eq("user_id", req.requested_by).single(),
+            supabase.from("attendance_logs").select("clock_in, clock_out, total_break_minutes, total_pause_minutes, clock_type").eq("id", req.attendance_log_id).single(),
+          ]);
+          return {
+            ...req,
+            requester_profile: profileRes.data || null,
+            attendance_log: logRes.data || null,
+          };
+        }),
+      );
+      setTeamRequests(enriched);
+    }
+  }, [user, isManager, isVP, isAdmin, isLineManager]);
+
+  // Submit an adjustment request
+  const submitRequest = async (data: {
+    attendance_log_id: string;
+    proposed_clock_in?: string;
+    proposed_clock_out?: string;
+    proposed_break_minutes?: number;
+    proposed_pause_minutes?: number;
+    reason: string;
+  }) => {
+    if (!user) return;
+
+    const { error } = await (supabase as any)
+      .from("attendance_adjustment_requests")
+      .insert({
+        attendance_log_id: data.attendance_log_id,
+        requested_by: user.id,
+        proposed_clock_in: data.proposed_clock_in || null,
+        proposed_clock_out: data.proposed_clock_out || null,
+        proposed_break_minutes: data.proposed_break_minutes ?? null,
+        proposed_pause_minutes: data.proposed_pause_minutes ?? null,
+        reason: data.reason,
+      });
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return false;
+    }
+
+    toast({ title: "Request Submitted", description: "Your adjustment request has been sent to your manager." });
+    await fetchMyRequests();
+    return true;
+  };
+
+  // Manager reviews a request
+  const reviewRequest = async (
+    requestId: string,
+    decision: "approved" | "rejected",
+    comment: string,
+  ) => {
+    if (!user) return;
+
+    const { error } = await (supabase as any)
+      .from("attendance_adjustment_requests")
+      .update({
+        status: decision,
+        reviewer_id: user.id,
+        reviewer_comment: comment,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", requestId);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return false;
+    }
+
+    // Notify the requester
+    try {
+      const req = teamRequests.find((r) => r.id === requestId);
+      if (req) {
+        await supabase.rpc("create_notification", {
+          p_user_id: req.requested_by,
+          p_title: decision === "approved" ? "✅ Adjustment Approved" : "❌ Adjustment Rejected",
+          p_message: decision === "approved"
+            ? `Your attendance adjustment request has been approved. Your log has been updated.`
+            : `Your attendance adjustment request was rejected. Reason: ${comment}`,
+          p_type: "attendance",
+          p_link: "/attendance",
+        });
+      }
+    } catch (err) {
+      console.error("Error sending adjustment notification:", err);
+    }
+
+    toast({
+      title: decision === "approved" ? "Approved" : "Rejected",
+      description: decision === "approved"
+        ? "The attendance record has been updated automatically."
+        : "The request has been rejected.",
+    });
+
+    await fetchTeamRequests();
+    return true;
+  };
+
+  // Get the latest adjustment status for a specific attendance log
+  const getAdjustmentStatus = (logId: string): AdjustmentRequest | undefined => {
+    return myRequests.find((r) => r.attendance_log_id === logId);
+  };
+
+  // Initial fetch + realtime
+  useEffect(() => {
+    fetchMyRequests();
+    fetchTeamRequests();
+  }, [fetchMyRequests, fetchTeamRequests]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("attendance-adjustments")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_adjustment_requests" },
+        () => {
+          fetchMyRequests();
+          fetchTeamRequests();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchMyRequests, fetchTeamRequests]);
+
+  return {
+    myRequests,
+    teamRequests,
+    loading,
+    submitRequest,
+    reviewRequest,
+    getAdjustmentStatus,
+    refetch: () => Promise.all([fetchMyRequests(), fetchTeamRequests()]),
+  };
+}

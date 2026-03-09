@@ -20,9 +20,13 @@ import {
   Briefcase,
   DollarSign,
   Pause,
+  PenLine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAttendance } from "@/hooks/useAttendance";
+import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
+import { AdjustmentRequestDialog } from "@/components/attendance/AdjustmentRequestDialog";
+import { ManagerAdjustmentPanel } from "@/components/attendance/ManagerAdjustmentPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
 import { toast } from "@/hooks/use-toast";
@@ -44,6 +48,7 @@ const Attendance = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const currentDate = new Date();
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
+  const [adjustmentLog, setAdjustmentLog] = useState<any>(null);
 
   const {
     currentLog,
@@ -59,6 +64,14 @@ const Attendance = () => {
     monthlyHours,
     refetch,
   } = useAttendance(currentWeekStart);
+
+  const {
+    myRequests,
+    teamRequests,
+    submitRequest,
+    reviewRequest,
+    getAdjustmentStatus,
+  } = useAttendanceAdjustments();
 
   // Calculate clock status
   const getClockStatus = () => {
@@ -517,12 +530,13 @@ const Attendance = () => {
                 <TableHead>Pause</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Hours Worked</TableHead>
+                <TableHead className="text-right">Adjustment</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {weeklyLogs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No attendance logs for this week
                   </TableCell>
                 </TableRow>
@@ -592,6 +606,35 @@ const Attendance = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">{hours}</TableCell>
+                      <TableCell className="text-right">
+                        {(() => {
+                          const adj = getAdjustmentStatus(log.id);
+                          if (adj) {
+                            return (
+                              <Badge
+                                variant={
+                                  adj.status === "approved" ? "default" :
+                                  adj.status === "rejected" ? "destructive" : "secondary"
+                                }
+                                className="capitalize"
+                              >
+                                {adj.status}
+                              </Badge>
+                            );
+                          }
+                          return (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => setAdjustmentLog(log)}
+                            >
+                              <PenLine className="h-3 w-3" />
+                              Adjust
+                            </Button>
+                          );
+                        })()}
+                      </TableCell>
                     </TableRow>
                   );
                 })
@@ -600,6 +643,31 @@ const Attendance = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Manager: Team Adjustment Requests */}
+      {isManager && teamRequests.length > 0 && (
+        <ManagerAdjustmentPanel
+          requests={teamRequests}
+          onReview={async (id, decision, comment) => {
+            const success = await reviewRequest(id, decision, comment);
+            if (success && decision === "approved") {
+              // Refetch attendance data so the corrected values show immediately
+              refetch();
+            }
+            return success;
+          }}
+        />
+      )}
+
+      {/* Adjustment Request Dialog */}
+      {adjustmentLog && (
+        <AdjustmentRequestDialog
+          log={adjustmentLog}
+          open={!!adjustmentLog}
+          onOpenChange={(open) => { if (!open) setAdjustmentLog(null); }}
+          onSubmit={submitRequest}
+        />
+      )}
     </DashboardLayout>
   );
 };
