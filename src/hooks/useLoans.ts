@@ -232,6 +232,26 @@ export function useLoans() {
 
     if (lr) {
       await logAudit(lr.id, "loan_submitted", { amount: data.amount, term: data.term_months });
+
+      // Notify VP about the new loan request
+      try {
+        const { data: empProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", user.id)
+          .single();
+        const empName = empProfile ? `${empProfile.first_name} ${empProfile.last_name}` : "An employee";
+
+        await supabase.rpc("create_notification", {
+          p_user_id: vpUserId,
+          p_title: "💰 New Loan Request",
+          p_message: `${empName} submitted a loan request for ${data.amount.toLocaleString()} (${data.term_months} months).`,
+          p_type: "loan",
+          p_link: "/loans",
+        });
+      } catch (err) {
+        console.error("Error sending loan notification:", err);
+      }
     }
 
     toast({ title: "Loan Request Submitted", description: "Your request has been sent to the VP for approval." });
