@@ -272,12 +272,12 @@ export function useAttendance(weekStart?: Date) {
       });
 
       // Create notification for clock-in
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "⏰ Clocked In",
-        message: `You clocked in at ${new Date().toLocaleTimeString()} (${type} time).`,
-        type: "attendance",
-        link: "/attendance",
+      await supabase.rpc("create_notification", {
+        p_user_id: user.id,
+        p_title: "⏰ Clocked In",
+        p_message: `You clocked in at ${new Date().toLocaleTimeString()} (${type} time).`,
+        p_type: "attendance",
+        p_link: "/attendance",
       });
     }
   };
