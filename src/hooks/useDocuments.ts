@@ -46,7 +46,7 @@ export function useDocuments() {
       // Step 1: Fetch managed employees first (if user is manager/line manager)
       let managedEmployeeIds: string[] = [];
 
-      if (isManager || isLineManager) {
+      if (canManageDocs || isLineManager) {
         const { data: managedProfiles, error: managedError } = await supabase
           .from("profiles")
           .select("user_id")
