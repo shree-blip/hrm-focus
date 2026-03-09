@@ -190,6 +190,62 @@ export type Database = {
           },
         ]
       }
+      attendance_adjustment_requests: {
+        Row: {
+          attendance_log_id: string
+          created_at: string
+          id: string
+          proposed_break_minutes: number | null
+          proposed_clock_in: string | null
+          proposed_clock_out: string | null
+          proposed_pause_minutes: number | null
+          reason: string
+          requested_by: string
+          reviewed_at: string | null
+          reviewer_comment: string | null
+          reviewer_id: string | null
+          status: string
+        }
+        Insert: {
+          attendance_log_id: string
+          created_at?: string
+          id?: string
+          proposed_break_minutes?: number | null
+          proposed_clock_in?: string | null
+          proposed_clock_out?: string | null
+          proposed_pause_minutes?: number | null
+          reason: string
+          requested_by: string
+          reviewed_at?: string | null
+          reviewer_comment?: string | null
+          reviewer_id?: string | null
+          status?: string
+        }
+        Update: {
+          attendance_log_id?: string
+          created_at?: string
+          id?: string
+          proposed_break_minutes?: number | null
+          proposed_clock_in?: string | null
+          proposed_clock_out?: string | null
+          proposed_pause_minutes?: number | null
+          reason?: string
+          requested_by?: string
+          reviewed_at?: string | null
+          reviewer_comment?: string | null
+          reviewer_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_adjustment_requests_attendance_log_id_fkey"
+            columns: ["attendance_log_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_edit_logs: {
         Row: {
           attendance_id: string
