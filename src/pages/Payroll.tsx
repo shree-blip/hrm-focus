@@ -80,9 +80,14 @@ const Payroll = () => {
   
   const validTabs = ["overview", "attendance", "employees", "calculator", "contractor", "my-payslips"] as const;
   type TabType = typeof validTabs[number];
+  const adminTabs: TabType[] = ["overview", "attendance", "employees", "calculator", "contractor"];
   const tabParam = searchParams.get("tab") as TabType | null;
   const defaultTab: TabType = isVP ? "overview" : "my-payslips";
-  const activeTab: TabType = tabParam && validTabs.includes(tabParam) ? tabParam : defaultTab;
+  // Non-VP users can only access "my-payslips"
+  const resolvedTab: TabType = tabParam && validTabs.includes(tabParam)
+    ? (!isVP && adminTabs.includes(tabParam) ? defaultTab : tabParam)
+    : defaultTab;
+  const activeTab: TabType = resolvedTab;
 
   const setActiveTab = (tab: TabType) => {
     setSearchParams(prev => {
@@ -951,11 +956,12 @@ const Payroll = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Payroll</h1>
+          <h1 className="text-3xl font-display font-bold text-foreground">{isVP ? "Payroll" : "My Payslips"}</h1>
           <p className="text-muted-foreground mt-1">
-            Manage payroll processing and compensation
+            {isVP ? "Manage payroll processing and compensation" : "View and download your payslip PDFs"}
           </p>
         </div>
+        {isVP && (
         <div className="flex flex-wrap gap-3">
           <Select value={region} onValueChange={(v) => setRegion(v as "US" | "Nepal")}>
             <SelectTrigger className="w-[140px]">
@@ -978,19 +984,22 @@ const Payroll = () => {
             </Button>
           )}
         </div>
+        )}
       </div>
 
-      {/* Tabs */}
+      {/* Tabs – show tab bar only for VP/admin users who have multiple tabs */}
+      {isVP && (
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="mb-6">
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="overview">Payroll Overview</TabsTrigger>
           <TabsTrigger value="calculator">Salary Calculator</TabsTrigger>
           <TabsTrigger value="attendance">Employee Attendance</TabsTrigger>
-          {isVP && <TabsTrigger value="employees">Manage Salaries</TabsTrigger>}
+          <TabsTrigger value="employees">Manage Salaries</TabsTrigger>
           <TabsTrigger value="contractor">Contractor Portal</TabsTrigger>
           <TabsTrigger value="my-payslips">My Payslips</TabsTrigger>
         </TabsList>
       </Tabs>
+      )}
 
       {activeTab === "overview" ? (
         <>

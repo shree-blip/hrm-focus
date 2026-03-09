@@ -24,6 +24,7 @@ export type Permission =
   | 'view_reports'
   | 'manage_payroll'
   | 'view_payroll'
+  | 'view_payslips'
   | 'manage_onboarding'
   | 'manage_tasks'
   | 'view_tasks'
@@ -65,6 +66,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_reports: 'View Reports',
   manage_payroll: 'Manage Payroll',
   view_payroll: 'View Payroll',
+  view_payslips: 'View Own Payslips',
   manage_onboarding: 'Manage Onboarding',
   manage_tasks: 'Manage Tasks',
   view_tasks: 'View Tasks',
@@ -90,7 +92,7 @@ export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
   'Attendance': ['view_attendance_all', 'view_attendance_reports_only', 'view_own_attendance', 'edit_attendance'],
   'Announcements': ['add_announcement', 'edit_announcement', 'delete_announcement', 'view_announcements'],
   'Documents & Reports': ['manage_documents', 'view_documents', 'view_reports'],
-  'Leave & Payroll': ['approve_leave', 'view_leave', 'manage_payroll', 'view_payroll', 'manage_salaries_all'],
+  'Leave & Payroll': ['approve_leave', 'view_leave', 'manage_payroll', 'view_payroll', 'view_payslips', 'manage_salaries_all'],
   'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_calendar', 'manage_onboarding'],
   'Loans': ['manage_loans', 'view_loans'],
   'Invoices': ['view_invoices', 'manage_invoices'],
@@ -109,7 +111,7 @@ export const PERMISSION_ROUTE_MAP: Record<string, Permission[]> = {
   '/employees': ['manage_employees', 'view_employees_all', 'view_employees_reports_only'],
   '/approvals': ['approve_leave'],
   '/reports': ['view_reports'],
-  '/payroll': ['manage_payroll', 'view_payroll'],
+  '/payroll': ['manage_payroll', 'view_payroll', 'view_payslips'],
   '/onboarding': ['manage_onboarding'],
   '/access-control': ['manage_access'],
   '/attendance': ['view_attendance_all', 'view_attendance_reports_only', 'view_own_attendance'],
