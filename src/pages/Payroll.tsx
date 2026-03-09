@@ -243,6 +243,10 @@ const Payroll = () => {
       const hoursByEmployeeId = new Map<string, { userId: string; actualHours: number }>();
       const hoursByUserId = new Map<string, { actualHours: number }>();
 
+      // Track unique attendance days per employee_id and user_id
+      const daysByEmployeeId = new Map<string, Set<string>>();
+      const daysByUserId = new Map<string, Set<string>>();
+
       periodLogs?.forEach(log => {
         if (!log.clock_out) return;
         const clockIn = new Date(log.clock_in);
@@ -251,12 +255,22 @@ const Payroll = () => {
         const pauseMin = log.total_pause_minutes || 0;
         const netHours = Math.max(0, (clockOut.getTime() - clockIn.getTime() - (breakMin + pauseMin) * 60000) / 3600000);
 
+        // Extract calendar date from clock_in for day counting
+        const dayKey = log.clock_in.substring(0, 10); // YYYY-MM-DD
+
         if (log.employee_id) {
           const existing = hoursByEmployeeId.get(log.employee_id);
           if (existing) {
             existing.actualHours += netHours;
           } else {
             hoursByEmployeeId.set(log.employee_id, { userId: log.user_id, actualHours: netHours });
+          }
+
+          const empDays = daysByEmployeeId.get(log.employee_id);
+          if (empDays) {
+            empDays.add(dayKey);
+          } else {
+            daysByEmployeeId.set(log.employee_id, new Set([dayKey]));
           }
         }
 
@@ -265,6 +279,13 @@ const Payroll = () => {
           existingUser.actualHours += netHours;
         } else {
           hoursByUserId.set(log.user_id, { actualHours: netHours });
+        }
+
+        const userDays = daysByUserId.get(log.user_id);
+        if (userDays) {
+          userDays.add(dayKey);
+        } else {
+          daysByUserId.set(log.user_id, new Set([dayKey]));
         }
       });
 
@@ -378,6 +399,7 @@ const Payroll = () => {
         employee_name: string;
         department: string;
         hourly_rate: number;
+        days_worked: number;
         actual_hours: number;
         payable_hours: number;
         extra_hours: number;
@@ -411,6 +433,10 @@ const Payroll = () => {
             actualHours = byUserId.actualHours;
           }
         }
+
+        // Count unique attendance days for this employee
+        const daysWorked = (daysByEmployeeId.get(emp.id)?.size || 0)
+          || (userId ? (daysByUserId.get(userId)?.size || 0) : 0);
 
         let grossPay = 0;
         let hourlyRate = 0;
@@ -497,6 +523,7 @@ const Payroll = () => {
           employee_name: `${emp.first_name} ${emp.last_name}`,
           department: emp.department || "",
           hourly_rate: Math.round(hourlyRate * 100) / 100,
+          days_worked: daysWorked,
           actual_hours: Math.round(actualHours * 10) / 10,
           payable_hours: Math.round(payableHours * 10) / 10,
           extra_hours: Math.round(extraHours * 10) / 10,
@@ -552,6 +579,7 @@ const Payroll = () => {
             employee_name: d.employee_name,
             department: d.department,
             hourly_rate: d.hourly_rate,
+            days_worked: d.days_worked,
             actual_hours: d.actual_hours,
             payable_hours: d.payable_hours,
             extra_hours: d.extra_hours,
@@ -675,6 +703,7 @@ const Payroll = () => {
       department: d.department || "",
       hourly_rate: d.hourly_rate || 0,
       total_working_days: rangeWorkDays,
+      days_worked: d.days_worked || 0,
       required_hours: rangeRequiredHours,
       actual_hours: d.actual_hours || 0,
       payable_hours: d.payable_hours || 0,

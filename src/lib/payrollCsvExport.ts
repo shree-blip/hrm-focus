@@ -8,6 +8,7 @@ export interface PayrollExportRow {
   Department: string;
   "Hourly Rate": number;
   "Total Working Days": number;
+  "Days Worked": number;
   "Required Hours": number;
   "Actual Hours": number;
   "Payable Hours": number;
@@ -87,6 +88,7 @@ export function mapDetailToExportRow(
     Department: d.department || "",
     "Hourly Rate": hourlyRate,
     "Total Working Days": totalWorkingDays ?? (requiredHours > 0 ? requiredHours / 8 : 0),
+    "Days Worked": d.days_worked || 0,
     "Required Hours": requiredHours,
     "Actual Hours": d.actual_hours || 0,
     "Payable Hours": d.payable_hours || 0,

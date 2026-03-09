@@ -17,6 +17,7 @@ export interface PayrollRow {
   department: string;
   hourly_rate: number;
   total_working_days: number;
+  days_worked: number;
   required_hours: number;
   actual_hours: number;
   payable_hours: number;
@@ -66,6 +67,7 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
       { field: "department", headerName: "Dept", minWidth: 120, filter: "agTextColumnFilter" },
       { field: "hourly_rate", headerName: "Hourly Rate", minWidth: 110, valueFormatter: currencyFormatter },
       { field: "total_working_days", headerName: "Working Days", minWidth: 115 },
+      { field: "days_worked", headerName: "Days Worked", minWidth: 115 },
       { field: "required_hours", headerName: "Required Hrs", minWidth: 120, valueFormatter: hoursFormatter },
       { field: "actual_hours", headerName: "Actual Hrs", minWidth: 110, valueFormatter: hoursFormatter },
       { field: "payable_hours", headerName: "Payable Hrs", minWidth: 115, valueFormatter: hoursFormatter },
@@ -110,6 +112,7 @@ export function PayrollDataGrid({ rows, region, periodStart, periodEnd }: Payrol
         employee_name: r.employee_name,
         department: r.department,
         hourly_rate: r.hourly_rate,
+        days_worked: r.days_worked,
         actual_hours: r.actual_hours,
         payable_hours: r.payable_hours,
         extra_hours: r.extra_hours,

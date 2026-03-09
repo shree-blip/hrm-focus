@@ -44,6 +44,7 @@ interface Employee {
 interface Attendance {
   employee_id: string;
   total_hours: number;
+  days_worked?: number;
 }
 
 interface PayrollExportPreviewDialogProps {
@@ -75,6 +76,7 @@ interface PreviewRow {
   department: string;
   hourlyRate: number;
   totalWorkingDays: number;
+  daysWorked: number;
   requiredHours: number;
   actualHours: number;
   payableHours: number;
@@ -159,6 +161,7 @@ export function PayrollExportPreviewDialog({
     employees.forEach((emp) => {
       const attendance = teamAttendance.find((a) => a.employee_id === emp.id);
       const actualHours = attendance?.total_hours || 0;
+      const daysWorked = attendance?.days_worked || 0;
 
       let empHourlyRate = 0;
       if (emp.pay_type === "hourly" && emp.hourly_rate) {
@@ -198,6 +201,7 @@ export function PayrollExportPreviewDialog({
         department: emp.department || "-",
         hourlyRate: Math.round(empHourlyRate * 100) / 100,
         totalWorkingDays: workDays,
+        daysWorked,
         requiredHours,
         actualHours: Math.round(actualHours * 10) / 10,
         payableHours: Math.round(payableHours * 10) / 10,
@@ -238,6 +242,7 @@ export function PayrollExportPreviewDialog({
       Department: r.department,
       "Hourly Rate": r.hourlyRate,
       "Total Working Days": r.totalWorkingDays,
+      "Days Worked": r.daysWorked,
       "Required Hours": r.requiredHours,
       "Actual Hours": r.actualHours,
       "Payable Hours": r.payableHours,
@@ -290,6 +295,7 @@ export function PayrollExportPreviewDialog({
                 <TableHead>Dept</TableHead>
                 <TableHead className="text-right">Rate</TableHead>
                 <TableHead className="text-right">Days</TableHead>
+                <TableHead className="text-right">Worked</TableHead>
                 <TableHead className="text-right">Req Hrs</TableHead>
                 <TableHead className="text-right">Actual</TableHead>
                 <TableHead className="text-right">Payable</TableHead>
@@ -311,7 +317,7 @@ export function PayrollExportPreviewDialog({
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={17}
+                    colSpan={18}
                     className="text-center py-8 text-muted-foreground"
                   >
                     No employees found for this region
@@ -330,6 +336,9 @@ export function PayrollExportPreviewDialog({
                       </TableCell>
                       <TableCell className="text-right">
                         {r.totalWorkingDays}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {r.daysWorked}
                       </TableCell>
                       <TableCell className="text-right">
                         {r.requiredHours}h
@@ -377,7 +386,7 @@ export function PayrollExportPreviewDialog({
                     <TableCell className="sticky left-0 bg-background">
                       Total ({rows.length} employees)
                     </TableCell>
-                    <TableCell colSpan={9}></TableCell>
+                    <TableCell colSpan={10}></TableCell>
                     <TableCell className="text-right">
                       {fmt(totals.grossPay)}
                     </TableCell>

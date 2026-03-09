@@ -48,7 +48,15 @@ const Attendance = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const currentDate = new Date();
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
-  const [adjustmentLog, setAdjustmentLog] = useState<any>(null);
+  const [adjustmentLog, setAdjustmentLog] = useState<{
+    id: string;
+    clock_in: string;
+    clock_out: string | null;
+    total_break_minutes: number;
+    total_pause_minutes: number;
+    clock_type: string;
+    status: string;
+  } | null>(null);
 
   const {
     currentLog,
