@@ -34,6 +34,7 @@ import {
   Edit,
   User,
   Eye,
+  FileDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -60,18 +61,24 @@ import { SalaryBreakdownDialog } from "@/components/payroll/SalaryBreakdownDialo
 import { RunPayrollDialog } from "@/components/payroll/RunPayrollDialog";
 import { PayrollDataGrid, type PayrollRow } from "@/components/payroll/PayrollDataGrid";
 import { PayrollExportPreviewDialog } from "@/components/payroll/PayrollExportPreviewDialog";
+import { MyPayslipsTab } from "@/components/payroll/MyPayslipsTab";
 import { exportPayrollCSV, mapDetailToExportRow } from "@/lib/payrollCsvExport";
 import { calculateWorkingHours, calculateMonthlyWorkingHours, hourlyRateFromSalary, calculateDeductions, HOURS_PER_DAY } from "@/lib/payrollHours";
 import { calculateEMI, FIXED_ANNUAL_RATE } from "@/lib/loanCalculations";
+import { usePayslips } from "@/hooks/usePayslips";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import type { PayslipEmployeeData, PayslipRunContext } from "@/lib/payslipPdfGenerator";
 
 const Payroll = () => {
   const { isVP, isManager, profile, user } = useAuth();
   const { payrollRuns, loading, region, setRegion, createPayrollRun, processPayroll, getTaxRates } = usePayroll();
   const { employees, updateEmployee, refetch: refetchEmployees } = useEmployees();
   const { teamAttendance, loading: attendanceLoading } = useTeamAttendance();
+  const { generating: generatingPayslips, progress: payslipProgress, generateAndUploadPayslips, downloadPayslip, downloadAllAsZip, fetchRunPayslips, payslipRecords, checkPayslipsExist } = usePayslips();
+  const { settings: companySettings } = useCompanySettings();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const validTabs = ["overview", "attendance", "employees", "calculator", "contractor"] as const;
+  const validTabs = ["overview", "attendance", "employees", "calculator", "contractor", "my-payslips"] as const;
   type TabType = typeof validTabs[number];
   const tabParam = searchParams.get("tab") as TabType | null;
   const activeTab: TabType = tabParam && validTabs.includes(tabParam) ? tabParam : "overview";
@@ -160,6 +167,13 @@ const Payroll = () => {
   const regionEmployees = employees.filter(e => 
     e.location?.toLowerCase().includes(region.toLowerCase())
   );
+
+  // Fetch payslip records when viewing a payroll run detail
+  useEffect(() => {
+    if (viewRunId) {
+      fetchRunPayslips(viewRunId);
+    }
+  }, [viewRunId, fetchRunPayslips]);
   
   // Calculate stats from real data
   const totalEmployees = regionEmployees.length;
@@ -651,6 +665,42 @@ const Payroll = () => {
           description: `${employeeCount} employees | Total: ${currencySymbol}${totalGross.toLocaleString(undefined, { maximumFractionDigits: 0 })}. Extra hours saved.`,
         });
         setModalParam(null);
+
+        // ── Background: generate payslip PDFs for all employees ──
+        const payslipData: PayslipEmployeeData[] = employeePayrollDetails.map(d => ({
+          employee_id: d.employee_id,
+          user_id: d.user_id,
+          employee_name: d.employee_name,
+          department: d.department,
+          hourly_rate: d.hourly_rate,
+          days_worked: d.days_worked,
+          actual_hours: d.actual_hours,
+          payable_hours: d.payable_hours,
+          extra_hours: d.extra_hours,
+          bank_hours_used: d.bank_hours_used,
+          paid_leave_days: d.paid_leave_days,
+          unpaid_leave_days: d.unpaid_leave_days,
+          gross_pay: d.gross_pay,
+          income_tax: d.income_tax,
+          social_security: d.social_security,
+          provident_fund: d.provident_fund,
+          loan_emi: d.loan_emi,
+          deductions: d.deductions,
+          net_pay: d.net_pay,
+        }));
+
+        const payslipCtx: PayslipRunContext = {
+          payroll_run_id: result.id,
+          period_start: formatLocalDate(periodStart),
+          period_end: formatLocalDate(periodEnd),
+          region,
+          total_working_days: workDaysInRange,
+          required_hours: standardHoursInRange,
+          company_name: companySettings.companyName,
+        };
+
+        // Fire-and-forget — runs in background, shows its own progress toast
+        generateAndUploadPayslips(payslipData, payslipCtx);
       }
     } catch (err) {
       console.error("Payroll error:", err);
@@ -937,6 +987,7 @@ const Payroll = () => {
           <TabsTrigger value="attendance">Employee Attendance</TabsTrigger>
           {isVP && <TabsTrigger value="employees">Manage Salaries</TabsTrigger>}
           <TabsTrigger value="contractor">Contractor Portal</TabsTrigger>
+          <TabsTrigger value="my-payslips">My Payslips</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -1161,6 +1212,29 @@ const Payroll = () => {
             </Card>
           </div>
 
+          {/* Payslip Generation Progress */}
+          {generatingPayslips && payslipProgress && (
+            <Card className="mt-6 border-primary/30 bg-primary/5">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      Generating Payslips… {payslipProgress.completed}/{payslipProgress.total}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{payslipProgress.current}</p>
+                    <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-300"
+                        style={{ width: `${(payslipProgress.completed / payslipProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Recent Payrolls Table */}
           <Card className="mt-6 animate-slide-up opacity-0" style={{ animationDelay: "400ms", animationFillMode: "forwards" }}>
             <CardHeader>
@@ -1232,6 +1306,15 @@ const Payroll = () => {
                                     <Download className="h-3.5 w-3.5" />
                                     CSV
                                   </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    onClick={() => downloadAllAsZip(payroll.id, payroll.period_start)}
+                                  >
+                                    <FileDown className="h-3.5 w-3.5" />
+                                    Payslips
+                                  </Button>
                                 </>
                               )}
                               {isVP && payroll.status === "draft" && (
@@ -1263,6 +1346,9 @@ const Payroll = () => {
                 region={region}
                 periodStart={viewRunPeriod.start}
                 periodEnd={viewRunPeriod.end}
+                payslipRecords={payslipRecords}
+                onDownloadPayslip={downloadPayslip}
+                onDownloadAllPayslips={() => viewRunId && viewRunPeriod && downloadAllAsZip(viewRunId, viewRunPeriod.start)}
               />
             </div>
           )}
@@ -1491,6 +1577,9 @@ const Payroll = () => {
             </div>
           </CardContent>
         </Card>
+      ) : activeTab === "my-payslips" ? (
+        /* My Payslips - available to all employees */
+        <MyPayslipsTab downloadPayslip={downloadPayslip} />
       ) : null}
 
       {/* Dialogs */}
