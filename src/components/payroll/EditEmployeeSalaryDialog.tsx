@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, User, AlertCircle } from "lucide-react";
+import { DollarSign, User, AlertCircle, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Employee {
@@ -24,6 +24,7 @@ interface Employee {
   gender?: string | null;
   insurance_premium?: number | null;
   include_dashain_bonus?: boolean | null;
+  hire_date?: string | null;
 }
 
 interface EditEmployeeSalaryDialogProps {
@@ -32,6 +33,19 @@ interface EditEmployeeSalaryDialogProps {
   employee: Employee | null;
   employees: Employee[];
   onSave: (employeeId: string, updates: Partial<Employee>) => void;
+}
+
+/**
+ * Calculate pro-rated months from hire date to end of fiscal year (Dec 31).
+ * Returns a value between 1 and 12.
+ */
+function getProRatedMonths(hireDate: string | null | undefined): number {
+  if (!hireDate) return 12;
+  const hire = new Date(hireDate);
+  const hireMonth = hire.getMonth(); // 0-indexed (Jan=0)
+  // Months remaining from hire month to December (inclusive)
+  const months = 12 - hireMonth;
+  return Math.max(1, Math.min(12, months));
 }
 
 export function EditEmployeeSalaryDialog({ 
@@ -69,14 +83,68 @@ export function EditEmployeeSalaryDialog({
     }
   }, [employee]);
 
-  // Validate numeric input - must be number, 0 allowed, no negatives
   const validateNumeric = (value: string): boolean => {
     if (value === "" || value === "0") return true;
     const num = parseFloat(value);
     return !isNaN(num) && num >= 0;
   };
 
-  // Calculate net salary
+  // Pro-rated months calculation
+  const proRatedMonths = useMemo(() => getProRatedMonths(employee?.hire_date), [employee?.hire_date]);
+  const proRateRatio = proRatedMonths / 12;
+
+  // Auto-calculate deductions for salary types based on join date
+  const autoCalculations = useMemo(() => {
+    if (payType === "hourly") return null;
+    const annualSalary = parseFloat(salary) || 0;
+    if (annualSalary <= 0) return null;
+
+    // For "monthly" pay type, the salary input is monthly — convert to annual for calculations
+    const effectiveAnnualSalary = payType === "monthly" ? annualSalary * 12 : annualSalary;
+
+    // Pro-rated annual income based on join date
+    const proRatedAnnualIncome = effectiveAnnualSalary * proRateRatio;
+
+    // Income Tax (pro-rated): using Nepal slab-based approach
+    // Simplified: 1% on first 5L, 10% on next 2L, 20% on next 3L
+    let calcTax = 0;
+    const taxable = proRatedAnnualIncome;
+    if (taxable > 500000) {
+      const above5L = Math.min(taxable - 500000, 200000);
+      calcTax += above5L * 0.10;
+    }
+    if (taxable > 700000) {
+      const above7L = Math.min(taxable - 700000, 300000);
+      calcTax += above7L * 0.20;
+    }
+    if (taxable > 1000000) {
+      const above10L = Math.min(taxable - 1000000, 1000000);
+      calcTax += above10L * 0.30;
+    }
+    if (taxable > 2000000) {
+      calcTax += (taxable - 2000000) * 0.36;
+    }
+    // Female rebate
+    if (gender === "female") {
+      calcTax = calcTax * 0.9;
+    }
+
+    // Social Security: 11% of basic (60% of gross), pro-rated
+    const grossMonthly = (effectiveAnnualSalary / 1.12) / 12;
+    const basicMonthly = grossMonthly * 0.6;
+    const calcSS = basicMonthly * 0.11 * proRatedMonths;
+
+    // Provident Fund: 10% of basic, pro-rated from join to December
+    const calcPF = basicMonthly * 0.10 * proRatedMonths;
+
+    return {
+      incomeTax: Math.round(calcTax),
+      socialSecurity: Math.round(calcSS),
+      providentFund: Math.round(calcPF),
+      proRatedAnnualIncome: Math.round(proRatedAnnualIncome),
+    };
+  }, [salary, payType, proRateRatio, proRatedMonths, gender]);
+
   const calculateNetSalary = (): number => {
     const baseSalary = parseFloat(salary) || 0;
     const tax = parseFloat(incomeTax) || 0;
@@ -85,7 +153,6 @@ export function EditEmployeeSalaryDialog({
     return baseSalary - tax - ss - pf;
   };
 
-  // Validate deductions don't exceed base salary
   const validateDeductions = (): boolean => {
     const baseSalary = parseFloat(salary) || 0;
     const totalDeductions = (parseFloat(incomeTax) || 0) + 
@@ -94,10 +161,18 @@ export function EditEmployeeSalaryDialog({
     return totalDeductions <= baseSalary;
   };
 
+  const handleApplyAutoCalc = () => {
+    if (autoCalculations) {
+      setIncomeTax(autoCalculations.incomeTax.toString());
+      setSocialSecurity(autoCalculations.socialSecurity.toString());
+      setProvidentFund(autoCalculations.providentFund.toString());
+      toast({ title: "Auto-Calculated", description: `Pro-rated for ${proRatedMonths} months based on join date` });
+    }
+  };
+
   const handleSave = () => {
     if (!employee) return;
 
-    // Validate all numeric fields
     if (!validateNumeric(salary) || !validateNumeric(hourlyRate) || 
         !validateNumeric(incomeTax) || !validateNumeric(socialSecurity) || 
         !validateNumeric(providentFund)) {
@@ -106,16 +181,17 @@ export function EditEmployeeSalaryDialog({
       return;
     }
 
-    // Validate deductions don't exceed base salary
-    if (payType === "salary" && !validateDeductions()) {
+    if ((payType === "salary" || payType === "monthly") && !validateDeductions()) {
       setValidationError("Total deductions cannot exceed base salary");
       toast({ title: "Validation Error", description: "Total deductions cannot exceed base salary", variant: "destructive" });
       return;
     }
 
+    const salaryValue = parseFloat(salary) || null;
+
     const updates: Partial<Employee> = {
       pay_type: payType,
-      salary: payType === "salary" ? (parseFloat(salary) || null) : null,
+      salary: (payType === "salary" || payType === "monthly") ? salaryValue : null,
       hourly_rate: payType === "hourly" ? (parseFloat(hourlyRate) || null) : null,
       manager_id: managerId === "none" ? null : managerId,
       income_tax: parseFloat(incomeTax) || 0,
@@ -131,7 +207,6 @@ export function EditEmployeeSalaryDialog({
     setValidationError("");
   };
 
-  // Filter out current employee from manager list
   const potentialManagers = employees.filter(e => e.id !== employee?.id);
 
   const netSalary = calculateNetSalary();
@@ -141,7 +216,7 @@ export function EditEmployeeSalaryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
@@ -150,6 +225,17 @@ export function EditEmployeeSalaryDialog({
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
+          {/* Join date info */}
+          {employee.hire_date && (
+            <div className="flex items-start gap-2 p-2.5 bg-info/10 border border-info/20 rounded-lg text-xs text-info">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>
+                Joined: <strong>{new Date(employee.hire_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong>
+                {proRatedMonths < 12 && ` — Pro-rated to ${proRatedMonths} months for tax/SSF/PF calculations`}
+              </span>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Pay Type</Label>
             <Select value={payType} onValueChange={setPayType}>
@@ -158,26 +244,34 @@ export function EditEmployeeSalaryDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="salary">Salary (Annual)</SelectItem>
+                <SelectItem value="monthly">Salary (Monthly)</SelectItem>
                 <SelectItem value="hourly">Hourly Rate</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {payType === "salary" ? (
+          {payType === "salary" || payType === "monthly" ? (
             <>
               <div className="space-y-2">
-                <Label htmlFor="salary">Base Salary (Annual)</Label>
+                <Label htmlFor="salary">
+                  {payType === "monthly" ? "Monthly Salary" : "Base Salary (Annual)"}
+                </Label>
                 <Input
                   id="salary"
                   type="number"
                   min="0"
-                  placeholder="Enter annual salary"
+                  placeholder={payType === "monthly" ? "Enter monthly salary" : "Enter annual salary"}
                   value={salary}
                   onChange={(e) => {
                     setSalary(e.target.value);
                     setValidationError("");
                   }}
                 />
+                {payType === "monthly" && salary && (
+                  <p className="text-xs text-muted-foreground">
+                    Annual equivalent: Rs. {((parseFloat(salary) || 0) * 12).toLocaleString()}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -225,10 +319,40 @@ export function EditEmployeeSalaryDialog({
                 </div>
               </div>
 
+              {/* Auto-calculate button */}
+              {autoCalculations && (
+                <div className="p-3 bg-secondary/50 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Auto-calculated (pro-rated {proRatedMonths}/12 months)
+                    </span>
+                    <Button size="sm" variant="outline" onClick={handleApplyAutoCalc} className="h-7 text-xs">
+                      Apply
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Tax: </span>
+                      <span className="font-medium">Rs. {autoCalculations.incomeTax.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">SSF: </span>
+                      <span className="font-medium">Rs. {autoCalculations.socialSecurity.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">PF: </span>
+                      <span className="font-medium">Rs. {autoCalculations.providentFund.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Net Salary Display */}
               <div className="p-3 bg-muted rounded-lg">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Net Salary (Annual)</span>
+                  <span className="text-sm font-medium">
+                    Net Salary ({payType === "monthly" ? "Monthly" : "Annual"})
+                  </span>
                   <span className={`text-lg font-bold ${!isDeductionsValid ? 'text-destructive' : 'text-foreground'}`}>
                     {netSalary.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </span>

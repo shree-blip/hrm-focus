@@ -58,7 +58,7 @@ import { NepalPayrollTable } from "@/components/payroll/NepalPayrollTable";
 import { SalaryBreakdownDialog } from "@/components/payroll/SalaryBreakdownDialog";
 
 const Payroll = () => {
-  const { isVP, isManager, profile } = useAuth();
+  const { isVP, isManager, profile, user } = useAuth();
   const { payrollRuns, loading, region, setRegion, createPayrollRun, processPayroll, getTaxRates } = usePayroll();
   const { employees, updateEmployee, refetch: refetchEmployees } = useEmployees();
   const { teamAttendance, loading: attendanceLoading } = useTeamAttendance();
@@ -186,6 +186,20 @@ const Payroll = () => {
         extra_hours: number;
       }> = [];
 
+      const employeePayrollDetails: Array<{
+        employee_id: string;
+        user_id: string;
+        employee_name: string;
+        department: string;
+        hourly_rate: number;
+        actual_hours: number;
+        payable_hours: number;
+        extra_hours: number;
+        gross_pay: number;
+        deductions: number;
+        net_pay: number;
+      }> = [];
+
       regionEmployees.forEach(emp => {
         if (!emp.hourly_rate || emp.hourly_rate <= 0) return;
 
@@ -193,18 +207,10 @@ const Payroll = () => {
         let actualHours = 0;
         let userId = "";
 
-        // Try matching by employee id first
         const byEmpId = employeeHoursMap.get(emp.id);
         if (byEmpId) {
           actualHours = byEmpId.actualHours;
           userId = byEmpId.userId;
-        } else {
-          // Try matching via profile
-          for (const [key, val] of employeeHoursMap.entries()) {
-            if (val.userId && employees.find(e => e.id === emp.id && e.profile_id)) {
-              // Match by user_id through profile lookup
-            }
-          }
         }
 
         // Cap payable hours at standard (no overtime pay)
@@ -214,6 +220,20 @@ const Payroll = () => {
         const grossPay = payableHours * emp.hourly_rate;
         totalGross += grossPay;
         employeeCount++;
+
+        employeePayrollDetails.push({
+          employee_id: emp.id,
+          user_id: userId,
+          employee_name: `${emp.first_name} ${emp.last_name}`,
+          department: emp.department || "",
+          hourly_rate: emp.hourly_rate,
+          actual_hours: Math.round(actualHours * 10) / 10,
+          payable_hours: Math.round(payableHours * 10) / 10,
+          extra_hours: Math.round(extraHours * 10) / 10,
+          gross_pay: Math.round(grossPay * 100) / 100,
+          deductions: 0,
+          net_pay: Math.round(grossPay * 100) / 100,
+        });
 
         if (userId) {
           overtimeRecords.push({
@@ -238,8 +258,31 @@ const Payroll = () => {
             total_net: Math.round((totalGross - totalDeductions) * 100) / 100,
             total_deductions: Math.round(totalDeductions * 100) / 100,
             employee_count: employeeCount,
+            status: "completed",
+            processed_at: new Date().toISOString(),
+            processed_by: user?.id,
           })
           .eq("id", result.id);
+
+        // Save per-employee payroll details
+        if (employeePayrollDetails.length > 0) {
+          const detailInserts = employeePayrollDetails.map(d => ({
+            payroll_run_id: result.id,
+            employee_id: d.employee_id,
+            user_id: d.user_id || null,
+            employee_name: d.employee_name,
+            department: d.department,
+            hourly_rate: d.hourly_rate,
+            actual_hours: d.actual_hours,
+            payable_hours: d.payable_hours,
+            extra_hours: d.extra_hours,
+            gross_pay: d.gross_pay,
+            deductions: d.deductions,
+            net_pay: d.net_pay,
+          }));
+
+          await supabase.from("payroll_run_details").insert(detailInserts);
+        }
 
         // Save overtime/extra hours to overtime_bank
         if (overtimeRecords.length > 0) {
@@ -247,7 +290,7 @@ const Payroll = () => {
             user_id: rec.user_id,
             employee_id: rec.employee_id,
             payroll_run_id: result.id,
-            period_month: payrollMonth + 1, // 1-indexed
+            period_month: payrollMonth + 1,
             period_year: payrollYear,
             standard_hours: rec.standard_hours,
             actual_hours: rec.actual_hours,
@@ -271,6 +314,49 @@ const Payroll = () => {
     } finally {
       setIsCalculating(false);
     }
+  };
+
+  const handleDownloadRunCSV = async (runId: string, periodStart: string, periodEnd: string) => {
+    const { data: details, error } = await supabase
+      .from("payroll_run_details")
+      .select("*")
+      .eq("payroll_run_id", runId)
+      .order("employee_name");
+
+    if (error || !details || details.length === 0) {
+      toast({ title: "No Data", description: "No payroll details found for this run", variant: "destructive" });
+      return;
+    }
+
+    const currencySymbol = region === "US" ? "$" : "Rs.";
+    const headers = [
+      "Employee Name", "Department", "Hourly Rate",
+      "Actual Hours", "Payable Hours", "Extra Hours",
+      "Gross Pay", "Deductions", "Net Pay"
+    ];
+
+    const rows = details.map((d: any) => [
+      `"${d.employee_name}"`,
+      d.department || "",
+      d.hourly_rate || 0,
+      d.actual_hours || 0,
+      d.payable_hours || 0,
+      d.extra_hours || 0,
+      d.gross_pay || 0,
+      d.deductions || 0,
+      d.net_pay || 0,
+    ].join(","));
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `payroll-${format(new Date(periodStart), "yyyy-MM")}-${region}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Downloaded", description: `Payroll CSV for ${format(new Date(periodStart), "MMMM yyyy")} exported` });
   };
 
   const handleExport = () => {
@@ -711,18 +797,17 @@ const Payroll = () => {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead>Pay Period</TableHead>
+                      <TableHead>Run Date</TableHead>
                       <TableHead>Employees</TableHead>
-                      <TableHead>Gross Pay</TableHead>
-                      <TableHead>Net Pay</TableHead>
+                      <TableHead>Total Payroll</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Processed</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {recentPayrolls.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                           No payroll runs found for {region}
                         </TableCell>
                       </TableRow>
@@ -732,9 +817,15 @@ const Payroll = () => {
                           <TableCell className="font-medium">
                             {format(new Date(payroll.period_start), "MMM d")} - {format(new Date(payroll.period_end), "MMM d, yyyy")}
                           </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {payroll.processed_at
+                              ? format(new Date(payroll.processed_at), "MMM d, yyyy h:mm a")
+                              : format(new Date(payroll.created_at), "MMM d, yyyy h:mm a")}
+                          </TableCell>
                           <TableCell>{payroll.employee_count || "-"}</TableCell>
-                          <TableCell>{region === "US" ? "$" : "₨"}{(payroll.total_gross || 0).toLocaleString()}</TableCell>
-                          <TableCell>{region === "US" ? "$" : "₨"}{(payroll.total_net || 0).toLocaleString()}</TableCell>
+                          <TableCell className="font-semibold">
+                            {region === "US" ? "$" : "₨"}{(payroll.total_gross || 0).toLocaleString()}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={cn(
                               payroll.status === "completed" && "border-success text-success bg-success/10",
@@ -744,15 +835,25 @@ const Payroll = () => {
                               {payroll.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {payroll.processed_at ? format(new Date(payroll.processed_at), "MMM d") : "-"}
-                          </TableCell>
                           <TableCell>
-                            {isVP && payroll.status === "draft" && (
-                              <Button size="sm" onClick={() => processPayroll(payroll.id)}>
-                                Process
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {payroll.status === "completed" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5"
+                                  onClick={() => handleDownloadRunCSV(payroll.id, payroll.period_start, payroll.period_end)}
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                  CSV
+                                </Button>
+                              )}
+                              {isVP && payroll.status === "draft" && (
+                                <Button size="sm" onClick={() => processPayroll(payroll.id)}>
+                                  Process
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))

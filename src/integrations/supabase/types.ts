@@ -2510,6 +2510,86 @@ export type Database = {
           },
         ]
       }
+      payroll_run_details: {
+        Row: {
+          actual_hours: number | null
+          created_at: string
+          deductions: number | null
+          department: string | null
+          employee_id: string | null
+          employee_name: string
+          extra_hours: number | null
+          gross_pay: number | null
+          hourly_rate: number | null
+          id: string
+          net_pay: number | null
+          payable_hours: number | null
+          payroll_run_id: string
+          user_id: string | null
+        }
+        Insert: {
+          actual_hours?: number | null
+          created_at?: string
+          deductions?: number | null
+          department?: string | null
+          employee_id?: string | null
+          employee_name: string
+          extra_hours?: number | null
+          gross_pay?: number | null
+          hourly_rate?: number | null
+          id?: string
+          net_pay?: number | null
+          payable_hours?: number | null
+          payroll_run_id: string
+          user_id?: string | null
+        }
+        Update: {
+          actual_hours?: number | null
+          created_at?: string
+          deductions?: number | null
+          department?: string | null
+          employee_id?: string | null
+          employee_name?: string
+          extra_hours?: number | null
+          gross_pay?: number | null
+          hourly_rate?: number | null
+          id?: string
+          net_pay?: number | null
+          payable_hours?: number | null
+          payroll_run_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_run_details_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_run_details_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_run_details_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_run_details_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_runs: {
         Row: {
           created_at: string
