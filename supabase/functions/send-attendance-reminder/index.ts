@@ -19,10 +19,10 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const now = new Date();
 
-    // Find users who clocked in ~7h50m ago (between 7h45m and 7h55m to avoid duplicates)
-    // and haven't clocked out yet
-    const minThreshold = new Date(now.getTime() - (7 * 60 + 55) * 60 * 1000); // 7h55m ago
-    const maxThreshold = new Date(now.getTime() - (7 * 60 + 45) * 60 * 1000); // 7h45m ago
+    // Widen the query window to catch users who may have taken breaks/pauses
+    // Get all users who clocked in 6-10 hours ago (wide window)
+    const wideStartTime = new Date(now.getTime() - 10 * 60 * 60 * 1000); // 10 hours ago
+    const wideEndTime = new Date(now.getTime() - 6 * 60 * 60 * 1000);   // 6 hours ago
 
     const { data: activeLogs, error: fetchError } = await supabase
       .from("attendance_logs")
@@ -42,17 +42,17 @@ Deno.serve(async (req) => {
       `)
       .is("clock_out", null)
       .neq("status", "auto_clocked_out")
-      .gte("clock_in", minThreshold.toISOString())
-      .lte("clock_in", maxThreshold.toISOString());
+      .gte("clock_in", wideStartTime.toISOString())
+      .lte("clock_in", wideEndTime.toISOString());
 
     if (fetchError) {
       console.error("Error fetching active logs:", fetchError);
       throw fetchError;
     }
 
-    console.log(`Found ${activeLogs?.length || 0} users approaching 8 hours`);
+    console.log(`Found ${activeLogs?.length || 0} users in wide time window, filtering for 7h50m net work`);
 
-    const results: Array<{ user_id: string; email_sent: boolean; error?: string }> = [];
+    const results: Array<{ user_id: string; email_sent: boolean; net_hours: number; error?: string }> = [];
 
     for (const log of activeLogs || []) {
       // Calculate net work time accounting for breaks/pauses
@@ -103,22 +103,33 @@ Deno.serve(async (req) => {
         }
       }
 
+      if (!employee?.email) {
+        console.log(`No email found for user ${log.user_id}, skipping`);
+        continue;
+      }
+
+      // Calculate actual worked hours and minutes for display
+      const netWorkHours = Math.floor(netWorkMinutes / 60);
+      const netWorkMins = Math.round(netWorkMinutes % 60);
+      
+      // Calculate when they'll hit exactly 8 hours
+      const remainingMinutes = 480 - netWorkMinutes; // 8 hours = 480 minutes
+      const eightHourMark = new Date(now.getTime() + remainingMinutes * 60 * 1000);
+
+      console.log(`Sending reminder to ${employee.email} - worked ${netWorkHours}h ${netWorkMins}m, 8hrs at ${eightHourMark.toLocaleTimeString()}`);
+
       // Create in-app notification
       await supabase.rpc("create_notification", {
         p_user_id: log.user_id,
         p_title: "⏰ 8-Hour Work Reminder",
-        p_message:
-          "You've been working for nearly 8 hours. Don't forget to clock out in the next 10 minutes!",
+        p_message: `You've been working for ${netWorkHours}h ${netWorkMins}m. Your 8 hours will be reached in ${Math.round(remainingMinutes)} minutes!`,
         p_type: "attendance",
         p_link: "/attendance",
       });
 
       // Send email
       let emailSent = false;
-      if (RESEND_API_KEY && employee?.email) {
-        const clockInDate = new Date(log.clock_in);
-        const expectedClockOut = new Date(clockInDate.getTime() + 8 * 60 * 60 * 1000);
-
+      if (RESEND_API_KEY) {
         // Log the attempt
         const { data: logEntry } = await supabase
           .from("notification_logs")
@@ -130,7 +141,9 @@ Deno.serve(async (req) => {
             payload: {
               employee_name: `${employee.first_name} ${employee.last_name}`,
               clock_in: log.clock_in,
-              expected_clock_out: expectedClockOut.toISOString(),
+              net_work_hours: netWorkHours,
+              net_work_minutes: netWorkMins,
+              eight_hour_mark: eightHourMark.toISOString(),
             },
             status: "pending",
             attempts: 0,
@@ -149,12 +162,15 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               from: "HRM Focus <noreply@notifications.focusyourfinance.com>",
               to: [employee.email],
-              subject: "⏰ 8-Hour Work Reminder - Don't Forget to Clock Out!",
+              subject: "⏰ Time Reminder - Your 8 hours is almost up!",
               html: buildReminderEmail(
                 employee.first_name,
                 employee.last_name,
-                clockInDate,
-                expectedClockOut
+                new Date(log.clock_in),
+                netWorkHours,
+                netWorkMins,
+                eightHourMark,
+                Math.round(remainingMinutes)
               ),
             }),
           });
@@ -201,6 +217,7 @@ Deno.serve(async (req) => {
       results.push({
         user_id: log.user_id,
         email_sent: emailSent,
+        net_hours: parseFloat((netWorkMinutes / 60).toFixed(2)),
       });
     }
 
@@ -226,26 +243,66 @@ Deno.serve(async (req) => {
 function buildReminderEmail(
   firstName: string,
   lastName: string,
-  clockIn: Date,
-  expectedClockOut: Date
+  clockInTime: Date,
+  hoursWorked: number,
+  minutesWorked: number,
+  eightHourMark: Date,
+  remainingMinutes: number
 ): string {
+  const timeWorked = hoursWorked > 0 
+    ? `${hoursWorked} hour${hoursWorked !== 1 ? 's' : ''} and ${minutesWorked} minute${minutesWorked !== 1 ? 's' : ''}` 
+    : `${minutesWorked} minute${minutesWorked !== 1 ? 's' : ''}`;
+
   return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
 <body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-    <h2 style="color:#d97706;margin-top:0;">⏰ 8-Hour Work Reminder</h2>
-    <p>Hi ${firstName} ${lastName},</p>
-    <p>You've been working for nearly <strong>8 hours</strong>. Don't forget to clock out soon!</p>
-    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-      <tr><td style="padding:8px 0;color:#666;width:160px;">Clocked In At</td><td style="padding:8px 0;font-weight:600;">${clockIn.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</td></tr>
-      <tr><td style="padding:8px 0;color:#666;">Expected Clock Out</td><td style="padding:8px 0;font-weight:600;color:#d97706;">${expectedClockOut.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</td></tr>
+    <h2 style="color:#d97706;margin-top:0;">⏰ Time to Clock Out Soon!</h2>
+    <p>Hi ${firstName},</p>
+    <p>You have been logged in for <strong>${timeWorked}</strong> and your 8 hours is going to reach in <strong>${remainingMinutes} minutes</strong>. Make sure to clock out on time!</p>
+    
+    <div style="background:#fef3c7;border-left:4px solid #d97706;padding:16px;margin:20px 0;border-radius:4px;">
+      <p style="margin:0;color:#92400e;"><strong>⚠️ Important:</strong> Your 8-hour workday will end at <strong style="color:#d97706;">${eightHourMark.toLocaleTimeString('en-US', { 
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })}</strong></p>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin:20px 0;">
+      <tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:12px 0;color:#666;">Clocked In At:</td>
+        <td style="padding:12px 0;font-weight:600;">${clockInTime.toLocaleString("en-US", { 
+          weekday: 'short',
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true
+        })}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:12px 0;color:#666;">Time Worked:</td>
+        <td style="padding:12px 0;font-weight:600;color:#059669;">${timeWorked}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 0;color:#666;">8-Hour Mark:</td>
+        <td style="padding:12px 0;font-weight:600;color:#d97706;">${eightHourMark.toLocaleTimeString('en-US', { 
+          hour: 'numeric',
+          minute: '2-digit', 
+          hour12: true
+        })}</td>
+      </tr>
     </table>
-    <p style="color:#666;">If you've already clocked out, you can ignore this email. Otherwise, please remember to clock out to keep your attendance records accurate.</p>
-    <a href="https://hrm-focus.lovable.app/attendance" style="display:inline-block;background:#d97706;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin-top:8px;">Go to Attendance</a>
-    <div style="text-align:center;padding-top:20px;color:#999;font-size:12px;">
-      <p>This is an automated reminder from Focus Your Finance HRM System</p>
+    
+    <p style="color:#666;margin:20px 0;">Please remember to clock out on time to keep your attendance records accurate and maintain work-life balance.</p>
+    
+    <a href="https://hrm-focus.lovable.app/attendance" style="display:inline-block;background:#d97706;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin:20px 0;font-weight:600;">Clock Out Now</a>
+    
+    <p style="color:#16a34a;font-weight:600;margin:20px 0;">Happy working! 😊</p>
+    
+    <div style="text-align:center;padding-top:20px;border-top:1px solid #e5e7eb;color:#999;font-size:12px;">
+      <p style="margin:0;">This is an automated reminder from Focus Your Finance HRM System</p>
     </div>
   </div>
 </body>
