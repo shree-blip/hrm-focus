@@ -647,7 +647,34 @@ export function useLeaveRequests() {
         `/leave`,
       );
 
-      // Send email notification to employee about approval
+      // Also notify VP/Admin about the approval
+      const { data: vpAdminApprove } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["vp", "admin"]);
+
+      const approveNotifyIds = [requestData.user_id];
+      const approveEmails: string[] = requestProfile?.email ? [requestProfile.email] : [];
+
+      for (const va of vpAdminApprove || []) {
+        if (va.user_id !== user.id && va.user_id !== requestData.user_id) {
+          approveNotifyIds.push(va.user_id);
+          await createNotification(
+            va.user_id,
+            approveTitle,
+            `${userName}'s ${requestData.leave_type} request for ${requestData.days} day(s) has been approved by ${managerName}.`,
+            "leave",
+            `/leave`,
+          );
+        }
+        // Get VP/Admin emails
+        const { data: vaProfile } = await supabase.from("profiles").select("email").eq("user_id", va.user_id).single();
+        if (vaProfile?.email && !approveEmails.includes(vaProfile.email)) {
+          approveEmails.push(vaProfile.email);
+        }
+      }
+
+      // Send email notification to employee + VP/Admin about approval
       await sendLeaveNotification({
         leave_request_id: requestId,
         event_type: "approved",
@@ -658,8 +685,8 @@ export function useLeaveRequests() {
         end_date: requestData.end_date,
         days: requestData.days,
         approver_name: managerName,
-        target_user_ids: [requestData.user_id],
-        target_emails: requestProfile?.email ? [requestProfile.email] : [],
+        target_user_ids: approveNotifyIds,
+        target_emails: approveEmails,
         requesting_user_id: user.id,
       });
 
