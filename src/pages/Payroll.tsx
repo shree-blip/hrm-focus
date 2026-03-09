@@ -229,32 +229,19 @@ const Payroll = () => {
         const hasSalary = emp.salary && emp.salary > 0;
         if (!hasHourlyRate && !hasSalary) return;
 
-        // Find hours for this employee
+        // Find hours: try employee_id first, then user_id from employee record
         let actualHours = 0;
-        let userId = "";
+        let userId = (emp as any).user_id || "";
 
-        const byEmpId = employeeHoursMap.get(emp.id);
+        const byEmpId = hoursByEmployeeId.get(emp.id);
         if (byEmpId) {
           actualHours = byEmpId.actualHours;
           userId = byEmpId.userId;
-        }
-
-        // Also try matching via user_id from profiles
-        if (!byEmpId && emp.profile_id) {
-          for (const [, val] of employeeHoursMap.entries()) {
-            // Check if any attendance log user matches this employee's profile
-            const matchingEmp = employees.find(e => e.id === emp.id);
-            if (matchingEmp) {
-              // Try to find by user_id
-              for (const [key, v] of employeeHoursMap.entries()) {
-                if (key === emp.id) {
-                  actualHours = v.actualHours;
-                  userId = v.userId;
-                  break;
-                }
-              }
-            }
-            break;
+        } else if (userId) {
+          // Match via user_id (from profile linkage)
+          const byUserId = hoursByUserId.get(userId);
+          if (byUserId) {
+            actualHours = byUserId.actualHours;
           }
         }
 
