@@ -316,7 +316,49 @@ const Payroll = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleDownloadRunCSV = async (runId: string, periodStart: string, periodEnd: string) => {
+    const { data: details, error } = await supabase
+      .from("payroll_run_details")
+      .select("*")
+      .eq("payroll_run_id", runId)
+      .order("employee_name");
+
+    if (error || !details || details.length === 0) {
+      toast({ title: "No Data", description: "No payroll details found for this run", variant: "destructive" });
+      return;
+    }
+
+    const currencySymbol = region === "US" ? "$" : "Rs.";
+    const headers = [
+      "Employee Name", "Department", "Hourly Rate",
+      "Actual Hours", "Payable Hours", "Extra Hours",
+      "Gross Pay", "Deductions", "Net Pay"
+    ];
+
+    const rows = details.map((d: any) => [
+      `"${d.employee_name}"`,
+      d.department || "",
+      d.hourly_rate || 0,
+      d.actual_hours || 0,
+      d.payable_hours || 0,
+      d.extra_hours || 0,
+      d.gross_pay || 0,
+      d.deductions || 0,
+      d.net_pay || 0,
+    ].join(","));
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `payroll-${format(new Date(periodStart), "yyyy-MM")}-${region}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Downloaded", description: `Payroll CSV for ${format(new Date(periodStart), "MMMM yyyy")} exported` });
+  };
+
     // Export with employee data
     const currencySymbol = region === "US" ? "$" : "Rs.";
     const taxRates = getTaxRates();
