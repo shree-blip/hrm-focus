@@ -897,7 +897,7 @@ export function CompanyCalendar() {
                 <div className="p-3 rounded-lg bg-muted/30 border border-border/50 text-center">
                   <p className="text-sm text-muted-foreground">
                     No events on this date
-                    {isManager && " — click 'Add' to create one"}
+                    {canManageCalendar && " — click 'Add' to create one"}
                   </p>
                 </div>
               )}
