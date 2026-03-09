@@ -31,6 +31,8 @@ export interface UploaderInfo {
 
 export function useDocuments() {
   const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canManageDocs = isAdmin || isVP || isManager || hasPermission('manage_documents');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploaderNames, setUploaderNames] = useState<UploaderInfo>({});
   const [loading, setLoading] = useState(true);
