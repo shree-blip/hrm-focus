@@ -173,11 +173,11 @@ export function RealTimeAttendanceWidget() {
     const dayStart = startOfDay(today).toISOString();
     const dayEnd = endOfDay(today).toISOString();
 
-    // Fetch employees
+    // Fetch employees - include active and probation status
     const { data: emps } = await supabase
       .from("employees")
       .select("id, first_name, last_name, department, profile_id, profiles:profile_id(user_id, avatar_url)")
-      .eq("status", "active");
+      .in("status", ["active", "probation"]);
 
     // Fetch today's logs
     const { data: logs } = await supabase
@@ -249,13 +249,23 @@ export function RealTimeAttendanceWidget() {
 
     setSummary({ total: empList.length, working, break: onBreak, paused, out });
 
-    // Build events
+    // Build events - create maps for both employee_id and user_id lookup
     const empMap = new Map((emps || []).map((e: any) => [e.id, e]));
     const userEmpMap = new Map((emps || []).map((e: any) => [e.profiles?.user_id, e]));
+    
+    // Also create a reverse lookup: user_id -> employee for logs that only have user_id
     const evts: Event[] = [];
 
     logs?.forEach((log) => {
-      const emp = empMap.get(log.employee_id) || userEmpMap.get(log.user_id);
+      // Try to find employee by employee_id first, then by user_id
+      let emp = empMap.get(log.employee_id);
+      if (!emp && log.user_id) {
+        emp = userEmpMap.get(log.user_id);
+      }
+      // If still not found, try to find by matching user_id in the uToE map
+      if (!emp && log.user_id && uToE.has(log.user_id)) {
+        emp = empMap.get(uToE.get(log.user_id));
+      }
       const name = emp ? `${emp.first_name} ${emp.last_name}`.trim() : "Unknown";
 
       if (log.clock_in) evts.push({ id: `${log.id}-in`, name, type: "IN", time: log.clock_in });
