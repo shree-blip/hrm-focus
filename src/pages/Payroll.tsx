@@ -684,7 +684,7 @@ const Payroll = () => {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Avg. Salary</p>
+                      <p className="text-sm text-muted-foreground">Avg. Monthly Salary</p>
                       <p className="text-2xl font-display font-bold mt-1">
                         {region === "US" ? "$" : "₨"}{avgSalary.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </p>
