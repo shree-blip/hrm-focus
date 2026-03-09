@@ -140,16 +140,35 @@ export function useAttendance(weekStart?: Date) {
         reminderSentRef.current = true;
         toast({
           title: "⏰ 8-Hour Reminder",
-          description: "You've been working for nearly 8 hours. Consider clocking out soon!",
+          description: "You've been working for nearly 8 hours. Don't forget to clock out soon!",
         });
 
         supabase.rpc("create_notification", {
           p_user_id: user.id,
           p_title: "⏰ 8-Hour Work Reminder",
-          p_message: "You've been working for nearly 8 hours. Consider clocking out in the next 10 minutes.",
+          p_message: "You've been working for nearly 8 hours. Don't forget to clock out in the next 10 minutes!",
           p_type: "attendance",
           p_link: "/attendance",
         });
+
+        // Also trigger email reminder via edge function
+        try {
+          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+          const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          fetch(
+            `https://${projectId}.supabase.co/functions/v1/send-attendance-reminder`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${anonKey}`,
+              },
+              body: JSON.stringify({ source: "client", user_id: user.id }),
+            }
+          ).catch((err) => console.error("Failed to trigger attendance reminder email:", err));
+        } catch (err) {
+          console.error("Failed to call send-attendance-reminder:", err);
+        }
       }
     };
 
