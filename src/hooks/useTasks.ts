@@ -344,12 +344,12 @@ export function useTasks() {
           // Notify new assignees only
           for (const assigneeId of newAssigneeIds) {
             if (assigneeId !== userId) {
-              await supabase.from("notifications").insert({
-                user_id: assigneeId,
-                title: "Task Assigned",
-                message: `${assignerName} assigned you to a task: "${taskData?.title || "Untitled"}"`,
-                type: "task",
-                link: "/tasks",
+              await supabase.rpc("create_notification", {
+                p_user_id: assigneeId,
+                p_title: "Task Assigned",
+                p_message: `${assignerName} assigned you to a task: "${taskData?.title || "Untitled"}"`,
+                p_type: "task",
+                p_link: "/tasks",
               });
             }
           }
