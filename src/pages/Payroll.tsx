@@ -56,6 +56,7 @@ import { PayslipsPreviewDialog } from "@/components/payroll/PayslipsPreviewDialo
 import { EditEmployeeSalaryDialog } from "@/components/payroll/EditEmployeeSalaryDialog";
 import { NepalPayrollTable } from "@/components/payroll/NepalPayrollTable";
 import { SalaryBreakdownDialog } from "@/components/payroll/SalaryBreakdownDialog";
+import { RunPayrollDialog } from "@/components/payroll/RunPayrollDialog";
 
 const Payroll = () => {
   const { isVP, isManager, profile, user } = useAuth();
@@ -68,6 +69,7 @@ const Payroll = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<typeof employees[0] | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [showMyBreakdown, setShowMyBreakdown] = useState(false);
+  const [showRunPayrollDialog, setShowRunPayrollDialog] = useState(false);
 
   // Filter employees by region (case-insensitive)
   const regionEmployees = employees.filter(e => 
@@ -129,34 +131,54 @@ const Payroll = () => {
     return `${y}-${m}-${day}`;
   };
 
-  const handleRunPayroll = async () => {
-    // Always run payroll for the LAST completed month
-    const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0); // last day of prev month
-    const lastMonthStart = new Date(lastMonthEnd.getFullYear(), lastMonthEnd.getMonth(), 1);
-    const payrollMonth = lastMonthStart.getMonth(); // 0-indexed
-    const payrollYear = lastMonthStart.getFullYear();
-
-    const monthName = lastMonthStart.toLocaleString("default", { month: "long", year: "numeric" });
-
-    // Check if payroll already exists for this period
-    const existingRun = payrollRuns.find(r => {
-      const s = new Date(r.period_start + "T00:00:00"); // parse as local
-      return s.getFullYear() === payrollYear && s.getMonth() === payrollMonth && r.region === region;
-    });
-    if (existingRun) {
-      toast({ title: "Already Exists", description: `Payroll for ${monthName} has already been run.`, variant: "destructive" });
-      return;
-    }
-
+  const handleRunPayroll = async (periodStart: Date, periodEnd: Date) => {
     setIsCalculating(true);
 
     try {
-      // Use local date strings for the attendance query
-      const startDateStr = formatLocalDate(lastMonthStart) + "T00:00:00";
-      const endDateStr = formatLocalDate(lastMonthEnd) + "T23:59:59.999";
+      const startDateStr = formatLocalDate(periodStart) + "T00:00:00";
+      const endDateStr = formatLocalDate(periodEnd) + "T23:59:59.999";
 
-      // Fetch last month's attendance for all employees
-      const { data: lastMonthLogs, error: logsError } = await supabase
+      // Calculate working days in this range (Mon-Fri for US, Mon-Sat for Nepal)
+      const workDaysInRange = (() => {
+        let count = 0;
+        const d = new Date(periodStart);
+        while (d <= periodEnd) {
+          const dow = d.getDay(); // 0=Sun
+          if (region === "Nepal") {
+            // Nepal: Mon-Sat (skip Sun)
+            if (dow !== 0) count++;
+          } else {
+            // US: Mon-Fri
+            if (dow !== 0 && dow !== 6) count++;
+          }
+          d.setDate(d.getDate() + 1);
+        }
+        return count;
+      })();
+
+      const standardHoursPerDay = 8;
+      const standardHoursInRange = workDaysInRange * standardHoursPerDay;
+
+      // Also compute total working days in the full month (for prorating monthly salary)
+      const fullMonthStart = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1);
+      const fullMonthEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
+      let workDaysInFullMonth = 0;
+      {
+        const d = new Date(fullMonthStart);
+        while (d <= fullMonthEnd) {
+          const dow = d.getDay();
+          if (region === "Nepal") {
+            if (dow !== 0) workDaysInFullMonth++;
+          } else {
+            if (dow !== 0 && dow !== 6) workDaysInFullMonth++;
+          }
+          d.setDate(d.getDate() + 1);
+        }
+      }
+      const standardMonthlyHours = workDaysInFullMonth * standardHoursPerDay;
+
+      // Fetch attendance for the selected period
+      const { data: periodLogs, error: logsError } = await supabase
         .from("attendance_logs")
         .select("user_id, employee_id, clock_in, clock_out, total_break_minutes, total_pause_minutes")
         .gte("clock_in", startDateStr)
@@ -164,11 +186,11 @@ const Payroll = () => {
 
       if (logsError) throw logsError;
 
-      // Build maps keyed by both employee_id and user_id for flexible matching
+      // Build hours maps
       const hoursByEmployeeId = new Map<string, { userId: string; actualHours: number }>();
       const hoursByUserId = new Map<string, { actualHours: number }>();
 
-      lastMonthLogs?.forEach(log => {
+      periodLogs?.forEach(log => {
         if (!log.clock_out) return;
         const clockIn = new Date(log.clock_in);
         const clockOut = new Date(log.clock_out);
@@ -176,7 +198,6 @@ const Payroll = () => {
         const pauseMin = log.total_pause_minutes || 0;
         const netHours = Math.max(0, (clockOut.getTime() - clockIn.getTime() - (breakMin + pauseMin) * 60000) / 3600000);
 
-        // Index by employee_id
         if (log.employee_id) {
           const existing = hoursByEmployeeId.get(log.employee_id);
           if (existing) {
@@ -186,7 +207,6 @@ const Payroll = () => {
           }
         }
 
-        // Index by user_id
         const existingUser = hoursByUserId.get(log.user_id);
         if (existingUser) {
           existingUser.actualHours += netHours;
@@ -194,9 +214,6 @@ const Payroll = () => {
           hoursByUserId.set(log.user_id, { actualHours: netHours });
         }
       });
-
-      // Standard monthly hours: Nepal = 26 days × 8h = 208h, US = 22 days × 8h = 176h
-      const standardMonthlyHours = region === "Nepal" ? 208 : 176;
 
       let totalGross = 0;
       let totalDeductions = 0;
@@ -224,12 +241,10 @@ const Payroll = () => {
       }> = [];
 
       regionEmployees.forEach(emp => {
-        // Include employees with either hourly_rate or salary
         const hasHourlyRate = emp.hourly_rate && emp.hourly_rate > 0;
         const hasSalary = emp.salary && emp.salary > 0;
         if (!hasHourlyRate && !hasSalary) return;
 
-        // Find hours: try employee_id first, then user_id from employee record
         let actualHours = 0;
         let userId = (emp as any).user_id || "";
 
@@ -238,7 +253,6 @@ const Payroll = () => {
           actualHours = byEmpId.actualHours;
           userId = byEmpId.userId;
         } else if (userId) {
-          // Match via user_id (from profile linkage)
           const byUserId = hoursByUserId.get(userId);
           if (byUserId) {
             actualHours = byUserId.actualHours;
@@ -248,17 +262,19 @@ const Payroll = () => {
         let grossPay = 0;
         let payableHours = actualHours;
         let extraHours = 0;
+        let hourlyRate = 0;
 
         if (hasHourlyRate) {
-          // Hourly: cap at standard hours, no overtime pay
-          payableHours = Math.min(actualHours, standardMonthlyHours);
-          extraHours = Math.max(0, actualHours - standardMonthlyHours);
-          grossPay = payableHours * emp.hourly_rate!;
+          hourlyRate = emp.hourly_rate!;
+          payableHours = Math.min(actualHours, standardHoursInRange);
+          extraHours = Math.max(0, actualHours - standardHoursInRange);
+          grossPay = payableHours * hourlyRate;
         } else if (hasSalary) {
-          // Salaried: monthly salary = annual / 12
-          grossPay = emp.salary! / 12;
-          payableHours = actualHours;
-          extraHours = Math.max(0, actualHours - standardMonthlyHours);
+          // salary is MONTHLY gross — derive hourly rate from full month hours
+          hourlyRate = standardMonthlyHours > 0 ? emp.salary! / standardMonthlyHours : 0;
+          payableHours = Math.min(actualHours, standardHoursInRange);
+          extraHours = Math.max(0, actualHours - standardHoursInRange);
+          grossPay = payableHours * hourlyRate;
         }
 
         totalGross += grossPay;
@@ -269,7 +285,7 @@ const Payroll = () => {
           user_id: userId,
           employee_name: `${emp.first_name} ${emp.last_name}`,
           department: emp.department || "",
-          hourly_rate: emp.hourly_rate || 0,
+          hourly_rate: Math.round(hourlyRate * 100) / 100,
           actual_hours: Math.round(actualHours * 10) / 10,
           payable_hours: Math.round(payableHours * 10) / 10,
           extra_hours: Math.round(extraHours * 10) / 10,
@@ -282,7 +298,7 @@ const Payroll = () => {
           overtimeRecords.push({
             user_id: userId,
             employee_id: emp.id,
-            standard_hours: standardMonthlyHours,
+            standard_hours: standardHoursInRange,
             actual_hours: Math.round(actualHours * 10) / 10,
             extra_hours: Math.round(extraHours * 10) / 10,
           });
@@ -290,10 +306,9 @@ const Payroll = () => {
       });
 
       // Create the payroll run
-      const result = await createPayrollRun(lastMonthStart, lastMonthEnd);
+      const result = await createPayrollRun(periodStart, periodEnd);
 
       if (result) {
-        // Update the payroll run with calculated totals
         await supabase
           .from("payroll_runs")
           .update({
@@ -307,7 +322,6 @@ const Payroll = () => {
           })
           .eq("id", result.id);
 
-        // Save per-employee payroll details
         if (employeePayrollDetails.length > 0) {
           const detailInserts = employeePayrollDetails.map(d => ({
             payroll_run_id: result.id,
@@ -327,14 +341,14 @@ const Payroll = () => {
           await supabase.from("payroll_run_details").insert(detailInserts);
         }
 
-        // Save overtime/extra hours to overtime_bank
+        // Save extra hours to overtime_bank
         if (overtimeRecords.length > 0) {
           const bankInserts = overtimeRecords.map(rec => ({
             user_id: rec.user_id,
             employee_id: rec.employee_id,
             payroll_run_id: result.id,
-            period_month: payrollMonth + 1,
-            period_year: payrollYear,
+            period_month: periodStart.getMonth() + 1,
+            period_year: periodStart.getFullYear(),
             standard_hours: rec.standard_hours,
             actual_hours: rec.actual_hours,
             extra_hours: rec.extra_hours,
@@ -346,10 +360,12 @@ const Payroll = () => {
         }
 
         const currencySymbol = region === "US" ? "$" : "₨";
+        const periodLabel = `${format(periodStart, "MMM d")} – ${format(periodEnd, "MMM d, yyyy")}`;
         toast({
-          title: `Payroll Processed — ${monthName}`,
-          description: `${employeeCount} employees | Total: ${currencySymbol}${totalGross.toLocaleString(undefined, { maximumFractionDigits: 0 })}. Extra hours saved for leave conversion.`,
+          title: `Payroll Processed — ${periodLabel}`,
+          description: `${employeeCount} employees | Total: ${currencySymbol}${totalGross.toLocaleString(undefined, { maximumFractionDigits: 0 })}. Extra hours saved.`,
         });
+        setShowRunPayrollDialog(false);
       }
     } catch (err) {
       console.error("Payroll error:", err);
@@ -429,7 +445,8 @@ const Payroll = () => {
       if (emp.pay_type === "hourly" && emp.hourly_rate) {
         grossPay = hoursWorked * emp.hourly_rate;
       } else if (emp.salary) {
-        grossPay = emp.salary / 12;
+        // salary is monthly gross
+        grossPay = emp.salary;
       }
 
       let totalDeductions = 0;
@@ -501,7 +518,8 @@ const Payroll = () => {
       if (emp.pay_type === "hourly" && emp.hourly_rate) {
         grossPay = hoursWorked * emp.hourly_rate;
       } else if (emp.salary) {
-        grossPay = emp.salary / 12;
+        // salary is monthly gross
+        grossPay = emp.salary;
       }
 
       let deductions = 0;
@@ -589,7 +607,7 @@ const Payroll = () => {
             Export
           </Button>
           {isVP && (
-            <Button className="gap-2 shadow-md" onClick={handleRunPayroll} disabled={isCalculating}>
+            <Button className="gap-2 shadow-md" onClick={() => setShowRunPayrollDialog(true)} disabled={isCalculating}>
               {isCalculating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
               {isCalculating ? "Processing..." : "Run Payroll"}
             </Button>
@@ -666,7 +684,7 @@ const Payroll = () => {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Avg. Salary</p>
+                      <p className="text-sm text-muted-foreground">Avg. Monthly Salary</p>
                       <p className="text-2xl font-display font-bold mt-1">
                         {region === "US" ? "$" : "₨"}{avgSalary.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </p>
@@ -685,7 +703,7 @@ const Payroll = () => {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Avg. Salary</p>
+                      <p className="text-sm text-muted-foreground">Avg. Monthly Salary</p>
                       <p className="text-lg font-display font-medium mt-1 text-muted-foreground">Restricted</p>
                       <p className="text-xs text-muted-foreground mt-1">VP access only</p>
                     </div>
@@ -998,7 +1016,7 @@ const Payroll = () => {
                     <TableHead>Employee</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Job Title</TableHead>
-                    <TableHead className="text-right">Base Salary</TableHead>
+                    <TableHead className="text-right">Monthly Salary</TableHead>
                     <TableHead className="text-right">Income Tax</TableHead>
                     <TableHead className="text-right">Social Security</TableHead>
                     <TableHead className="text-right">Provident Fund</TableHead>
@@ -1134,6 +1152,13 @@ const Payroll = () => {
       ) : null}
 
       {/* Dialogs */}
+      <RunPayrollDialog
+        open={showRunPayrollDialog}
+        onOpenChange={setShowRunPayrollDialog}
+        onRun={handleRunPayroll}
+        isProcessing={isCalculating}
+      />
+
       <PayslipsPreviewDialog
         open={showPayslipsPreview}
         onOpenChange={setShowPayslipsPreview}

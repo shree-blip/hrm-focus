@@ -43,8 +43,8 @@ export function PayslipsPreviewDialog({
     if (employee.pay_type === "hourly" && employee.hourly_rate) {
       grossPay = hoursWorked * employee.hourly_rate;
     } else if (employee.salary) {
-      // Monthly salary (annual / 12)
-      grossPay = employee.salary / 12;
+      // salary is monthly gross
+      grossPay = employee.salary;
     }
 
     // Calculate deductions
