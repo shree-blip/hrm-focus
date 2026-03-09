@@ -68,7 +68,7 @@ const EmployeeAvatar = ({ employee }: { employee: any }) => {
 
 const Employees = () => {
   const { employees, loading, createEmployee, updateEmployee, deactivateEmployee } = useEmployees();
-  const { isManager, isVP, isLineManager, isSupervisor, canCreateEmployee } = useAuth();
+  const { user, isManager, isVP, isLineManager, isSupervisor, canCreateEmployee } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
