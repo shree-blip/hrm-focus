@@ -204,13 +204,12 @@ export function useLoans() {
   }) => {
     if (!user || !employeeData || !loanPolicy) return null;
 
-    const emi = calculateEMI(data.amount, FIXED_ANNUAL_RATE, data.term_months);
-    const vpUserId = await resolveVP();
+    const emi = data.term_months
+      ? calculateEMI(data.amount, FIXED_ANNUAL_RATE, data.term_months)
+      : null;
 
-    if (!vpUserId) {
-      toast({ title: "Error", description: "No VP assigned. Please contact HR.", variant: "destructive" });
-      return null;
-    }
+    // VP is resolved best-effort; the DB trigger also auto-fills it on insert
+    const vpUserId = await resolveVP();
 
     const { data: lr, error } = await supabase
       .from("loan_requests")
@@ -231,7 +230,7 @@ export function useLoans() {
         max_eligible_amount: loanPolicy.max_loan,
         status: "pending_manager",
         submitted_at: new Date().toISOString(),
-        vp_user_id: vpUserId,
+        ...(vpUserId ? { vp_user_id: vpUserId } : {}),
       })
       .select()
       .single();
