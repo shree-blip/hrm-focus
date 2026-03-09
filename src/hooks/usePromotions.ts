@@ -10,7 +10,7 @@ export interface PromotionRequest {
   current_title: string | null;
   current_salary: number | null;
   new_title: string;
-  new_salary: number;
+  new_salary: number | null;
   effective_date: string;
   reason: string | null;
   status: string;
@@ -41,7 +41,7 @@ export interface PromotionHistoryEntry {
   previous_title: string | null;
   new_title: string;
   previous_salary: number | null;
-  new_salary: number;
+  new_salary: number | null;
   effective_date: string;
   approved_by: string | null;
   reason: string | null;
@@ -157,7 +157,6 @@ export function usePromotions() {
     current_title: string | null;
     current_salary: number | null;
     new_title: string;
-    new_salary: number;
     effective_date: string;
     reason?: string;
   }) => {
@@ -169,7 +168,7 @@ export function usePromotions() {
         current_title: data.current_title,
         current_salary: data.current_salary,
         new_title: data.new_title,
-        new_salary: data.new_salary,
+        new_salary: null,
         effective_date: data.effective_date,
         reason: data.reason || null,
         status: "pending",
@@ -223,7 +222,7 @@ export function usePromotions() {
   };
 
   // Approve a promotion request (VP/Admin action)
-  const approvePromotion = async (requestId: string) => {
+  const approvePromotion = async (requestId: string, newSalary: number) => {
     if (!user) return false;
     try {
       // First fetch the full request to get employee details
@@ -242,13 +241,14 @@ export function usePromotions() {
         return false;
       }
 
-      // Update promotion request status
+      // Update promotion request status and store the VP-set salary
       const { error: updateErr } = await supabase
         .from("promotion_requests")
         .update({
           status: "approved",
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
+          new_salary: newSalary,
         })
         .eq("id", requestId);
 
@@ -261,10 +261,10 @@ export function usePromotions() {
         return false;
       }
 
-      // Update employee record with new title and salary
+      // Update employee record with new title and VP-approved salary
       const updateFields: Record<string, unknown> = {
         job_title: request.new_title,
-        salary: request.new_salary,
+        salary: newSalary,
       };
 
       const { error: empErr } = await supabase
@@ -289,7 +289,7 @@ export function usePromotions() {
         previous_title: request.current_title,
         new_title: request.new_title,
         previous_salary: request.current_salary,
-        new_salary: request.new_salary,
+        new_salary: newSalary,
         effective_date: request.effective_date,
         approved_by: user.id,
         reason: request.reason,

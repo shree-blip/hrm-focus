@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Check,
@@ -39,16 +40,29 @@ export function PromotionApprovalQueue() {
   const [activeTab, setActiveTab] = useState("pending");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<PromotionRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [approvalSalary, setApprovalSalary] = useState("");
 
   const approvedHistory = approvalHistory.filter((r) => r.status === "approved");
   const rejectedHistory = approvalHistory.filter((r) => r.status === "rejected");
 
-  const handleApprove = async (requestId: string) => {
-    setProcessingId(requestId);
-    await approvePromotion(requestId);
+  const handleOpenApprove = (request: PromotionRequest) => {
+    setSelectedRequest(request);
+    // Pre-fill with current salary if available
+    setApprovalSalary(request.employee?.salary?.toString() || "");
+    setApproveDialogOpen(true);
+  };
+
+  const handleConfirmApprove = async () => {
+    if (!selectedRequest || !approvalSalary) return;
+    setProcessingId(selectedRequest.id);
+    await approvePromotion(selectedRequest.id, parseFloat(approvalSalary));
     setProcessingId(null);
+    setApproveDialogOpen(false);
+    setSelectedRequest(null);
+    setApprovalSalary("");
   };
 
   const handleOpenReject = (request: PromotionRequest) => {
@@ -129,28 +143,29 @@ export function PromotionApprovalQueue() {
                 <ArrowRight className="h-3 w-3 text-primary" />
                 <span className="font-medium">{request.new_title}</span>
               </div>
-              {/* Salary change */}
+              {/* Salary info */}
               <div className="flex items-center gap-2 text-sm">
                 <DollarSign className="h-3 w-3 text-muted-foreground" />
                 <span className="text-muted-foreground">
-                  {request.current_salary != null
-                    ? `$${request.current_salary.toLocaleString()}`
+                  Current: {request.current_salary != null
+                    ? `Rs. ${request.current_salary.toLocaleString()}`
                     : "N/A"}
                 </span>
-                <ArrowRight className="h-3 w-3 text-primary" />
-                <span className="font-medium text-success">
-                  ${request.new_salary.toLocaleString()}
-                </span>
-                {request.current_salary != null && request.current_salary > 0 && (
-                  <span className="text-xs text-success">
-                    (+
-                    {(
-                      ((request.new_salary - request.current_salary) /
-                        request.current_salary) *
-                      100
-                    ).toFixed(1)}
-                    %)
-                  </span>
+                {request.new_salary != null && request.status !== "pending" && (
+                  <>
+                    <ArrowRight className="h-3 w-3 text-primary" />
+                    <span className="font-medium text-success">
+                      Rs. {request.new_salary.toLocaleString()}
+                    </span>
+                    {request.current_salary != null && request.current_salary > 0 && (
+                      <span className="text-xs text-success">
+                        (+{(((request.new_salary - request.current_salary) / request.current_salary) * 100).toFixed(1)}%)
+                      </span>
+                    )}
+                  </>
+                )}
+                {request.status === "pending" && (
+                  <span className="text-xs text-muted-foreground italic">— New salary set on approval</span>
                 )}
               </div>
               {/* Effective date */}
@@ -185,7 +200,7 @@ export function PromotionApprovalQueue() {
               <Button
                 size="sm"
                 className="gap-1"
-                onClick={() => handleApprove(request.id)}
+                onClick={() => handleOpenApprove(request)}
                 disabled={isProcessing}
               >
                 {isProcessing ? (
@@ -280,6 +295,90 @@ export function PromotionApprovalQueue() {
             ))}
         </CardContent>
       </Card>
+
+      {/* Approval dialog — VP/Admin sets salary before approving */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Approve Promotion
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {selectedRequest?.employee && (
+              <div className="rounded-lg border p-3 bg-muted/30 space-y-1">
+                <p className="text-sm font-medium">
+                  {selectedRequest.employee.first_name}{" "}
+                  {selectedRequest.employee.last_name}
+                </p>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">
+                    {selectedRequest.current_title || "N/A"}
+                  </span>
+                  <ArrowRight className="h-3 w-3 text-primary" />
+                  <span className="font-medium">{selectedRequest.new_title}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Current Salary: Rs. {(selectedRequest.employee.salary ?? 0).toLocaleString()}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="approval-salary">New Salary (NPR) *</Label>
+              <Input
+                id="approval-salary"
+                type="number"
+                min="0"
+                placeholder="Enter the new salary"
+                value={approvalSalary}
+                onChange={(e) => setApprovalSalary(e.target.value)}
+              />
+              {selectedRequest?.employee?.salary != null && approvalSalary && (
+                <p className="text-xs text-muted-foreground">
+                  Change:{" "}
+                  <span
+                    className={
+                      parseFloat(approvalSalary) >= (selectedRequest.employee.salary ?? 0)
+                        ? "text-success"
+                        : "text-destructive"
+                    }
+                  >
+                    {parseFloat(approvalSalary) >= (selectedRequest.employee.salary ?? 0) ? "+" : ""}
+                    {selectedRequest.employee.salary
+                      ? (((parseFloat(approvalSalary) - selectedRequest.employee.salary) / selectedRequest.employee.salary) * 100).toFixed(1)
+                      : "0"}%
+                  </span>
+                </p>
+              )}
+            </div>
+
+            {selectedRequest?.reason && (
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Manager's Note</Label>
+                <p className="text-sm italic text-muted-foreground">"{selectedRequest.reason}"</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmApprove}
+              disabled={!approvalSalary || parseFloat(approvalSalary) <= 0 || processingId === selectedRequest?.id}
+            >
+              {processingId === selectedRequest?.id ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4 mr-2" />
+              )}
+              Approve & Update Salary
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Rejection reason dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>

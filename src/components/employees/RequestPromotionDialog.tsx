@@ -34,7 +34,6 @@ export function RequestPromotionDialog({
 }: RequestPromotionDialogProps) {
   const { createPromotionRequest } = usePromotions();
   const [newTitle, setNewTitle] = useState("");
-  const [newSalary, setNewSalary] = useState("");
   const [effectiveDate, setEffectiveDate] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -47,20 +46,18 @@ export function RequestPromotionDialog({
 
   const resetForm = () => {
     setNewTitle("");
-    setNewSalary("");
     setEffectiveDate("");
     setReason("");
   };
 
   const handleSubmit = async () => {
-    if (!employee?.id || !newTitle || !newSalary || !effectiveDate) return;
+    if (!employee?.id || !newTitle || !effectiveDate) return;
     setSubmitting(true);
     const success = await createPromotionRequest({
       employee_id: String(employee.id),
       current_title: currentTitle || null,
       current_salary: currentSalary,
       new_title: newTitle,
-      new_salary: parseFloat(newSalary),
       effective_date: effectiveDate,
       reason: reason || undefined,
     });
@@ -104,36 +101,6 @@ export function RequestPromotionDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="new-salary">New Salary *</Label>
-            <Input
-              id="new-salary"
-              type="number"
-              placeholder="e.g. 85000"
-              value={newSalary}
-              onChange={(e) => setNewSalary(e.target.value)}
-            />
-            {currentSalary != null && newSalary && (
-              <p className="text-xs text-muted-foreground">
-                Change:{" "}
-                <span
-                  className={
-                    parseFloat(newSalary) >= currentSalary
-                      ? "text-success"
-                      : "text-destructive"
-                  }
-                >
-                  {parseFloat(newSalary) >= currentSalary ? "+" : ""}
-                  {(
-                    ((parseFloat(newSalary) - currentSalary) / currentSalary) *
-                    100
-                  ).toFixed(1)}
-                  %
-                </span>
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="effective-date">Effective Date *</Label>
             <Input
               id="effective-date"
@@ -167,7 +134,7 @@ export function RequestPromotionDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={submitting || !newTitle || !newSalary || !effectiveDate}
+            disabled={submitting || !newTitle || !effectiveDate}
           >
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Submit Request
