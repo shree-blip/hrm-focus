@@ -510,13 +510,18 @@ export function useLeaveRequests() {
         }
       }
 
-      // Fallback: if no direct line manager found, notify VP/Admin
-      if (targetNotifyIds.length === 0) {
-        const { data: fallbackManagers } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .in("role", ["vp", "admin"]);
-        targetNotifyIds = fallbackManagers?.map((m) => m.user_id) || [];
+      // ALWAYS include VP/Admin in notifications for every leave request
+      const { data: vpAdminUsers } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["vp", "admin"]);
+      
+      if (vpAdminUsers) {
+        for (const va of vpAdminUsers) {
+          if (!targetNotifyIds.includes(va.user_id)) {
+            targetNotifyIds.push(va.user_id);
+          }
+        }
       }
 
       // Deduplicate and exclude self
