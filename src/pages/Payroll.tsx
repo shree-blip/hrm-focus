@@ -121,6 +121,14 @@ const Payroll = () => {
   const today = new Date();
   const daysLeft = Math.ceil((nextPayrollDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
+  // Helper to format date as YYYY-MM-DD using local timezone
+  const formatLocalDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
   const handleRunPayroll = async () => {
     // Always run payroll for the LAST completed month
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0); // last day of prev month
@@ -132,7 +140,7 @@ const Payroll = () => {
 
     // Check if payroll already exists for this period
     const existingRun = payrollRuns.find(r => {
-      const s = new Date(r.period_start);
+      const s = new Date(r.period_start + "T00:00:00"); // parse as local
       return s.getFullYear() === payrollYear && s.getMonth() === payrollMonth && r.region === region;
     });
     if (existingRun) {
@@ -143,33 +151,48 @@ const Payroll = () => {
     setIsCalculating(true);
 
     try {
+      // Use local date strings for the attendance query
+      const startDateStr = formatLocalDate(lastMonthStart) + "T00:00:00";
+      const endDateStr = formatLocalDate(lastMonthEnd) + "T23:59:59.999";
+
       // Fetch last month's attendance for all employees
       const { data: lastMonthLogs, error: logsError } = await supabase
         .from("attendance_logs")
         .select("user_id, employee_id, clock_in, clock_out, total_break_minutes, total_pause_minutes")
-        .gte("clock_in", lastMonthStart.toISOString())
-        .lte("clock_in", lastMonthEnd.toISOString() + "T23:59:59.999Z");
+        .gte("clock_in", startDateStr)
+        .lte("clock_in", endDateStr);
 
       if (logsError) throw logsError;
 
-      // Calculate hours per employee
-      const employeeHoursMap = new Map<string, { userId: string; actualHours: number; daysWorked: Set<string> }>();
+      // Build maps keyed by both employee_id and user_id for flexible matching
+      const hoursByEmployeeId = new Map<string, { userId: string; actualHours: number }>();
+      const hoursByUserId = new Map<string, { actualHours: number }>();
 
       lastMonthLogs?.forEach(log => {
         if (!log.clock_out) return;
-        const empId = log.employee_id || log.user_id;
         const clockIn = new Date(log.clock_in);
         const clockOut = new Date(log.clock_out);
         const breakMin = log.total_break_minutes || 0;
         const pauseMin = log.total_pause_minutes || 0;
         const netHours = Math.max(0, (clockOut.getTime() - clockIn.getTime() - (breakMin + pauseMin) * 60000) / 3600000);
 
-        if (!employeeHoursMap.has(empId)) {
-          employeeHoursMap.set(empId, { userId: log.user_id, actualHours: 0, daysWorked: new Set() });
+        // Index by employee_id
+        if (log.employee_id) {
+          const existing = hoursByEmployeeId.get(log.employee_id);
+          if (existing) {
+            existing.actualHours += netHours;
+          } else {
+            hoursByEmployeeId.set(log.employee_id, { userId: log.user_id, actualHours: netHours });
+          }
         }
-        const entry = employeeHoursMap.get(empId)!;
-        entry.actualHours += netHours;
-        entry.daysWorked.add(clockIn.toISOString().split("T")[0]);
+
+        // Index by user_id
+        const existingUser = hoursByUserId.get(log.user_id);
+        if (existingUser) {
+          existingUser.actualHours += netHours;
+        } else {
+          hoursByUserId.set(log.user_id, { actualHours: netHours });
+        }
       });
 
       // Standard monthly hours: Nepal = 26 days × 8h = 208h, US = 22 days × 8h = 176h
@@ -201,23 +224,43 @@ const Payroll = () => {
       }> = [];
 
       regionEmployees.forEach(emp => {
-        if (!emp.hourly_rate || emp.hourly_rate <= 0) return;
+        // Include employees with either hourly_rate or salary
+        const hasHourlyRate = emp.hourly_rate && emp.hourly_rate > 0;
+        const hasSalary = emp.salary && emp.salary > 0;
+        if (!hasHourlyRate && !hasSalary) return;
 
-        // Find hours for this employee
+        // Find hours: try employee_id first, then user_id from employee record
         let actualHours = 0;
-        let userId = "";
+        let userId = (emp as any).user_id || "";
 
-        const byEmpId = employeeHoursMap.get(emp.id);
+        const byEmpId = hoursByEmployeeId.get(emp.id);
         if (byEmpId) {
           actualHours = byEmpId.actualHours;
           userId = byEmpId.userId;
+        } else if (userId) {
+          // Match via user_id (from profile linkage)
+          const byUserId = hoursByUserId.get(userId);
+          if (byUserId) {
+            actualHours = byUserId.actualHours;
+          }
         }
 
-        // Cap payable hours at standard (no overtime pay)
-        const payableHours = Math.min(actualHours, standardMonthlyHours);
-        const extraHours = Math.max(0, actualHours - standardMonthlyHours);
+        let grossPay = 0;
+        let payableHours = actualHours;
+        let extraHours = 0;
 
-        const grossPay = payableHours * emp.hourly_rate;
+        if (hasHourlyRate) {
+          // Hourly: cap at standard hours, no overtime pay
+          payableHours = Math.min(actualHours, standardMonthlyHours);
+          extraHours = Math.max(0, actualHours - standardMonthlyHours);
+          grossPay = payableHours * emp.hourly_rate!;
+        } else if (hasSalary) {
+          // Salaried: monthly salary = annual / 12
+          grossPay = emp.salary! / 12;
+          payableHours = actualHours;
+          extraHours = Math.max(0, actualHours - standardMonthlyHours);
+        }
+
         totalGross += grossPay;
         employeeCount++;
 
@@ -226,7 +269,7 @@ const Payroll = () => {
           user_id: userId,
           employee_name: `${emp.first_name} ${emp.last_name}`,
           department: emp.department || "",
-          hourly_rate: emp.hourly_rate,
+          hourly_rate: emp.hourly_rate || 0,
           actual_hours: Math.round(actualHours * 10) / 10,
           payable_hours: Math.round(payableHours * 10) / 10,
           extra_hours: Math.round(extraHours * 10) / 10,
@@ -815,7 +858,7 @@ const Payroll = () => {
                       recentPayrolls.map((payroll, index) => (
                         <TableRow key={payroll.id} className="animate-fade-in" style={{ animationDelay: `${500 + index * 50}ms` }}>
                           <TableCell className="font-medium">
-                            {format(new Date(payroll.period_start), "MMM d")} - {format(new Date(payroll.period_end), "MMM d, yyyy")}
+                            {format(new Date(payroll.period_start + "T00:00:00"), "MMM d")} - {format(new Date(payroll.period_end + "T00:00:00"), "MMM d, yyyy")}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {payroll.processed_at
