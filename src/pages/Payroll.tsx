@@ -407,7 +407,12 @@ const Payroll = () => {
 
         // Apply time bank deductions (update used_hours on older records)
         for (const update of timeBankUpdates) {
-          await supabase.rpc("increment_used_hours", {
+          await supabase
+            .from("overtime_bank")
+            .update({ used_hours: supabase.rpc ? undefined : 0 } as any)
+            .eq("id", update.id);
+          // Use raw SQL update via rpc
+          await (supabase.rpc as any)("increment_used_hours", {
             record_id: update.id,
             hours_to_add: update.addUsedHours,
           });
