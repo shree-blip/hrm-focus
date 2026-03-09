@@ -11,7 +11,7 @@ import { calculateEMI, generateAmortizationSchedule, getTotalInterest, getTotalP
 
 const LABELS_EN = {
   title: "Loan Calculator",
-  amount: "Amount ($)",
+  amount: "Amount (NPR)",
   term: "Term (months)",
   monthlyEMI: "Monthly EMI",
   totalInterest: "Total Interest",
@@ -24,19 +24,18 @@ const LABELS_EN = {
   principal: "Principal",
   interest: "Interest",
   closing: "Closing",
-  max: "Max",
   interestBadge: "Reducing Balance",
   months: "months",
 };
 
 const LABELS_NP = {
   title: "ऋण क्याल्कुलेटर",
-  amount: "रकम ($)",
+  amount: "रकम (NPR)",
   term: "अवधि (महिना)",
   monthlyEMI: "मासिक किस्ता",
   totalInterest: "कुल ब्याज",
   totalPayment: "कुल भुक्तानी",
-  schedule: "अनुमानित ऋण तालिका",
+  schedule: "अनुमानित ঐण तालिका",
   scheduleNote: "अन्तिम तालिका HR/Finance बाट पुष्टि हुन्छ",
   month: "महिना",
   opening: "सुरुको बाँकी",
@@ -44,24 +43,21 @@ const LABELS_NP = {
   principal: "सावाँ",
   interest: "ब्याज",
   closing: "अन्तिम बाँकी",
-  max: "अधिकतम",
   interestBadge: "घट्दो शेषमा",
   months: "महिना",
 };
 
 interface LoanCalculatorProps {
-  maxAmount?: number;
   interestRate?: number;
-  allowedTerms?: number[];
 }
 
-export function LoanCalculator({ maxAmount = 2500, interestRate = 5, allowedTerms }: LoanCalculatorProps) {
-  const [amount, setAmount] = useState(500);
-  const [term, setTerm] = useState(3);
+export function LoanCalculator({ interestRate = 5 }: LoanCalculatorProps) {
+  const [amount, setAmount] = useState(50000);
+  const [term, setTerm] = useState(6);
   const [lang, setLang] = useState<'en' | 'np'>('en');
 
   const L = lang === 'np' ? LABELS_NP : LABELS_EN;
-  const terms = allowedTerms || [1, 2, 3, 4, 5, 6];
+  const terms = Array.from({ length: 24 }, (_, i) => i + 1);
 
   const emi = calculateEMI(amount, interestRate, term);
   const schedule = generateAmortizationSchedule(amount, interestRate, term);
@@ -69,7 +65,7 @@ export function LoanCalculator({ maxAmount = 2500, interestRate = 5, allowedTerm
   const totalPayment = getTotalPayment(schedule);
 
   const handleAmountChange = (val: number) => {
-    setAmount(Math.min(Math.max(0, val), maxAmount));
+    setAmount(Math.max(0, val));
   };
 
   return (
@@ -98,10 +94,9 @@ export function LoanCalculator({ maxAmount = 2500, interestRate = 5, allowedTerm
               type="number"
               value={amount}
               onChange={(e) => handleAmountChange(parseFloat(e.target.value) || 0)}
-              max={maxAmount}
               min={0}
+              placeholder="Enter amount in NPR"
             />
-            <p className="text-xs text-muted-foreground mt-1">{L.max}: ${maxAmount.toLocaleString()}</p>
           </div>
           <div>
             <Label>{L.term}</Label>
@@ -119,15 +114,15 @@ export function LoanCalculator({ maxAmount = 2500, interestRate = 5, allowedTerm
         <div className="grid grid-cols-3 gap-3 p-3 bg-muted rounded-lg">
           <div className="text-center">
             <p className="text-xs text-muted-foreground">{L.monthlyEMI}</p>
-            <p className="text-lg font-bold text-primary">${emi.toFixed(2)}</p>
+            <p className="text-lg font-bold text-primary">NPR {emi.toFixed(2)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-muted-foreground">{L.totalInterest}</p>
-            <p className="text-lg font-bold">${totalInterest.toFixed(2)}</p>
+            <p className="text-lg font-bold">NPR {totalInterest.toFixed(2)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-muted-foreground">{L.totalPayment}</p>
-            <p className="text-lg font-bold">${totalPayment.toFixed(2)}</p>
+            <p className="text-lg font-bold">NPR {totalPayment.toFixed(2)}</p>
           </div>
         </div>
 
@@ -149,11 +144,11 @@ export function LoanCalculator({ maxAmount = 2500, interestRate = 5, allowedTerm
               {schedule.map((row) => (
                 <TableRow key={row.month}>
                   <TableCell className="text-xs">{row.month}</TableCell>
-                  <TableCell className="text-xs">${row.openingBalance.toFixed(2)}</TableCell>
-                  <TableCell className="text-xs font-medium">${row.emi.toFixed(2)}</TableCell>
-                  <TableCell className="text-xs">${row.principal.toFixed(2)}</TableCell>
-                  <TableCell className="text-xs">${row.interest.toFixed(2)}</TableCell>
-                  <TableCell className="text-xs">${row.closingBalance.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs">NPR {row.openingBalance.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs font-medium">NPR {row.emi.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs">NPR {row.principal.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs">NPR {row.interest.toFixed(2)}</TableCell>
+                  <TableCell className="text-xs">NPR {row.closingBalance.toFixed(2)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

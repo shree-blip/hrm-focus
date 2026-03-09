@@ -80,9 +80,7 @@ export default function Loans() {
           <TabsContent value="calculator">
             <div className="max-w-xl">
               <LoanCalculator
-                maxAmount={loanPolicy?.max_loan ?? 2500}
                 interestRate={FIXED_ANNUAL_RATE}
-                allowedTerms={loanPolicy?.allowed_terms}
               />
             </div>
           </TabsContent>

@@ -74,19 +74,19 @@ export function EmployeeLoanDashboard({
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-medium">
-                      ${Number(loan.amount).toLocaleString()} · {loan.term_months} months
+                      NPR {Number(loan.amount).toLocaleString()} · {loan.term_months} months
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Submitted {loan.submitted_at ? format(new Date(loan.submitted_at), "MMM dd, yyyy") : "N/A"}
                       {loan.estimated_monthly_installment
-                        ? ` · EMI: $${Number(loan.estimated_monthly_installment).toFixed(2)}/mo`
+                        ? ` · EMI: NPR ${Number(loan.estimated_monthly_installment).toFixed(2)}/mo`
                         : ""}
                     </p>
                     {["disbursed", "closed"].includes(loan.status) && (
                       <p className="text-xs mt-1">
                         <span className="text-muted-foreground">Balance: </span>
                         <span className={loan.status === "closed" ? "text-green-600 font-medium" : "font-medium"}>
-                          ${Number(loan.remaining_balance ?? loan.amount).toFixed(2)}
+                          NPR {Number(loan.remaining_balance ?? loan.amount).toFixed(2)}
                         </span>
                         {loan.status === "closed" && (
                           <Badge variant="secondary" className="ml-2 text-[10px]">Fully Paid</Badge>
@@ -138,10 +138,10 @@ export function EmployeeLoanDashboard({
                                   <TableCell className="text-xs">
                                     {r.deducted_at ? format(new Date(r.deducted_at), "MMM dd, yyyy") : "-"}
                                   </TableCell>
-                                  <TableCell className="text-xs font-medium">${Number(r.total_amount).toFixed(2)}</TableCell>
-                                  <TableCell className="text-xs">${Number(r.principal_amount).toFixed(2)}</TableCell>
-                                  <TableCell className="text-xs">${Number(r.interest_amount).toFixed(2)}</TableCell>
-                                  <TableCell className="text-xs">${Number(r.remaining_balance).toFixed(2)}</TableCell>
+                                  <TableCell className="text-xs font-medium">NPR {Number(r.total_amount).toFixed(2)}</TableCell>
+                                  <TableCell className="text-xs">NPR {Number(r.principal_amount).toFixed(2)}</TableCell>
+                                  <TableCell className="text-xs">NPR {Number(r.interest_amount).toFixed(2)}</TableCell>
+                                  <TableCell className="text-xs">NPR {Number(r.remaining_balance).toFixed(2)}</TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>

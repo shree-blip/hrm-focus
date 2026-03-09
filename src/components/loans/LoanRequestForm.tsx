@@ -32,11 +32,10 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
   if (!employeeData) return null;
 
   const hasPolicy = !!loanPolicy;
-  const maxAmount = loanPolicy?.max_loan ?? 0;
-  const allowedTerms = loanPolicy?.allowed_terms ?? [];
+  const allowedTerms = Array.from({ length: 24 }, (_, i) => i + 1);
 
-  const canSubmit = hasPolicy && amount > 0 && amount <= maxAmount &&
-    termMonths > 0 && allowedTerms.includes(termMonths) &&
+  const canSubmit = hasPolicy && amount > 0 &&
+    termMonths > 0 && termMonths <= 24 &&
     autoDeductionConsent && eSignature.trim().length > 0;
 
   // EMI preview calculation
@@ -99,22 +98,20 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
             <Alert>
               <CheckCircle2 className="h-4 w-4 text-green-500" />
               <AlertDescription>
-                Max loan: <Badge variant="secondary">${maxAmount.toLocaleString()}</Badge> · 
                 Interest: {FIXED_ANNUAL_RATE}% p.a. (fixed) · 
-                Terms: {allowedTerms.join(', ')} months
+                Terms: 1–24 months
               </AlertDescription>
             </Alert>
 
             <div>
-              <Label>Loan Amount ($)</Label>
+              <Label>Loan Amount (NPR)</Label>
               <Input
                 type="number"
                 value={amount || ''}
                 onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-                max={maxAmount}
                 min={0}
+                placeholder="Enter loan amount in NPR"
               />
-              {amount > maxAmount && <p className="text-xs text-destructive mt-1">Exceeds max ${maxAmount}</p>}
             </div>
 
             <div>
@@ -162,15 +159,15 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
                 <div className="grid grid-cols-3 gap-2 p-2 bg-muted rounded-md text-center">
                   <div>
                     <p className="text-xs text-muted-foreground">Monthly EMI</p>
-                    <p className="text-sm font-bold text-primary">${emiPreview.emi.toFixed(2)}</p>
+                    <p className="text-sm font-bold text-primary">NPR {emiPreview.emi.toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Total Interest</p>
-                    <p className="text-sm font-bold">${emiPreview.totalInterest.toFixed(2)}</p>
+                    <p className="text-sm font-bold">NPR {emiPreview.totalInterest.toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Total Payment</p>
-                    <p className="text-sm font-bold">${emiPreview.totalPayment.toFixed(2)}</p>
+                    <p className="text-sm font-bold">NPR {emiPreview.totalPayment.toFixed(2)}</p>
                   </div>
                 </div>
                 <details className="text-xs">
@@ -191,10 +188,10 @@ export function LoanRequestForm({ open, onOpenChange, employeeData, loanPolicy, 
                       {emiPreview.schedule.map((row) => (
                         <TableRow key={row.month}>
                           <TableCell className="text-xs p-1">{row.month}</TableCell>
-                          <TableCell className="text-xs p-1">${row.emi.toFixed(2)}</TableCell>
-                          <TableCell className="text-xs p-1">${row.principal.toFixed(2)}</TableCell>
-                          <TableCell className="text-xs p-1">${row.interest.toFixed(2)}</TableCell>
-                          <TableCell className="text-xs p-1">${row.closingBalance.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs p-1">NPR {row.emi.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs p-1">NPR {row.principal.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs p-1">NPR {row.interest.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs p-1">NPR {row.closingBalance.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

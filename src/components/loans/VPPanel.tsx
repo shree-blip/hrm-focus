@@ -134,7 +134,7 @@ export function VPPanel({
                 {vpQueue.map((loan) => (
                   <TableRow key={loan.id}>
                     <TableCell className="text-sm font-medium">{getEmpName(loan)}</TableCell>
-                    <TableCell className="font-medium">${Number(loan.amount).toLocaleString()}</TableCell>
+                    <TableCell className="font-medium">NPR {Number(loan.amount).toLocaleString()}</TableCell>
                     <TableCell>{loan.term_months}mo</TableCell>
                     <TableCell><Badge variant="outline">{loan.reason_type}</Badge></TableCell>
                     <TableCell>
@@ -168,7 +168,7 @@ export function VPPanel({
                 {approvedNotDisbursed.map((loan) => (
                   <TableRow key={loan.id}>
                     <TableCell className="text-sm">{getEmpName(loan)}</TableCell>
-                    <TableCell>${Number(loan.amount).toLocaleString()}</TableCell>
+                    <TableCell>NPR {Number(loan.amount).toLocaleString()}</TableCell>
                     <TableCell>{loan.term_months}mo</TableCell>
                     <TableCell>
                       <Button size="sm" variant="outline" onClick={() => handleDisburse(loan)}>
@@ -210,10 +210,10 @@ export function VPPanel({
                     <>
                       <TableRow key={loan.id}>
                         <TableCell className="text-sm font-medium">{getEmpName(loan)}</TableCell>
-                        <TableCell>${Number(loan.amount).toLocaleString()}</TableCell>
-                        <TableCell className="font-medium">${balance.toFixed(2)}</TableCell>
+                        <TableCell>NPR {Number(loan.amount).toLocaleString()}</TableCell>
+                        <TableCell className="font-medium">NPR {balance.toFixed(2)}</TableCell>
                         <TableCell>{loan.term_months}mo</TableCell>
-                        <TableCell>${Number(loan.estimated_monthly_installment || 0).toFixed(2)}</TableCell>
+                        <TableCell>NPR {Number(loan.estimated_monthly_installment || 0).toFixed(2)}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button
@@ -264,10 +264,10 @@ export function VPPanel({
                                       <TableCell className="text-xs">
                                         {r.deducted_at ? format(new Date(r.deducted_at), "MMM dd") : "-"}
                                       </TableCell>
-                                      <TableCell className="text-xs font-medium">${Number(r.total_amount).toFixed(2)}</TableCell>
-                                      <TableCell className="text-xs">${Number(r.principal_amount).toFixed(2)}</TableCell>
-                                      <TableCell className="text-xs">${Number(r.interest_amount).toFixed(2)}</TableCell>
-                                      <TableCell className="text-xs">${Number(r.remaining_balance).toFixed(2)}</TableCell>
+                                      <TableCell className="text-xs font-medium">NPR {Number(r.total_amount).toFixed(2)}</TableCell>
+                                      <TableCell className="text-xs">NPR {Number(r.principal_amount).toFixed(2)}</TableCell>
+                                      <TableCell className="text-xs">NPR {Number(r.interest_amount).toFixed(2)}</TableCell>
+                                      <TableCell className="text-xs">NPR {Number(r.remaining_balance).toFixed(2)}</TableCell>
                                     </TableRow>
                                   ))}
                                 </TableBody>
@@ -305,7 +305,7 @@ export function VPPanel({
                 {vpHistory.filter(l => !['approved', 'disbursed'].includes(l.status)).map((loan) => (
                   <TableRow key={loan.id}>
                     <TableCell className="text-sm">{getEmpName(loan)}</TableCell>
-                    <TableCell>${Number(loan.amount).toLocaleString()}</TableCell>
+                    <TableCell>NPR {Number(loan.amount).toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant={statusColor(loan.status) as any}>
                         {SIMPLIFIED_STATUS_LABELS[loan.status] || loan.status}
@@ -331,9 +331,9 @@ export function VPPanel({
             <div className="space-y-4">
               <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
                 <p><strong>Employee:</strong> {getEmpName(selectedLoan)}</p>
-                <p><strong>Amount:</strong> ${Number(selectedLoan.amount).toLocaleString()}</p>
+                <p><strong>Amount:</strong> NPR {Number(selectedLoan.amount).toLocaleString()}</p>
                 <p><strong>Term:</strong> {selectedLoan.term_months} months</p>
-                <p><strong>EMI:</strong> ${Number(selectedLoan.estimated_monthly_installment || 0).toFixed(2)}/mo</p>
+                <p><strong>EMI:</strong> NPR {Number(selectedLoan.estimated_monthly_installment || 0).toFixed(2)}/mo</p>
                 <p><strong>Interest:</strong> {FIXED_ANNUAL_RATE}% p.a. (fixed)</p>
                 <p><strong>Reason:</strong> {selectedLoan.reason_type}</p>
                 <p><strong>Position:</strong> {selectedLoan.employees?.position_level || selectedLoan.position_level}</p>
@@ -383,13 +383,13 @@ export function VPPanel({
             <div className="space-y-4">
               <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
                 <p><strong>Employee:</strong> {getEmpName(repaymentLoan)}</p>
-                <p><strong>Loan Amount:</strong> ${Number(repaymentLoan.amount).toLocaleString()}</p>
-                <p><strong>Remaining Balance:</strong> ${Number(repaymentLoan.remaining_balance ?? repaymentLoan.amount).toFixed(2)}</p>
-                <p><strong>Suggested EMI:</strong> ${Number(repaymentLoan.estimated_monthly_installment || 0).toFixed(2)}</p>
+                <p><strong>Loan Amount:</strong> NPR {Number(repaymentLoan.amount).toLocaleString()}</p>
+                <p><strong>Remaining Balance:</strong> NPR {Number(repaymentLoan.remaining_balance ?? repaymentLoan.amount).toFixed(2)}</p>
+                <p><strong>Suggested EMI:</strong> NPR {Number(repaymentLoan.estimated_monthly_installment || 0).toFixed(2)}</p>
               </div>
 
               <div>
-                <Label>Repayment Amount ($)</Label>
+                <Label>Repayment Amount (NPR)</Label>
                 <Input
                   type="number"
                   value={repaymentAmount || ''}
