@@ -2527,6 +2527,7 @@ export type Database = {
           hourly_rate: number | null
           id: string
           income_tax: number
+          loan_emi: number
           net_pay: number | null
           payable_hours: number | null
           payroll_run_id: string
@@ -2547,6 +2548,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           income_tax?: number
+          loan_emi?: number
           net_pay?: number | null
           payable_hours?: number | null
           payroll_run_id: string
@@ -2567,6 +2569,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           income_tax?: number
+          loan_emi?: number
           net_pay?: number | null
           payable_hours?: number | null
           payroll_run_id?: string

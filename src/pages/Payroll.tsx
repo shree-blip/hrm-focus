@@ -279,7 +279,7 @@ const Payroll = () => {
       // ── Fetch active (disbursed) loans for EMI deduction ──
       const { data: activeLoans } = await supabase
         .from("loan_requests")
-        .select("id, employee_id, user_id, amount, term_months, interest_rate, estimated_monthly_installment, status, created_at")
+        .select("id, employee_id, user_id, amount, remaining_balance, term_months, interest_rate, estimated_monthly_installment, status, created_at")
         .in("status", ["disbursed"]);
 
       // Build map: employee_id → array of active loans
@@ -290,7 +290,7 @@ const Payroll = () => {
         if (!loan.employee_id) return;
         const emi = loan.estimated_monthly_installment
           || calculateEMI(Number(loan.amount), loan.interest_rate ?? FIXED_ANNUAL_RATE, loan.term_months);
-        const remaining = Number(loan.amount);
+        const remaining = Number(loan.remaining_balance ?? loan.amount);
         if (remaining <= 0) return;
         const arr = loansByEmployee.get(loan.employee_id) || [];
         arr.push({ id: loan.id, emi: Math.round(emi * 100) / 100, remainingBalance: remaining });
@@ -447,7 +447,7 @@ const Payroll = () => {
       const result = await createPayrollRun(periodStart, periodEnd);
 
       if (result) {
-        await supabase
+        const { error: updateError } = await supabase
           .from("payroll_runs")
           .update({
             total_gross: Math.round(totalGross * 100) / 100,
@@ -459,6 +459,10 @@ const Payroll = () => {
             processed_by: user?.id,
           })
           .eq("id", result.id);
+
+        if (updateError) {
+          console.error("Failed to update payroll run:", updateError);
+        }
 
         if (employeePayrollDetails.length > 0) {
           const detailInserts = employeePayrollDetails.map(d => ({
@@ -481,7 +485,11 @@ const Payroll = () => {
             net_pay: d.net_pay,
           }));
 
-          await supabase.from("payroll_run_details").insert(detailInserts);
+          const { error: detailError } = await supabase.from("payroll_run_details").insert(detailInserts);
+          if (detailError) {
+            console.error("Failed to insert payroll run details:", detailError);
+            toast({ title: "Warning", description: "Payroll run created but failed to save details: " + detailError.message, variant: "destructive" });
+          }
         }
 
         // Record EMI deductions via RPC (creates loan_repayments + updates balances)
