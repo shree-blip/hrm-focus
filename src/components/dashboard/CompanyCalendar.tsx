@@ -773,7 +773,7 @@ export function CompanyCalendar() {
                 <CustomDayCell
                   date={date}
                   customEventsForDate={getCustomEventsForDate(date)}
-                  isManager={isManager}
+                  isManager={canManageCalendar}
                   onAddClick={handleAddEventFromCell}
                 />
               ),
