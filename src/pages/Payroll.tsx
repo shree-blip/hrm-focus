@@ -64,13 +64,57 @@ const Payroll = () => {
   const { payrollRuns, loading, region, setRegion, createPayrollRun, processPayroll, getTaxRates } = usePayroll();
   const { employees, updateEmployee, refetch: refetchEmployees } = useEmployees();
   const { teamAttendance, loading: attendanceLoading } = useTeamAttendance();
-  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "employees" | "calculator" | "contractor">("overview");
-  const [showPayslipsPreview, setShowPayslipsPreview] = useState(false);
-  const [showEditSalary, setShowEditSalary] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const validTabs = ["overview", "attendance", "employees", "calculator", "contractor"] as const;
+  type TabType = typeof validTabs[number];
+  const tabParam = searchParams.get("tab") as TabType | null;
+  const activeTab: TabType = tabParam && validTabs.includes(tabParam) ? tabParam : "overview";
+
+  const setActiveTab = (tab: TabType) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tab);
+      // Clear modal params when switching tabs
+      next.delete("modal");
+      next.delete("empId");
+      return next;
+    }, { replace: true });
+  };
+
+  const modalParam = searchParams.get("modal");
+  const modalEmpId = searchParams.get("empId");
+
+  const setModalParam = (modal: string | null, empId?: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (modal) {
+        next.set("modal", modal);
+        if (empId) next.set("empId", empId);
+      } else {
+        next.delete("modal");
+        next.delete("empId");
+      }
+      return next;
+    }, { replace: true });
+  };
+
   const [selectedEmployee, setSelectedEmployee] = useState<typeof employees[0] | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
-  const [showMyBreakdown, setShowMyBreakdown] = useState(false);
-  const [showRunPayrollDialog, setShowRunPayrollDialog] = useState(false);
+
+  // Derive modal open states from URL
+  const showPayslipsPreview = modalParam === "payslips";
+  const showEditSalary = modalParam === "editSalary";
+  const showMyBreakdown = modalParam === "myBreakdown";
+  const showRunPayrollDialog = modalParam === "runPayroll";
+
+  // Restore selected employee from URL param on mount/change
+  useEffect(() => {
+    if (modalEmpId && employees.length > 0) {
+      const emp = employees.find(e => e.id === modalEmpId);
+      if (emp) setSelectedEmployee(emp);
+    }
+  }, [modalEmpId, employees]);
 
   // Filter employees by region (case-insensitive)
   const regionEmployees = employees.filter(e => 
