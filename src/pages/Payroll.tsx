@@ -366,7 +366,21 @@ const Payroll = () => {
 
         grossPay = payableHours * hourlyRate;
 
+        // Calculate deductions from employee record (stored monthly amounts)
+        const incomeTax = emp.income_tax || 0;
+        const socialSecurity = emp.social_security || 0;
+        const providentFund = emp.provident_fund || 0;
+        
+        // Prorate deductions based on pay period vs full month
+        const prorationFactor = standardMonthlyHours > 0 ? standardHoursInRange / standardMonthlyHours : 1;
+        const proratedIncomeTax = Math.round(incomeTax * prorationFactor * 100) / 100;
+        const proratedSocialSecurity = Math.round(socialSecurity * prorationFactor * 100) / 100;
+        const proratedProvidentFund = Math.round(providentFund * prorationFactor * 100) / 100;
+        const empDeductions = proratedIncomeTax + proratedSocialSecurity + proratedProvidentFund;
+        const netPay = grossPay - empDeductions;
+
         totalGross += grossPay;
+        totalDeductions += empDeductions;
         employeeCount++;
 
         employeePayrollDetails.push({
@@ -380,8 +394,11 @@ const Payroll = () => {
           extra_hours: Math.round(extraHours * 10) / 10,
           bank_hours_used: Math.round(bankHoursUsed * 10) / 10,
           gross_pay: Math.round(grossPay * 100) / 100,
-          deductions: 0,
-          net_pay: Math.round(grossPay * 100) / 100,
+          income_tax: proratedIncomeTax,
+          social_security: proratedSocialSecurity,
+          provident_fund: proratedProvidentFund,
+          deductions: Math.round(empDeductions * 100) / 100,
+          net_pay: Math.round(netPay * 100) / 100,
         });
 
         if (userId) {
