@@ -709,7 +709,7 @@ const Payroll = () => {
             Export
           </Button>
           {isVP && (
-            <Button className="gap-2 shadow-md" onClick={() => setShowRunPayrollDialog(true)} disabled={isCalculating}>
+            <Button className="gap-2 shadow-md" onClick={() => setModalParam("runPayroll")} disabled={isCalculating}>
               {isCalculating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
               {isCalculating ? "Processing..." : "Run Payroll"}
             </Button>
