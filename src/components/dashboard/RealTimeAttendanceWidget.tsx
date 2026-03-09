@@ -173,11 +173,11 @@ export function RealTimeAttendanceWidget() {
     const dayStart = startOfDay(today).toISOString();
     const dayEnd = endOfDay(today).toISOString();
 
-    // Fetch employees
+    // Fetch employees - include active and probation status
     const { data: emps } = await supabase
       .from("employees")
       .select("id, first_name, last_name, department, profile_id, profiles:profile_id(user_id, avatar_url)")
-      .eq("status", "active");
+      .in("status", ["active", "probation"]);
 
     // Fetch today's logs
     const { data: logs } = await supabase
