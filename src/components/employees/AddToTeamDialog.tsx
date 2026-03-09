@@ -162,6 +162,33 @@ export function AddToTeamDialog({
           }
         }
 
+        // Get assigner (current user) info for email
+        const { data: assignerProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, email")
+          .eq("user_id", user?.id)
+          .single();
+
+        const assignerName = assignerProfile
+          ? `${assignerProfile.first_name} ${assignerProfile.last_name}`
+          : "CEO";
+        const assignerEmail = assignerProfile?.email || "";
+
+        // Send email notification to the employee being added
+        try {
+          await supabase.functions.invoke("send-team-assignment-notification", {
+            body: {
+              assigner_name: assignerName,
+              assigner_email: assignerEmail,
+              employee_name: `${emp.first_name} ${emp.last_name}`,
+              employee_email: emp.email,
+              manager_name: result.manager_name || "your manager",
+            },
+          });
+        } catch (emailErr) {
+          console.error("Failed to send team assignment email:", emailErr);
+        }
+
         const { data: vpUsers } = await supabase
           .from("user_roles")
           .select("user_id")
