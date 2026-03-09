@@ -177,7 +177,7 @@ async function createNotificationLog(
 }
 
 async function sendEmailWithRetry(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   logId: string,
   to: string,
   subject: string,
