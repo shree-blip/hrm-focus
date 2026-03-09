@@ -538,6 +538,32 @@ export function useLeaveRequests() {
         await createNotification(managerId, notifTitle, notifMsg, "leave", `/approvals`);
       }
 
+      // Send email notifications via edge function
+      const managerEmails: string[] = [];
+      for (const managerId of notifySet) {
+        const { data: mgrProfile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("user_id", managerId)
+          .single();
+        if (mgrProfile?.email) managerEmails.push(mgrProfile.email);
+      }
+
+      await sendLeaveNotification({
+        leave_request_id: newRequest.id,
+        event_type: "submitted",
+        employee_name: userName,
+        employee_email: user.email || undefined,
+        leave_type: request.leave_type,
+        start_date: formatLocalDate(request.start_date),
+        end_date: formatLocalDate(request.end_date),
+        days,
+        reason: request.reason,
+        target_user_ids: Array.from(notifySet),
+        target_emails: managerEmails,
+        requesting_user_id: user.id,
+      });
+
       await loadAllData();
     }
   };
