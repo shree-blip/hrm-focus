@@ -281,6 +281,25 @@ export function useLoans() {
     });
 
     await logAudit(loanId, `manager_${decision}`, { comment });
+
+    // Notify the loan requester about the manager's decision
+    try {
+      const loan = pendingForManager.find((l) => l.id === loanId);
+      if (loan) {
+        await supabase.rpc("create_notification", {
+          p_user_id: loan.user_id,
+          p_title: decision === "approved" ? "✅ Loan Forwarded to VP" : "❌ Loan Rejected",
+          p_message: decision === "approved"
+            ? `Your loan request has been approved by your manager and forwarded to the VP. Comment: ${comment}`
+            : `Your loan request has been rejected by your manager. Reason: ${comment}`,
+          p_type: "loan",
+          p_link: "/loans",
+        });
+      }
+    } catch (err) {
+      console.error("Error sending loan decision notification:", err);
+    }
+
     toast({ title: decision === "approved" ? "Forwarded to VP" : "Loan Rejected", description: comment });
     await refetchAll();
   };
