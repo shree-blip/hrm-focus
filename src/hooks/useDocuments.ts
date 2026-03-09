@@ -91,7 +91,7 @@ export function useDocuments() {
         // Leave Evidence - visible to uploader, admin, VP, manager, or line manager
         if (doc.category === LEAVE_EVIDENCE_CATEGORY) {
           if (doc.uploaded_by === user.id) return true;
-          if (isAdmin || isVP || isManager || isLineManager) return true;
+          if (canManageDocs || isLineManager) return true;
           return false;
         }
 
