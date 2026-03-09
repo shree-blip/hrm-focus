@@ -226,12 +226,12 @@ export function useTasks() {
           // Create notifications for all assignees (except self)
           for (const assigneeId of task.assignee_ids) {
             if (assigneeId !== userId) {
-              await supabase.from("notifications").insert({
-                user_id: assigneeId,
-                title: "New Task Assigned",
-                message: `${creatorName} assigned you a new task: "${task.title}"`,
-                type: "task",
-                link: "/tasks",
+              await supabase.rpc("create_notification", {
+                p_user_id: assigneeId,
+                p_title: "New Task Assigned",
+                p_message: `${creatorName} assigned you a new task: "${task.title}"`,
+                p_type: "task",
+                p_link: "/tasks",
               });
             }
           }
