@@ -2447,6 +2447,7 @@ export type Database = {
           period_year: number
           standard_hours: number
           updated_at: string
+          used_hours: number
           user_id: string
         }
         Insert: {
@@ -2462,6 +2463,7 @@ export type Database = {
           period_year: number
           standard_hours?: number
           updated_at?: string
+          used_hours?: number
           user_id: string
         }
         Update: {
@@ -2477,6 +2479,7 @@ export type Database = {
           period_year?: number
           standard_hours?: number
           updated_at?: string
+          used_hours?: number
           user_id?: string
         }
         Relationships: [
