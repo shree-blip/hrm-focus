@@ -465,7 +465,7 @@ const Payroll = () => {
           title: `Payroll Processed — ${periodLabel}`,
           description: `${employeeCount} employees | Total: ${currencySymbol}${totalGross.toLocaleString(undefined, { maximumFractionDigits: 0 })}. Extra hours saved.`,
         });
-        setShowRunPayrollDialog(false);
+        setModalParam(null);
       }
     } catch (err) {
       console.error("Payroll error:", err);
