@@ -58,6 +58,8 @@ import { EditEmployeeSalaryDialog } from "@/components/payroll/EditEmployeeSalar
 import { NepalPayrollTable } from "@/components/payroll/NepalPayrollTable";
 import { SalaryBreakdownDialog } from "@/components/payroll/SalaryBreakdownDialog";
 import { RunPayrollDialog } from "@/components/payroll/RunPayrollDialog";
+import { PayrollDataGrid, type PayrollRow } from "@/components/payroll/PayrollDataGrid";
+import { exportPayrollCSV, mapDetailToExportRow } from "@/lib/payrollCsvExport";
 
 const Payroll = () => {
   const { isVP, isManager, profile, user } = useAuth();
