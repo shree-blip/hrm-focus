@@ -121,6 +121,14 @@ const Payroll = () => {
   const today = new Date();
   const daysLeft = Math.ceil((nextPayrollDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
+  // Helper to format date as YYYY-MM-DD using local timezone
+  const formatLocalDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
   const handleRunPayroll = async () => {
     // Always run payroll for the LAST completed month
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0); // last day of prev month
@@ -132,7 +140,7 @@ const Payroll = () => {
 
     // Check if payroll already exists for this period
     const existingRun = payrollRuns.find(r => {
-      const s = new Date(r.period_start);
+      const s = new Date(r.period_start + "T00:00:00"); // parse as local
       return s.getFullYear() === payrollYear && s.getMonth() === payrollMonth && r.region === region;
     });
     if (existingRun) {
@@ -143,12 +151,16 @@ const Payroll = () => {
     setIsCalculating(true);
 
     try {
+      // Use local date strings for the attendance query
+      const startDateStr = formatLocalDate(lastMonthStart) + "T00:00:00";
+      const endDateStr = formatLocalDate(lastMonthEnd) + "T23:59:59.999";
+
       // Fetch last month's attendance for all employees
       const { data: lastMonthLogs, error: logsError } = await supabase
         .from("attendance_logs")
         .select("user_id, employee_id, clock_in, clock_out, total_break_minutes, total_pause_minutes")
-        .gte("clock_in", lastMonthStart.toISOString())
-        .lte("clock_in", lastMonthEnd.toISOString() + "T23:59:59.999Z");
+        .gte("clock_in", startDateStr)
+        .lte("clock_in", endDateStr);
 
       if (logsError) throw logsError;
 
