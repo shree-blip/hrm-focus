@@ -331,7 +331,7 @@ export function ClockWidget() {
             <div className="grid grid-cols-2 gap-2 w-full">
               <Button onClick={() => clockIn(clockType, "wfo")} className="gap-2" size="lg">
                 <Play className="h-4 w-4" />
-                WFO
+                Clock In WFO
               </Button>
               <Button
                 onClick={() => clockIn(clockType, "wfh")}
@@ -340,7 +340,7 @@ export function ClockWidget() {
                 size="lg"
               >
                 <Play className="h-4 w-4" />
-                WFH
+                Clock In WFH
               </Button>
             </div>
           ) : (
