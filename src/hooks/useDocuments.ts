@@ -32,7 +32,7 @@ export interface UploaderInfo {
 export function useDocuments() {
   const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
   const { hasPermission } = usePermissions();
-  const canManageDocs = isAdmin || isVP || isManager || hasPermission('manage_documents');
+  const canManageDocs = isAdmin || isVP || isManager || hasPermission("manage_documents");
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploaderNames, setUploaderNames] = useState<UploaderInfo>({});
   const [loading, setLoading] = useState(true);
@@ -70,11 +70,7 @@ export function useDocuments() {
       const allDocs = data || [];
 
       // Step 3: Get current user's employee record to check employee_id match
-      const { data: userProfile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
+      const { data: userProfile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
 
       let userEmployeeId: string | null = null;
       if (userProfile) {
@@ -107,8 +103,7 @@ export function useDocuments() {
         // Compliance - visible to uploader, admin, VP, and the assigned employee
         if (doc.category === "Compliance") {
           if (doc.uploaded_by === user.id) return true;
-          if (canManageDocs) return true;
-          // Employee can see their own compliance docs
+          if (canManageDocs || isLineManager) return true;
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
           return false;
         }
@@ -192,9 +187,7 @@ export function useDocuments() {
       .eq("user_id", user.id)
       .single();
 
-    const uploaderName = uploaderProfile
-      ? `${uploaderProfile.first_name} ${uploaderProfile.last_name}`
-      : "User";
+    const uploaderName = uploaderProfile ? `${uploaderProfile.first_name} ${uploaderProfile.last_name}` : "User";
     const uploaderEmail = uploaderProfile?.email || "";
 
     // Determine if this is a manager uploading for an employee or an employee uploading
@@ -250,11 +243,7 @@ export function useDocuments() {
       // Employee uploaded → notify VP and line manager
       try {
         // Get the user's employee record to find their line manager
-        const { data: userProfile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("user_id", user.id)
-          .single();
+        const { data: userProfile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
 
         let userEmployeeId: string | undefined;
         if (userProfile) {
@@ -278,10 +267,7 @@ export function useDocuments() {
         });
 
         // Send in-app notifications to VP/Admin
-        const { data: vpUsers } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .in("role", ["vp", "admin"]);
+        const { data: vpUsers } = await supabase.from("user_roles").select("user_id").in("role", ["vp", "admin"]);
 
         if (vpUsers) {
           for (const vp of vpUsers) {
@@ -312,7 +298,7 @@ export function useDocuments() {
       citizenshipPhoto?: File;
       panCardPhoto?: File;
       otherDocument?: File;
-    }
+    },
   ) => {
     if (!user) return { error: new Error("Not authenticated") };
 
@@ -327,7 +313,7 @@ export function useDocuments() {
             return null;
           }
           return res;
-        })
+        }),
       );
     }
 
@@ -408,7 +394,8 @@ export function useDocuments() {
 
   const isPrivateCategory = (category: string | null) => PRIVATE_CATEGORIES.includes(category || "");
   const isLeaveEvidenceCategory = (category: string | null) => category === LEAVE_EVIDENCE_CATEGORY;
-  const isRestrictedCategory = (category: string | null) => isPrivateCategory(category) || isLeaveEvidenceCategory(category);
+  const isRestrictedCategory = (category: string | null) =>
+    isPrivateCategory(category) || isLeaveEvidenceCategory(category);
   const canAccessDocument = (_doc: Document) => true;
 
   return {
