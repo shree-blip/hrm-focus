@@ -195,6 +195,7 @@ export function RealTimeAttendanceWidget() {
       const userId = e.profiles?.user_id;
       if (userId) uToE.set(userId, e.id);
     });
+    userToEmpMapRef.current = uToE;
     setUserToEmpMap(uToE);
 
     // Map logs by employee/user
