@@ -243,7 +243,7 @@ export function usePerformance(period: PeriodType = "this-month", customRange?: 
       // Map profile_id to user_id for assignee_id matching (assignee_id is profile_id)
       const profileIdToUserId = new Map<string, string>();
       employees.forEach(e => {
-        const uid = e.user_id || (e.profile_id ? profileToUser.get(e.profile_id) : null);
+        const uid = e.profile_id ? profileToUser.get(e.profile_id) : null;
         if (e.profile_id && uid) profileIdToUserId.set(e.profile_id, uid);
       });
 
