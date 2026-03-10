@@ -101,9 +101,7 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
     cats.push({ value: "Policies", label: "Policies" });
 
     // Compliance - Line Manager, Manager, Admin, VP
-    if (isLineManager || isManager || isAdmin || isVP) {
-      cats.push({ value: "Compliance", label: "Compliance" });
-    }
+    cats.push({ value: "Compliance", label: "Compliance" });
 
     // Leave Evidence - anyone
     cats.push({ value: "Leave Evidence", label: "Leave Evidence" });
@@ -146,10 +144,7 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
     }
   };
 
-  const handleComplianceFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    setter: (f: File | null) => void
-  ) => {
+  const handleComplianceFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (f: File | null) => void) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       if (validateFile(selectedFile)) {
@@ -179,7 +174,11 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
     }
 
     if (requiresEmployeeSelection && !selectedEmployeeId) {
-      toast({ title: "Employee Required", description: "Please select an employee for this category.", variant: "destructive" });
+      toast({
+        title: "Employee Required",
+        description: "Please select an employee for this category.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -250,13 +249,21 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
           {/* Category Selection */}
           <div className="space-y-2">
             <Label>Document Category *</Label>
-            <Select value={category} onValueChange={(val) => { setCategory(val); setSelectedEmployeeId(""); }}>
+            <Select
+              value={category}
+              onValueChange={(val) => {
+                setCategory(val);
+                setSelectedEmployeeId("");
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
                 {availableCategories.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                  <SelectItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -312,11 +319,23 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
                     {citizenshipPhoto ? citizenshipPhoto.name : "Choose file"}
                   </Button>
                   {citizenshipPhoto && (
-                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCitizenshipPhoto(null)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setCitizenshipPhoto(null)}
+                    >
                       <X className="h-3 w-3" />
                     </Button>
                   )}
-                  <input ref={citizenshipRef} type="file" className="hidden" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => handleComplianceFileChange(e, setCitizenshipPhoto)} />
+                  <input
+                    ref={citizenshipRef}
+                    type="file"
+                    className="hidden"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={(e) => handleComplianceFileChange(e, setCitizenshipPhoto)}
+                  />
                 </div>
               </div>
 
@@ -328,11 +347,23 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
                     {panCardPhoto ? panCardPhoto.name : "Choose file"}
                   </Button>
                   {panCardPhoto && (
-                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPanCardPhoto(null)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setPanCardPhoto(null)}
+                    >
                       <X className="h-3 w-3" />
                     </Button>
                   )}
-                  <input ref={panCardRef} type="file" className="hidden" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => handleComplianceFileChange(e, setPanCardPhoto)} />
+                  <input
+                    ref={panCardRef}
+                    type="file"
+                    className="hidden"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={(e) => handleComplianceFileChange(e, setPanCardPhoto)}
+                  />
                 </div>
               </div>
 
@@ -344,11 +375,23 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
                     {otherDocument ? otherDocument.name : "Choose file"}
                   </Button>
                   {otherDocument && (
-                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setOtherDocument(null)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setOtherDocument(null)}
+                    >
                       <X className="h-3 w-3" />
                     </Button>
                   )}
-                  <input ref={otherDocRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" onChange={(e) => handleComplianceFileChange(e, setOtherDocument)} />
+                  <input
+                    ref={otherDocRef}
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                    onChange={(e) => handleComplianceFileChange(e, setOtherDocument)}
+                  />
                 </div>
               </div>
             </div>
@@ -376,7 +419,16 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
                       <p className="font-medium">{file.name}</p>
                       <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
                     </div>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFile(null);
+                      }}
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -392,7 +444,9 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
           )}
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
             <Button type="submit">Upload Document</Button>
           </div>
         </form>
