@@ -94,8 +94,7 @@ export function useDocuments() {
         // Contracts - visible to uploader (VP), admin, VP, and the assigned employee
         if (doc.category === "Contracts") {
           if (doc.uploaded_by === user.id) return true;
-          if (canManageDocs) return true;
-          // Employee can see their own contract
+          if (isVP) return true;
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
           return false;
         }
@@ -103,7 +102,8 @@ export function useDocuments() {
         // Compliance - visible to uploader, admin, VP, and the assigned employee
         if (doc.category === "Compliance") {
           if (doc.uploaded_by === user.id) return true;
-          if (canManageDocs || isLineManager) return true;
+          if (canManageDocs) return true;
+          // Employee can see their own compliance docs
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
           return false;
         }
