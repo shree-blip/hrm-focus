@@ -413,18 +413,31 @@ export function RealTimeAttendanceWidget() {
     [fetchData],
   );
 
+  // Stable ref for the handler so subscription doesn't recreate
+  const handleRealtimeRef = useRef(handleRealtimeChange);
+  handleRealtimeRef.current = handleRealtimeChange;
+
   useEffect(() => {
     fetchData();
+
+    // Primary: Realtime subscription
     const channel = supabase
       .channel("live-attendance")
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, handleRealtimeChange)
-      .subscribe();
-    const interval = setInterval(fetchData, 60000);
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, (payload) => {
+        handleRealtimeRef.current(payload);
+      })
+      .subscribe((status) => {
+        console.log("[RealTimeAttendance] Channel status:", status);
+      });
+
+    // Fallback: Poll every 15s to catch any missed realtime events
+    const interval = setInterval(fetchData, 15_000);
+
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [fetchData, handleRealtimeChange]);
+  }, [fetchData]);
 
   // Filter employees based on active filter
   const filteredEmployees = employees.filter((emp) => {
