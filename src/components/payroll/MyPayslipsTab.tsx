@@ -41,17 +41,58 @@ export function MyPayslipsTab({ downloadPayslip }: MyPayslipsTabProps) {
   const fetchMyPayslips = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+
+    // Primary: query by user_id (auth UID)
     const { data, error } = await payslipFilesTable()
       .select("id, payroll_run_id, file_path, file_name, period_start, period_end, year, month, created_at")
       .eq("user_id", user.id)
       .order("period_start", { ascending: false });
 
-    setLoading(false);
     if (error) {
       console.error("Error fetching payslips:", error.message);
+    }
+
+    if (data && data.length > 0) {
+      setRecords(data as PayslipFileRecord[]);
+      setLoading(false);
       return;
     }
-    setRecords((data || []) as PayslipFileRecord[]);
+
+    // Fallback: resolve employee_id via profiles → employees, then query by employee_id
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profile) {
+        const { data: empRows } = await (supabase as unknown as any)
+          .from("employees")
+          .select("id")
+          .eq("profile_id", profile.id)
+          .limit(1);
+
+        const empId = empRows?.[0]?.id;
+        if (empId) {
+          const { data: fallbackData } = await payslipFilesTable()
+            .select("id, payroll_run_id, file_path, file_name, period_start, period_end, year, month, created_at")
+            .eq("employee_id", empId)
+            .order("period_start", { ascending: false });
+
+          if (fallbackData && fallbackData.length > 0) {
+            setRecords(fallbackData as PayslipFileRecord[]);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+    } catch {
+      // Fallback silently — primary query already attempted
+    }
+
+    setRecords([]);
+    setLoading(false);
   }, [user]);
 
   useEffect(() => {

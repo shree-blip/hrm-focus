@@ -89,15 +89,35 @@ export function usePayslips() {
         return false;
       }
 
+      // Filter out employees without a valid user_id (UUID-shaped)
+      const validEmployees = employees.filter(
+        (e) => e.user_id && e.user_id.trim() !== "" && e.user_id.length > 8,
+      );
+      const skippedCount = employees.length - validEmployees.length;
+      if (skippedCount > 0) {
+        console.warn(
+          `Payslips: Skipping ${skippedCount} employees without a linked user account`,
+        );
+      }
+      if (validEmployees.length === 0) {
+        toast({
+          title: "No Payslips",
+          description:
+            "No employees with linked user accounts found. Ensure employees have profile associations.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
       setGenerating(true);
-      setProgress({ total: employees.length, completed: 0, current: "Starting…" });
+      setProgress({ total: validEmployees.length, completed: 0, current: "Starting…" });
 
       try {
         // 1. Delete old payslips for this run (in case of re-run)
         await deleteRunPayslips(ctx.payroll_run_id);
 
         // 2. Generate all PDFs
-        const results = await generateAllPayslipPDFs(employees, ctx, (p) =>
+        const results = await generateAllPayslipPDFs(validEmployees, ctx, (p) =>
           setProgress(p),
         );
 
@@ -108,8 +128,19 @@ export function usePayslips() {
           current: "Uploading payslips…",
         });
 
+        let successCount = 0;
+        let failCount = 0;
+
         for (let i = 0; i < results.length; i++) {
           const r = results[i];
+
+          // Guard: skip if user_id somehow still empty
+          if (!r.user_id || r.user_id.trim() === "") {
+            console.warn(`Skipping payslip for ${r.employee_name}: no user_id`);
+            failCount++;
+            continue;
+          }
+
           const storagePath = `${r.user_id}/${r.fileName}`;
 
           // Upload to storage
@@ -122,6 +153,7 @@ export function usePayslips() {
 
           if (uploadError) {
             console.error(`Upload failed for ${r.employee_name}:`, uploadError.message);
+            failCount++;
             continue;
           }
 
@@ -130,23 +162,52 @@ export function usePayslips() {
           const month = startDate.getMonth() + 1;
           const year = startDate.getFullYear();
 
-          // Upsert metadata
-          await payslipFilesTable().upsert(
-            {
-              user_id: r.user_id,
-              employee_id: r.employee_id,
-              payroll_run_id: ctx.payroll_run_id,
-              period_type: "monthly",
-              year,
-              month,
-              period_start: ctx.period_start,
-              period_end: ctx.period_end,
-              file_path: storagePath,
-              file_name: r.fileName,
-            },
+          const record = {
+            user_id: r.user_id,
+            employee_id: r.employee_id,
+            payroll_run_id: ctx.payroll_run_id,
+            period_type: "monthly",
+            year,
+            month,
+            period_start: ctx.period_start,
+            period_end: ctx.period_end,
+            file_path: storagePath,
+            file_name: r.fileName,
+          };
+
+          // Upsert metadata — with error checking + fallback
+          const { error: upsertError } = await payslipFilesTable().upsert(
+            record,
             { onConflict: "payroll_run_id,employee_id" },
           );
 
+          if (upsertError) {
+            console.warn(
+              `Upsert failed for ${r.employee_name}:`,
+              upsertError.message,
+              "— trying fallback insert",
+            );
+
+            // Fallback: delete any existing record for same employee + period, then insert
+            await payslipFilesTable()
+              .delete()
+              .eq("employee_id", r.employee_id)
+              .eq("period_start", ctx.period_start)
+              .eq("period_end", ctx.period_end);
+
+            const { error: insertError } = await payslipFilesTable().insert(record);
+
+            if (insertError) {
+              console.error(
+                `Fallback insert failed for ${r.employee_name}:`,
+                insertError.message,
+              );
+              failCount++;
+              continue;
+            }
+          }
+
+          successCount++;
           setProgress({
             total: results.length,
             completed: i + 1,
@@ -154,11 +215,26 @@ export function usePayslips() {
           });
         }
 
-        toast({
-          title: "Payslips Ready",
-          description: `${results.length} payslip PDFs generated and stored successfully.`,
-        });
-        return true;
+        if (failCount > 0 && successCount > 0) {
+          toast({
+            title: "Payslips Partially Generated",
+            description: `${successCount} payslip PDFs saved. ${failCount} failed — check console for details.${skippedCount > 0 ? ` ${skippedCount} employees skipped (no linked user).` : ""}`,
+            variant: "destructive",
+          });
+        } else if (failCount > 0 && successCount === 0) {
+          toast({
+            title: "Payslip Generation Failed",
+            description: `All ${failCount} payslips failed to save. Check browser console for details.`,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Payslips Ready",
+            description: `${successCount} payslip PDFs generated and stored successfully.${skippedCount > 0 ? ` (${skippedCount} employees skipped — no linked user account)` : ""}`,
+          });
+        }
+
+        return successCount > 0;
       } catch (err) {
         console.error("Payslip generation error:", err);
         toast({
