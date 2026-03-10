@@ -324,15 +324,15 @@ export function RealTimeAttendanceWidget() {
         return;
       }
 
-      // Resolve the employee_id from the log — either directly or via user_id map
-      const resolvedEmpId = log.employee_id || userToEmpMap.get(log.user_id);
+      // Resolve the employee_id from the log — either directly or via user_id ref map
+      const resolvedEmpId = log.employee_id || userToEmpMapRef.current.get(log.user_id);
 
       if (!resolvedEmpId) {
         // Can't match to an employee, do a full refetch
         fetchData();
         return;
       }
-      // Add this block to update the detailed logs array
+      // Update the detailed logs array
       setDailyLogs((prevLogs) => {
         const exists = prevLogs.find((l) => l.id === log.id);
         if (exists) {
@@ -410,7 +410,7 @@ export function RealTimeAttendanceWidget() {
         return updated;
       });
     },
-    [fetchData, userToEmpMap],
+    [fetchData],
   );
 
   useEffect(() => {
