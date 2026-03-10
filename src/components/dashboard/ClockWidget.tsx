@@ -334,7 +334,7 @@ export function ClockWidget() {
                 <TooltipTrigger asChild>
                   <Button onClick={() => clockIn(clockType, "wfo")} className="gap-2" size="lg">
                     <Play className="h-4 w-4" />
-                    WFO
+                    Working from office(WFO)
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="font-medium">
@@ -350,7 +350,7 @@ export function ClockWidget() {
                     size="lg"
                   >
                     <Play className="h-4 w-4" />
-                    WFH
+                    Working from home(WFH)
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="font-medium">
