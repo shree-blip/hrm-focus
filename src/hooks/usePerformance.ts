@@ -140,7 +140,7 @@ export function usePerformance(period: PeriodType = "this-month", customRange?: 
 
       let employeesQuery = supabase
         .from("employees")
-        .select("id, first_name, last_name, email, department, job_title, profile_id, user_id, manager_id, line_manager_id, status")
+        .select("id, first_name, last_name, email, department, job_title, profile_id, manager_id, line_manager_id, status")
         .eq("status", "active");
 
       // For non-org-wide users: find their employee record first
@@ -185,7 +185,7 @@ export function usePerformance(period: PeriodType = "this-month", customRange?: 
       const profileToUser = new Map(profiles?.map(p => [p.id, p.user_id]) || []);
 
       const userIds = employees
-        .map(e => e.user_id || (e.profile_id ? profileToUser.get(e.profile_id) : null))
+        .map(e => e.profile_id ? profileToUser.get(e.profile_id) : null)
         .filter(Boolean) as string[];
 
       // ---- 2.  Fetch attendance logs in range ----
@@ -243,7 +243,7 @@ export function usePerformance(period: PeriodType = "this-month", customRange?: 
       // Map profile_id to user_id for assignee_id matching (assignee_id is profile_id)
       const profileIdToUserId = new Map<string, string>();
       employees.forEach(e => {
-        const uid = e.user_id || (e.profile_id ? profileToUser.get(e.profile_id) : null);
+        const uid = e.profile_id ? profileToUser.get(e.profile_id) : null;
         if (e.profile_id && uid) profileIdToUserId.set(e.profile_id, uid);
       });
 
@@ -306,7 +306,7 @@ export function usePerformance(period: PeriodType = "this-month", customRange?: 
 
       // ---- 5.  Compute per-employee scores ----
       const result: EmployeeScore[] = employees.map(emp => {
-        const uid = emp.user_id || (emp.profile_id ? profileToUser.get(emp.profile_id) : null) || "";
+        const uid = (emp.profile_id ? profileToUser.get(emp.profile_id) : null) || "";
 
         // Attendance / Utilization
         const att = attMap.get(uid) || { hours: 0, days: new Set<string>() };
