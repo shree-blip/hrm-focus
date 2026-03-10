@@ -140,7 +140,7 @@ export function usePerformance(period: PeriodType = "this-month", customRange?: 
 
       let employeesQuery = supabase
         .from("employees")
-        .select("id, first_name, last_name, email, department, job_title, profile_id, user_id, manager_id, line_manager_id, status")
+        .select("id, first_name, last_name, email, department, job_title, profile_id, manager_id, line_manager_id, status")
         .eq("status", "active");
 
       // For non-org-wide users: find their employee record first
