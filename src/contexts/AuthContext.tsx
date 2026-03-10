@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useMemo, useCallback, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -188,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select("id, user_id, first_name, last_name, email, phone, avatar_url, department, job_title, location, status, date_of_birth, joining_date")
       .eq("user_id", userId)
       .single();
 
@@ -220,37 +220,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchLineManagerStatus = async (userId: string) => {
-    // Check if user is a line manager via RPC (job_title based) OR via role
-    const { data: lineManagerCheck } = await supabase.rpc('is_line_manager', {
-      _user_id: userId
-    });
-    
-    // Also check if the user has the line_manager role in user_roles
-    const { data: roleCheck } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "line_manager")
-      .maybeSingle();
-    
-    setIsLineManager(!!lineManagerCheck || !!roleCheck);
+    // Check line manager via RPC + can_create_employee in parallel
+    const [lineManagerResult, createResult] = await Promise.all([
+      supabase.rpc('is_line_manager', { _user_id: userId }),
+      supabase.rpc('can_create_employee', { _user_id: userId }),
+    ]);
 
-    // Check if user can create employees
-    const { data: createCheck } = await supabase.rpc('can_create_employee', {
-      _user_id: userId
-    });
-    setCanCreateEmployee(!!createCheck);
+    // Also check the role (already fetched by fetchRole, use role state)
+    setIsLineManager(!!lineManagerResult.data);
+    setCanCreateEmployee(!!createResult.data);
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email: normalizeEmail(email),
       password,
     });
     return { error };
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+  const signUp = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
     const redirectUrl = `${window.location.origin}/`;
 
     const { error } = await supabase.auth.signUp({
@@ -265,9 +254,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     return { error };
-  };
+  }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -275,9 +264,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     return { error };
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     sessionStorage.removeItem('auth_rejected');
     await supabase.auth.signOut();
     setUser(null);
@@ -286,34 +275,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(null);
     setIsLineManager(false);
     setCanCreateEmployee(false);
-  };
+  }, []);
 
-  const isManager = role === "manager" || role === "vp" || role === "admin" || role === "supervisor" || role === "line_manager";
-  const isAdmin = role === "admin";
-  const isVP = role === "vp" || role === "admin";
-  const isSupervisor = role === "supervisor";
+  const refreshProfileCb = useCallback(async () => {
+    if (user) {
+      await fetchProfile(user.id);
+    }
+  }, [user]);
+
+  const isManager = useMemo(() => role === "manager" || role === "vp" || role === "admin" || role === "supervisor" || role === "line_manager", [role]);
+  const isAdmin = useMemo(() => role === "admin", [role]);
+  const isVP = useMemo(() => role === "vp" || role === "admin", [role]);
+  const isSupervisor = useMemo(() => role === "supervisor", [role]);
+
+  const value = useMemo(() => ({
+    user,
+    session,
+    profile,
+    role,
+    loading,
+    signIn,
+    signUp,
+    signInWithGoogle,
+    signOut,
+    refreshProfile: refreshProfileCb,
+    isManager,
+    isAdmin,
+    isVP,
+    isLineManager,
+    isSupervisor,
+    canCreateEmployee,
+  }), [user, session, profile, role, loading, signIn, signUp, signInWithGoogle, signOut, refreshProfileCb, isManager, isAdmin, isVP, isLineManager, isSupervisor, canCreateEmployee]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        role,
-        loading,
-        signIn,
-        signUp,
-        signInWithGoogle,
-        signOut,
-        refreshProfile,
-        isManager,
-        isAdmin,
-        isVP,
-        isLineManager,
-        isSupervisor,
-        canCreateEmployee,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

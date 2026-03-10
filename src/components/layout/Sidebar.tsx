@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, memo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -81,7 +81,7 @@ interface SidebarProps {
   onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-export function Sidebar({ onNavigate, collapsed: controlledCollapsed, onCollapsedChange }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ onNavigate, collapsed: controlledCollapsed, onCollapsedChange }: SidebarProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const collapsed = controlledCollapsed ?? internalCollapsed;
   const setCollapsed = (v: boolean) => {
@@ -106,7 +106,11 @@ export function Sidebar({ onNavigate, collapsed: controlledCollapsed, onCollapse
     return false;
   };
 
-  const visibleMenuItems = ALL_MENU_ITEMS.filter(isItemVisible);
+  const visibleMenuItems = useMemo(
+    () => ALL_MENU_ITEMS.filter(isItemVisible),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hasPermission, isManager]
+  );
 
   const handleNavClick = () => {
     if (onNavigate) {
@@ -236,4 +240,4 @@ export function Sidebar({ onNavigate, collapsed: controlledCollapsed, onCollapse
       </div>
     </aside>
   );
-}
+});

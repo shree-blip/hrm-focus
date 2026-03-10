@@ -241,6 +241,7 @@ export default function AccessControl() {
     fetchUsers();
     fetchUserOverrides();
     fetchSpamUsers();
+    refetchPermissions(); // Load all role permissions (needed only on this page)
 
     const userRolesChannel = supabase
       .channel("user-roles-changes")

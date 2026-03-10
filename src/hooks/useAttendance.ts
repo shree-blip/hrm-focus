@@ -109,9 +109,7 @@ export function useAttendance(weekStart?: Date) {
   }, [user]);
 
   useEffect(() => {
-    fetchCurrentLog();
-    fetchWeeklyLogs();
-    fetchMonthlyLogs();
+    Promise.all([fetchCurrentLog(), fetchWeeklyLogs(), fetchMonthlyLogs()]);
   }, [fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
 
   // 8-hour work duration reminder (fires 10 min before 8 hours = at 7h50m)
@@ -543,12 +541,12 @@ export function useAttendance(weekStart?: Date) {
     }
   };
 
-  const getStatus = () => {
+  const status = useMemo(() => {
     if (!currentLog) return "out";
     if (currentLog.status === "paused") return "paused";
     if (currentLog.status === "break") return "break";
     return "in";
-  };
+  }, [currentLog]);
 
   /**
    * Calculates net work hours for the month (memoized).
@@ -574,7 +572,7 @@ export function useAttendance(weekStart?: Date) {
    * Returns a detailed breakdown for admin/reporting:
    * net_work_hours, total_break_time (min), total_pause_time (min)
    */
-  const getTimeBreakdown = (logs: AttendanceLog[]) => {
+  const getTimeBreakdown = useCallback((logs: AttendanceLog[]) => {
     let workMs = 0;
     let breakMinTotal = 0;
     let pauseMinTotal = 0;
@@ -596,7 +594,11 @@ export function useAttendance(weekStart?: Date) {
       total_break_time: breakMinTotal,
       total_pause_time: pauseMinTotal,
     };
-  };
+  }, []);
+
+  const refetch = useCallback(() => {
+    Promise.all([fetchCurrentLog(), fetchWeeklyLogs(), fetchMonthlyLogs()]);
+  }, [fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
 
   return {
     currentLog,
@@ -611,14 +613,10 @@ export function useAttendance(weekStart?: Date) {
     endBreak,
     startPause,
     endPause,
-    status: getStatus(),
+    status,
     monthlyHours,
     /** Returns net_work_hours, total_break_time (min), total_pause_time (min) for any log array */
     getTimeBreakdown,
-    refetch: () => {
-      fetchCurrentLog();
-      fetchWeeklyLogs();
-      fetchMonthlyLogs();
-    },
+    refetch,
   };
 }

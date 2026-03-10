@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, lazy, Suspense } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Menu } from "lucide-react";
@@ -6,8 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
-import { ChatWidget } from "@/components/chat/ChatWidget";
 import { NotificationPermissionBanner } from "@/components/NotificationPermissionBanner";
+
+// Lazy-load ChatWidget — not needed for initial render
+const ChatWidget = lazy(() =>
+  import("@/components/chat/ChatWidget").then((m) => ({ default: m.ChatWidget }))
+);
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -62,8 +66,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
 
-      {/* Chat Widget */}
-      <ChatWidget />
+      {/* Chat Widget (lazy-loaded) */}
+      <Suspense fallback={null}>
+        <ChatWidget />
+      </Suspense>
     </div>
   );
 }

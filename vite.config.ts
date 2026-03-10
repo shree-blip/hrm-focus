@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => ({
     dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
   build: {
+    target: "es2020",
+    cssMinify: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -26,6 +28,7 @@ export default defineConfig(({ mode }) => ({
           "vendor-charts": ["recharts"],
           "vendor-grid": ["ag-grid-community", "ag-grid-react"],
           "vendor-date": ["date-fns", "react-day-picker"],
+          "vendor-pdf": ["jspdf", "jszip"],
           "vendor-radix": [
             "@radix-ui/react-accordion",
             "@radix-ui/react-alert-dialog",

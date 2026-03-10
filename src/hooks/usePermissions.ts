@@ -197,8 +197,9 @@ export function usePermissions() {
 
   useEffect(() => {
     fetchEffectivePermissions();
-    fetchRolePermissions();
-  }, [fetchEffectivePermissions, fetchRolePermissions]);
+    // NOTE: fetchRolePermissions (all roles) is NOT called automatically.
+    // It's only needed by the Access Control admin page — call refetch() there.
+  }, [fetchEffectivePermissions]);
 
   // Listen for realtime changes to re-fetch
   useEffect(() => {
@@ -224,7 +225,7 @@ export function usePermissions() {
         table: 'role_permissions',
       }, () => {
         fetchEffectivePermissions();
-        fetchRolePermissions();
+        // rolePermissions (all roles) only refreshed when refetch() is called explicitly
       })
       .subscribe();
 
