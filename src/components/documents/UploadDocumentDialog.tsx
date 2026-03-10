@@ -75,6 +75,22 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!user || isAdmin || isVP || isManager || isLineManager) return;
+
+    const fetchOwnEmployeeId = async () => {
+      const { data: profile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
+
+      if (profile) {
+        const { data: emp } = await supabase.from("employees").select("id").eq("profile_id", profile.id).maybeSingle();
+
+        if (emp) setCurrentUserEmployeeId(emp.id);
+      }
+    };
+
+    fetchOwnEmployeeId();
+  }, [user, isAdmin, isVP, isManager, isLineManager]);
+
   const fetchEmployees = async () => {
     setLoadingEmployees(true);
     const { data, error } = await supabase
