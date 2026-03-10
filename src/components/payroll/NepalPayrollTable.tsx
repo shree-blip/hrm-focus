@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Calculator, Eye, Download, TrendingUp, Info } from "lucide-react";
+import { Calculator, Eye, Download, TrendingUp, Info, Edit } from "lucide-react";
 import { calculateNepalPayroll, formatNPR } from "@/lib/nepalPayroll";
 import { SalaryBreakdownDialog } from "./SalaryBreakdownDialog";
 import { toast } from "@/hooks/use-toast";
@@ -28,9 +28,10 @@ interface NepalPayrollTableProps {
   employees: Employee[];
   isAdmin: boolean;
   onUpdateEmployee?: (employeeId: string, updates: Record<string, unknown>) => void;
+  onEditEmployee?: (employee: Employee) => void;
 }
 
-export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: NepalPayrollTableProps) {
+export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee, onEditEmployee }: NepalPayrollTableProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [globalDashain, setGlobalDashain] = useState(false);
@@ -215,7 +216,12 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
                     </TableRow>
                   ) : (
                     calculations.map(({ employee: emp, breakdown: b }, index) => (
-                      <TableRow key={emp.id} className="animate-fade-in" style={{ animationDelay: `${index * 30}ms` }}>
+                      <TableRow
+                        key={emp.id}
+                        className={`animate-fade-in${isAdmin && onEditEmployee ? " cursor-pointer hover:bg-muted/50" : ""}`}
+                        style={{ animationDelay: `${index * 30}ms` }}
+                        onClick={isAdmin && onEditEmployee ? () => onEditEmployee(emp) : undefined}
+                      >
                         <TableCell className="font-medium">
                           <div>
                             {emp.first_name} {emp.last_name}
@@ -246,14 +252,26 @@ export function NepalPayrollTable({ employees, isAdmin, onUpdateEmployee }: Nepa
                           {formatNPR(b.monthlyNetSalary)}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleViewBreakdown(emp)}
-                            title="View full breakdown"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => { e.stopPropagation(); handleViewBreakdown(emp); }}
+                              title="View full breakdown"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {isAdmin && onEditEmployee && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => { e.stopPropagation(); onEditEmployee(emp); }}
+                                title="Edit compensation"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))

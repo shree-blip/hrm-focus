@@ -328,19 +328,19 @@ export function ClockWidget() {
         {/* Action Buttons */}
         <div className="flex gap-2 flex-wrap">
           {clockStatus === "out" ? (
-            <div className="flex gap-2 w-full">
-              <Button onClick={() => clockIn(clockType, "wfo")} className="flex-1 gap-2" size="lg">
+            <div className="grid grid-cols-2 gap-2 w-full">
+              <Button onClick={() => clockIn(clockType, "wfo")} className="gap-2" size="lg">
                 <Play className="h-4 w-4" />
-                Clock In (WFO)
+                WFO
               </Button>
               <Button
                 onClick={() => clockIn(clockType, "wfh")}
                 variant="outline"
-                className="flex-1 gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+                className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
                 size="lg"
               >
                 <Play className="h-4 w-4" />
-                Clock In (WFH)
+                WFH
               </Button>
             </div>
           ) : (
@@ -445,7 +445,7 @@ export function ClockWidget() {
             <div className="flex flex-col gap-3 mt-4">
               <Button onClick={() => handleResumeWithLocation("wfo")} className="w-full gap-2 h-12 text-base" size="lg">
                 <Briefcase className="h-5 w-5" />
-                Work From Office (WFO)
+                Office (WFO)
               </Button>
               <Button
                 onClick={() => handleResumeWithLocation("wfh")}
@@ -454,7 +454,7 @@ export function ClockWidget() {
                 size="lg"
               >
                 <Home className="h-5 w-5" />
-                Work From Home (WFH)
+                Home (WFH)
               </Button>
             </div>
             <AlertDialogFooter className="mt-3">

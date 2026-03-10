@@ -1480,7 +1480,12 @@ const Payroll = () => {
                       const currencySymbol = region === "US" ? "$" : "₨";
 
                       return (
-                        <TableRow key={employee.id} className="animate-fade-in" style={{ animationDelay: `${100 + index * 30}ms` }}>
+                        <TableRow
+                          key={employee.id}
+                          className="animate-fade-in cursor-pointer hover:bg-muted/50"
+                          style={{ animationDelay: `${100 + index * 30}ms` }}
+                          onClick={() => handleEditEmployee(employee)}
+                        >
                           <TableCell className="font-medium">
                             {employee.first_name} {employee.last_name}
                           </TableCell>
@@ -1511,7 +1516,7 @@ const Payroll = () => {
                             <Button 
                               size="sm" 
                               variant="outline"
-                              onClick={() => handleEditEmployee(employee)}
+                              onClick={(e) => { e.stopPropagation(); handleEditEmployee(employee); }}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -1567,6 +1572,7 @@ const Payroll = () => {
             employees={regionEmployees as any}
             isAdmin={isVP}
             onUpdateEmployee={(employeeId, updates) => handleSaveEmployee(employeeId, updates as any)}
+            onEditEmployee={(emp) => handleEditEmployee(emp as any)}
           />
         </div>
       ) : activeTab === "contractor" ? (
