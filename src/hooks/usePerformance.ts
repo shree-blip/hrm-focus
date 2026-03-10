@@ -306,7 +306,7 @@ export function usePerformance(period: PeriodType = "this-month", customRange?: 
 
       // ---- 5.  Compute per-employee scores ----
       const result: EmployeeScore[] = employees.map(emp => {
-        const uid = (e.profile_id ? profileToUser.get(e.profile_id) : null) || "";
+        const uid = (emp.profile_id ? profileToUser.get(emp.profile_id) : null) || "";
 
         // Attendance / Utilization
         const att = attMap.get(uid) || { hours: 0, days: new Set<string>() };
