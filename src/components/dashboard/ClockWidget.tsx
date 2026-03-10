@@ -347,8 +347,13 @@ export function ClockWidget() {
             <>
               <Button
                 onClick={handleBreak}
-                variant={clockStatus === "break" ? "default" : "secondary"}
-                className="flex-1 gap-2"
+                variant="secondary"
+                className={cn(
+                  "flex-1 gap-2",
+                  clockStatus === "break"
+                    ? "bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700"
+                    : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60",
+                )}
                 size="lg"
                 disabled={clockStatus === "paused"}
               >
@@ -357,10 +362,12 @@ export function ClockWidget() {
               </Button>
               <Button
                 onClick={handlePause}
-                variant={clockStatus === "paused" ? "default" : "outline"}
+                variant="secondary"
                 className={cn(
                   "flex-1 gap-2",
-                  clockStatus === "paused" && "bg-info hover:bg-info/90 text-info-foreground",
+                  clockStatus === "paused"
+                    ? "bg-indigo-500 hover:bg-indigo-600 text-white dark:bg-indigo-600 dark:hover:bg-indigo-700"
+                    : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60",
                 )}
                 size="lg"
                 disabled={clockStatus === "break"}

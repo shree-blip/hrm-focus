@@ -15,16 +15,17 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen bg-background flex">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <Sidebar />
+        <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col lg:pl-64">
+      <div className={cn("flex-1 flex flex-col transition-all duration-300 ease-in-out", sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-64")}>
         {/* Announcement Banner - Above header, inside content area */}
         <div className="sticky top-0 z-40">
           <AnnouncementBanner />

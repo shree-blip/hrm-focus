@@ -136,7 +136,7 @@ export function RequestLeaveDialog({
   isOnLeave = false,
   currentLeave = null,
 }: RequestLeaveDialogProps) {
-  const [leaveType, setLeaveType] = useState<LeaveType | "">("");
+  const [leaveType, setLeaveType] = useState<LeaveType | "">("Other Leave");
   const [specialLeaveSubtype, setSpecialLeaveSubtype] = useState<SpecialLeaveSubtype | "">("");
   const [otherLeaveSubtype, setOtherLeaveSubtype] = useState<OtherLeaveSubtype | "">("");
   const [startDate, setStartDate] = useState<Date>();
@@ -167,7 +167,7 @@ export function RequestLeaveDialog({
   // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
-      setLeaveType("");
+      setLeaveType("Other Leave");
       setSpecialLeaveSubtype("");
       setOtherLeaveSubtype("");
       setStartDate(undefined);
@@ -214,7 +214,7 @@ export function RequestLeaveDialog({
       });
 
       // Reset form
-      setLeaveType("");
+      setLeaveType("Other Leave");
       setDateWorked(undefined);
       setLieuLeaveDate(undefined);
       setReason("");
@@ -296,7 +296,7 @@ export function RequestLeaveDialog({
     });
 
     // Reset form
-    setLeaveType("");
+    setLeaveType("Other Leave");
     setSpecialLeaveSubtype("");
     setOtherLeaveSubtype("");
     setStartDate(undefined);

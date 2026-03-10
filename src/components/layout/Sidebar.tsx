@@ -69,10 +69,17 @@ const bottomMenuItems: MenuItem[] = [{ icon: Settings, label: "Settings", href: 
 
 interface SidebarProps {
   onNavigate?: () => void;
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-export function Sidebar({ onNavigate }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+export function Sidebar({ onNavigate, collapsed: controlledCollapsed, onCollapsedChange }: SidebarProps) {
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const collapsed = controlledCollapsed ?? internalCollapsed;
+  const setCollapsed = (v: boolean) => {
+    setInternalCollapsed(v);
+    onCollapsedChange?.(v);
+  };
   const location = useLocation();
   const { isManager, isVP } = useAuth();
   const { hasPermission } = usePermissions();
