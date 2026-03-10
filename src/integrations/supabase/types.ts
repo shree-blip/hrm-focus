@@ -1047,6 +1047,64 @@ export type Database = {
           },
         ]
       }
+      feedback_360: {
+        Row: {
+          category: string
+          comment: string | null
+          created_at: string
+          from_user_id: string
+          id: string
+          period_end: string | null
+          period_start: string | null
+          rating: number
+          to_employee_id: string
+        }
+        Insert: {
+          category: string
+          comment?: string | null
+          created_at?: string
+          from_user_id: string
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          rating: number
+          to_employee_id: string
+        }
+        Update: {
+          category?: string
+          comment?: string | null
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          rating?: number
+          to_employee_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_360_to_employee_id_fkey"
+            columns: ["to_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_360_to_employee_id_fkey"
+            columns: ["to_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_360_to_employee_id_fkey"
+            columns: ["to_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grievance_attachments: {
         Row: {
           created_at: string
@@ -2880,6 +2938,146 @@ export type Database = {
             columns: ["payroll_run_id"]
             isOneToOne: false
             referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_goals: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          employee_id: string
+          id: string
+          progress: number
+          status: string
+          target_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          employee_id: string
+          id?: string
+          progress?: number
+          status?: string
+          target_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          employee_id?: string
+          id?: string
+          progress?: number
+          status?: string
+          target_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_goals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_goals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_goals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_reviews: {
+        Row: {
+          collaboration_rating: number | null
+          comments: string | null
+          communication_rating: number | null
+          created_at: string
+          employee_id: string
+          final_score: number | null
+          id: string
+          improvements: string | null
+          ownership_rating: number | null
+          period_end: string
+          period_start: string
+          quality_rating: number | null
+          reviewer_id: string
+          status: string
+          strengths: string | null
+          updated_at: string
+        }
+        Insert: {
+          collaboration_rating?: number | null
+          comments?: string | null
+          communication_rating?: number | null
+          created_at?: string
+          employee_id: string
+          final_score?: number | null
+          id?: string
+          improvements?: string | null
+          ownership_rating?: number | null
+          period_end: string
+          period_start: string
+          quality_rating?: number | null
+          reviewer_id: string
+          status?: string
+          strengths?: string | null
+          updated_at?: string
+        }
+        Update: {
+          collaboration_rating?: number | null
+          comments?: string | null
+          communication_rating?: number | null
+          created_at?: string
+          employee_id?: string
+          final_score?: number | null
+          id?: string
+          improvements?: string | null
+          ownership_rating?: number | null
+          period_end?: string
+          period_start?: string
+          quality_rating?: number | null
+          reviewer_id?: string
+          status?: string
+          strengths?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_reviews_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
