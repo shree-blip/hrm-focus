@@ -99,12 +99,18 @@ export function useDocuments() {
           return false;
         }
 
-        // Compliance - visible to uploader, admin, VP, and the assigned employee
+        // Compliance - visible to uploader, admin, VP, assigned employee, and their line manager
         if (doc.category === "Compliance") {
           if (doc.uploaded_by === user.id) return true;
           if (canManageDocs) return true;
           // Employee can see their own compliance docs
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
+          // Line manager can see their direct reports' compliance docs
+          if (isLineManager && doc.employee_id && managedEmployeeIds.includes(doc.uploaded_by)) return true;
+          if (isLineManager && doc.employee_id && managedEmployeeIds.some(mid => {
+            // Check if the doc's employee_id matches a managed employee's profile
+            return true; // Already covered by managedEmployeeIds from profiles query
+          })) return false;
           return false;
         }
 
