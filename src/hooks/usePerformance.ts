@@ -185,7 +185,7 @@ export function usePerformance(period: PeriodType = "this-month", customRange?: 
       const profileToUser = new Map(profiles?.map(p => [p.id, p.user_id]) || []);
 
       const userIds = employees
-        .map(e => e.user_id || (e.profile_id ? profileToUser.get(e.profile_id) : null))
+        .map(e => e.profile_id ? profileToUser.get(e.profile_id) : null)
         .filter(Boolean) as string[];
 
       // ---- 2.  Fetch attendance logs in range ----
