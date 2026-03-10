@@ -1,0 +1,1 @@
+ALTER TABLE public.payroll_run_details ADD COLUMN IF NOT EXISTS days_worked NUMERIC;

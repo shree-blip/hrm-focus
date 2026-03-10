@@ -2635,6 +2635,7 @@ export type Database = {
           actual_hours: number | null
           bank_hours_used: number
           created_at: string
+          days_worked: number | null
           deductions: number | null
           department: string | null
           employee_id: string | null
@@ -2658,6 +2659,7 @@ export type Database = {
           actual_hours?: number | null
           bank_hours_used?: number
           created_at?: string
+          days_worked?: number | null
           deductions?: number | null
           department?: string | null
           employee_id?: string | null
@@ -2681,6 +2683,7 @@ export type Database = {
           actual_hours?: number | null
           bank_hours_used?: number
           created_at?: string
+          days_worked?: number | null
           deductions?: number | null
           department?: string | null
           employee_id?: string | null
