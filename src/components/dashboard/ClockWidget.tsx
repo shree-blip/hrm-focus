@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useAttendance } from "@/hooks/useAttendance";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { AlertTriangle, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -329,19 +330,33 @@ export function ClockWidget() {
         <div className="flex gap-2 flex-wrap">
           {clockStatus === "out" ? (
             <div className="grid grid-cols-2 gap-2 w-full">
-              <Button onClick={() => clockIn(clockType, "wfo")} className="gap-2" size="lg">
-                <Play className="h-4 w-4" />
-                Clock In WFO
-              </Button>
-              <Button
-                onClick={() => clockIn(clockType, "wfh")}
-                variant="outline"
-                className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
-                size="lg"
-              >
-                <Play className="h-4 w-4" />
-                Clock In WFH
-              </Button>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button onClick={() => clockIn(clockType, "wfo")} className="gap-2" size="lg">
+                    <Play className="h-4 w-4" />
+                    WFO
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="font-medium">
+                  Working from office
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => clockIn(clockType, "wfh")}
+                    variant="outline"
+                    className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+                    size="lg"
+                  >
+                    <Play className="h-4 w-4" />
+                    WFH
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="font-medium">
+                  Working from home
+                </TooltipContent>
+              </Tooltip>
             </div>
           ) : (
             <>
