@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -166,8 +166,7 @@ export function RealTimeAttendanceWidget() {
     return () => clearInterval(clockInterval);
   }, []);
 
-  // Map from user_id to employee id for realtime matching — use ref to avoid subscription recreation
-  const userToEmpMapRef = useRef<Map<string, string>>(new Map());
+  // Map from user_id to employee id for realtime matching
   const [userToEmpMap, setUserToEmpMap] = useState<Map<string, string>>(new Map());
 
   const fetchData = useCallback(async () => {
@@ -195,7 +194,6 @@ export function RealTimeAttendanceWidget() {
       const userId = e.profiles?.user_id;
       if (userId) uToE.set(userId, e.id);
     });
-    userToEmpMapRef.current = uToE;
     setUserToEmpMap(uToE);
 
     // Map logs by employee/user
@@ -324,15 +322,15 @@ export function RealTimeAttendanceWidget() {
         return;
       }
 
-      // Resolve the employee_id from the log — either directly or via user_id ref map
-      const resolvedEmpId = log.employee_id || userToEmpMapRef.current.get(log.user_id);
+      // Resolve the employee_id from the log — either directly or via user_id map
+      const resolvedEmpId = log.employee_id || userToEmpMap.get(log.user_id);
 
       if (!resolvedEmpId) {
         // Can't match to an employee, do a full refetch
         fetchData();
         return;
       }
-      // Update the detailed logs array
+      // Add this block to update the detailed logs array
       setDailyLogs((prevLogs) => {
         const exists = prevLogs.find((l) => l.id === log.id);
         if (exists) {
@@ -410,34 +408,21 @@ export function RealTimeAttendanceWidget() {
         return updated;
       });
     },
-    [fetchData],
+    [fetchData, userToEmpMap],
   );
-
-  // Stable ref for the handler so subscription doesn't recreate
-  const handleRealtimeRef = useRef(handleRealtimeChange);
-  handleRealtimeRef.current = handleRealtimeChange;
 
   useEffect(() => {
     fetchData();
-
-    // Primary: Realtime subscription
     const channel = supabase
       .channel("live-attendance")
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, (payload) => {
-        handleRealtimeRef.current(payload);
-      })
-      .subscribe((status) => {
-        console.log("[RealTimeAttendance] Channel status:", status);
-      });
-
-    // Fallback: Poll every 15s to catch any missed realtime events
-    const interval = setInterval(fetchData, 15_000);
-
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, handleRealtimeChange)
+      .subscribe();
+    const interval = setInterval(fetchData, 60000);
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [fetchData]);
+  }, [fetchData, handleRealtimeChange]);
 
   // Filter employees based on active filter
   const filteredEmployees = employees.filter((emp) => {
