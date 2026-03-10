@@ -4,10 +4,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useClients } from "@/hooks/useClients";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { InvoiceFormData } from "@/hooks/useInvoices";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const CURRENCIES = ["NPR","USD","EUR","GBP","INR"];
+
+const INVOICE_CLIENT_NAMES = ["Focus Your Finance Inc", "Focus Data Analysis LLC"];
+const FIXED_CLIENT_ADDRESS = "350 Main St Suite H-7\nPleasanton CA 94566";
 
 interface Props {
   formData: InvoiceFormData;
@@ -17,15 +21,44 @@ interface Props {
 
 export default function InvoiceForm({ formData, onChange, disabled }: Props) {
   const { clients } = useClients();
+  const { user } = useAuth();
 
+  // Filter clients to only show the two allowed ones
+  const invoiceClients = clients.filter(c =>
+    INVOICE_CLIENT_NAMES.some(name => c.name.toLowerCase().includes(name.toLowerCase()))
+  );
+
+  // Auto-fill sender name and email from profile on mount
+  useEffect(() => {
+    if (!user || formData.sender_name) return;
+    supabase
+      .from("profiles")
+      .select("first_name, last_name, email")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
+          onChange({
+            sender_name: fullName,
+            sender_email: data.email || user.email || "",
+          });
+        }
+      });
+  }, [user]);
+
+  // Auto-fill client name and fixed address when client is selected
   useEffect(() => {
     if (formData.bill_to_client_id) {
-      const client = clients.find(c => c.id === formData.bill_to_client_id);
-      if (client && formData.bill_to_name !== client.name) {
-        onChange({ bill_to_name: client.name });
+      const client = invoiceClients.find(c => c.id === formData.bill_to_client_id);
+      if (client) {
+        const updates: Partial<InvoiceFormData> = {};
+        if (formData.bill_to_name !== client.name) updates.bill_to_name = client.name;
+        if (formData.bill_to_address !== FIXED_CLIENT_ADDRESS) updates.bill_to_address = FIXED_CLIENT_ADDRESS;
+        if (Object.keys(updates).length) onChange(updates);
       }
     }
-  }, [formData.bill_to_client_id, clients]);
+  }, [formData.bill_to_client_id, invoiceClients]);
 
   return (
     <div className="space-y-6">
@@ -34,7 +67,7 @@ export default function InvoiceForm({ formData, onChange, disabled }: Props) {
         <legend className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">Your Details</legend>
         <div>
           <Label className="text-xs">Full Name</Label>
-          <Input value={formData.sender_name} onChange={e => onChange({ sender_name: e.target.value })} placeholder="Your full name" />
+          <Input value={formData.sender_name} readOnly className="bg-muted" />
         </div>
         <div>
           <Label className="text-xs">Address</Label>
@@ -42,7 +75,7 @@ export default function InvoiceForm({ formData, onChange, disabled }: Props) {
         </div>
         <div>
           <Label className="text-xs">Email</Label>
-          <Input type="email" value={formData.sender_email} onChange={e => onChange({ sender_email: e.target.value })} placeholder="your@email.com" />
+          <Input type="email" value={formData.sender_email} readOnly className="bg-muted" />
         </div>
       </fieldset>
 
@@ -54,13 +87,13 @@ export default function InvoiceForm({ formData, onChange, disabled }: Props) {
           <Select value={formData.bill_to_client_id} onValueChange={v => onChange({ bill_to_client_id: v })}>
             <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
             <SelectContent>
-              {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              {invoiceClients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div>
           <Label className="text-xs">Client Address</Label>
-          <Textarea rows={2} value={formData.bill_to_address} onChange={e => onChange({ bill_to_address: e.target.value })} placeholder="Client address" />
+          <Textarea rows={2} value={formData.bill_to_address} readOnly className="bg-muted" />
         </div>
         <div>
           <Label className="text-xs">Invoice Number</Label>
@@ -89,20 +122,9 @@ export default function InvoiceForm({ formData, onChange, disabled }: Props) {
           <Label className="text-xs">Service Description</Label>
           <Textarea rows={3} value={formData.service_description} onChange={e => onChange({ service_description: e.target.value })} placeholder="Describe the service provided" />
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2">
-            <Label className="text-xs">Amount</Label>
-            <Input type="number" min={0} step="0.01" value={formData.amount || ""} onChange={e => onChange({ amount: parseFloat(e.target.value) || 0 })} placeholder="0.00" />
-          </div>
-          <div>
-            <Label className="text-xs">Currency</Label>
-            <Select value={formData.currency} onValueChange={v => onChange({ currency: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+        <div>
+          <Label className="text-xs">Amount (NPR)</Label>
+          <Input type="number" min={0} step="0.01" value={formData.amount || ""} onChange={e => onChange({ amount: parseFloat(e.target.value) || 0 })} placeholder="0.00" />
         </div>
       </fieldset>
 
