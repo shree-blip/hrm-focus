@@ -9,7 +9,6 @@ import {
   CheckSquare,
   Wallet,
   FileText,
-  FileDown,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -39,6 +38,8 @@ interface MenuItem {
   alwaysVisible?: boolean;
   /** Only for roles that are managers+ (legacy, used as fallback) */
   managerOnly?: boolean;
+  /** Hide this item when user has ANY of these higher-level permissions */
+  hideIfHas?: Permission[];
 }
 
 /**
@@ -61,8 +62,9 @@ const ALL_MENU_ITEMS: MenuItem[] = [
   { icon: FileText, label: "Documents", href: "/documents", permissions: ["manage_documents", "view_documents"] },
   { icon: Receipt, label: "Invoices", href: "/invoices", permissions: ["view_invoices", "manage_invoices"] },
   { icon: UserPlus, label: "Onboarding", href: "/onboarding", permissions: ["manage_onboarding"] },
+  { icon: UserPlus, label: "My Onboarding", href: "/my-onboarding", permissions: ["view_onboarding"], hideIfHas: ["manage_onboarding"] },
   { icon: Wallet, label: "Payroll", href: "/payroll", permissions: ["manage_payroll", "view_payroll"] },
-  { icon: FileDown, label: "My Payslips", href: "/my-payslips", permissions: ["view_payslips"] },
+  { icon: Wallet, label: "Payroll", href: "/my-payslips", permissions: ["view_payslips"], hideIfHas: ["manage_payroll", "view_payroll"] },
   { icon: Landmark, label: "Loans", href: "/loans", permissions: ["manage_loans", "view_loans"] },
   { icon: Bug, label: "Support", href: "/support", permissions: ["manage_support", "view_support"] },
   { icon: Users, label: "Profile", href: "/profile", alwaysVisible: true },
@@ -89,6 +91,8 @@ export function Sidebar({ onNavigate, collapsed: controlledCollapsed, onCollapse
   const { hasPermission } = usePermissions();
 
   const isItemVisible = (item: MenuItem): boolean => {
+    // Hide if user has a higher-level permission that supersedes this entry
+    if (item.hideIfHas?.some(p => hasPermission(p))) return false;
     if (item.alwaysVisible) return true;
     if (item.permissions) {
       // Check effective permissions (role + overrides)
