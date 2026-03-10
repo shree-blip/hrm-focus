@@ -166,7 +166,8 @@ export function RealTimeAttendanceWidget() {
     return () => clearInterval(clockInterval);
   }, []);
 
-  // Map from user_id to employee id for realtime matching
+  // Map from user_id to employee id for realtime matching — use ref to avoid subscription recreation
+  const userToEmpMapRef = useRef<Map<string, string>>(new Map());
   const [userToEmpMap, setUserToEmpMap] = useState<Map<string, string>>(new Map());
 
   const fetchData = useCallback(async () => {
