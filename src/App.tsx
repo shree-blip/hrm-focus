@@ -60,6 +60,7 @@ const LogSheet = lazyRetry(() => import("./pages/LogSheet"));
 const Support = lazyRetry(() => import("./pages/Support"));
 const Loans = lazyRetry(() => import("./pages/Loans"));
 const Invoices = lazyRetry(() => import("./pages/Invoices"));
+const MyPayslips = lazyRetry(() => import("./pages/MyPayslips"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -101,6 +102,7 @@ const App = () => (
             <Route path="/approvals" element={<ProtectedRoute requiredPermission="approve_leave"><Approvals /></ProtectedRoute>} />
             <Route path="/tasks" element={<ProtectedRoute requiredPermission={["manage_tasks", "view_tasks"]}><Tasks /></ProtectedRoute>} />
             <Route path="/payroll" element={<ProtectedRoute requiredPermission={["manage_payroll", "view_payroll", "view_payslips"]}><Payroll /></ProtectedRoute>} />
+            <Route path="/my-payslips" element={<ProtectedRoute requiredPermission="view_payslips"><MyPayslips /></ProtectedRoute>} />
             <Route path="/performance" element={<ProtectedRoute requiredPermission="view_performance"><Performance /></ProtectedRoute>} />
             <Route path="/documents" element={<ProtectedRoute requiredPermission={["manage_documents", "view_documents"]}><Documents /></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute requiredPermission="manage_onboarding"><Onboarding /></ProtectedRoute>} />
