@@ -53,6 +53,7 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [currentUserEmployeeId, setCurrentUserEmployeeId] = useState<string | null>(null);
 
   // Compliance-specific fields
   const [bankAccountNumber, setBankAccountNumber] = useState("");
