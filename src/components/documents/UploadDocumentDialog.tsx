@@ -126,7 +126,8 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
     return cats;
   };
 
-  const requiresEmployeeSelection = category === "Compliance" || category === "Contracts";
+  const isManagerOrAbove = isAdmin || isVP || isManager || isLineManager;
+  const requiresEmployeeSelection = (category === "Compliance" && isManagerOrAbove) || category === "Contracts";
   const isComplianceCategory = category === "Compliance";
 
   const validateFile = (selectedFile: File): boolean => {
