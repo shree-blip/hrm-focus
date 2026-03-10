@@ -224,7 +224,11 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
       date: dateStr,
       status: "active",
       file: mainFile || undefined,
-      employeeId: requiresEmployeeSelection ? selectedEmployeeId : undefined,
+      employeeId: requiresEmployeeSelection
+        ? selectedEmployeeId
+        : category === "Compliance"
+          ? currentUserEmployeeId || undefined
+          : undefined,
       complianceData: isComplianceCategory
         ? {
             bankAccountNumber: bankAccountNumber || undefined,
