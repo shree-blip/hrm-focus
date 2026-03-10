@@ -39,8 +39,10 @@ const PERIOD_OPTIONS: { value: PeriodType; label: string }[] = [
 ];
 
 const Performance = () => {
-  const { isManager, isVP, isAdmin, user } = useAuth();
+  const { isManager, isVP, isAdmin, user, isLineManager, isSupervisor } = useAuth();
   const canManage = isManager || isVP || isAdmin;
+  const isTeamView = canManage || isLineManager || isSupervisor;
+  const isEmployeeView = !isTeamView;
 
   // Period filter
   const [period, setPeriod] = useState<PeriodType>("this-month");
@@ -102,6 +104,13 @@ const Performance = () => {
     return me?.id;
   }, [employees, user]);
 
+  // For employee-only view: extract their single score entry
+  const myScore = useMemo(() => {
+    if (scores.length === 0) return null;
+    if (isEmployeeView) return scores[0] || null;
+    return scores.find(s => s.userId === user?.id) || null;
+  }, [scores, isEmployeeView, user]);
+
   const loading = perfLoading || reviewsLoading;
 
   if (loading) {
@@ -119,9 +128,15 @@ const Performance = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Performance</h1>
+          <h1 className="text-3xl font-display font-bold text-foreground">
+            {isEmployeeView ? "My Performance" : isVP || isAdmin ? "Company Performance" : "Team Performance"}
+          </h1>
           <p className="text-muted-foreground mt-1">
-            Real performance scores based on attendance, tasks &amp; reviews
+            {isEmployeeView
+              ? "Your personal performance metrics based on attendance, tasks & reviews"
+              : isVP || isAdmin
+                ? "Company-wide performance dashboard"
+                : "Performance overview for your team"}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -152,40 +167,77 @@ const Performance = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <KPICard
-          delay={100}
-          title="Avg. Utilization"
-          value={`${kpis.avgUtilization}%`}
-          subtitle="Hours worked / expected"
-          icon={<Target className="h-6 w-6 text-primary" />}
-          iconBg="bg-primary/10"
-        />
-        <KPICard
-          delay={150}
-          title="Tasks Completed"
-          value={kpis.totalTasksCompleted.toString()}
-          subtitle={`${dateRange.start.toLocaleDateString()} – ${dateRange.end.toLocaleDateString()}`}
-          icon={<TrendingUp className="h-6 w-6 text-success" />}
-          iconBg="bg-success/10"
-        />
-        <KPICard
-          delay={200}
-          title="Avg. Score"
-          value={kpis.avgScore.toString()}
-          subtitle="Weighted composite /100"
-          icon={<Award className="h-6 w-6 text-warning" />}
-          iconBg="bg-warning/10"
-        />
-        <KPICard
-          delay={250}
-          title="Top Performers"
-          value={kpis.topPerformers.toString()}
-          subtitle={`Score ≥ 80 of ${kpis.totalEmployees}`}
-          icon={<Users className="h-6 w-6 text-info" />}
-          iconBg="bg-info/10"
-        />
-      </div>
+      {isEmployeeView && myScore ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <KPICard
+            delay={100}
+            title="My Score"
+            value={myScore.performanceScore.toString()}
+            subtitle="Weighted composite /100"
+            icon={<Award className="h-6 w-6 text-primary" />}
+            iconBg="bg-primary/10"
+          />
+          <KPICard
+            delay={150}
+            title="Utilization"
+            value={`${myScore.utilization}%`}
+            subtitle={`${myScore.hoursWorked}h worked`}
+            icon={<Target className="h-6 w-6 text-success" />}
+            iconBg="bg-success/10"
+          />
+          <KPICard
+            delay={200}
+            title="Tasks"
+            value={`${myScore.tasksCompleted}/${myScore.tasksTotal}`}
+            subtitle="Completed / total"
+            icon={<TrendingUp className="h-6 w-6 text-warning" />}
+            iconBg="bg-warning/10"
+          />
+          <KPICard
+            delay={250}
+            title="Reliability"
+            value={`${myScore.reliability}%`}
+            subtitle={`${myScore.daysWorked} days attended`}
+            icon={<Users className="h-6 w-6 text-info" />}
+            iconBg="bg-info/10"
+          />
+        </div>
+      ) : !isEmployeeView ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <KPICard
+            delay={100}
+            title="Avg. Utilization"
+            value={`${kpis.avgUtilization}%`}
+            subtitle="Hours worked / expected"
+            icon={<Target className="h-6 w-6 text-primary" />}
+            iconBg="bg-primary/10"
+          />
+          <KPICard
+            delay={150}
+            title="Tasks Completed"
+            value={kpis.totalTasksCompleted.toString()}
+            subtitle={`${dateRange.start.toLocaleDateString()} – ${dateRange.end.toLocaleDateString()}`}
+            icon={<TrendingUp className="h-6 w-6 text-success" />}
+            iconBg="bg-success/10"
+          />
+          <KPICard
+            delay={200}
+            title="Avg. Score"
+            value={kpis.avgScore.toString()}
+            subtitle="Weighted composite /100"
+            icon={<Award className="h-6 w-6 text-warning" />}
+            iconBg="bg-warning/10"
+          />
+          <KPICard
+            delay={250}
+            title="Top Performers"
+            value={kpis.topPerformers.toString()}
+            subtitle={`Score ≥ 80 of ${kpis.totalEmployees}`}
+            icon={<Users className="h-6 w-6 text-info" />}
+            iconBg="bg-info/10"
+          />
+        </div>
+      ) : null}
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
@@ -197,6 +249,89 @@ const Performance = () => {
 
         {/* ---- OVERVIEW TAB ---- */}
         <TabsContent value="overview" className="space-y-6">
+          {/* ---- EMPLOYEE PERSONAL VIEW ---- */}
+          {isEmployeeView && (
+            myScore ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Personal Radar Chart */}
+                <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms", animationFillMode: "forwards" }}>
+                  <CardHeader>
+                    <CardTitle className="font-display text-lg flex items-center gap-2">
+                      <Award className="h-5 w-5 text-primary" />
+                      My Performance
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {radarData.length > 0 ? (
+                      <div className="h-[280px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart data={radarData}>
+                            <PolarGrid stroke="hsl(var(--border))" />
+                            <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11 }} />
+                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                            <Radar
+                              name="Score"
+                              dataKey="value"
+                              stroke="hsl(192, 82%, 28%)"
+                              fill="hsl(192, 82%, 28%)"
+                              fillOpacity={0.3}
+                              strokeWidth={2}
+                            />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <p className="text-center text-muted-foreground py-12">No data for this period</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Score Breakdown */}
+                <Card className="animate-slide-up opacity-0" style={{ animationDelay: "350ms", animationFillMode: "forwards" }}>
+                  <CardHeader>
+                    <CardTitle className="font-display text-lg">Score Breakdown</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {[
+                      { label: "Utilization", value: myScore.utilization, weight: "35%", detail: `${myScore.hoursWorked}h / ${myScore.expectedHours}h worked` },
+                      { label: "Task Delivery", value: myScore.taskDelivery, weight: "35%", detail: `${myScore.tasksOnTime} on-time / ${myScore.tasksTotal} total` },
+                      { label: "Quality", value: myScore.qualityScore, weight: "20%", detail: myScore.avgQuality !== null ? `${myScore.avgQuality.toFixed(1)} / 5 avg review` : "No reviews yet" },
+                      { label: "Reliability", value: myScore.reliability, weight: "10%", detail: `${myScore.daysWorked} days attended` },
+                    ].map(m => (
+                      <div key={m.label} className="space-y-1.5">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-medium">{m.label} <span className="text-muted-foreground font-normal">({m.weight})</span></span>
+                          <span className="font-mono">{m.value}%</span>
+                        </div>
+                        <Progress value={m.value} className="h-2" />
+                        <p className="text-xs text-muted-foreground">{m.detail}</p>
+                      </div>
+                    ))}
+                    <div className="pt-4 border-t">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">Overall Score</span>
+                        <ScoreBadge score={myScore.performanceScore} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms", animationFillMode: "forwards" }}>
+                <CardContent className="py-12">
+                  <div className="text-center text-muted-foreground">
+                    <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-2">No Performance Data</p>
+                    <p className="text-sm">Your performance metrics will appear here once attendance and tasks are recorded.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          )}
+
+          {/* ---- TEAM / COMPANY VIEW ---- */}
+          {!isEmployeeView && (
+          <>
           {/* Charts row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Bar chart */}
@@ -350,6 +485,8 @@ const Performance = () => {
               )}
             </CardContent>
           </Card>
+          </>
+          )}
         </TabsContent>
 
         {/* ---- REVIEWS TAB ---- */}
