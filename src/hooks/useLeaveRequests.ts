@@ -388,28 +388,29 @@ export function useLeaveRequests() {
       days = Math.ceil((request.end_date.getTime() - request.start_date.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     }
 
-    // Only check balance for Annual Leave
-    if (request.leave_type === "Annual Leave") {
-      const balanceForType = balances.find((b) => b.leave_type === request.leave_type);
+    // Only check balance for Annual Leave (and Sick Leave which deducts from annual)
+    const isSickLeave = request.leave_type === "Other Leave - Sick Leave";
+    if (request.leave_type === "Annual Leave" || isSickLeave) {
+      const balanceForType = balances.find((b) => b.leave_type === "Annual Leave");
       if (balanceForType) {
         const availableDays = balanceForType.total_days - balanceForType.used_days;
         if (days > availableDays) {
           toast({
             title: "Insufficient Balance",
-            description: `You only have ${availableDays} days available for ${request.leave_type}.`,
+            description: `You only have ${availableDays} annual leave days available.${isSickLeave ? " Sick leave deducts from annual leave." : ""}`,
             variant: "destructive",
           });
           return;
         }
       } else {
         const usedAnnualLeave = ownRequests
-          .filter((r) => r.status === "approved" && r.leave_type === "Annual Leave" && r.user_id === user.id)
+          .filter((r) => r.status === "approved" && (r.leave_type === "Annual Leave" || r.leave_type === "Other Leave - Sick Leave") && r.user_id === user.id)
           .reduce((sum, r) => sum + r.days, 0);
 
         if (days > 12 - usedAnnualLeave) {
           toast({
             title: "Insufficient Balance",
-            description: `You only have ${12 - usedAnnualLeave} days available for Annual Leave.`,
+            description: `You only have ${12 - usedAnnualLeave} annual leave days available.${isSickLeave ? " Sick leave deducts from annual leave." : ""}`,
             variant: "destructive",
           });
           return;

@@ -27,6 +27,10 @@ const LEAVE_TYPES = {
 
 // Other Leave subtypes (moved from old Leave on Leave)
 const OTHER_LEAVE_SUBTYPES = {
+  "Sick Leave": {
+    days: null,
+    description: "Leave due to illness (deducts from annual leave)",
+  },
   "Extension Request": {
     days: null,
     description: "Extend your current leave period",

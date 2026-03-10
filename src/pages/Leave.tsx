@@ -51,6 +51,11 @@ const isOtherLeaveType = (leaveType: string) => {
   return leaveType.startsWith("Other Leave");
 };
 
+// Helper to check if a leave type is Sick Leave (stored as "Other Leave - Sick Leave")
+const isSickLeaveType = (leaveType: string) => {
+  return leaveType === "Other Leave - Sick Leave";
+};
+
 // Legacy support: also check old "Leave on Leave" prefix
 const isLeaveOnLeaveType = (leaveType: string) => {
   return leaveType.startsWith("Leave on Leave") || leaveType.startsWith("Leave on Lieu");
@@ -165,6 +170,19 @@ const Leave = () => {
       .reduce((sum, r) => sum + r.days, 0);
   };
 
+  // Get total annual leave used including sick leave (which deducts from annual)
+  const getAnnualLeaveUsedTotal = () => {
+    return ownRequests
+      .filter((r) => r.status === "approved" && (r.leave_type === "Annual Leave" || isSickLeaveType(r.leave_type)) && r.user_id === user?.id)
+      .reduce((sum, r) => sum + r.days, 0);
+  };
+
+  const getSickLeaveUsed = () => {
+    return ownRequests
+      .filter((r) => r.status === "approved" && isSickLeaveType(r.leave_type) && r.user_id === user?.id)
+      .reduce((sum, r) => sum + r.days, 0);
+  };
+
   // Calculate special leave usage (sum of all special leave subtypes) (ONLY for current user)
   const getSpecialLeaveUsed = () => {
     const specialLeaveTypes = Object.keys(SPECIAL_LEAVE_TYPES);
@@ -273,6 +291,7 @@ const Leave = () => {
 
                         // Determine leave type category for badge color
                         const isLieu = isLeaveOnLieuType(leave.leave_type);
+                        const isSick = isSickLeaveType(leave.leave_type);
                         const isOther = isOtherLeaveType(leave.leave_type);
 
                         return (
@@ -293,14 +312,16 @@ const Leave = () => {
                                   variant="outline"
                                   className={cn(
                                     "text-[10px] px-1.5 py-0 h-4",
-                                    isLieu
-                                      ? "bg-orange-500/10 text-orange-600 border-orange-500/30"
-                                      : isOther
-                                        ? "bg-violet-500/10 text-violet-600 border-violet-500/30"
-                                        : "bg-success/10 text-success border-success/30",
+                                    isSick
+                                      ? "bg-red-500/10 text-red-600 border-red-500/30"
+                                      : isLieu
+                                        ? "bg-orange-500/10 text-orange-600 border-orange-500/30"
+                                        : isOther
+                                          ? "bg-violet-500/10 text-violet-600 border-violet-500/30"
+                                          : "bg-success/10 text-success border-success/30",
                                   )}
                                 >
-                                  {isLieu ? "Lieu" : isOther ? "Other" : leave.leave_type.replace(" Leave", "")}
+                                  {isSick ? "Sick" : isLieu ? "Lieu" : isOther ? "Other" : leave.leave_type.replace(" Leave", "")}
                                 </Badge>
                                 <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                                   <Clock className="h-2.5 w-2.5" />
@@ -335,7 +356,7 @@ const Leave = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Annual Leave Balance</p>
-                <p className="text-2xl font-bold mt-1">{12 - getUsedDaysForType("Annual Leave")} days</p>
+                <p className="text-2xl font-bold mt-1">{12 - getAnnualLeaveUsedTotal()} days</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Calendar className="h-6 w-6 text-primary" />
@@ -401,24 +422,24 @@ const Leave = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-medium text-muted-foreground">Annual Leave</p>
-              <Badge variant="secondary">{12 - getUsedDaysForType("Annual Leave")} days left</Badge>
+              <Badge variant="secondary">{12 - getAnnualLeaveUsedTotal()} days left</Badge>
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-display font-bold">{12 - getUsedDaysForType("Annual Leave")}</span>
+                <span className="text-3xl font-display font-bold">{12 - getAnnualLeaveUsedTotal()}</span>
                 <span className="text-muted-foreground">/ 12 days</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500 bg-primary"
                   style={{
-                    width: `${Math.min((getUsedDaysForType("Annual Leave") / 12) * 100, 100)}%`,
+                    width: `${Math.min((getAnnualLeaveUsedTotal() / 12) * 100, 100)}%`,
                   }}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                {getUsedDaysForType("Annual Leave")} days used •{" "}
-                {((getUsedDaysForType("Annual Leave") / 12) * 100).toFixed(0)}% utilized
+                {getUsedDaysForType("Annual Leave")} annual + {getSickLeaveUsed()} sick used •{" "}
+                {((getAnnualLeaveUsedTotal() / 12) * 100).toFixed(0)}% utilized
               </p>
             </div>
           </CardContent>
@@ -616,6 +637,8 @@ const Leave = () => {
                 // Determine leave type badge color
                 const getLeaveTypeBadgeClass = (leaveType: string) => {
                   if (leaveType === "Annual Leave") return "bg-primary/10 text-primary";
+                  if (isSickLeaveType(leaveType))
+                    return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30";
                   if (Object.keys(SPECIAL_LEAVE_TYPES).includes(leaveType)) return "bg-warning/10 text-warning";
                   if (isLeaveOnLieuType(leaveType))
                     return "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30";
@@ -632,6 +655,9 @@ const Leave = () => {
                       return `Lieu (worked: ${format(new Date(dateMatch[1] + "T12:00:00"), "MMM d")})`;
                     }
                     return leaveType.replace("Leave on Lieu - ", "Lieu: ");
+                  }
+                  if (isSickLeaveType(leaveType)) {
+                    return "Sick Leave";
                   }
                   if (isOtherLeaveType(leaveType)) {
                     return leaveType.replace("Other Leave - ", "");
