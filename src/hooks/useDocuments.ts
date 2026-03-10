@@ -43,17 +43,19 @@ export function useDocuments() {
     setLoading(true);
 
     try {
-      // Step 1: Fetch managed employees first (if user is manager/line manager)
-      let managedEmployeeIds: string[] = [];
+      // Step 1: Fetch managed employee record IDs (if user is manager/line manager)
+      let managedEmployeeRecordIds: string[] = [];
 
       if (canManageDocs || isLineManager) {
-        const { data: managedProfiles, error: managedError } = await supabase
-          .from("profiles")
-          .select("user_id")
-          .or(`manager_id.eq.${user.id},line_manager_id.eq.${user.id}`);
-
-        if (!managedError && managedProfiles) {
-          managedEmployeeIds = managedProfiles.map((p) => p.user_id);
+        const userEmpId = await supabase.rpc('get_employee_id_for_user', { _user_id: user.id });
+        if (userEmpId.data) {
+          const { data: directReports } = await supabase
+            .from("employees")
+            .select("id")
+            .or(`manager_id.eq.${userEmpId.data},line_manager_id.eq.${userEmpId.data}`);
+          if (directReports) {
+            managedEmployeeRecordIds = directReports.map((e) => e.id);
+          }
         }
       }
 
@@ -99,12 +101,12 @@ export function useDocuments() {
           return false;
         }
 
-        // Compliance - visible to uploader, admin, VP, and the assigned employee
+        // Compliance - visible to uploader, admin, VP, assigned employee, and their line manager
         if (doc.category === "Compliance") {
           if (doc.uploaded_by === user.id) return true;
           if (canManageDocs) return true;
-          // Employee can see their own compliance docs
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
+          if (isLineManager && doc.employee_id && managedEmployeeRecordIds.includes(doc.employee_id)) return true;
           return false;
         }
 
