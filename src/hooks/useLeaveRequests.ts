@@ -311,29 +311,8 @@ export function useLeaveRequests() {
 
     if (configError || !balanceConfigs) return;
 
-    const { data: approvedRequests, error: requestsError } = await supabase
-      .from("leave_requests")
-      .select("leave_type, days")
-      .eq("user_id", user.id)
-      .eq("status", "approved");
-
-    if (requestsError) return;
-
-    const usedDaysByType: Record<string, number> = {};
-
-    approvedRequests?.forEach((request) => {
-      if (!usedDaysByType[request.leave_type]) {
-        usedDaysByType[request.leave_type] = 0;
-      }
-      usedDaysByType[request.leave_type] += request.days;
-    });
-
-    const updatedBalances = balanceConfigs.map((config) => ({
-      ...config,
-      used_days: usedDaysByType[config.leave_type] || 0,
-    })) as LeaveBalance[];
-
-    setBalances(updatedBalances);
+    // Use used_days directly from the database (manually managed balances)
+    setBalances(balanceConfigs as LeaveBalance[]);
   }, [user]);
 
   const loadAllData = useCallback(async () => {
