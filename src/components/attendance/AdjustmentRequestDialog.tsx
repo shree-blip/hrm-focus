@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
+import { toNPT, toPST } from "@/utils/timezone";
 
 interface AttendanceLog {
   id: string;
