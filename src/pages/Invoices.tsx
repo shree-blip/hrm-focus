@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Printer, Upload, Send } from "lucide-react";
+import { ArrowLeft, Printer, Download, Send } from "lucide-react";
 import { toast } from "sonner";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import InvoiceForm from "@/components/invoices/InvoiceForm";
