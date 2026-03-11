@@ -205,14 +205,16 @@ const Attendance = () => {
         hours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
       }
       return [
-        format(clockIn, "yyyy-MM-dd"),
-        format(clockIn, "hh:mm a"),
-        clockOut ? format(clockOut, "hh:mm a") : "-",
-        log.break_start ? format(new Date(log.break_start), "HH:mm") : "-",
-        log.break_end ? format(new Date(log.break_end), "HH:mm") : "-",
+        getNPTDateDisplay(log.clock_in),
+        toNPT(log.clock_in),
+        toPST(log.clock_in),
+        clockOut ? toNPT(log.clock_out!) : "-",
+        clockOut ? toPST(log.clock_out!) : "-",
+        log.break_start ? toNPT(log.break_start) : "-",
+        log.break_end ? toNPT(log.break_end) : "-",
         breakMinutes > 0 ? formatDuration(breakMinutes) : "-",
-        (log as any).pause_start ? format(new Date((log as any).pause_start), "HH:mm") : "-",
-        (log as any).pause_end ? format(new Date((log as any).pause_end), "HH:mm") : "-",
+        (log as any).pause_start ? toNPT((log as any).pause_start) : "-",
+        (log as any).pause_end ? toNPT((log as any).pause_end) : "-",
         pauseMinutes > 0 ? formatDuration(pauseMinutes) : "-",
         hours,
         log.clock_type || "payroll",
