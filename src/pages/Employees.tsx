@@ -420,7 +420,7 @@ const Employees = () => {
       </div>
 
       {/* My Team Section - for Line Managers and Supervisors */}
-      {(isLineManager || isSupervisor) && !isVP && <MyTeamSection />}
+      {showMyTeamSection && <MyTeamSection />}
 
       {/* Filters & Employee Table - Only shown if NOT a line manager/supervisor-only role */}
       {showFullDirectory && (
