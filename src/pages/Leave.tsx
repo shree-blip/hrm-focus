@@ -1080,6 +1080,18 @@ const Leave = () => {
         onConfirm={handleReject}
         employeeName={selectedRequest?.name || ""}
       />
+      <LeaveConflictDialog
+        open={conflictDialogOpen}
+        onOpenChange={(open) => {
+          setConflictDialogOpen(open);
+          if (!open) setConflictData(null);
+        }}
+        employeeName={conflictData?.employeeName || ""}
+        currentRequest={conflictData?.currentRequest || null}
+        conflictingRequests={conflictData?.conflictingRequests || []}
+        onApproveAnyway={() => handleApproveWithConflictResolution(false)}
+        onRejectOthers={() => handleApproveWithConflictResolution(true)}
+      />
     </DashboardLayout>
   );
 };
