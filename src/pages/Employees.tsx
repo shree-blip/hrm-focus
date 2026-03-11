@@ -71,7 +71,7 @@ const EmployeeAvatar = ({ employee }: { employee: any }) => {
 
 const Employees = () => {
   const { employees, loading, createEmployee, updateEmployee, deactivateEmployee } = useEmployees();
-  const { user, isManager, isVP, isLineManager, isSupervisor, canCreateEmployee } = useAuth();
+  const { user, isManager, isVP, isAdmin, isLineManager, isSupervisor, canCreateEmployee } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -98,8 +98,9 @@ const Employees = () => {
   const [promotionEmployeeId, setPromotionEmployeeId] = useState<string>("");
   const [promotionTarget, setPromotionTarget] = useState<any | null>(null);
 
-  // If user is a line manager/supervisor (not VP), only show My Team — hide full directory
-  const showFullDirectory = isVP || (!isLineManager && !isSupervisor);
+  // Only VP/Admin see the full employee directory; managers/line managers/supervisors see only their team
+  const showFullDirectory = isVP || isAdmin;
+  const showMyTeamSection = (isLineManager || isSupervisor || isManager) && !isVP;
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
@@ -392,12 +393,12 @@ const Employees = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">
-            {(isLineManager || isSupervisor) && !isVP ? "My Team" : isManager ? "Employees" : "Employee Directory"}
+            {showMyTeamSection && !showFullDirectory ? "My Team" : showFullDirectory ? "Employees" : "Employee Directory"}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {(isLineManager || isSupervisor) && !isVP
+            {showMyTeamSection && !showFullDirectory
               ? "Manage your direct reports"
-              : isManager
+              : showFullDirectory
                 ? "Manage your team members and their roles"
                 : "View your colleagues"}
           </p>
@@ -419,7 +420,7 @@ const Employees = () => {
       </div>
 
       {/* My Team Section - for Line Managers and Supervisors */}
-      {(isLineManager || isSupervisor) && !isVP && <MyTeamSection />}
+      {showMyTeamSection && <MyTeamSection />}
 
       {/* Filters & Employee Table - Only shown if NOT a line manager/supervisor-only role */}
       {showFullDirectory && (
