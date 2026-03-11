@@ -242,7 +242,7 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         pause_end: log.pause_end,
         total_pause_minutes: log.total_pause_minutes,
         hours_worked: hoursWorked,
-        date: log.clock_in.split("T")[0],
+        date: getUTCDateKey(log.clock_in),
         is_edited: !!(log as any).is_edited,
       });
     });
