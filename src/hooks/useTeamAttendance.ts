@@ -206,7 +206,7 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         const pauseMinutes = log.total_pause_minutes || 0;
         const hours = (clockOut.getTime() - clockIn.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000) / (1000 * 60 * 60);
 
-        const dayKey = clockIn.toISOString().split("T")[0];
+        const dayKey = getUTCDateKey(log.clock_in);
 
         if (!userTotals.has(userId)) {
           userTotals.set(userId, { hours: 0, days: new Set(), name, email, employee_id: employeeId || "" });
