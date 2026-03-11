@@ -393,12 +393,12 @@ const Employees = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">
-            {(isLineManager || isSupervisor) && !isVP ? "My Team" : isManager ? "Employees" : "Employee Directory"}
+            {showMyTeamSection && !showFullDirectory ? "My Team" : showFullDirectory ? "Employees" : "Employee Directory"}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {(isLineManager || isSupervisor) && !isVP
+            {showMyTeamSection && !showFullDirectory
               ? "Manage your direct reports"
-              : isManager
+              : showFullDirectory
                 ? "Manage your team members and their roles"
                 : "View your colleagues"}
           </p>
