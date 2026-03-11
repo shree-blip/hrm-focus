@@ -85,7 +85,7 @@ const getTotalWorkingDaysInMonth = (date: Date): number => {
 export function PersonalReportsWidget() {
   const { user } = useAuth();
   const { tasks } = useTasks();
-  const { ownRequests } = useLeaveRequests();
+  const { ownRequests, balances } = useLeaveRequests();
   const { monthlyHours } = useAttendance();
 
   // Calculate personal task stats
@@ -127,14 +127,12 @@ export function PersonalReportsWidget() {
     workingDaysRemaining > 0 ? (remainingHoursNeeded / workingDaysRemaining).toFixed(1) : "0";
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // LEAVE CALCULATIONS
-  // ═══════════════════════════════════════════════════════════════════════════
-  const annualLeaveUsed = ownRequests
-    .filter((r) => r.status === "approved" && r.leave_type === "Annual Leave" && r.user_id === user?.id)
-    .reduce((sum, r) => sum + r.days, 0);
-
-  const annualLeaveRemaining = TOTAL_ANNUAL_LEAVE_DAYS - annualLeaveUsed;
-  const annualLeaveUsagePercent = Math.round((annualLeaveUsed / TOTAL_ANNUAL_LEAVE_DAYS) * 100);
+  // LEAVE CALCULATIONS - Read directly from leave_balances (source of truth)
+  const annualLeaveBalance = balances.find((b: any) => b.leave_type === "Annual Leave");
+  const annualLeaveUsed = annualLeaveBalance ? annualLeaveBalance.used_days : 0;
+  const annualLeaveTotalDays = annualLeaveBalance ? annualLeaveBalance.total_days : TOTAL_ANNUAL_LEAVE_DAYS;
+  const annualLeaveRemaining = annualLeaveTotalDays - annualLeaveUsed;
+  const annualLeaveUsagePercent = annualLeaveTotalDays > 0 ? Math.round((annualLeaveUsed / annualLeaveTotalDays) * 100) : 0;
 
   const pendingLeaveCount = ownRequests.filter((r) => r.status === "pending" && r.user_id === user?.id).length;
 
@@ -286,7 +284,7 @@ export function PersonalReportsWidget() {
             </div>
             <div className="flex items-baseline gap-1 mb-3">
               <span className="text-3xl font-bold text-primary">{annualLeaveRemaining}</span>
-              <span className="text-sm text-muted-foreground">/ {TOTAL_ANNUAL_LEAVE_DAYS} days</span>
+              <span className="text-sm text-muted-foreground">/ {annualLeaveTotalDays} days</span>
             </div>
             <Progress value={annualLeaveUsagePercent} className="h-2 mb-2" />
             <p className="text-xs text-muted-foreground">{annualLeaveUsed} days used this year</p>

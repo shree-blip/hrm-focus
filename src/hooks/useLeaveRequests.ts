@@ -304,10 +304,13 @@ export function useLeaveRequests() {
   const fetchBalances = useCallback(async () => {
     if (!user) return;
 
+    const currentYear = new Date().getFullYear();
+
     const { data: balanceConfigs, error: configError } = await supabase
       .from("leave_balances")
       .select("*")
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .eq("year", currentYear);
 
     if (configError || !balanceConfigs) return;
 

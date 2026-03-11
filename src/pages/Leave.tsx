@@ -163,18 +163,26 @@ const Leave = () => {
     });
   };
 
-  // Calculate used days for each leave type from approved requests (ONLY for current user)
+  // Read used_days DIRECTLY from leave_balances table (source of truth)
   const getUsedDaysForType = (leaveType: string) => {
-    return ownRequests
-      .filter((r) => r.status === "approved" && r.leave_type === leaveType && r.user_id === user?.id)
-      .reduce((sum, r) => sum + r.days, 0);
+    const balance = balances.find((b) => b.leave_type === leaveType);
+    return balance ? balance.used_days : 0;
   };
 
-  // Get total annual leave used including sick leave (which deducts from annual)
+  const getTotalDaysForType = (leaveType: string) => {
+    const balance = balances.find((b) => b.leave_type === leaveType);
+    return balance ? balance.total_days : 12;
+  };
+
+  // Get total annual leave used from leave_balances (source of truth)
   const getAnnualLeaveUsedTotal = () => {
-    return ownRequests
-      .filter((r) => r.status === "approved" && (r.leave_type === "Annual Leave" || isSickLeaveType(r.leave_type)) && r.user_id === user?.id)
-      .reduce((sum, r) => sum + r.days, 0);
+    const annualBalance = balances.find((b) => b.leave_type === "Annual Leave");
+    return annualBalance ? annualBalance.used_days : 0;
+  };
+
+  const getAnnualLeaveTotalDays = () => {
+    const annualBalance = balances.find((b) => b.leave_type === "Annual Leave");
+    return annualBalance ? annualBalance.total_days : 12;
   };
 
   const getSickLeaveUsed = () => {
@@ -356,7 +364,7 @@ const Leave = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Annual Leave Balance</p>
-                <p className="text-2xl font-bold mt-1">{12 - getAnnualLeaveUsedTotal()} days</p>
+                <p className="text-2xl font-bold mt-1">{getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()} days</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Calendar className="h-6 w-6 text-primary" />
@@ -422,24 +430,24 @@ const Leave = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-medium text-muted-foreground">Annual Leave</p>
-              <Badge variant="secondary">{12 - getAnnualLeaveUsedTotal()} days left</Badge>
+              <Badge variant="secondary">{getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()} days left</Badge>
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-display font-bold">{12 - getAnnualLeaveUsedTotal()}</span>
-                <span className="text-muted-foreground">/ 12 days</span>
+                <span className="text-3xl font-display font-bold">{getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()}</span>
+                <span className="text-muted-foreground">/ {getAnnualLeaveTotalDays()} days</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500 bg-primary"
                   style={{
-                    width: `${Math.min((getAnnualLeaveUsedTotal() / 12) * 100, 100)}%`,
+                    width: `${Math.min((getAnnualLeaveUsedTotal() / getAnnualLeaveTotalDays()) * 100, 100)}%`,
                   }}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                {getUsedDaysForType("Annual Leave")} annual + {getSickLeaveUsed()} sick used •{" "}
-                {((getAnnualLeaveUsedTotal() / 12) * 100).toFixed(0)}% utilized
+                {getAnnualLeaveUsedTotal()} days used •{" "}
+                {((getAnnualLeaveUsedTotal() / getAnnualLeaveTotalDays()) * 100).toFixed(0)}% utilized
               </p>
             </div>
           </CardContent>
