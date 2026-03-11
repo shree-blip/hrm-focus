@@ -98,8 +98,9 @@ const Employees = () => {
   const [promotionEmployeeId, setPromotionEmployeeId] = useState<string>("");
   const [promotionTarget, setPromotionTarget] = useState<any | null>(null);
 
-  // If user is a line manager/supervisor (not VP), only show My Team — hide full directory
-  const showFullDirectory = isVP || (!isLineManager && !isSupervisor);
+  // Only VP/Admin see the full employee directory; managers/line managers/supervisors see only their team
+  const showFullDirectory = isVP || isAdmin;
+  const showMyTeamSection = (isLineManager || isSupervisor || isManager) && !isVP;
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
