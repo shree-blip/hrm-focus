@@ -364,7 +364,7 @@ const Leave = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Annual Leave Balance</p>
-                <p className="text-2xl font-bold mt-1">{12 - getAnnualLeaveUsedTotal()} days</p>
+                <p className="text-2xl font-bold mt-1">{getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()} days</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Calendar className="h-6 w-6 text-primary" />
