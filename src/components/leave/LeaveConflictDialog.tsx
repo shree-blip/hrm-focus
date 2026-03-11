@@ -92,8 +92,7 @@ export function LeaveConflictDialog({
           </AlertDialogAction>
           <AlertDialogAction
             onClick={onApproveAnyway}
-            variant="outline"
-            className="border-warning text-warning hover:bg-warning/10"
+            className="border border-warning text-warning bg-transparent hover:bg-warning/10"
           >
             Approve Without Resolving
           </AlertDialogAction>
