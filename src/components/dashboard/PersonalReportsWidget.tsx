@@ -284,7 +284,7 @@ export function PersonalReportsWidget() {
             </div>
             <div className="flex items-baseline gap-1 mb-3">
               <span className="text-3xl font-bold text-primary">{annualLeaveRemaining}</span>
-              <span className="text-sm text-muted-foreground">/ {TOTAL_ANNUAL_LEAVE_DAYS} days</span>
+              <span className="text-sm text-muted-foreground">/ {annualLeaveTotalDays} days</span>
             </div>
             <Progress value={annualLeaveUsagePercent} className="h-2 mb-2" />
             <p className="text-xs text-muted-foreground">{annualLeaveUsed} days used this year</p>
