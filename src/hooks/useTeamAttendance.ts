@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getUTCDateKey } from "@/utils/timezone";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface EmployeeAttendance {
