@@ -42,7 +42,7 @@ export default function Invoices() {
   const [formData, setFormData] = useState<InvoiceFormData>(defaultForm);
   const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
   const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [downloading, setDownloading] = useState(false);
   const { user } = useAuth();
 
   const createMut = useCreateInvoice();
