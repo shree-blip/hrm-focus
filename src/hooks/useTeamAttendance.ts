@@ -40,36 +40,36 @@ interface DateRange {
 
 export function getDateRangeFromType(rangeType: DateRangeType): DateRange {
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
+  const currentYear = now.getUTCFullYear();
+  const currentMonth = now.getUTCMonth();
   const currentQuarter = Math.floor(currentMonth / 3);
 
   switch (rangeType) {
     case "this-month":
       return {
-        start: new Date(currentYear, currentMonth, 1),
-        end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999),
+        start: new Date(Date.UTC(currentYear, currentMonth, 1)),
+        end: new Date(Date.UTC(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)),
       };
     case "last-month":
       return {
-        start: new Date(currentYear, currentMonth - 1, 1),
-        end: new Date(currentYear, currentMonth, 0, 23, 59, 59, 999),
+        start: new Date(Date.UTC(currentYear, currentMonth - 1, 1)),
+        end: new Date(Date.UTC(currentYear, currentMonth, 0, 23, 59, 59, 999)),
       };
     case "this-quarter":
       const quarterStartMonth = currentQuarter * 3;
       return {
-        start: new Date(currentYear, quarterStartMonth, 1),
-        end: new Date(currentYear, quarterStartMonth + 3, 0, 23, 59, 59, 999),
+        start: new Date(Date.UTC(currentYear, quarterStartMonth, 1)),
+        end: new Date(Date.UTC(currentYear, quarterStartMonth + 3, 0, 23, 59, 59, 999)),
       };
     case "this-year":
       return {
-        start: new Date(currentYear, 0, 1),
-        end: new Date(currentYear, 11, 31, 23, 59, 59, 999),
+        start: new Date(Date.UTC(currentYear, 0, 1)),
+        end: new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999)),
       };
     default:
       return {
-        start: new Date(currentYear, currentMonth, 1),
-        end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999),
+        start: new Date(Date.UTC(currentYear, currentMonth, 1)),
+        end: new Date(Date.UTC(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)),
       };
   }
 }
