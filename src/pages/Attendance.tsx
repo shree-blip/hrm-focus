@@ -31,6 +31,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, X } from "lucide-react";
+import { toNPT, toPST, getNPTDateDisplay } from "@/utils/timezone";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -204,14 +205,16 @@ const Attendance = () => {
         hours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
       }
       return [
-        format(clockIn, "yyyy-MM-dd"),
-        format(clockIn, "hh:mm a"),
-        clockOut ? format(clockOut, "hh:mm a") : "-",
-        log.break_start ? format(new Date(log.break_start), "HH:mm") : "-",
-        log.break_end ? format(new Date(log.break_end), "HH:mm") : "-",
+        getNPTDateDisplay(log.clock_in),
+        toNPT(log.clock_in),
+        toPST(log.clock_in),
+        clockOut ? toNPT(log.clock_out!) : "-",
+        clockOut ? toPST(log.clock_out!) : "-",
+        log.break_start ? toNPT(log.break_start) : "-",
+        log.break_end ? toNPT(log.break_end) : "-",
         breakMinutes > 0 ? formatDuration(breakMinutes) : "-",
-        (log as any).pause_start ? format(new Date((log as any).pause_start), "HH:mm") : "-",
-        (log as any).pause_end ? format(new Date((log as any).pause_end), "HH:mm") : "-",
+        (log as any).pause_start ? toNPT((log as any).pause_start) : "-",
+        (log as any).pause_end ? toNPT((log as any).pause_end) : "-",
         pauseMinutes > 0 ? formatDuration(pauseMinutes) : "-",
         hours,
         log.clock_type || "payroll",
@@ -569,9 +572,21 @@ const Attendance = () => {
                       className="animate-fade-in"
                       style={{ animationDelay: `${400 + index * 50}ms` }}
                     >
-                      <TableCell className="font-medium">{format(clockInDate, "EEE, MMM d")}</TableCell>
-                      <TableCell>{format(clockInDate, "hh:mm a")}</TableCell>
-                      <TableCell>{clockOutDate ? format(clockOutDate, "hh:mm a") : "-"}</TableCell>
+                      <TableCell className="font-medium">{getNPTDateDisplay(log.clock_in)}</TableCell>
+                      <TableCell>
+                        <div className="text-xs space-y-0.5">
+                          <div>{toNPT(log.clock_in)}</div>
+                          <div className="text-muted-foreground">{toPST(log.clock_in)}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {clockOutDate ? (
+                          <div className="text-xs space-y-0.5">
+                            <div>{toNPT(log.clock_out!)}</div>
+                            <div className="text-muted-foreground">{toPST(log.clock_out!)}</div>
+                          </div>
+                        ) : "-"}
+                      </TableCell>
                       <TableCell>
                         {log.break_start ? (
                           <div className="space-y-1">

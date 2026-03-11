@@ -59,20 +59,21 @@ export function useAttendance(weekStart?: Date) {
   const fetchWeeklyLogs = useCallback(async () => {
     if (!user) return;
 
-    // Use provided weekStart or default to current week
+    // Use provided weekStart or default to current week (UTC-based)
     const startDate =
       weekStart ||
       (() => {
         const today = new Date();
-        const start = new Date(today);
-        start.setDate(today.getDate() - today.getDay() + 1); // Monday
-        start.setHours(0, 0, 0, 0);
+        const utcDay = today.getUTCDay();
+        const diff = utcDay === 0 ? -6 : 1 - utcDay; // Monday
+        const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + diff));
         return start;
       })();
 
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6); // Sunday
-    endDate.setHours(23, 59, 59, 999);
+    const endDate = new Date(Date.UTC(
+      startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate() + 6,
+      23, 59, 59, 999
+    ));
 
     const { data, error } = await supabase
       .from("attendance_logs")
@@ -92,8 +93,8 @@ export function useAttendance(weekStart?: Date) {
     if (!user) return;
 
     const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+    const startOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+    const endOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
     const { data, error } = await supabase
       .from("attendance_logs")

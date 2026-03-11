@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
+import { toNPT, toPST } from "@/utils/timezone";
 
 interface AttendanceLog {
   id: string;
@@ -106,8 +107,8 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
           {/* Current values summary */}
           <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
             <p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">Current Values</p>
-            <p><strong>Clock In:</strong> {format(clockInDate, "hh:mm a")}</p>
-            <p><strong>Clock Out:</strong> {log.clock_out ? format(new Date(log.clock_out), "hh:mm a") : "Not clocked out"}</p>
+            <p><strong>Clock In:</strong> {toNPT(log.clock_in)} / {toPST(log.clock_in)}</p>
+            <p><strong>Clock Out:</strong> {log.clock_out ? `${toNPT(log.clock_out)} / ${toPST(log.clock_out)}` : "Not clocked out"}</p>
             <p><strong>Break:</strong> {log.total_break_minutes || 0} min</p>
             <p><strong>Pause:</strong> {log.total_pause_minutes || 0} min</p>
           </div>

@@ -19,6 +19,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { toNPT, toPST, getNPTDateDisplay } from "@/utils/timezone";
 
 interface TeamMember {
   id: string;
@@ -183,12 +184,22 @@ export function TeamMemberAttendanceDialog({
                       
                       return (
                         <TableRow key={log.id}>
-                          <TableCell className="font-medium">
-                            {format(clockIn, "EEE, MMM d")}
+                        <TableCell className="font-medium">
+                            {getNPTDateDisplay(log.clock_in)}
                           </TableCell>
-                          <TableCell>{format(clockIn, "hh:mm a")}</TableCell>
                           <TableCell>
-                            {clockOut ? format(clockOut, "hh:mm a") : "-"}
+                            <div className="text-xs space-y-0.5">
+                              <div>{toNPT(log.clock_in)}</div>
+                              <div className="text-muted-foreground">{toPST(log.clock_in)}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {clockOut ? (
+                              <div className="text-xs space-y-0.5">
+                                <div>{toNPT(log.clock_out!)}</div>
+                                <div className="text-muted-foreground">{toPST(log.clock_out!)}</div>
+                              </div>
+                            ) : "-"}
                           </TableCell>
                           <TableCell>{breakMinutes > 0 ? `${breakMinutes}m` : "-"}</TableCell>
                           <TableCell>
