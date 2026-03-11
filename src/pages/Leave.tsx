@@ -75,6 +75,13 @@ const Leave = () => {
     name: string;
   } | null>("leave:selectedRequest", null);
   const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const [conflictData, setConflictData] = useState<{
+    requestId: string;
+    employeeName: string;
+    currentRequest: any;
+    conflictingRequests: any[];
+  } | null>(null);
 
   // Function to get requests for display based on user role and active tab
   const getRequestsForDisplay = () => {
