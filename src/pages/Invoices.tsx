@@ -165,10 +165,9 @@ export default function Invoices() {
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-1" /> Print
           </Button>
-          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-            <Upload className="h-4 w-4 mr-1" /> {uploading ? "Uploading…" : "Upload PDF & Submit"}
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={downloading}>
+            <Download className="h-4 w-4 mr-1" /> {downloading ? "Generating…" : "Download PDF"}
           </Button>
-          <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={handleUploadAndSubmit} />
           {view === "create" && (
             <Button size="sm" onClick={handleSubmitToCEO} disabled={createMut.isPending || submitMut.isPending}>
               <Send className="h-4 w-4 mr-1" /> Submit to CEO
