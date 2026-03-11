@@ -19,6 +19,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { toNPT, toPST, getNPTDateDisplay } from "@/utils/timezone";
 
 interface TeamMember {
   id: string;
