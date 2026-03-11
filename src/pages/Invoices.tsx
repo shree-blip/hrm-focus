@@ -4,14 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Printer, Upload, Send } from "lucide-react";
+import { ArrowLeft, Printer, Download, Send } from "lucide-react";
 import { toast } from "sonner";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import InvoiceForm from "@/components/invoices/InvoiceForm";
 import InvoicePreview from "@/components/invoices/InvoicePreview";
 import MyInvoicesList from "@/components/invoices/MyInvoicesList";
 import VPInvoicePanel from "@/components/invoices/VPInvoicePanel";
-import { InvoiceFormData, Invoice, useCreateInvoice, useSubmitInvoice, uploadInvoicePDF } from "@/hooks/useInvoices";
+import { InvoiceFormData, Invoice, useCreateInvoice, useSubmitInvoice } from "@/hooks/useInvoices";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -41,8 +41,7 @@ export default function Invoices() {
   const [view, setView] = useState<"list" | "create" | "view">("list");
   const [formData, setFormData] = useState<InvoiceFormData>(defaultForm);
   const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [downloading, setDownloading] = useState(false);
   const { user } = useAuth();
 
   const createMut = useCreateInvoice();
@@ -117,24 +116,27 @@ export default function Invoices() {
     } catch {}
   };
 
-  const handleUploadAndSubmit = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("PDF must be under 10MB");
-      return;
-    }
-    if (!validate()) return;
-    setUploading(true);
+  const handleDownloadPDF = async () => {
+    const el = document.getElementById("invoice-preview");
+    if (!el) return;
+    setDownloading(true);
     try {
-      const inv = await createMut.mutateAsync(formData);
-      const path = await uploadInvoicePDF(user!.id, file);
-      await submitMut.mutateAsync({ invoiceId: (inv as any).id, pdfPath: path });
-      handleBack();
+      const { default: jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      await pdf.html(el, {
+        callback: (doc) => {
+          const name = formData.invoice_number || "invoice";
+          doc.save(`${name}.pdf`);
+        },
+        x: 10,
+        y: 10,
+        width: 190,
+        windowWidth: el.scrollWidth,
+      });
     } catch {
+      toast.error("Failed to generate PDF");
     } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
+      setDownloading(false);
     }
   };
 
@@ -162,10 +164,9 @@ export default function Invoices() {
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-1" /> Print
           </Button>
-          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-            <Upload className="h-4 w-4 mr-1" /> {uploading ? "Uploading…" : "Upload PDF & Submit"}
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={downloading}>
+            <Download className="h-4 w-4 mr-1" /> {downloading ? "Generating…" : "Download PDF"}
           </Button>
-          <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={handleUploadAndSubmit} />
           {view === "create" && (
             <Button size="sm" onClick={handleSubmitToCEO} disabled={createMut.isPending || submitMut.isPending}>
               <Send className="h-4 w-4 mr-1" /> Submit to CEO
