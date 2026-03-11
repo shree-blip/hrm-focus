@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from "react";
 import { Users, ArrowRight, Circle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,17 +8,67 @@ import { Link } from "react-router-dom";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTeamPresence } from "@/hooks/useTeamPresence";
+import { supabase } from "@/integrations/supabase/client";
+
+interface TeamMember {
+  id: string;
+  first_name: string;
+  last_name: string;
+  job_title: string | null;
+}
 
 export function TeamWidget() {
-  const { employees, loading } = useEmployees();
-  const { isManager, profile } = useAuth();
+  const { employees, loading: empLoading } = useEmployees();
+  const { user, isManager, isVP, isAdmin, profile } = useAuth();
   const { getStatus, getOnlineCount } = useTeamPresence();
 
-  // For regular employees, show their own info; for managers, show team
-  const displayMembers = employees.slice(0, 5);
+  const [myTeam, setMyTeam] = useState<TeamMember[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+
+  // For VP/Admin, show all employees; for managers/line managers, show only direct reports
+  const showAllEmployees = isVP || isAdmin;
+
+  const fetchMyTeam = useCallback(async () => {
+    if (!user || showAllEmployees) return;
+    setTeamLoading(true);
+
+    const { data: employeeId } = await supabase.rpc("get_employee_id_for_user", {
+      _user_id: user.id,
+    });
+
+    if (employeeId) {
+      const { data: lineReports } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name, job_title")
+        .eq("line_manager_id", employeeId)
+        .order("first_name", { ascending: true });
+
+      const { data: managerReports } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name, job_title")
+        .eq("manager_id", employeeId)
+        .order("first_name", { ascending: true });
+
+      const all = [...(lineReports || []), ...(managerReports || [])];
+      const unique = all.filter((e, i, s) => s.findIndex((x) => x.id === e.id) === i);
+      unique.sort((a, b) => a.first_name.localeCompare(b.first_name));
+      setMyTeam(unique);
+    }
+
+    setTeamLoading(false);
+  }, [user, showAllEmployees]);
+
+  useEffect(() => {
+    if (isManager && !showAllEmployees) {
+      fetchMyTeam();
+    }
+  }, [isManager, showAllEmployees, fetchMyTeam]);
+
+  const displayMembers = showAllEmployees ? employees.slice(0, 5) : myTeam.slice(0, 5);
+  const loading = showAllEmployees ? empLoading : teamLoading;
 
   const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
 
   const onlineCount = getOnlineCount();
@@ -39,7 +90,13 @@ export function TeamWidget() {
         </div>
         {isManager && (
           <p className="text-sm text-muted-foreground">
-            <span className="text-success font-medium">{onlineCount}</span> of {displayMembers.length} online
+            {showAllEmployees ? (
+              <>
+                <span className="text-success font-medium">{onlineCount}</span> of {displayMembers.length} online
+              </>
+            ) : (
+              <>{displayMembers.length} direct report{displayMembers.length !== 1 ? "s" : ""}</>
+            )}
           </p>
         )}
       </CardHeader>
@@ -47,7 +104,6 @@ export function TeamWidget() {
         {loading ? (
           <div className="text-center py-4 text-muted-foreground text-sm">Loading...</div>
         ) : !isManager ? (
-          // Show only current user's profile for regular employees
           <div className="flex items-center gap-3 p-2 rounded-lg bg-accent/30">
             <div className="relative">
               <Avatar className="h-12 w-12">
@@ -66,8 +122,11 @@ export function TeamWidget() {
               <p className="text-xs text-muted-foreground">{profile?.department || ""}</p>
             </div>
           </div>
+        ) : displayMembers.length === 0 ? (
+          <div className="text-center py-4 text-muted-foreground text-sm">
+            No team members assigned
+          </div>
         ) : (
-          // Show team members for managers
           <div className="space-y-3">
             {displayMembers.map((member) => {
               const status = getStatus(member.id);
