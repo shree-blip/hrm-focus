@@ -430,24 +430,24 @@ const Leave = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-medium text-muted-foreground">Annual Leave</p>
-              <Badge variant="secondary">{12 - getAnnualLeaveUsedTotal()} days left</Badge>
+              <Badge variant="secondary">{getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()} days left</Badge>
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-display font-bold">{12 - getAnnualLeaveUsedTotal()}</span>
-                <span className="text-muted-foreground">/ 12 days</span>
+                <span className="text-3xl font-display font-bold">{getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()}</span>
+                <span className="text-muted-foreground">/ {getAnnualLeaveTotalDays()} days</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500 bg-primary"
                   style={{
-                    width: `${Math.min((getAnnualLeaveUsedTotal() / 12) * 100, 100)}%`,
+                    width: `${Math.min((getAnnualLeaveUsedTotal() / getAnnualLeaveTotalDays()) * 100, 100)}%`,
                   }}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                {getUsedDaysForType("Annual Leave")} annual + {getSickLeaveUsed()} sick used •{" "}
-                {((getAnnualLeaveUsedTotal() / 12) * 100).toFixed(0)}% utilized
+                {getAnnualLeaveUsedTotal()} days used •{" "}
+                {((getAnnualLeaveUsedTotal() / getAnnualLeaveTotalDays()) * 100).toFixed(0)}% utilized
               </p>
             </div>
           </CardContent>

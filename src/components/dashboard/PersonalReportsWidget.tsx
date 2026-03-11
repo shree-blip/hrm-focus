@@ -127,14 +127,12 @@ export function PersonalReportsWidget() {
     workingDaysRemaining > 0 ? (remainingHoursNeeded / workingDaysRemaining).toFixed(1) : "0";
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // LEAVE CALCULATIONS
-  // ═══════════════════════════════════════════════════════════════════════════
-  const annualLeaveUsed = ownRequests
-    .filter((r) => r.status === "approved" && r.leave_type === "Annual Leave" && r.user_id === user?.id)
-    .reduce((sum, r) => sum + r.days, 0);
-
-  const annualLeaveRemaining = TOTAL_ANNUAL_LEAVE_DAYS - annualLeaveUsed;
-  const annualLeaveUsagePercent = Math.round((annualLeaveUsed / TOTAL_ANNUAL_LEAVE_DAYS) * 100);
+  // LEAVE CALCULATIONS - Read directly from leave_balances (source of truth)
+  const annualLeaveBalance = balances.find((b: any) => b.leave_type === "Annual Leave");
+  const annualLeaveUsed = annualLeaveBalance ? annualLeaveBalance.used_days : 0;
+  const annualLeaveTotalDays = annualLeaveBalance ? annualLeaveBalance.total_days : TOTAL_ANNUAL_LEAVE_DAYS;
+  const annualLeaveRemaining = annualLeaveTotalDays - annualLeaveUsed;
+  const annualLeaveUsagePercent = annualLeaveTotalDays > 0 ? Math.round((annualLeaveUsed / annualLeaveTotalDays) * 100) : 0;
 
   const pendingLeaveCount = ownRequests.filter((r) => r.status === "pending" && r.user_id === user?.id).length;
 
