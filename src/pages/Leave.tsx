@@ -163,18 +163,26 @@ const Leave = () => {
     });
   };
 
-  // Calculate used days for each leave type from approved requests (ONLY for current user)
+  // Read used_days DIRECTLY from leave_balances table (source of truth)
   const getUsedDaysForType = (leaveType: string) => {
-    return ownRequests
-      .filter((r) => r.status === "approved" && r.leave_type === leaveType && r.user_id === user?.id)
-      .reduce((sum, r) => sum + r.days, 0);
+    const balance = balances.find((b) => b.leave_type === leaveType);
+    return balance ? balance.used_days : 0;
   };
 
-  // Get total annual leave used including sick leave (which deducts from annual)
+  const getTotalDaysForType = (leaveType: string) => {
+    const balance = balances.find((b) => b.leave_type === leaveType);
+    return balance ? balance.total_days : 12;
+  };
+
+  // Get total annual leave used from leave_balances (source of truth)
   const getAnnualLeaveUsedTotal = () => {
-    return ownRequests
-      .filter((r) => r.status === "approved" && (r.leave_type === "Annual Leave" || isSickLeaveType(r.leave_type)) && r.user_id === user?.id)
-      .reduce((sum, r) => sum + r.days, 0);
+    const annualBalance = balances.find((b) => b.leave_type === "Annual Leave");
+    return annualBalance ? annualBalance.used_days : 0;
+  };
+
+  const getAnnualLeaveTotalDays = () => {
+    const annualBalance = balances.find((b) => b.leave_type === "Annual Leave");
+    return annualBalance ? annualBalance.total_days : 12;
   };
 
   const getSickLeaveUsed = () => {
