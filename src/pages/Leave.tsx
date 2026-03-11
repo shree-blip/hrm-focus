@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
+import { LeaveConflictDialog } from "@/components/leave/LeaveConflictDialog";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
