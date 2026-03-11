@@ -41,7 +41,7 @@ export default function Invoices() {
   const [view, setView] = useState<"list" | "create" | "view">("list");
   const [formData, setFormData] = useState<InvoiceFormData>(defaultForm);
   const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const { user } = useAuth();
 
