@@ -11,7 +11,7 @@ import InvoiceForm from "@/components/invoices/InvoiceForm";
 import InvoicePreview from "@/components/invoices/InvoicePreview";
 import MyInvoicesList from "@/components/invoices/MyInvoicesList";
 import VPInvoicePanel from "@/components/invoices/VPInvoicePanel";
-import { InvoiceFormData, Invoice, useCreateInvoice, useSubmitInvoice, uploadInvoicePDF } from "@/hooks/useInvoices";
+import { InvoiceFormData, Invoice, useCreateInvoice, useSubmitInvoice } from "@/hooks/useInvoices";
 
 const today = new Date().toISOString().split("T")[0];
 
