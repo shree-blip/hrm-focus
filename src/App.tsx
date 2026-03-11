@@ -104,12 +104,12 @@ const App = () => (
             <Route path="/approvals" element={<ProtectedRoute requiredPermission="approve_leave"><Approvals /></ProtectedRoute>} />
             <Route path="/tasks" element={<ProtectedRoute requiredPermission={["manage_tasks", "view_tasks"]}><Tasks /></ProtectedRoute>} />
             <Route path="/payroll" element={<ProtectedRoute requiredPermission={["manage_payroll", "view_payroll", "view_payslips"]}><Payroll /></ProtectedRoute>} />
-            <Route path="/my-payslips" element={<ProtectedRoute><MyPayslips /></ProtectedRoute>} />
+            <Route path="/my-payslips" element={<ProtectedRoute requiredPermission="view_payslips"><MyPayslips /></ProtectedRoute>} />
             <Route path="/performance" element={<ProtectedRoute requiredPermission="view_performance"><Performance /></ProtectedRoute>} />
             <Route path="/documents" element={<ProtectedRoute requiredPermission={["manage_documents", "view_documents"]}><Documents /></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute requiredPermission="manage_onboarding"><Onboarding /></ProtectedRoute>} />
-            <Route path="/my-onboarding" element={<ProtectedRoute><MyOnboarding /></ProtectedRoute>} />
-            <Route path="/my-offboarding" element={<ProtectedRoute><MyOffboarding /></ProtectedRoute>} />
+            <Route path="/my-onboarding" element={<ProtectedRoute requiredPermission="view_onboarding"><MyOnboarding /></ProtectedRoute>} />
+            <Route path="/my-offboarding" element={<ProtectedRoute requiredPermission="view_onboarding"><MyOffboarding /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute requiredPermission="view_reports"><Reports /></ProtectedRoute>} />
