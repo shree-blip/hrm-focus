@@ -85,7 +85,7 @@ const getTotalWorkingDaysInMonth = (date: Date): number => {
 export function PersonalReportsWidget() {
   const { user } = useAuth();
   const { tasks } = useTasks();
-  const { ownRequests } = useLeaveRequests();
+  const { ownRequests, balances } = useLeaveRequests();
   const { monthlyHours } = useAttendance();
 
   // Calculate personal task stats
