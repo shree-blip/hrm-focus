@@ -130,9 +130,16 @@ const Leave = () => {
   const currentUserLeave = getCurrentUserLeave();
   const isUserOnLeaveToday = !!currentUserLeave;
 
+  // Check for overlapping dates between two requests
+  const datesOverlap = (a: { start_date: string; end_date: string }, b: { start_date: string; end_date: string }) => {
+    return a.start_date <= b.end_date && b.start_date <= a.end_date;
+  };
+
   const handleApprove = async (id: string) => {
     const request = requests.find((r) => r.id === id);
-    if (request?.user_id === user?.id) {
+    if (!request) return;
+
+    if (request.user_id === user?.id) {
       toast({
         title: "Cannot Approve",
         description: "You cannot approve your own leave request.",
@@ -140,7 +147,46 @@ const Leave = () => {
       });
       return;
     }
+
+    // Find other pending requests from the same employee with overlapping dates
+    const conflicting = requests.filter(
+      (r) =>
+        r.id !== id &&
+        r.user_id === request.user_id &&
+        r.status === "pending" &&
+        datesOverlap(request, r)
+    );
+
+    if (conflicting.length > 0) {
+      const employeeName = request.profile
+        ? `${request.profile.first_name} ${request.profile.last_name}`
+        : "Employee";
+      setConflictData({
+        requestId: id,
+        employeeName,
+        currentRequest: request,
+        conflictingRequests: conflicting,
+      });
+      setConflictDialogOpen(true);
+      return;
+    }
+
     await approveRequest(id);
+  };
+
+  const handleApproveWithConflictResolution = async (rejectOthers: boolean) => {
+    if (!conflictData) return;
+    
+    await approveRequest(conflictData.requestId);
+
+    if (rejectOthers) {
+      for (const conflict of conflictData.conflictingRequests) {
+        await rejectRequest(conflict.id, "Automatically rejected: conflicting leave request was approved for the same dates.");
+      }
+    }
+
+    setConflictDialogOpen(false);
+    setConflictData(null);
   };
 
   const handleOpenRejectDialog = (id: string, name: string) => {
