@@ -117,24 +117,27 @@ export default function Invoices() {
     } catch {}
   };
 
-  const handleUploadAndSubmit = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("PDF must be under 10MB");
-      return;
-    }
-    if (!validate()) return;
-    setUploading(true);
+  const handleDownloadPDF = async () => {
+    const el = document.getElementById("invoice-preview");
+    if (!el) return;
+    setDownloading(true);
     try {
-      const inv = await createMut.mutateAsync(formData);
-      const path = await uploadInvoicePDF(user!.id, file);
-      await submitMut.mutateAsync({ invoiceId: (inv as any).id, pdfPath: path });
-      handleBack();
+      const { default: jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      await pdf.html(el, {
+        callback: (doc) => {
+          const name = formData.invoice_number || "invoice";
+          doc.save(`${name}.pdf`);
+        },
+        x: 10,
+        y: 10,
+        width: 190,
+        windowWidth: el.scrollWidth,
+      });
     } catch {
+      toast.error("Failed to generate PDF");
     } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
+      setDownloading(false);
     }
   };
 
