@@ -570,9 +570,21 @@ const Attendance = () => {
                       className="animate-fade-in"
                       style={{ animationDelay: `${400 + index * 50}ms` }}
                     >
-                      <TableCell className="font-medium">{format(clockInDate, "EEE, MMM d")}</TableCell>
-                      <TableCell>{format(clockInDate, "hh:mm a")}</TableCell>
-                      <TableCell>{clockOutDate ? format(clockOutDate, "hh:mm a") : "-"}</TableCell>
+                      <TableCell className="font-medium">{getNPTDateDisplay(log.clock_in)}</TableCell>
+                      <TableCell>
+                        <div className="text-xs space-y-0.5">
+                          <div>{toNPT(log.clock_in)}</div>
+                          <div className="text-muted-foreground">{toPST(log.clock_in)}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {clockOutDate ? (
+                          <div className="text-xs space-y-0.5">
+                            <div>{toNPT(log.clock_out!)}</div>
+                            <div className="text-muted-foreground">{toPST(log.clock_out!)}</div>
+                          </div>
+                        ) : "-"}
+                      </TableCell>
                       <TableCell>
                         {log.break_start ? (
                           <div className="space-y-1">
