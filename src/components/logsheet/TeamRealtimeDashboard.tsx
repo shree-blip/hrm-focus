@@ -109,25 +109,30 @@ export function TeamRealtimeDashboard() {
     }
 
     try {
-      const today = format(new Date(), "yyyy-MM-dd");
-      let query = supabase
+      const now = new Date();
+      const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)).toISOString();
+      const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)).toISOString();
+
+      // Today's logs
+      let todayQuery = supabase
         .from("work_logs")
         .select(
           `id, user_id, log_date, task_description, time_spent_minutes, status, start_time, created_at,
           client:clients(name, client_id),
           employee:employees(first_name, last_name, department)`,
         )
-        .eq("log_date", today)
+        .gte("log_date", todayStart.split("T")[0])
+        .lte("log_date", todayEnd.split("T")[0])
         .neq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20);
 
       // Scope to team members for non-VP
       if (!isVP && teamUserIds.length > 0) {
-        query = query.in("user_id", teamUserIds);
+        todayQuery = todayQuery.in("user_id", teamUserIds);
       }
 
-      const { data, error } = await query;
+      const { data, error } = await todayQuery;
       if (error) throw error;
       setLiveLogs((data as LiveLog[]) || []);
     } catch (error) {
