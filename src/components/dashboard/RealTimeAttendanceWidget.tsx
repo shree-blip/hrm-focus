@@ -462,18 +462,21 @@ export function RealTimeAttendanceWidget() {
     setIsExporting(true);
     try {
       const now = new Date();
-      let start, end;
+      let start: Date, end: Date;
 
-      // Determine date range based on selection
+      // Determine date range in UTC
+      const y = now.getUTCFullYear(), m = now.getUTCMonth(), d = now.getUTCDate();
       if (timeframe === "today") {
-        start = startOfDay(now);
-        end = endOfDay(now);
+        start = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
+        end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
       } else if (timeframe === "week") {
-        start = startOfWeek(now, { weekStartsOn: 1 });
-        end = endOfDay(now);
-      } else if (timeframe === "month") {
-        start = startOfMonth(now);
-        end = endOfDay(now);
+        const utcDay = now.getUTCDay();
+        const diff = utcDay === 0 ? -6 : 1 - utcDay;
+        start = new Date(Date.UTC(y, m, d + diff, 0, 0, 0, 0));
+        end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
+      } else {
+        start = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0));
+        end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
       }
 
       const { data: historicalLogs, error } = await supabase
