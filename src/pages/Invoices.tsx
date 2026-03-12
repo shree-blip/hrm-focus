@@ -161,9 +161,9 @@ export default function Invoices() {
           <ArrowLeft className="h-4 w-4 mr-1" /> Back
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handlePrint}>
+          {/* <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-1" /> Print
-          </Button>
+          </Button> */}
           <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={downloading}>
             <Download className="h-4 w-4 mr-1" /> {downloading ? "Generating…" : "Download PDF"}
           </Button>
