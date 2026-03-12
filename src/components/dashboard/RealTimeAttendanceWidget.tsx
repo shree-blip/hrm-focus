@@ -11,12 +11,6 @@ import { cn } from "@/lib/utils";
 import {
   format,
   formatDistanceToNow,
-  startOfDay,
-  endOfDay,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
 } from "date-fns";
 import {
   Users,
@@ -170,9 +164,9 @@ export function RealTimeAttendanceWidget() {
   const [userToEmpMap, setUserToEmpMap] = useState<Map<string, string>>(new Map());
 
   const fetchData = useCallback(async () => {
-    const today = new Date();
-    const dayStart = startOfDay(today).toISOString();
-    const dayEnd = endOfDay(today).toISOString();
+    const now = new Date();
+    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)).toISOString();
+    const dayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)).toISOString();
 
     // Fetch employees - include active and probation status
     const { data: emps } = await supabase
@@ -180,13 +174,28 @@ export function RealTimeAttendanceWidget() {
       .select("id, first_name, last_name, department, profile_id, profiles:profile_id(user_id, avatar_url)")
       .in("status", ["active", "probation"]);
 
-    // Fetch today's logs
-    const { data: logs } = await supabase
+    // Fetch today's logs (UTC-based)
+    const { data: todayLogs } = await supabase
       .from("attendance_logs")
       .select("*")
       .gte("clock_in", dayStart)
       .lte("clock_in", dayEnd)
       .order("clock_in", { ascending: false });
+
+    // Also fetch any still-clocked-in logs from previous days (survive midnight)
+    const { data: activeLogs } = await supabase
+      .from("attendance_logs")
+      .select("*")
+      .lt("clock_in", dayStart)
+      .is("clock_out", null)
+      .order("clock_in", { ascending: false });
+
+    // Merge and deduplicate by id
+    const allLogsMap = new Map<string, any>();
+    [...(todayLogs || []), ...(activeLogs || [])].forEach((log) => {
+      if (!allLogsMap.has(log.id)) allLogsMap.set(log.id, log);
+    });
+    const logs = Array.from(allLogsMap.values());
 
     // Build user_id → employee_id map
     const uToE = new Map<string, string>();
@@ -447,18 +456,21 @@ export function RealTimeAttendanceWidget() {
     setIsExporting(true);
     try {
       const now = new Date();
-      let start, end;
+      let start: Date, end: Date;
 
-      // Determine date range based on selection
+      // Determine date range in UTC
+      const y = now.getUTCFullYear(), m = now.getUTCMonth(), d = now.getUTCDate();
       if (timeframe === "today") {
-        start = startOfDay(now);
-        end = endOfDay(now);
+        start = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
+        end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
       } else if (timeframe === "week") {
-        start = startOfWeek(now, { weekStartsOn: 1 });
-        end = endOfDay(now);
-      } else if (timeframe === "month") {
-        start = startOfMonth(now);
-        end = endOfDay(now);
+        const utcDay = now.getUTCDay();
+        const diff = utcDay === 0 ? -6 : 1 - utcDay;
+        start = new Date(Date.UTC(y, m, d + diff, 0, 0, 0, 0));
+        end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
+      } else {
+        start = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0));
+        end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
       }
 
       const { data: historicalLogs, error } = await supabase
