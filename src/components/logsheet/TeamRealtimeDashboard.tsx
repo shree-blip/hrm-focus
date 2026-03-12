@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, Clock, Briefcase, Activity } from "lucide-react";
-import { Users, Clock, Briefcase, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTime12h, formatDuration } from "@/lib/timeFormat";
 
