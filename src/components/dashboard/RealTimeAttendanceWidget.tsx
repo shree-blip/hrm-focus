@@ -161,7 +161,7 @@ export function RealTimeAttendanceWidget() {
   }, []);
 
   // Map from user_id to employee id for realtime matching
-  const [userToEmpMap, setUserToEmpMap] = useState<Map<string, string>>(new Map());
+  const userToEmpMapRef = useRef<Map<string, string>>(new Map());
 
   const fetchData = useCallback(async () => {
     const now = new Date();
