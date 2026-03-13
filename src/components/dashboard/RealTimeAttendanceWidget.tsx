@@ -530,7 +530,7 @@ export function RealTimeAttendanceWidget() {
 
       // 2. Map raw logs to CSV format with the new logic
       const csvRows = historicalLogs.map((log) => {
-        const empId = log.employee_id || userToEmpMap.get(log.user_id);
+        const empId = log.employee_id || userToEmpMapRef.current.get(log.user_id);
         const emp = employees.find((e) => e.id === empId);
 
         const dateObj = new Date(log.clock_in);
