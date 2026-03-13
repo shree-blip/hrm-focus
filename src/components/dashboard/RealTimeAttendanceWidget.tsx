@@ -201,7 +201,7 @@ export function RealTimeAttendanceWidget() {
 
     // Merge and deduplicate by id
     const allLogsMap = new Map<string, any>();
-    [...(todayLogs || []), ...(activeLogs || [])].forEach((log) => {
+    [...(todayLogs || []), ...(activeLogs || []), ...(crossMidnightLogs || [])].forEach((log) => {
       if (!allLogsMap.has(log.id)) allLogsMap.set(log.id, log);
     });
     const logs = Array.from(allLogsMap.values());
