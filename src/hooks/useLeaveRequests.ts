@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { resolveTeamMemberUserIds, resolveManagerUserIds } from "@/utils/teamResolver";
 
 interface LeaveRequest {
   id: string;
