@@ -169,34 +169,7 @@ export function useLeaveRequests() {
     if (role === "admin" || role === "vp" || role === "manager") return [];
 
     if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
-      const { data: myProfile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
-
-      if (!myProfile) return [];
-
-      const { data: myEmployee } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("profile_id", myProfile.id)
-        .single();
-
-      if (!myEmployee) return [];
-
-      const { data: teamMembers } = await supabase
-        .from("employees")
-        .select("profile_id")
-        .or(`line_manager_id.eq.${myEmployee.id},manager_id.eq.${myEmployee.id}`);
-
-      if (!teamMembers || teamMembers.length === 0) return [];
-
-      const profileIds = teamMembers.map((e) => e.profile_id).filter(Boolean);
-      if (profileIds.length === 0) return [];
-
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .in("id", profileIds as string[]);
-
-      return profiles?.map((p) => p.user_id) || [];
+      return resolveTeamMemberUserIds(user.id);
     }
 
     return [];
