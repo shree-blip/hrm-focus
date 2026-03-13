@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTCDateKey } from "@/utils/timezone";
 import { useAuth } from "@/contexts/AuthContext";
+import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
 
 interface EmployeeAttendance {
   employee_id: string;
