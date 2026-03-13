@@ -58,7 +58,35 @@ export function useAttendanceAdjustments() {
     if (!user) return;
     if (!isManager && !isVP && !isAdmin && !isLineManager) return;
 
-    // Managers see adjustment requests via RLS (the policy handles team scoping)
+    // For line managers / managers (non-VP, non-admin): scope to their direct reports only
+    let teamUserIds: string[] | null = null;
+    if (!isVP && !isAdmin) {
+      // Get the current user's employee ID
+      const { data: empId } = await supabase.rpc("get_employee_id_for_user", { _user_id: user.id });
+      if (!empId) return;
+
+      // Get direct reports (employees where line_manager_id or manager_id = this employee)
+      const { data: reports } = await supabase
+        .from("employees")
+        .select("id, profile_id")
+        .or(`line_manager_id.eq.${empId},manager_id.eq.${empId}`);
+
+      if (!reports || reports.length === 0) return;
+
+      // Get user_ids for these employees via profiles
+      const profileIds = reports.map((r) => r.profile_id).filter(Boolean);
+      if (profileIds.length === 0) return;
+
+      const { data: profileUsers } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .in("id", profileIds);
+
+      teamUserIds = (profileUsers || []).map((p) => p.user_id).filter(Boolean) as string[];
+      if (teamUserIds.length === 0) return;
+    }
+
+    // Fetch adjustment requests
     const { data, error } = await adjTable()
       .select("*")
       .order("created_at", { ascending: false });
@@ -69,12 +97,16 @@ export function useAttendanceAdjustments() {
     }
 
     if (data) {
-      // Filter out own requests — managers shouldn't review their own
-      const teamOnly = (data as AdjustmentRequest[]).filter((r) => r.requested_by !== user.id);
+      let filtered = (data as AdjustmentRequest[]).filter((r) => r.requested_by !== user.id);
+
+      // If scoped to team, only keep requests from direct reports
+      if (teamUserIds) {
+        filtered = filtered.filter((r) => teamUserIds!.includes(r.requested_by));
+      }
 
       // Enrich with requester profile and attendance log
       const enriched = await Promise.all(
-        teamOnly.map(async (req) => {
+        filtered.map(async (req) => {
           const [profileRes, logRes] = await Promise.all([
             supabase.from("profiles").select("first_name, last_name").eq("user_id", req.requested_by).single(),
             supabase.from("attendance_logs").select("clock_in, clock_out, total_break_minutes, total_pause_minutes, clock_type").eq("id", req.attendance_log_id).single(),
