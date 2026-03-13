@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -161,7 +161,7 @@ export function RealTimeAttendanceWidget() {
   }, []);
 
   // Map from user_id to employee id for realtime matching
-  const userToEmpMapRef = useRef<Map<string, string>>(new Map());
+  const [userToEmpMap, setUserToEmpMap] = useState<Map<string, string>>(new Map());
 
   const fetchData = useCallback(async () => {
     const now = new Date();
@@ -203,7 +203,7 @@ export function RealTimeAttendanceWidget() {
       const userId = e.profiles?.user_id;
       if (userId) uToE.set(userId, e.id);
     });
-    userToEmpMapRef.current = uToE;
+    setUserToEmpMap(uToE);
 
     // Map logs by employee/user
     const logMap = new Map<string, any>();
@@ -332,7 +332,7 @@ export function RealTimeAttendanceWidget() {
       }
 
       // Resolve the employee_id from the log — either directly or via user_id map
-      const resolvedEmpId = log.employee_id || userToEmpMapRef.current.get(log.user_id);
+      const resolvedEmpId = log.employee_id || userToEmpMap.get(log.user_id);
 
       if (!resolvedEmpId) {
         // Can't match to an employee, do a full refetch
@@ -416,13 +416,8 @@ export function RealTimeAttendanceWidget() {
 
         return updated;
       });
-
-      // Fix 3: Background reconcile for clock-out events only
-      if (log.clock_out) {
-        setTimeout(fetchData, 300);
-      }
     },
-    [fetchData],
+    [fetchData, userToEmpMap],
   );
 
   useEffect(() => {
@@ -530,7 +525,7 @@ export function RealTimeAttendanceWidget() {
 
       // 2. Map raw logs to CSV format with the new logic
       const csvRows = historicalLogs.map((log) => {
-        const empId = log.employee_id || userToEmpMapRef.current.get(log.user_id);
+        const empId = log.employee_id || userToEmpMap.get(log.user_id);
         const emp = employees.find((e) => e.id === empId);
 
         const dateObj = new Date(log.clock_in);
