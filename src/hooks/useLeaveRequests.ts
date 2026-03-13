@@ -217,7 +217,7 @@ export function useLeaveRequests() {
       return [];
     }
 
-    if ((isSupervisor || isLineManager) && role !== "admin" && role !== "vp" && role !== "manager") {
+    if ((isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") && role !== "admin" && role !== "vp" && role !== "manager") {
       const teamIds = await fetchTeamMemberUserIds();
       if (teamIds.length > 0) {
         return (data || []).filter((r) => teamIds.includes(r.user_id));
