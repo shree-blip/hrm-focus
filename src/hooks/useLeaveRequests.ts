@@ -440,38 +440,13 @@ export function useLeaveRequests() {
         `/leave`,
       );
 
-      // Find the employee's direct line manager to notify
-      const { data: userProfile2 } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
-
+      // Find ALL managers assigned to this employee (from junction table + legacy fields)
       let targetNotifyIds: string[] = [];
 
-      if (userProfile2) {
-        const { data: empRecord } = await supabase
-          .from("employees")
-          .select("line_manager_id, manager_id")
-          .eq("profile_id", userProfile2.id)
-          .single();
-
-        if (empRecord) {
-          const managerEmpIds = [empRecord.line_manager_id, empRecord.manager_id].filter(Boolean);
-          if (managerEmpIds.length > 0) {
-            const { data: managerProfiles } = await supabase
-              .from("employees")
-              .select("profile_id")
-              .in("id", managerEmpIds as string[]);
-
-            if (managerProfiles) {
-              const profileIds = managerProfiles.map((m) => m.profile_id).filter(Boolean);
-              if (profileIds.length > 0) {
-                const { data: mgrUsers } = await supabase
-                  .from("profiles")
-                  .select("user_id")
-                  .in("id", profileIds as string[]);
-                targetNotifyIds = mgrUsers?.map((p) => p.user_id).filter(Boolean) as string[] || [];
-              }
-            }
-          }
-        }
+      try {
+        targetNotifyIds = await resolveManagerUserIds(user.id);
+      } catch (err) {
+        console.error("Error resolving manager user IDs:", err);
       }
 
       // ALWAYS include VP/Admin in notifications for every leave request
