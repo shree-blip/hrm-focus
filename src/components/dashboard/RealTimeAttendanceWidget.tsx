@@ -416,8 +416,13 @@ export function RealTimeAttendanceWidget() {
 
         return updated;
       });
+
+      // Fix 3: Background reconcile for clock-out events only
+      if (log.clock_out) {
+        setTimeout(fetchData, 300);
+      }
     },
-    [fetchData, userToEmpMap],
+    [fetchData],
   );
 
   useEffect(() => {
