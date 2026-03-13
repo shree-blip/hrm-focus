@@ -112,10 +112,17 @@ export function MyTeamSection() {
   };
 
   const handleRemoveFromTeam = async (member: TeamMember) => {
+    if (!user) return;
+    const { data: employeeId } = await supabase.rpc('get_employee_id_for_user', {
+      _user_id: user.id
+    });
+
+    // Remove from junction table
     const { error } = await supabase
-      .from("employees")
-      .update({ line_manager_id: null })
-      .eq("id", member.id);
+      .from("team_members")
+      .delete()
+      .eq("manager_employee_id", employeeId)
+      .eq("member_employee_id", member.id);
 
     if (!error) {
       toast({
