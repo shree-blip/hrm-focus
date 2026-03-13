@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
 
 export interface WorkLog {
   id: string;
@@ -226,53 +227,7 @@ export function useWorkLogs() {
           if (error) throw error;
           setTeamLogs((data as WorkLog[]) || []);
         } else {
-          const { data: myEmpId } = await supabase.rpc("get_employee_id_for_user", {
-            _user_id: user.id,
-          });
-
-          if (!myEmpId) {
-            setTeamLogs([]);
-            return;
-          }
-
-          const { data: teamEmployees } = await supabase
-            .from("employees")
-            .select("id, profile_id")
-            .or(`line_manager_id.eq.${myEmpId},manager_id.eq.${myEmpId}`);
-
-          if (!teamEmployees || teamEmployees.length === 0) {
-            setTeamLogs([]);
-            return;
-          }
-
-          // Resolve user IDs from profile_id, and also directly from profiles by email for employees with NULL profile_id
-          const profileIds = teamEmployees.map((e) => e.profile_id).filter(Boolean);
-          const empIdsWithoutProfile = teamEmployees.filter((e) => !e.profile_id).map((e) => e.id);
-
-          let teamUserIds: string[] = [];
-
-          if (profileIds.length > 0) {
-            const { data: profiles } = await supabase.from("profiles").select("user_id").in("id", profileIds);
-            teamUserIds = (profiles || []).map((p) => p.user_id);
-          }
-
-          // For employees without profile_id, look up by email match in profiles
-          if (empIdsWithoutProfile.length > 0) {
-            const { data: empsWithoutProfile } = await supabase
-              .from("employees")
-              .select("email")
-              .in("id", empIdsWithoutProfile);
-            if (empsWithoutProfile && empsWithoutProfile.length > 0) {
-              const emails = empsWithoutProfile.map((e) => e.email);
-              const { data: matchedProfiles } = await supabase
-                .from("profiles")
-                .select("user_id")
-                .in("email", emails);
-              if (matchedProfiles) {
-                teamUserIds = [...teamUserIds, ...matchedProfiles.map((p) => p.user_id)];
-              }
-            }
-          }
+          const teamUserIds = await resolveTeamMemberUserIds(user.id);
 
           if (teamUserIds.length === 0) {
             setTeamLogs([]);

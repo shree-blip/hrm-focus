@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
 
 export interface AttendanceLogRecord {
   clock_in: string;
@@ -61,29 +62,8 @@ export function useAttendanceAdjustments() {
     // For line managers / managers (non-VP, non-admin): scope to their direct reports only
     let teamUserIds: string[] | null = null;
     if (!isVP && !isAdmin) {
-      // Get the current user's employee ID
-      const { data: empId } = await supabase.rpc("get_employee_id_for_user", { _user_id: user.id });
-      if (!empId) return;
-
-      // Get direct reports (employees where line_manager_id or manager_id = this employee)
-      const { data: reports } = await supabase
-        .from("employees")
-        .select("id, profile_id")
-        .or(`line_manager_id.eq.${empId},manager_id.eq.${empId}`);
-
-      if (!reports || reports.length === 0) return;
-
-      // Get user_ids for these employees via profiles
-      const profileIds = reports.map((r) => r.profile_id).filter(Boolean);
-      if (profileIds.length === 0) return;
-
-      const { data: profileUsers } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .in("id", profileIds);
-
-      teamUserIds = (profileUsers || []).map((p) => p.user_id).filter(Boolean) as string[];
-      if (teamUserIds.length === 0) return;
+      teamUserIds = await resolveTeamMemberUserIds(user.id);
+      if (!teamUserIds || teamUserIds.length === 0) return;
     }
 
     // Fetch adjustment requests

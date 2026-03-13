@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
 import { Users, Clock, Briefcase, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTime12h, formatDuration } from "@/lib/timeFormat";
@@ -46,55 +47,14 @@ export function TeamRealtimeDashboard() {
       return;
     }
 
-    const { data: myEmpId } = await supabase.rpc("get_employee_id_for_user", {
-      _user_id: user.id,
-    });
-    if (!myEmpId) {
+    const ids = await resolveTeamMemberUserIds(user.id);
+
+    if (ids.length === 0) {
       setTeamUserIds(["__none__"]);
       return;
     }
 
-    const { data: teamEmployees } = await supabase
-      .from("employees")
-      .select("id, profile_id")
-      .or(`line_manager_id.eq.${myEmpId},manager_id.eq.${myEmpId}`);
-
-    if (!teamEmployees || teamEmployees.length === 0) {
-      setTeamUserIds(["__none__"]);
-      return;
-    }
-
-    const profileIds = teamEmployees.map((e) => e.profile_id).filter(Boolean);
-    const empIdsWithoutProfile = teamEmployees.filter((e) => !e.profile_id).map((e) => e.id);
-
-    let ids: string[] = [];
-
-    if (profileIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .in("id", profileIds);
-      ids = (profiles || []).map((p) => p.user_id);
-    }
-
-    // For employees without profile_id, look up by email
-    if (empIdsWithoutProfile.length > 0) {
-      const { data: empsNoProfile } = await supabase
-        .from("employees")
-        .select("email")
-        .in("id", empIdsWithoutProfile);
-      if (empsNoProfile && empsNoProfile.length > 0) {
-        const { data: matchedProfiles } = await supabase
-          .from("profiles")
-          .select("user_id")
-          .in("email", empsNoProfile.map((e) => e.email));
-        if (matchedProfiles) {
-          ids = [...ids, ...matchedProfiles.map((p) => p.user_id)];
-        }
-      }
-    }
-
-    setTeamUserIds(ids.length > 0 ? ids : ["__none__"]);
+    setTeamUserIds(ids);
   }, [user, isVP]);
 
   const fetchLiveLogs = useCallback(async () => {

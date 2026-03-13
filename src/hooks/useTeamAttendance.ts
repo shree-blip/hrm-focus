@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getUTCDateKey } from "@/utils/timezone";
 import { useAuth } from "@/contexts/AuthContext";
+import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
 
 interface EmployeeAttendance {
   employee_id: string;
@@ -76,43 +77,11 @@ export function getDateRangeFromType(rangeType: DateRangeType): DateRange {
 
 /**
  * Resolve the set of user_ids a line manager / supervisor can see.
- * Returns null if the user has org-wide access (VP/Admin/Manager roles).
+ * Uses the shared team resolver that queries both team_members junction table
+ * and legacy manager fields.
  */
-async function getTeamUserIds(userId: string): Promise<string[] | null> {
-  // Get the user's employee record
-  const { data: myProfile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("user_id", userId)
-    .single();
-
-  if (!myProfile) return [];
-
-  const { data: myEmployee } = await supabase
-    .from("employees")
-    .select("id")
-    .eq("profile_id", myProfile.id)
-    .single();
-
-  if (!myEmployee) return [];
-
-  // Get team members where this user is line_manager or manager
-  const { data: teamMembers } = await supabase
-    .from("employees")
-    .select("profile_id")
-    .or(`line_manager_id.eq.${myEmployee.id},manager_id.eq.${myEmployee.id}`);
-
-  if (!teamMembers || teamMembers.length === 0) return [];
-
-  const profileIds = teamMembers.map((e) => e.profile_id).filter(Boolean);
-  if (profileIds.length === 0) return [];
-
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .in("id", profileIds as string[]);
-
-  return profiles?.map((p) => p.user_id).filter(Boolean) as string[] || [];
+async function getTeamUserIds(userId: string): Promise<string[]> {
+  return resolveTeamMemberUserIds(userId);
 }
 
 export function useTeamAttendance(dateRangeType?: DateRangeType) {

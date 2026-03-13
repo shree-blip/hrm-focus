@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
 
 interface TeamMember {
   id: string;
@@ -60,9 +61,33 @@ export function useLineManagerAccess() {
     if (!user) return;
 
     // If VP, they see all employees via the main useEmployees hook
-    // Line managers only see their direct reports
+    // Line managers only see their direct reports (from junction table + legacy fields)
     if (isLineManager && !isVP) {
-      // Get the current user's employee ID first
+      const teamUserIds = await resolveTeamMemberUserIds(user.id);
+
+      if (teamUserIds.length > 0) {
+        // Get employee IDs from user IDs
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, user_id")
+          .in("user_id", teamUserIds);
+
+        if (profiles && profiles.length > 0) {
+          const profileIds = profiles.map((p) => p.id);
+          const { data, error } = await supabase
+            .from("employees")
+            .select("id, first_name, last_name, email, department, job_title, location, status, hire_date")
+            .in("profile_id", profileIds)
+            .order("first_name", { ascending: true });
+
+          if (!error && data) {
+            setTeamMembers(data);
+            return;
+          }
+        }
+      }
+
+      // Also check legacy field directly as fallback
       const { data: employeeId } = await supabase.rpc('get_employee_id_for_user', {
         _user_id: user.id
       });
@@ -71,7 +96,7 @@ export function useLineManagerAccess() {
         const { data, error } = await supabase
           .from("employees")
           .select("id, first_name, last_name, email, department, job_title, location, status, hire_date")
-          .eq("line_manager_id", employeeId)
+          .or(`line_manager_id.eq.${employeeId},manager_id.eq.${employeeId}`)
           .order("first_name", { ascending: true });
 
         if (!error && data) {
