@@ -167,7 +167,7 @@ export function useLeaveRequests() {
 
     if (role === "admin" || role === "vp" || role === "manager") return [];
 
-    if (isSupervisor || isLineManager) {
+    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
       const { data: myProfile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
 
       if (!myProfile) return [];
@@ -217,7 +217,7 @@ export function useLeaveRequests() {
       return [];
     }
 
-    if ((isSupervisor || isLineManager) && role !== "admin" && role !== "vp" && role !== "manager") {
+    if ((isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") && role !== "admin" && role !== "vp" && role !== "manager") {
       const teamIds = await fetchTeamMemberUserIds();
       if (teamIds.length > 0) {
         return (data || []).filter((r) => teamIds.includes(r.user_id));
@@ -242,7 +242,7 @@ export function useLeaveRequests() {
       return data || [];
     }
 
-    if (isSupervisor || isLineManager) {
+    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
       const { data, error } = await supabase
         .from("leave_requests")
         .select("*")
