@@ -61,24 +61,25 @@ export function MyTeamSection() {
     });
 
     if (employeeId) {
-      const { data: lineReports } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name, email, department, job_title, location, status, hire_date")
-        .eq("line_manager_id", employeeId)
-        .order("first_name", { ascending: true });
+      // Query from team_members junction table
+      const { data: teamRows } = await supabase
+        .from("team_members")
+        .select("member_employee_id")
+        .eq("manager_employee_id", employeeId);
 
-      const { data: managerReports } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name, email, department, job_title, location, status, hire_date")
-        .eq("manager_id", employeeId)
-        .order("first_name", { ascending: true });
+      const memberIds = (teamRows || []).map((r: any) => r.member_employee_id);
 
-      const allReports = [...(lineReports || []), ...(managerReports || [])];
-      const uniqueReports = allReports.filter(
-        (emp, index, self) => self.findIndex((e) => e.id === emp.id) === index
-      );
-      uniqueReports.sort((a, b) => a.first_name.localeCompare(b.first_name));
-      setTeamMembers(uniqueReports);
+      if (memberIds.length > 0) {
+        const { data: members } = await supabase
+          .from("employees")
+          .select("id, first_name, last_name, email, department, job_title, location, status, hire_date")
+          .in("id", memberIds)
+          .order("first_name", { ascending: true });
+
+        setTeamMembers(members || []);
+      } else {
+        setTeamMembers([]);
+      }
     }
     setLoading(false);
   }, [user]);
@@ -111,10 +112,17 @@ export function MyTeamSection() {
   };
 
   const handleRemoveFromTeam = async (member: TeamMember) => {
+    if (!user) return;
+    const { data: employeeId } = await supabase.rpc('get_employee_id_for_user', {
+      _user_id: user.id
+    });
+
+    // Remove from junction table
     const { error } = await supabase
-      .from("employees")
-      .update({ line_manager_id: null })
-      .eq("id", member.id);
+      .from("team_members")
+      .delete()
+      .eq("manager_employee_id", employeeId)
+      .eq("member_employee_id", member.id);
 
     if (!error) {
       toast({

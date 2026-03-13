@@ -3571,6 +3571,70 @@ export type Database = {
           },
         ]
       }
+      team_members: {
+        Row: {
+          created_at: string
+          id: string
+          manager_employee_id: string
+          member_employee_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          manager_employee_id: string
+          member_employee_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          manager_employee_id?: string
+          member_employee_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_manager_employee_id_fkey"
+            columns: ["manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_manager_employee_id_fkey"
+            columns: ["manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_manager_employee_id_fkey"
+            columns: ["manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_member_employee_id_fkey"
+            columns: ["member_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_member_employee_id_fkey"
+            columns: ["member_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_member_employee_id_fkey"
+            columns: ["member_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_encryption_keys: {
         Row: {
           created_at: string
