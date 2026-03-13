@@ -167,7 +167,7 @@ export function useLeaveRequests() {
 
     if (role === "admin" || role === "vp" || role === "manager") return [];
 
-    if (isSupervisor || isLineManager) {
+    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
       const { data: myProfile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
 
       if (!myProfile) return [];
