@@ -65,8 +65,15 @@ export function AddToTeamDialog({
     });
     setMyEmployeeId(empId);
 
-    // The ID to exclude from the list (target employee or self)
-    const excludeId = targetEmployeeId || empId;
+    const assignToId = targetEmployeeId || empId;
+
+    // Fetch current team member IDs from junction table
+    const { data: existingTeam } = await supabase
+      .from("team_members")
+      .select("member_employee_id")
+      .eq("manager_employee_id", assignToId);
+
+    const existingMemberIds = (existingTeam || []).map((r: any) => r.member_employee_id);
 
     // Fetch all active employees
     const { data: employees } = await supabase
@@ -77,7 +84,7 @@ export function AddToTeamDialog({
 
     if (employees) {
       // Filter out current team members and the target/self
-      const available = employees.filter((e) => !currentTeamMemberIds.includes(e.id) && e.id !== excludeId);
+      const available = employees.filter((e) => !existingMemberIds.includes(e.id) && e.id !== assignToId);
       setAllEmployees(available);
     }
 
