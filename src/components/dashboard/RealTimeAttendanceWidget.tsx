@@ -190,6 +190,15 @@ export function RealTimeAttendanceWidget() {
       .is("clock_out", null)
       .order("clock_in", { ascending: false });
 
+    // Fetch cross-midnight logs: clocked in before today but clocked out today
+    const { data: crossMidnightLogs } = await supabase
+      .from("attendance_logs")
+      .select("*")
+      .lt("clock_in", dayStart)
+      .gte("clock_out", dayStart)
+      .lte("clock_out", dayEnd)
+      .order("clock_in", { ascending: false });
+
     // Merge and deduplicate by id
     const allLogsMap = new Map<string, any>();
     [...(todayLogs || []), ...(activeLogs || [])].forEach((log) => {
