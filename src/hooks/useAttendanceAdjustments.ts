@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
 
 export interface AttendanceLogRecord {
   clock_in: string;
