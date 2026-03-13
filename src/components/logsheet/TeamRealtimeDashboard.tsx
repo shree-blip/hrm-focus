@@ -56,14 +56,6 @@ export function TeamRealtimeDashboard() {
 
     setTeamUserIds(ids);
   }, [user, isVP]);
-        if (matchedProfiles) {
-          ids = [...ids, ...matchedProfiles.map((p) => p.user_id)];
-        }
-      }
-    }
-
-    setTeamUserIds(ids.length > 0 ? ids : ["__none__"]);
-  }, [user, isVP]);
 
   const fetchLiveLogs = useCallback(async () => {
     if (!user) return;
