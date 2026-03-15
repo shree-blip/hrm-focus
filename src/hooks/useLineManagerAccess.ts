@@ -26,7 +26,7 @@ interface AttendanceLog {
 }
 
 export function useLineManagerAccess() {
-  const { user, profile, isVP } = useAuth();
+  const { user, profile, isVP, isAdmin, isManager } = useAuth();
   const [isLineManager, setIsLineManager] = useState(false);
   const [canCreateEmployee, setCanCreateEmployee] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
