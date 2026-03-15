@@ -60,9 +60,9 @@ export function useLineManagerAccess() {
   const fetchTeamMembers = useCallback(async () => {
     if (!user) return;
 
-    // If VP, they see all employees via the main useEmployees hook
-    // Line managers only see their direct reports (from junction table + legacy fields)
-    if (isLineManager && !isVP) {
+    // VP/Admin see all employees via the main useEmployees hook
+    // All other manager types see their direct reports (from junction table + legacy fields)
+    if ((isLineManager || isManager) && !isVP && !isAdmin) {
       const teamUserIds = await resolveTeamMemberUserIds(user.id);
 
       if (teamUserIds.length > 0) {
