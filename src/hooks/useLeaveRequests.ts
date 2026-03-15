@@ -166,9 +166,9 @@ export function useLeaveRequests() {
   const fetchTeamMemberUserIds = useCallback(async (): Promise<string[]> => {
     if (!user) return [];
 
-    if (role === "admin" || role === "vp" || role === "manager") return [];
+    if (role === "admin" || role === "vp") return [];
 
-    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
+    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor" || role === "manager") {
       return resolveTeamMemberUserIds(user.id);
     }
 
