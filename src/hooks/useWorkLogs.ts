@@ -217,7 +217,7 @@ export function useWorkLogs() {
       try {
         const dateStr = formatLocalDate(date);
 
-        if (isVP || (isManager && !isLineManager)) {
+        if (isVP) {
           const { data, error } = await supabase
             .from("work_logs")
             .select(`*, employee:employees(first_name, last_name, department), client:clients(name, client_id)`)
