@@ -206,7 +206,7 @@ export function useLeaveRequests() {
   const fetchAllTeamRequests = useCallback(async () => {
     if (!user || !isManager) return [];
 
-    if (role === "admin" || role === "vp" || role === "manager") {
+    if (role === "admin" || role === "vp") {
       const { data, error } = await supabase
         .from("leave_requests")
         .select("*")
