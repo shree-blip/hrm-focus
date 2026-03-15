@@ -26,7 +26,7 @@ interface AttendanceLog {
 }
 
 export function useLineManagerAccess() {
-  const { user, profile, isVP } = useAuth();
+  const { user, profile, isVP, isAdmin, isManager } = useAuth();
   const [isLineManager, setIsLineManager] = useState(false);
   const [canCreateEmployee, setCanCreateEmployee] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -60,9 +60,9 @@ export function useLineManagerAccess() {
   const fetchTeamMembers = useCallback(async () => {
     if (!user) return;
 
-    // If VP, they see all employees via the main useEmployees hook
-    // Line managers only see their direct reports (from junction table + legacy fields)
-    if (isLineManager && !isVP) {
+    // VP/Admin see all employees via the main useEmployees hook
+    // All other manager types see their direct reports (from junction table + legacy fields)
+    if ((isLineManager || isManager) && !isVP && !isAdmin) {
       const teamUserIds = await resolveTeamMemberUserIds(user.id);
 
       if (teamUserIds.length > 0) {
@@ -104,10 +104,10 @@ export function useLineManagerAccess() {
         }
       }
     }
-  }, [user, isLineManager, isVP]);
+  }, [user, isLineManager, isManager, isVP, isAdmin]);
 
   useEffect(() => {
-    if (isLineManager) {
+    if (isLineManager || (isManager && !isVP && !isAdmin)) {
       fetchTeamMembers();
     }
   }, [isLineManager, fetchTeamMembers]);

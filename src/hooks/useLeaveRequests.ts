@@ -166,9 +166,9 @@ export function useLeaveRequests() {
   const fetchTeamMemberUserIds = useCallback(async (): Promise<string[]> => {
     if (!user) return [];
 
-    if (role === "admin" || role === "vp" || role === "manager") return [];
+    if (role === "admin" || role === "vp") return [];
 
-    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
+    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor" || role === "manager") {
       return resolveTeamMemberUserIds(user.id);
     }
 
@@ -191,7 +191,7 @@ export function useLeaveRequests() {
       return [];
     }
 
-    if ((isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") && role !== "admin" && role !== "vp" && role !== "manager") {
+    if ((isSupervisor || isLineManager || role === "line_manager" || role === "supervisor" || role === "manager") && role !== "admin" && role !== "vp") {
       const teamIds = await fetchTeamMemberUserIds();
       if (teamIds.length > 0) {
         return (data || []).filter((r) => teamIds.includes(r.user_id));
@@ -206,7 +206,7 @@ export function useLeaveRequests() {
   const fetchAllTeamRequests = useCallback(async () => {
     if (!user || !isManager) return [];
 
-    if (role === "admin" || role === "vp" || role === "manager") {
+    if (role === "admin" || role === "vp") {
       const { data, error } = await supabase
         .from("leave_requests")
         .select("*")
@@ -216,7 +216,7 @@ export function useLeaveRequests() {
       return data || [];
     }
 
-    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
+    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor" || role === "manager") {
       const { data, error } = await supabase
         .from("leave_requests")
         .select("*")
