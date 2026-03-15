@@ -99,10 +99,11 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
     const { start: startDate, end: endDate } = getDateRangeFromType(dateRangeType || "this-month");
 
     // Determine if we need to scope to team only
-    const hasOrgWideAccess = isVP || isAdmin || role === "manager";
+    // VP and Admin get org-wide access; all other manager types are scoped to their team
+    const hasOrgWideAccess = isVP || isAdmin;
     let teamUserIds: string[] | null = null;
 
-    if (!hasOrgWideAccess && (isLineManager || isSupervisor)) {
+    if (!hasOrgWideAccess) {
       teamUserIds = await getTeamUserIds(user.id);
       if (!teamUserIds || teamUserIds.length === 0) {
         setTeamAttendance([]);

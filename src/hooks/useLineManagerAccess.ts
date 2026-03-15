@@ -104,10 +104,10 @@ export function useLineManagerAccess() {
         }
       }
     }
-  }, [user, isLineManager, isVP]);
+  }, [user, isLineManager, isManager, isVP, isAdmin]);
 
   useEffect(() => {
-    if (isLineManager) {
+    if (isLineManager || (isManager && !isVP && !isAdmin)) {
       fetchTeamMembers();
     }
   }, [isLineManager, fetchTeamMembers]);
