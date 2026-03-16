@@ -4,28 +4,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { usePromotions } from "@/hooks/usePromotions";
 import { useAuth } from "@/contexts/AuthContext";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
 import { PromotionApprovalQueue } from "@/components/employees/PromotionApprovalQueue";
 import { format } from "date-fns";
-import { 
-  Check, 
-  X, 
-  Clock, 
-  Calendar, 
-  Loader2, 
-  MessageSquare, 
-  ArrowUpRight,
+import {
+  Check,
+  X,
+  Clock,
+  Calendar,
+  Loader2,
+  MessageSquare,
   CheckCircle2,
   XCircle,
   RotateCcw,
-  TrendingUp
+  TrendingUp,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { useMemo } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Download } from "lucide-react";
 
 const Approvals = () => {
   const { user, role, isVP } = useAuth();
@@ -39,18 +40,83 @@ const Approvals = () => {
     null,
   );
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [filterEmployee, setFilterEmployee] = useState<string>("all");
+  const [filterLeaveType, setFilterLeaveType] = useState<string>("all");
 
   // Filter requests based on approval stage
   // Manager sees: pending requests from their team
   // VP sees: all pending requests for final approval
-  const pendingRequests = requests.filter(r => {
+  const pendingRequests = requests.filter((r) => {
     if (r.user_id === user?.id) return false; // Can't approve own requests
     return r.status === "pending";
   });
 
-  const approvedRequests = requests.filter(r => r.status === "approved");
+  const approvedRequests = requests.filter((r) => r.status === "approved");
 
-  const rejectedRequests = requests.filter(r => r.status === "rejected");
+  const rejectedRequests = requests.filter((r) => r.status === "rejected");
+  // Get unique employees and leave types for filter dropdowns
+  const uniqueEmployees = useMemo(() => {
+    const map = new Map<string, string>();
+    requests.forEach((r) => {
+      if (r.profile) {
+        map.set(r.user_id, `${r.profile.first_name} ${r.profile.last_name}`);
+      }
+    });
+    return Array.from(map.entries()); // [[user_id, name], ...]
+  }, [requests]);
+
+  const uniqueLeaveTypes = useMemo(() => {
+    return [...new Set(requests.map((r) => r.leave_type))];
+  }, [requests]);
+
+  // Filtered versions of approved/rejected
+  const applyFilters = (list: typeof requests) => {
+    return list.filter((r) => {
+      if (filterEmployee !== "all" && r.user_id !== filterEmployee) return false;
+      if (filterLeaveType !== "all" && r.leave_type !== filterLeaveType) return false;
+      return true;
+    });
+  };
+
+  const filteredApproved = applyFilters(approvedRequests);
+  const filteredRejected = applyFilters(rejectedRequests);
+
+  // CSV export
+  const exportCSV = (data: typeof requests, filename: string) => {
+    if (data.length === 0) return;
+    const header = [
+      "Employee",
+      "Email",
+      "Leave Type",
+      "Start Date",
+      "End Date",
+      "Days",
+      "Status",
+      "Reason",
+      "Rejection Reason",
+    ];
+    const rows = data.map((r) => [
+      r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown",
+      r.profile?.email || "",
+      r.leave_type,
+      r.start_date,
+      r.end_date,
+      r.days,
+      r.status,
+      r.reason || "",
+      r.rejection_reason || "",
+    ]);
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${filename}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleApprove = async (requestId: string) => {
     setProcessingId(requestId);
@@ -92,23 +158,23 @@ const Approvals = () => {
       vp_rejected: { color: "border-destructive text-destructive bg-destructive/10", label: "VP Rejected" },
       returned: { color: "border-warning text-warning bg-warning/10", label: "Returned" },
     };
-    
+
     const config = statusConfig[status] || statusConfig.pending;
-    return <Badge variant="outline" className={config.color}>{config.label}</Badge>;
+    return (
+      <Badge variant="outline" className={config.color}>
+        {config.label}
+      </Badge>
+    );
   };
 
   const renderRequestCard = (request: any, showActions: boolean = false) => {
-    const employeeName = request.profile 
-      ? `${request.profile.first_name} ${request.profile.last_name}` 
-      : "Unknown";
-    const initials = request.profile 
-      ? `${request.profile.first_name[0]}${request.profile.last_name[0]}` 
-      : "??";
+    const employeeName = request.profile ? `${request.profile.first_name} ${request.profile.last_name}` : "Unknown";
+    const initials = request.profile ? `${request.profile.first_name[0]}${request.profile.last_name[0]}` : "??";
     const isProcessing = processingId === request.id;
 
     return (
-      <div 
-        key={request.id} 
+      <div
+        key={request.id}
         className="flex items-start gap-4 p-4 rounded-xl bg-accent/30 border border-border hover:border-primary/20 transition-all"
       >
         <Avatar className="h-10 w-10">
@@ -120,11 +186,10 @@ const Approvals = () => {
             <div>
               <p className="font-medium">{employeeName}</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                {request.leave_type} • {format(new Date(request.start_date), "MMM d, yyyy")} - {format(new Date(request.end_date), "MMM d, yyyy")}
+                {request.leave_type} • {format(new Date(request.start_date), "MMM d, yyyy")} -{" "}
+                {format(new Date(request.end_date), "MMM d, yyyy")}
               </p>
-              {request.reason && (
-                <p className="text-sm text-muted-foreground mt-1 italic">"{request.reason}"</p>
-              )}
+              {request.reason && <p className="text-sm text-muted-foreground mt-1 italic">"{request.reason}"</p>}
               {request.rejection_reason && (
                 <div className="flex items-start gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                   <MessageSquare className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
@@ -139,26 +204,17 @@ const Approvals = () => {
               <span className="text-sm font-medium">{request.days} days</span>
             </div>
           </div>
-          
+
           {showActions && (
             <div className="flex gap-2 mt-3">
-              <Button 
-                size="sm" 
-                className="gap-1" 
-                onClick={() => handleApprove(request.id)}
-                disabled={isProcessing}
-              >
-                {isProcessing ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Check className="h-3 w-3" />
-                )}
+              <Button size="sm" className="gap-1" onClick={() => handleApprove(request.id)} disabled={isProcessing}>
+                {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                 Approve
               </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="gap-1 text-destructive hover:bg-destructive/10" 
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1 text-destructive hover:bg-destructive/10"
                 onClick={() => handleOpenRejectDialog(request.id, employeeName)}
                 disabled={isProcessing}
               >
@@ -166,12 +222,7 @@ const Approvals = () => {
                 Reject
               </Button>
               {isVP && request.status === "manager_approved" && (
-                <Button 
-                  size="sm" 
-                  variant="ghost"
-                  className="gap-1"
-                  disabled={isProcessing}
-                >
+                <Button size="sm" variant="ghost" className="gap-1" disabled={isProcessing}>
                   <RotateCcw className="h-3 w-3" />
                   Return
                 </Button>
@@ -229,123 +280,164 @@ const Approvals = () => {
       {section === "leave" && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card className="animate-slide-up">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending Approvals</p>
-                <p className="text-3xl font-display font-bold text-warning">{pendingRequests.length}</p>
-              </div>
-              <div className="p-3 rounded-full bg-warning/10">
-                <Clock className="h-6 w-6 text-warning" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="animate-slide-up">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Pending Approvals</p>
+                    <p className="text-3xl font-display font-bold text-warning">{pendingRequests.length}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-warning/10">
+                    <Clock className="h-6 w-6 text-warning" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="animate-slide-up" style={{ animationDelay: "100ms" }}>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Approved This Month</p>
-                <p className="text-3xl font-display font-bold text-success">{approvedRequests.length}</p>
-              </div>
-              <div className="p-3 rounded-full bg-success/10">
-                <CheckCircle2 className="h-6 w-6 text-success" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="animate-slide-up" style={{ animationDelay: "100ms" }}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Approved This Month</p>
+                    <p className="text-3xl font-display font-bold text-success">{approvedRequests.length}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-success/10">
+                    <CheckCircle2 className="h-6 w-6 text-success" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="animate-slide-up" style={{ animationDelay: "200ms" }}>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Rejected This Month</p>
-                <p className="text-3xl font-display font-bold text-destructive">{rejectedRequests.length}</p>
-              </div>
-              <div className="p-3 rounded-full bg-destructive/10">
-                <XCircle className="h-6 w-6 text-destructive" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="animate-slide-up" style={{ animationDelay: "300ms" }}>
-        <CardHeader>
-          <div className="flex flex-col gap-4">
-            <CardTitle className="font-display text-lg flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Leave Requests
-            </CardTitle>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="flex-wrap h-auto gap-1">
-                <TabsTrigger value="pending" className="gap-2">
-                  <Clock className="h-4 w-4" />
-                  Pending ({pendingRequests.length})
-                </TabsTrigger>
-                <TabsTrigger value="approved" className="gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Approved
-                </TabsTrigger>
-                <TabsTrigger value="rejected" className="gap-2">
-                  <XCircle className="h-4 w-4" />
-                  Rejected
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <Card className="animate-slide-up" style={{ animationDelay: "200ms" }}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Rejected This Month</p>
+                    <p className="text-3xl font-display font-bold text-destructive">{rejectedRequests.length}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-destructive/10">
+                    <XCircle className="h-6 w-6 text-destructive" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {activeTab === "pending" && (
-            pendingRequests.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="font-medium">All caught up!</p>
-                <p className="text-sm">No pending approvals at this time</p>
-              </div>
-            ) : (
-              pendingRequests.map(request => renderRequestCard(request, true))
-            )
-          )}
 
-          {activeTab === "approved" && (
-            approvedRequests.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No approved requests</p>
+          <Card className="animate-slide-up" style={{ animationDelay: "300ms" }}>
+            <CardHeader>
+              <div className="flex flex-col gap-4">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Leave Requests
+                </CardTitle>
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="flex-wrap h-auto gap-1">
+                    <TabsTrigger value="pending" className="gap-2">
+                      <Clock className="h-4 w-4" />
+                      Pending ({pendingRequests.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="approved" className="gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Approved
+                    </TabsTrigger>
+                    <TabsTrigger value="rejected" className="gap-2">
+                      <XCircle className="h-4 w-4" />
+                      Rejected
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
-            ) : (
-              approvedRequests.map(request => renderRequestCard(request, false))
-            )
-          )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(activeTab === "approved" || activeTab === "rejected") && (
+                <div className="flex flex-wrap items-center gap-3 pb-4 border-b border-border mb-4">
+                  <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="All Employees" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Employees</SelectItem>
+                      {uniqueEmployees.map(([id, name]) => (
+                        <SelectItem key={id} value={id}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-          {activeTab === "rejected" && (
-            rejectedRequests.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No rejected requests</p>
-              </div>
-            ) : (
-              rejectedRequests.map(request => renderRequestCard(request, false))
-            )
-          )}
-        </CardContent>
-      </Card>
+                  <Select value={filterLeaveType} onValueChange={setFilterLeaveType}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="All Leave Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Leave Types</SelectItem>
+                      {uniqueLeaveTypes.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-      <RejectReasonDialog
-        open={rejectDialogOpen}
-        onOpenChange={handleRejectDialogOpenChange}
-        onConfirm={handleReject}
-        employeeName={selectedRequest?.name || ""}
-      />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2 ml-auto"
+                    onClick={() =>
+                      exportCSV(
+                        activeTab === "approved" ? filteredApproved : filteredRejected,
+                        activeTab === "approved" ? "approved-leaves" : "rejected-leaves",
+                      )
+                    }
+                  >
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </Button>
+                </div>
+              )}
+              {activeTab === "pending" &&
+                (pendingRequests.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="font-medium">All caught up!</p>
+                    <p className="text-sm">No pending approvals at this time</p>
+                  </div>
+                ) : (
+                  pendingRequests.map((request) => renderRequestCard(request, true))
+                ))}
+
+              {activeTab === "approved" &&
+                (filteredApproved.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No approved requests</p>
+                  </div>
+                ) : (
+                  filteredApproved.map((request) => renderRequestCard(request, false))
+                ))}
+
+              {activeTab === "rejected" &&
+                (filteredRejected.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No rejected requests</p>
+                  </div>
+                ) : (
+                  filteredRejected.map((request) => renderRequestCard(request, false))
+                ))}
+            </CardContent>
+          </Card>
+
+          <RejectReasonDialog
+            open={rejectDialogOpen}
+            onOpenChange={handleRejectDialogOpenChange}
+            onConfirm={handleReject}
+            employeeName={selectedRequest?.name || ""}
+          />
         </>
       )}
 
-      {section === "promotions" && (
-        <PromotionApprovalQueue />
-      )}
+      {section === "promotions" && <PromotionApprovalQueue />}
     </DashboardLayout>
   );
 };
