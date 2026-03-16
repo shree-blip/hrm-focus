@@ -4,13 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { ThumbsUp, ThumbsDown, ClipboardList } from "lucide-react";
 import type { AdjustmentRequest } from "@/hooks/useAttendanceAdjustments";
@@ -54,7 +48,9 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
             <ClipboardList className="h-4 w-4" />
             Attendance Adjustment Requests
             {pending.length > 0 && (
-              <Badge variant="destructive" className="ml-1">{pending.length} pending</Badge>
+              <Badge variant="destructive" className="ml-1">
+                {pending.length} pending
+              </Badge>
             )}
           </CardTitle>
         </CardHeader>
@@ -88,22 +84,16 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
                       <TableCell className="font-medium text-sm">{empName}</TableCell>
                       <TableCell className="text-sm">{logDate}</TableCell>
                       <TableCell className="text-xs space-y-0.5">
-                        {req.proposed_clock_in && (
-                          <p>Clock In → {formatTime(req.proposed_clock_in)}</p>
-                        )}
-                        {req.proposed_clock_out && (
-                          <p>Clock Out → {formatTime(req.proposed_clock_out)}</p>
-                        )}
-                        {req.proposed_break_minutes != null && (
-                          <p>Break → {req.proposed_break_minutes}m</p>
-                        )}
-                        {req.proposed_pause_minutes != null && (
-                          <p>Pause → {req.proposed_pause_minutes}m</p>
-                        )}
+                        {req.proposed_clock_in && <p>Clock In → {formatTime(req.proposed_clock_in)}</p>}
+                        {req.proposed_clock_out && <p>Clock Out → {formatTime(req.proposed_clock_out)}</p>}
+                        {req.proposed_break_minutes != null && <p>Break → {req.proposed_break_minutes}m</p>}
+                        {req.proposed_pause_minutes != null && <p>Pause → {req.proposed_pause_minutes}m</p>}
                       </TableCell>
                       <TableCell className="text-sm max-w-[200px] truncate">{req.reason}</TableCell>
                       <TableCell>
-                        <Button size="sm" onClick={() => setSelectedRequest(req)}>Review</Button>
+                        <Button size="sm" onClick={() => setSelectedRequest(req)}>
+                          Review
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -122,7 +112,8 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
                     <TableHead>Employee</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Reviewed</TableHead>
+                    <TableHead>Reviewed By</TableHead>
+                    <TableHead>Reviewed At</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -130,19 +121,19 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
                     const empName = req.requester_profile
                       ? `${req.requester_profile.first_name} ${req.requester_profile.last_name}`
                       : "Employee";
+                    const reviewerName = req.reviewer_profile
+                      ? `${req.reviewer_profile.first_name} ${req.reviewer_profile.last_name}`
+                      : "-";
                     return (
                       <TableRow key={req.id}>
                         <TableCell className="text-sm">{empName}</TableCell>
                         <TableCell className="text-sm">
-                          {req.attendance_log?.clock_in
-                            ? format(new Date(req.attendance_log.clock_in), "MMM d")
-                            : "-"}
+                          {req.attendance_log?.clock_in ? format(new Date(req.attendance_log.clock_in), "MMM d") : "-"}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={req.status === "approved" ? "default" : "destructive"}>
-                            {req.status}
-                          </Badge>
+                          <Badge variant={req.status === "approved" ? "default" : "destructive"}>{req.status}</Badge>
                         </TableCell>
+                        <TableCell className="text-sm font-medium">{reviewerName}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {req.reviewed_at ? format(new Date(req.reviewed_at), "MMM d, h:mm a") : "-"}
                         </TableCell>
@@ -157,7 +148,13 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
       </Card>
 
       {/* Review Dialog */}
-      <Dialog open={!!selectedRequest} onOpenChange={() => { setSelectedRequest(null); setComment(""); }}>
+      <Dialog
+        open={!!selectedRequest}
+        onOpenChange={() => {
+          setSelectedRequest(null);
+          setComment("");
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Review Adjustment Request</DialogTitle>
@@ -225,7 +222,9 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
 
               {/* Comment */}
               <div>
-                <p className="text-sm font-medium mb-1">Comment <span className="text-destructive">*</span></p>
+                <p className="text-sm font-medium mb-1">
+                  Comment <span className="text-destructive">*</span>
+                </p>
                 <Textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
