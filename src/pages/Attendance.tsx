@@ -74,13 +74,7 @@ const Attendance = () => {
     refetch,
   } = useAttendance(currentWeekStart);
 
-  const {
-    myRequests,
-    teamRequests,
-    submitRequest,
-    reviewRequest,
-    getAdjustmentStatus,
-  } = useAttendanceAdjustments();
+  const { myRequests, teamRequests, submitRequest, reviewRequest, getAdjustmentStatus } = useAttendanceAdjustments();
 
   // Calculate clock status
   const getClockStatus = () => {
@@ -585,7 +579,9 @@ const Attendance = () => {
                             <div>{toNPT(log.clock_out!)}</div>
                             <div className="text-muted-foreground">{toPST(log.clock_out!)}</div>
                           </div>
-                        ) : "-"}
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
                       <TableCell>
                         {log.break_start ? (
@@ -633,16 +629,27 @@ const Attendance = () => {
                         {(() => {
                           const adj = getAdjustmentStatus(log.id);
                           if (adj) {
+                            const reviewerName = adj.reviewer_profile
+                              ? `${adj.reviewer_profile.first_name} ${adj.reviewer_profile.last_name}`
+                              : null;
                             return (
-                              <Badge
-                                variant={
-                                  adj.status === "approved" ? "default" :
-                                  adj.status === "rejected" ? "destructive" : "secondary"
-                                }
-                                className="capitalize"
-                              >
-                                {adj.status}
-                              </Badge>
+                              <div className="flex flex-col items-end gap-1">
+                                <Badge
+                                  variant={
+                                    adj.status === "approved"
+                                      ? "default"
+                                      : adj.status === "rejected"
+                                        ? "destructive"
+                                        : "secondary"
+                                  }
+                                  className="capitalize"
+                                >
+                                  {adj.status}
+                                </Badge>
+                                {reviewerName && (
+                                  <span className="text-xs text-muted-foreground">by {reviewerName}</span>
+                                )}
+                              </div>
                             );
                           }
                           return (
@@ -687,7 +694,9 @@ const Attendance = () => {
         <AdjustmentRequestDialog
           log={adjustmentLog}
           open={!!adjustmentLog}
-          onOpenChange={(open) => { if (!open) setAdjustmentLog(null); }}
+          onOpenChange={(open) => {
+            if (!open) setAdjustmentLog(null);
+          }}
           onSubmit={submitRequest}
         />
       )}
