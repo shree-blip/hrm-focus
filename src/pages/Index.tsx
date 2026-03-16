@@ -8,6 +8,7 @@ import { TeamWidget } from "@/components/dashboard/TeamWidget";
 import { AnnouncementsWidget } from "@/components/dashboard/AnnouncementsWidget";
 import { DailyTimelineWidget } from "@/components/dashboard/DailyTimelineWidget";
 import { RealTimeAttendanceWidget } from "@/components/dashboard/RealTimeAttendanceWidget";
+import { GlobalTimeZoneWidget } from "@/components/dashboard/Globaltimezonewidget "; // ← NEW
 
 import { PersonalReportsWidget } from "@/components/dashboard/PersonalReportsWidget";
 import { TeamReportsWidget } from "@/components/dashboard/TeamReportsWidget";
@@ -23,10 +24,10 @@ import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/Dashbo
 
 // Lazy load heavy below-fold components
 const PerformanceChart = lazy(() =>
-  import("@/components/dashboard/PerformanceChart").then((m) => ({ default: m.PerformanceChart }))
+  import("@/components/dashboard/PerformanceChart").then((m) => ({ default: m.PerformanceChart })),
 );
 const CompanyCalendar = lazy(() =>
-  import("@/components/dashboard/CompanyCalendar").then((m) => ({ default: m.CompanyCalendar }))
+  import("@/components/dashboard/CompanyCalendar").then((m) => ({ default: m.CompanyCalendar })),
 );
 
 const Index = () => {
@@ -58,9 +59,7 @@ const Index = () => {
   const activeAndUpcomingLeaves = useMemo(() => {
     const allLeaves = isManager ? requests : ownRequests;
     return allLeaves.filter((r) => {
-      // Only approved leaves that haven't ended yet
       if (r.status === "approved" && r.end_date >= todayStr) return true;
-      // Also include pending leaves (they're upcoming)
       if (r.status === "pending") return true;
       return false;
     });
@@ -74,7 +73,6 @@ const Index = () => {
 
   // People on leave TODAY (approved leaves where today falls between start and end date)
   const onLeaveToday = useMemo(() => {
-    // Use teamLeaves (all approved leaves across the org) for better visibility
     const source = teamLeaves.length > 0 ? teamLeaves : requests;
     return source.filter((r) => {
       return r.status === "approved" && r.start_date <= todayStr && r.end_date >= todayStr;
@@ -88,13 +86,12 @@ const Index = () => {
         return `${pendingLeaveRequests} pending approval`;
       }
       if (onLeaveToday.length > 0) {
-        const names = onLeaveToday.map((r) => (r.profile ? `${r.profile.first_name}` : "Someone")).slice(0, 3); // Show max 3 names
+        const names = onLeaveToday.map((r) => (r.profile ? `${r.profile.first_name}` : "Someone")).slice(0, 3);
         const extra = onLeaveToday.length > 3 ? ` +${onLeaveToday.length - 3} more` : "";
         return `On leave: ${names.join(", ")}${extra}`;
       }
       return "No one on leave today";
     } else {
-      // Check if the current user is on leave today first
       if (onLeaveToday.some((r) => r.user_id === profile?.user_id)) {
         return "You're on leave today";
       }
@@ -143,6 +140,8 @@ const Index = () => {
         <ClockWidget />
         <RealTimeAttendanceWidget />
         <DailyTimelineWidget onViewAll={handleViewCalendar} />
+        {/* Mobile: Time Zone Widget */}
+        <GlobalTimeZoneWidget />
       </div>
 
       {/* Stats Grid */}
@@ -203,6 +202,7 @@ const Index = () => {
           onClick={() => navigate("/leave")}
         />
       </div>
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - 2/3 width */}
@@ -222,9 +222,8 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Right Column - 1/3 width (Desktop only for Clock & Timeline) */}
+        {/* Right Column - 1/3 width */}
         <div className="space-y-6">
-          {/* Hidden on mobile since we show them at top */}
           <div className="hidden lg:block">
             <ClockWidget />
           </div>
@@ -234,7 +233,12 @@ const Index = () => {
           <div className="hidden lg:block">
             <DailyTimelineWidget onViewAll={handleViewCalendar} />
           </div>
-          {/* <TeamWidget /> */}
+
+          {/* ★ Global Time Zone Widget — NEW ★ */}
+          <div className="hidden lg:block">
+            <GlobalTimeZoneWidget />
+          </div>
+
           <AnnouncementsWidget />
         </div>
       </div>
