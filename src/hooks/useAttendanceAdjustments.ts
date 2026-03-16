@@ -29,6 +29,7 @@ export interface AdjustmentRequest {
   // joined fields
   attendance_log?: AttendanceLogRecord | null;
   requester_profile?: { first_name: string; last_name: string } | null;
+  reviewer_profile?: { first_name: string; last_name: string } | null;
 }
 
 // Table not yet in generated Database types — confine the cast here
@@ -50,7 +51,21 @@ export function useAttendanceAdjustments() {
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      setMyRequests(data as AdjustmentRequest[]);
+      const enriched = await Promise.all(
+        (data as AdjustmentRequest[]).map(async (req) => {
+          let reviewer_profile = null;
+          if (req.reviewer_id) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("first_name, last_name")
+              .eq("user_id", req.reviewer_id)
+              .single();
+            reviewer_profile = profile || null;
+          }
+          return { ...req, reviewer_profile };
+        }),
+      );
+      setMyRequests(enriched);
     }
   }, [user]);
 
@@ -67,9 +82,7 @@ export function useAttendanceAdjustments() {
     }
 
     // Fetch adjustment requests
-    const { data, error } = await adjTable()
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data, error } = await adjTable().select("*").order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching team adjustment requests:", error.message);
@@ -87,14 +100,22 @@ export function useAttendanceAdjustments() {
       // Enrich with requester profile and attendance log
       const enriched = await Promise.all(
         filtered.map(async (req) => {
-          const [profileRes, logRes] = await Promise.all([
+          const [profileRes, logRes, reviewerRes] = await Promise.all([
             supabase.from("profiles").select("first_name, last_name").eq("user_id", req.requested_by).single(),
-            supabase.from("attendance_logs").select("clock_in, clock_out, total_break_minutes, total_pause_minutes, clock_type").eq("id", req.attendance_log_id).single(),
+            supabase
+              .from("attendance_logs")
+              .select("clock_in, clock_out, total_break_minutes, total_pause_minutes, clock_type")
+              .eq("id", req.attendance_log_id)
+              .single(),
+            req.reviewer_id
+              ? supabase.from("profiles").select("first_name, last_name").eq("user_id", req.reviewer_id).single()
+              : Promise.resolve({ data: null }),
           ]);
           return {
             ...req,
             requester_profile: profileRes.data || null,
             attendance_log: logRes.data || null,
+            reviewer_profile: reviewerRes.data || null,
           };
         }),
       );
@@ -113,16 +134,15 @@ export function useAttendanceAdjustments() {
   }) => {
     if (!user) return;
 
-    const { error } = await adjTable()
-      .insert({
-        attendance_log_id: data.attendance_log_id,
-        requested_by: user.id,
-        proposed_clock_in: data.proposed_clock_in || null,
-        proposed_clock_out: data.proposed_clock_out || null,
-        proposed_break_minutes: data.proposed_break_minutes ?? null,
-        proposed_pause_minutes: data.proposed_pause_minutes ?? null,
-        reason: data.reason,
-      });
+    const { error } = await adjTable().insert({
+      attendance_log_id: data.attendance_log_id,
+      requested_by: user.id,
+      proposed_clock_in: data.proposed_clock_in || null,
+      proposed_clock_out: data.proposed_clock_out || null,
+      proposed_break_minutes: data.proposed_break_minutes ?? null,
+      proposed_pause_minutes: data.proposed_pause_minutes ?? null,
+      reason: data.reason,
+    });
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -135,11 +155,7 @@ export function useAttendanceAdjustments() {
   };
 
   // Manager reviews a request
-  const reviewRequest = async (
-    requestId: string,
-    decision: "approved" | "rejected",
-    comment: string,
-  ) => {
+  const reviewRequest = async (requestId: string, decision: "approved" | "rejected", comment: string) => {
     if (!user) return;
 
     const { error } = await adjTable()
@@ -163,9 +179,10 @@ export function useAttendanceAdjustments() {
         await supabase.rpc("create_notification", {
           p_user_id: req.requested_by,
           p_title: decision === "approved" ? "✅ Adjustment Approved" : "❌ Adjustment Rejected",
-          p_message: decision === "approved"
-            ? `Your attendance adjustment request has been approved. Your log has been updated.`
-            : `Your attendance adjustment request was rejected. Reason: ${comment}`,
+          p_message:
+            decision === "approved"
+              ? `Your attendance adjustment request has been approved. Your log has been updated.`
+              : `Your attendance adjustment request was rejected. Reason: ${comment}`,
           p_type: "attendance",
           p_link: "/attendance",
         });
@@ -176,9 +193,10 @@ export function useAttendanceAdjustments() {
 
     toast({
       title: decision === "approved" ? "Approved" : "Rejected",
-      description: decision === "approved"
-        ? "The attendance record has been updated automatically."
-        : "The request has been rejected.",
+      description:
+        decision === "approved"
+          ? "The attendance record has been updated automatically."
+          : "The request has been rejected.",
     });
 
     await fetchTeamRequests();
@@ -200,14 +218,10 @@ export function useAttendanceAdjustments() {
     if (!user) return;
     const channel = supabase
       .channel("attendance-adjustments")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "attendance_adjustment_requests" },
-        () => {
-          fetchMyRequests();
-          fetchTeamRequests();
-        },
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_adjustment_requests" }, () => {
+        fetchMyRequests();
+        fetchTeamRequests();
+      })
       .subscribe();
 
     return () => {
