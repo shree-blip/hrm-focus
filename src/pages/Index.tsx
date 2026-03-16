@@ -8,7 +8,7 @@ import { TeamWidget } from "@/components/dashboard/TeamWidget";
 import { AnnouncementsWidget } from "@/components/dashboard/AnnouncementsWidget";
 import { DailyTimelineWidget } from "@/components/dashboard/DailyTimelineWidget";
 import { RealTimeAttendanceWidget } from "@/components/dashboard/RealTimeAttendanceWidget";
-import { GlobalTimeZoneWidget } from "@/components/dashboard/Globaltimezonewidget "; // ← NEW
+import { GlobalTimeZoneWidget } from "@/components/dashboard/GlobalTimeZoneWidget";
 
 import { PersonalReportsWidget } from "@/components/dashboard/PersonalReportsWidget";
 import { TeamReportsWidget } from "@/components/dashboard/TeamReportsWidget";
