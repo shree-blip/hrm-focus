@@ -20,57 +20,60 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    
+
     // SECURITY: Authenticate the request
     const authHeader = req.headers.get("Authorization");
     const cronToken = req.headers.get("X-Cron-Secret");
-    
+
     // Allow access via cron secret token (for scheduled jobs)
     if (CRON_SECRET && cronToken === CRON_SECRET) {
       console.log("Authenticated via cron secret");
-    } 
+    }
     // Or via authenticated user with admin/VP role
     else if (authHeader) {
       const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
+        global: { headers: { Authorization: authHeader } },
       });
-      
-      const { data: { user }, error: authError } = await userSupabase.auth.getUser();
+
+      const {
+        data: { user },
+        error: authError,
+      } = await userSupabase.auth.getUser();
       if (authError || !user) {
         console.error("Authentication failed:", authError?.message);
-        return new Response(
-          JSON.stringify({ error: "Unauthorized - Invalid token" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
-        );
+        return new Response(JSON.stringify({ error: "Unauthorized - Invalid token" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        });
       }
-      
+
       // Check if user has admin or VP role
       const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
-      const { data: hasAdminRole } = await serviceSupabase.rpc('has_role', { 
-        _user_id: user.id, 
-        _role: 'admin' 
+      const { data: hasAdminRole } = await serviceSupabase.rpc("has_role", {
+        _user_id: user.id,
+        _role: "admin",
       });
-      const { data: hasVpRole } = await serviceSupabase.rpc('has_role', { 
-        _user_id: user.id, 
-        _role: 'vp' 
+      const { data: hasVpRole } = await serviceSupabase.rpc("has_role", {
+        _user_id: user.id,
+        _role: "vp",
       });
-      
+
       if (!hasAdminRole && !hasVpRole) {
         console.error(`User ${user.id} lacks required role`);
-        return new Response(
-          JSON.stringify({ error: "Forbidden - Admin or VP role required" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
-        );
+        return new Response(JSON.stringify({ error: "Forbidden - Admin or VP role required" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403,
+        });
       }
       console.log(`Authenticated user ${user.id} with admin/VP role`);
     } else {
       console.error("No authentication provided");
-      return new Response(
-        JSON.stringify({ error: "Unauthorized - Authentication required" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized - Authentication required" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
     }
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
@@ -85,7 +88,8 @@ serve(async (req) => {
     // They have clocked in more than 8 hours ago and haven't clocked out
     const { data: overdueAttendance, error: fetchError } = await supabase
       .from("attendance_logs")
-      .select(`
+      .select(
+        `
         id,
         user_id,
         employee_id,
@@ -95,7 +99,8 @@ serve(async (req) => {
           last_name,
           email
         )
-      `)
+      `,
+      )
       .is("clock_out", null)
       .neq("status", "auto_clocked_out")
       .lt("clock_in", eightHoursAgo.toISOString());
@@ -108,21 +113,23 @@ serve(async (req) => {
     console.log(`Found ${overdueAttendance?.length || 0} users to auto clock-out`);
 
     const results = [];
-    
+
     for (const log of overdueAttendance || []) {
       // Calculate exact 8 hours from clock in
       const clockInTime = new Date(log.clock_in);
       const clockOutTime = new Date(clockInTime.getTime() + 8 * 60 * 60 * 1000);
-      
-      console.log(`Processing log ${log.id}: clocked in at ${log.clock_in}, auto clock out at ${clockOutTime.toISOString()}`);
-      
+
+      console.log(
+        `Processing log ${log.id}: clocked in at ${log.clock_in}, auto clock out at ${clockOutTime.toISOString()}`,
+      );
+
       // Auto clock out at exactly 8 hours after clock in
       const { error: updateError } = await supabase
         .from("attendance_logs")
         .update({
           clock_out: clockOutTime.toISOString(),
           notes: "[Auto clocked out after 8 hours]",
-          status: "auto_clocked_out"
+          status: "auto_clocked_out",
         })
         .eq("id", log.id);
 
@@ -134,32 +141,31 @@ serve(async (req) => {
       // Get employee info - handle both array and object responses
       const employeeData = log.employees as unknown;
       let employee: { first_name: string; last_name: string; email: string } | null = null;
-      
+
       if (Array.isArray(employeeData) && employeeData.length > 0) {
         employee = employeeData[0] as { first_name: string; last_name: string; email: string };
-      } else if (employeeData && typeof employeeData === 'object' && employeeData !== null) {
+      } else if (employeeData && typeof employeeData === "object" && employeeData !== null) {
         const empObj = employeeData as Record<string, unknown>;
-        if ('email' in empObj && 'first_name' in empObj && 'last_name' in empObj) {
+        if ("email" in empObj && "first_name" in empObj && "last_name" in empObj) {
           employee = {
             first_name: String(empObj.first_name),
             last_name: String(empObj.last_name),
-            email: String(empObj.email)
+            email: String(empObj.email),
           };
         }
       }
 
       // Create notification for the user
       if (log.user_id) {
-        const { error: notifError } = await supabase
-          .from("notifications")
-          .insert({
-            user_id: log.user_id,
-            title: "Auto Clock Out",
-            message: "You were automatically clocked out after 8 hours of work. If you are still working, please clock in again.",
-            type: "warning",
-            link: "/attendance"
-          });
-          
+        const { error: notifError } = await supabase.from("notifications").insert({
+          user_id: log.user_id,
+          title: "Auto Clock Out",
+          message:
+            "You were automatically clocked out after 8 hours of work. If you are still working, please clock in again.",
+          type: "warning",
+          link: "/attendance",
+        });
+
         if (notifError) {
           console.error(`Error creating notification for user ${log.user_id}:`, notifError);
         }
@@ -195,8 +201,8 @@ serve(async (req) => {
                     <p>Hello ${employee.first_name} ${employee.last_name},</p>
                     <p>You were automatically clocked out after completing <strong>8 hours</strong> of continuous work.</p>
                     <div class="info-box">
-                      <p><strong>Clock In:</strong> ${clockInTime.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
-                      <p><strong>Auto Clock Out:</strong> ${clockOutTime.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
+                      <p><strong>Clock In:</strong> ${clockInTime.toLocaleString("en-US", { dateStyle: "full", timeStyle: "short", timeZone: "Asia/Kathmandu" })}</p>
+                      <p><strong>Auto Clock Out:</strong> ${clockOutTime.toLocaleString("en-US", { dateStyle: "full", timeStyle: "short", timeZone: "Asia/Kathmandu" })}</p>
                       <p><strong>Total Hours:</strong> 8 hours</p>
                     </div>
                     <p>If you are still working, please log back into the HR system and clock in again.</p>
@@ -216,46 +222,43 @@ serve(async (req) => {
           console.error(`Failed to send email to ${employee.email}:`, emailError);
         }
       } else {
-        console.log(`Skipping email: resend configured: ${!!resend}, employee email: ${employee?.email || 'none'}`);
+        console.log(`Skipping email: resend configured: ${!!resend}, employee email: ${employee?.email || "none"}`);
       }
 
       results.push({
         log_id: log.id,
         user_id: log.user_id,
         employee_id: log.employee_id,
-        employee_name: employee ? `${employee.first_name} ${employee.last_name}` : 'Unknown',
-        employee_email: employee?.email || 'none',
+        employee_name: employee ? `${employee.first_name} ${employee.last_name}` : "Unknown",
+        employee_email: employee?.email || "none",
         clock_in: log.clock_in,
         clock_out: clockOutTime.toISOString(),
         email_sent: emailSent,
-        notification_created: !!log.user_id
+        notification_created: !!log.user_id,
       });
     }
 
     console.log(`Auto clock-out completed. Affected users: ${results.length}`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         affected_count: results.length,
         results,
         message: `${results.length} user(s) were auto clocked out`,
-        timestamp: now.toISOString()
+        timestamp: now.toISOString(),
       }),
-      { 
+      {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200 
-      }
+        status: 200,
+      },
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in auto-clock-out function:", errorMessage);
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500 
-      }
-    );
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
   }
 });
