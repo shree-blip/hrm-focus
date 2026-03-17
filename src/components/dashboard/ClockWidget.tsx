@@ -315,6 +315,13 @@ export function ClockWidget() {
               })}
             </p>
           )}
+          {/* Timezone indicator — server-side single source of truth */}
+          {employeeTimezoneAbbr && clockStatus !== "out" && (
+            <p className="text-xs text-muted-foreground mt-1.5 flex items-center justify-center gap-1">
+              <Clock className="h-3 w-3" />
+              Time zone: {employeeTimezoneAbbr}
+            </p>
+          )}
         </div>
 
         {/* Clock out button only visible when active (status "in") */}
