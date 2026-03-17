@@ -50,9 +50,12 @@ export function ClockWidget() {
     startPause,
     endPause,
     status: clockStatus,
+    actionInProgress,
     employeeTimezone,
     employeeTimezoneAbbr,
   } = useAttendance();
+
+  const isBusy = !!actionInProgress;
 
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
