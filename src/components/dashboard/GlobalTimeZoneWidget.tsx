@@ -71,42 +71,167 @@ function buildFullTimezoneDB(): TZInfo[] {
 }
 
 const FALLBACK_IANA_LIST = [
-  "Africa/Abidjan","Africa/Accra","Africa/Addis_Ababa","Africa/Algiers","Africa/Cairo",
-  "Africa/Casablanca","Africa/Dar_es_Salaam","Africa/Johannesburg","Africa/Kampala",
-  "Africa/Khartoum","Africa/Lagos","Africa/Maputo","Africa/Nairobi","Africa/Tunis",
-  "America/Anchorage","America/Argentina/Buenos_Aires","America/Bogota","America/Caracas",
-  "America/Chicago","America/Costa_Rica","America/Denver","America/Edmonton",
-  "America/Guatemala","America/Halifax","America/Havana","America/Jamaica",
-  "America/Lima","America/Los_Angeles","America/Managua","America/Manaus",
-  "America/Mexico_City","America/Monterrey","America/Montevideo","America/New_York",
-  "America/Panama","America/Phoenix","America/Puerto_Rico","America/Regina",
-  "America/Santiago","America/Santo_Domingo","America/Sao_Paulo","America/St_Johns",
-  "America/Tegucigalpa","America/Toronto","America/Vancouver","America/Winnipeg",
-  "Asia/Almaty","Asia/Amman","Asia/Baghdad","Asia/Baku","Asia/Bangkok","Asia/Beirut",
-  "Asia/Bishkek","Asia/Brunei","Asia/Colombo","Asia/Dhaka","Asia/Dubai","Asia/Gaza",
-  "Asia/Ho_Chi_Minh","Asia/Hong_Kong","Asia/Irkutsk","Asia/Istanbul","Asia/Jakarta",
-  "Asia/Jerusalem","Asia/Kabul","Asia/Kamchatka","Asia/Karachi","Asia/Kathmandu",
-  "Asia/Kolkata","Asia/Krasnoyarsk","Asia/Kuala_Lumpur","Asia/Kuwait","Asia/Macau",
-  "Asia/Magadan","Asia/Manila","Asia/Muscat","Asia/Nicosia","Asia/Novosibirsk",
-  "Asia/Omsk","Asia/Phnom_Penh","Asia/Pyongyang","Asia/Qatar","Asia/Rangoon",
-  "Asia/Riyadh","Asia/Sakhalin","Asia/Samarkand","Asia/Seoul","Asia/Shanghai",
-  "Asia/Singapore","Asia/Taipei","Asia/Tashkent","Asia/Tbilisi","Asia/Tehran",
-  "Asia/Thimphu","Asia/Tokyo","Asia/Ulaanbaatar","Asia/Vladivostok","Asia/Yakutsk",
-  "Asia/Yekaterinburg","Asia/Yerevan","Atlantic/Azores","Atlantic/Canary",
-  "Atlantic/Cape_Verde","Atlantic/Reykjavik","Australia/Adelaide","Australia/Brisbane",
-  "Australia/Darwin","Australia/Hobart","Australia/Melbourne","Australia/Perth",
-  "Australia/Sydney","Europe/Amsterdam","Europe/Athens","Europe/Belgrade",
-  "Europe/Berlin","Europe/Brussels","Europe/Bucharest","Europe/Budapest",
-  "Europe/Chisinau","Europe/Copenhagen","Europe/Dublin","Europe/Helsinki",
-  "Europe/Istanbul","Europe/Kaliningrad","Europe/Kiev","Europe/Lisbon",
-  "Europe/London","Europe/Luxembourg","Europe/Madrid","Europe/Malta",
-  "Europe/Minsk","Europe/Moscow","Europe/Oslo","Europe/Paris","Europe/Prague",
-  "Europe/Riga","Europe/Rome","Europe/Samara","Europe/Sofia","Europe/Stockholm",
-  "Europe/Tallinn","Europe/Vienna","Europe/Vilnius","Europe/Warsaw","Europe/Zurich",
-  "Indian/Maldives","Indian/Mauritius","Pacific/Auckland","Pacific/Chatham",
-  "Pacific/Easter","Pacific/Fiji","Pacific/Gambier","Pacific/Guam",
-  "Pacific/Honolulu","Pacific/Marquesas","Pacific/Midway","Pacific/Noumea",
-  "Pacific/Pago_Pago","Pacific/Samoa","Pacific/Tahiti","Pacific/Tongatapu",
+  "Africa/Abidjan",
+  "Africa/Accra",
+  "Africa/Addis_Ababa",
+  "Africa/Algiers",
+  "Africa/Cairo",
+  "Africa/Casablanca",
+  "Africa/Dar_es_Salaam",
+  "Africa/Johannesburg",
+  "Africa/Kampala",
+  "Africa/Khartoum",
+  "Africa/Lagos",
+  "Africa/Maputo",
+  "Africa/Nairobi",
+  "Africa/Tunis",
+  "America/Anchorage",
+  "America/Argentina/Buenos_Aires",
+  "America/Bogota",
+  "America/Caracas",
+  "America/Chicago",
+  "America/Costa_Rica",
+  "America/Denver",
+  "America/Edmonton",
+  "America/Guatemala",
+  "America/Halifax",
+  "America/Havana",
+  "America/Jamaica",
+  "America/Lima",
+  "America/Los_Angeles",
+  "America/Managua",
+  "America/Manaus",
+  "America/Mexico_City",
+  "America/Monterrey",
+  "America/Montevideo",
+  "America/New_York",
+  "America/Panama",
+  "America/Phoenix",
+  "America/Puerto_Rico",
+  "America/Regina",
+  "America/Santiago",
+  "America/Santo_Domingo",
+  "America/Sao_Paulo",
+  "America/St_Johns",
+  "America/Tegucigalpa",
+  "America/Toronto",
+  "America/Vancouver",
+  "America/Winnipeg",
+  "Asia/Almaty",
+  "Asia/Amman",
+  "Asia/Baghdad",
+  "Asia/Baku",
+  "Asia/Bangkok",
+  "Asia/Beirut",
+  "Asia/Bishkek",
+  "Asia/Brunei",
+  "Asia/Colombo",
+  "Asia/Dhaka",
+  "Asia/Dubai",
+  "Asia/Gaza",
+  "Asia/Ho_Chi_Minh",
+  "Asia/Hong_Kong",
+  "Asia/Irkutsk",
+  "Asia/Istanbul",
+  "Asia/Jakarta",
+  "Asia/Jerusalem",
+  "Asia/Kabul",
+  "Asia/Kamchatka",
+  "Asia/Karachi",
+  "Asia/Kathmandu",
+  "Asia/Kolkata",
+  "Asia/Krasnoyarsk",
+  "Asia/Kuala_Lumpur",
+  "Asia/Kuwait",
+  "Asia/Macau",
+  "Asia/Magadan",
+  "Asia/Manila",
+  "Asia/Muscat",
+  "Asia/Nicosia",
+  "Asia/Novosibirsk",
+  "Asia/Omsk",
+  "Asia/Phnom_Penh",
+  "Asia/Pyongyang",
+  "Asia/Qatar",
+  "Asia/Rangoon",
+  "Asia/Riyadh",
+  "Asia/Sakhalin",
+  "Asia/Samarkand",
+  "Asia/Seoul",
+  "Asia/Shanghai",
+  "Asia/Singapore",
+  "Asia/Taipei",
+  "Asia/Tashkent",
+  "Asia/Tbilisi",
+  "Asia/Tehran",
+  "Asia/Thimphu",
+  "Asia/Tokyo",
+  "Asia/Ulaanbaatar",
+  "Asia/Vladivostok",
+  "Asia/Yakutsk",
+  "Asia/Yekaterinburg",
+  "Asia/Yerevan",
+  "Atlantic/Azores",
+  "Atlantic/Canary",
+  "Atlantic/Cape_Verde",
+  "Atlantic/Reykjavik",
+  "Australia/Adelaide",
+  "Australia/Brisbane",
+  "Australia/Darwin",
+  "Australia/Hobart",
+  "Australia/Melbourne",
+  "Australia/Perth",
+  "Australia/Sydney",
+  "Europe/Amsterdam",
+  "Europe/Athens",
+  "Europe/Belgrade",
+  "Europe/Berlin",
+  "Europe/Brussels",
+  "Europe/Bucharest",
+  "Europe/Budapest",
+  "Europe/Chisinau",
+  "Europe/Copenhagen",
+  "Europe/Dublin",
+  "Europe/Helsinki",
+  "Europe/Istanbul",
+  "Europe/Kaliningrad",
+  "Europe/Kiev",
+  "Europe/Lisbon",
+  "Europe/London",
+  "Europe/Luxembourg",
+  "Europe/Madrid",
+  "Europe/Malta",
+  "Europe/Minsk",
+  "Europe/Moscow",
+  "Europe/Oslo",
+  "Europe/Paris",
+  "Europe/Prague",
+  "Europe/Riga",
+  "Europe/Rome",
+  "Europe/Samara",
+  "Europe/Sofia",
+  "Europe/Stockholm",
+  "Europe/Tallinn",
+  "Europe/Vienna",
+  "Europe/Vilnius",
+  "Europe/Warsaw",
+  "Europe/Zurich",
+  "Indian/Maldives",
+  "Indian/Mauritius",
+  "Pacific/Auckland",
+  "Pacific/Chatham",
+  "Pacific/Easter",
+  "Pacific/Fiji",
+  "Pacific/Gambier",
+  "Pacific/Guam",
+  "Pacific/Honolulu",
+  "Pacific/Marquesas",
+  "Pacific/Midway",
+  "Pacific/Noumea",
+  "Pacific/Pago_Pago",
+  "Pacific/Samoa",
+  "Pacific/Tahiti",
+  "Pacific/Tongatapu",
 ];
 
 // Build once at module level
@@ -114,18 +239,40 @@ const FULL_TIMEZONE_DB: TZInfo[] = buildFullTimezoneDB();
 
 // Popular zones for quick-add buttons
 const QUICK_ADD_IANA = [
-  "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
-  "America/Toronto", "America/Mexico_City", "America/Sao_Paulo", "America/Argentina/Buenos_Aires",
-  "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Madrid", "Europe/Rome",
-  "Europe/Moscow", "Europe/Istanbul", "Asia/Dubai", "Asia/Kolkata", "Asia/Singapore",
-  "Asia/Shanghai", "Asia/Tokyo", "Asia/Seoul", "Australia/Sydney", "Australia/Perth",
-  "Pacific/Auckland", "Africa/Cairo", "Africa/Lagos", "Africa/Nairobi",
-  "Africa/Johannesburg", "Asia/Kathmandu",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Toronto",
+  "America/Mexico_City",
+  "America/Sao_Paulo",
+  "America/Argentina/Buenos_Aires",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Madrid",
+  "Europe/Rome",
+  "Europe/Moscow",
+  "Europe/Istanbul",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Singapore",
+  "Asia/Shanghai",
+  "Asia/Tokyo",
+  "Asia/Seoul",
+  "Australia/Sydney",
+  "Australia/Perth",
+  "Pacific/Auckland",
+  "Africa/Cairo",
+  "Africa/Lagos",
+  "Africa/Nairobi",
+  "Africa/Johannesburg",
+  "Asia/Kathmandu",
 ];
 
-const QUICK_ADD_DB: TZInfo[] = QUICK_ADD_IANA
-  .map((iana) => FULL_TIMEZONE_DB.find((tz) => tz.iana === iana))
-  .filter(Boolean) as TZInfo[];
+const QUICK_ADD_DB: TZInfo[] = QUICK_ADD_IANA.map((iana) => FULL_TIMEZONE_DB.find((tz) => tz.iana === iana)).filter(
+  Boolean,
+) as TZInfo[];
 
 // US timezone presets for the company quick-select
 const US_TIMEZONE_PRESETS: TZInfo[] = [
@@ -214,7 +361,7 @@ export function GlobalTimeZoneWidget() {
           <div className="p-2 rounded-lg bg-indigo-500/10">
             <Globe className="w-4 h-4 text-indigo-500" />
           </div>
-          <h3 className="text-sm font-semibold text-foreground">Time Zones</h3>
+          <h3 className="text-sm font-semibold text-foreground">Compare Time Zones</h3>
         </div>
         <div className="text-2xl font-bold text-foreground tabular-nums">{formatTime(localTime)}</div>
         <p className="text-xs text-muted-foreground mt-1">
@@ -270,7 +417,7 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
           tz.region.toLowerCase().includes(q) ||
           tz.iana.toLowerCase().includes(q)) &&
         tz.iana !== localTz.iana &&
-        !selectedZones.some((s) => s.iana === tz.iana)
+        !selectedZones.some((s) => s.iana === tz.iana),
     ).slice(0, 12);
   }, [search, selectedZones, localTz]);
 
@@ -281,7 +428,7 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
       }
       setSearch("");
     },
-    [selectedZones]
+    [selectedZones],
   );
 
   const removeZone = useCallback((iana: string) => {
@@ -289,11 +436,7 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
   }, []);
 
   const quickAddZones = useMemo(() => {
-    return QUICK_ADD_DB.filter(
-      (tz) =>
-        tz.iana !== localTz.iana &&
-        !selectedZones.some((s) => s.iana === tz.iana)
-    );
+    return QUICK_ADD_DB.filter((tz) => tz.iana !== localTz.iana && !selectedZones.some((s) => s.iana === tz.iana));
   }, [localTz, selectedZones]);
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -424,7 +567,7 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
                   const val = e.target.value;
                   if (val === "all-us") {
                     const usZones = US_TIMEZONE_PRESETS.filter(
-                      (tz) => tz.iana !== localTz.iana && !selectedZones.some((s) => s.iana === tz.iana)
+                      (tz) => tz.iana !== localTz.iana && !selectedZones.some((s) => s.iana === tz.iana),
                     );
                     if (usZones.length > 0) setSelectedZones((prev) => [...prev, ...usZones]);
                   } else if (val) {
@@ -438,10 +581,12 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
                 defaultValue=""
                 className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
               >
-                <option value="" disabled>🇺🇸 US Zones</option>
+                <option value="" disabled>
+                  🇺🇸 US Zones
+                </option>
                 <option value="all-us">Add all 6 US zones</option>
                 {US_TIMEZONE_PRESETS.filter(
-                  (tz) => tz.iana !== localTz.iana && !selectedZones.some((s) => s.iana === tz.iana)
+                  (tz) => tz.iana !== localTz.iana && !selectedZones.some((s) => s.iana === tz.iana),
                 ).map((tz) => (
                   <option key={tz.iana} value={tz.iana}>
                     {tz.label} ({tz.abbr})
@@ -473,9 +618,13 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
                         <div className="min-w-0">
                           <span className="text-foreground font-medium">{tz.label}</span>
                           {tz.abbr && <span className="text-muted-foreground ml-1">({tz.abbr})</span>}
-                          <span className="block text-[11px] text-muted-foreground/70 truncate">{tz.region} · {tz.iana}</span>
+                          <span className="block text-[11px] text-muted-foreground/70 truncate">
+                            {tz.region} · {tz.iana}
+                          </span>
                         </div>
-                        <span className="text-muted-foreground tabular-nums flex-shrink-0">{formatTime(t, use24h)}</span>
+                        <span className="text-muted-foreground tabular-nums flex-shrink-0">
+                          {formatTime(t, use24h)}
+                        </span>
                       </button>
                     );
                   })}
@@ -504,7 +653,9 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
               <div className="text-center py-10 border border-dashed border-border rounded-xl bg-muted/20">
                 <Globe className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No time zones added yet.</p>
-                <p className="text-xs text-muted-foreground">Add a time zone using the search or quick add buttons above.</p>
+                <p className="text-xs text-muted-foreground">
+                  Add a time zone using the search or quick add buttons above.
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -531,21 +682,36 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
                     <div className="min-w-[600px]">
                       {/* Hour labels */}
                       <div className="flex mb-1 ml-[120px]">
-                        {hours.filter((_, i) => i % 3 === 0).map((h) => (
-                          <div
-                            key={h}
-                            className="text-[10px] text-muted-foreground tabular-nums"
-                            style={{ width: `${(3 / 24) * 100}%` }}
-                          >
-                            {use24h ? `${String(h).padStart(2, "0")}:00` : `${h === 0 ? 12 : h > 12 ? h - 12 : h}${h < 12 ? "a" : "p"}`}
-                          </div>
-                        ))}
+                        {hours
+                          .filter((_, i) => i % 3 === 0)
+                          .map((h) => (
+                            <div
+                              key={h}
+                              className="text-[10px] text-muted-foreground tabular-nums"
+                              style={{ width: `${(3 / 24) * 100}%` }}
+                            >
+                              {use24h
+                                ? `${String(h).padStart(2, "0")}:00`
+                                : `${h === 0 ? 12 : h > 12 ? h - 12 : h}${h < 12 ? "a" : "p"}`}
+                            </div>
+                          ))}
                       </div>
                       {/* Local row */}
-                      <TimelineRow label={localTz.label} iana={localTz.iana} refDate={refDate} localIana={localTz.iana} />
+                      <TimelineRow
+                        label={localTz.label}
+                        iana={localTz.iana}
+                        refDate={refDate}
+                        localIana={localTz.iana}
+                      />
                       {/* Selected rows */}
                       {selectedZones.map((tz) => (
-                        <TimelineRow key={tz.iana} label={tz.label} iana={tz.iana} refDate={refDate} localIana={localTz.iana} />
+                        <TimelineRow
+                          key={tz.iana}
+                          label={tz.label}
+                          iana={tz.iana}
+                          refDate={refDate}
+                          localIana={localTz.iana}
+                        />
                       ))}
                       {/* Legend */}
                       <div className="flex gap-4 mt-3 ml-[120px]">
@@ -597,12 +763,11 @@ function ZoneRow({
   const offset = getOffsetHours(tz.iana, refDate);
   const localOffset = localIana ? getOffsetHours(localIana, refDate) : offset;
   const diff = offset - localOffset;
-  const diffStr =
-    isLocal
-      ? "Local"
-      : diff === 0
-        ? "Same time"
-        : `${diff > 0 ? "+" : ""}${diff % 1 === 0 ? diff.toFixed(0) : diff.toFixed(1)}h`;
+  const diffStr = isLocal
+    ? "Local"
+    : diff === 0
+      ? "Same time"
+      : `${diff > 0 ? "+" : ""}${diff % 1 === 0 ? diff.toFixed(0) : diff.toFixed(1)}h`;
 
   return (
     <div
@@ -626,7 +791,10 @@ function ZoneRow({
         <p className="text-xs text-muted-foreground">{diffStr}</p>
       </div>
       {onRemove && (
-        <button onClick={onRemove} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+        <button
+          onClick={onRemove}
+          className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+        >
           <Trash2 className="w-4 h-4" />
         </button>
       )}
