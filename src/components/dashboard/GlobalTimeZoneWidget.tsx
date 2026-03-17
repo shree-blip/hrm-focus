@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Globe, X, Search, Clock, Trash2, Sun, Moon, Sunrise, Sunset } from "lucide-react";
+import { Globe, X, Search, Clock, Calendar, Trash2, Sun, Moon, Sunrise, Sunset } from "lucide-react";
 
 // ─── Timezone Database ───────────────────────────────────────────────
 interface TZInfo {
@@ -9,7 +9,6 @@ interface TZInfo {
   region: string;
 }
 
-// ─── Get dynamic abbreviation from the browser ──────────────────────
 function getAbbr(iana: string): string {
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
@@ -23,14 +22,11 @@ function getAbbr(iana: string): string {
   }
 }
 
-// ─── Derive a human-friendly label from an IANA string ──────────────
 function ianaToLabel(iana: string): string {
   const parts = iana.split("/");
-  const city = parts[parts.length - 1].replace(/_/g, " ");
-  return city;
+  return parts[parts.length - 1].replace(/_/g, " ");
 }
 
-// ─── Derive region from the first segment of IANA ───────────────────
 function ianaToRegion(iana: string): string {
   const first = iana.split("/")[0];
   const map: Record<string, string> = {
@@ -50,7 +46,6 @@ function ianaToRegion(iana: string): string {
   return map[first] || first;
 }
 
-// ─── Build FULL timezone database from browser's IANA list ──────────
 function buildFullTimezoneDB(): TZInfo[] {
   let allIana: string[] = [];
   try {
@@ -58,7 +53,6 @@ function buildFullTimezoneDB(): TZInfo[] {
   } catch {
     allIana = FALLBACK_IANA_LIST;
   }
-
   return allIana
     .filter((iana: string) => iana.includes("/"))
     .map((iana: string) => ({
@@ -234,10 +228,8 @@ const FALLBACK_IANA_LIST = [
   "Pacific/Tongatapu",
 ];
 
-// Build once at module level
 const FULL_TIMEZONE_DB: TZInfo[] = buildFullTimezoneDB();
 
-// Popular zones for quick-add buttons
 const QUICK_ADD_IANA = [
   "America/New_York",
   "America/Chicago",
@@ -274,15 +266,17 @@ const QUICK_ADD_DB: TZInfo[] = QUICK_ADD_IANA.map((iana) => FULL_TIMEZONE_DB.fin
   Boolean,
 ) as TZInfo[];
 
-// US timezone presets for the company quick-select
-const US_TIMEZONE_PRESETS: TZInfo[] = [
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "America/Anchorage",
-  "Pacific/Honolulu",
-].map((iana) => {
+// US timezone presets
+const US_ZONE_LABELS: Record<string, string> = {
+  "America/New_York": "Eastern",
+  "America/Chicago": "Central",
+  "America/Denver": "Mountain",
+  "America/Los_Angeles": "Pacific",
+  "America/Anchorage": "Alaska",
+  "Pacific/Honolulu": "Hawaii",
+};
+
+const US_TIMEZONE_PRESETS: TZInfo[] = Object.keys(US_ZONE_LABELS).map((iana) => {
   const found = FULL_TIMEZONE_DB.find((tz) => tz.iana === iana);
   return found || { label: ianaToLabel(iana), iana, abbr: getAbbr(iana), region: "Americas" };
 });
@@ -294,9 +288,7 @@ function getTimeInZone(iana: string, refDate: Date): Date {
 }
 
 function formatTime(date: Date, use24h = false): string {
-  if (use24h) {
-    return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  }
+  if (use24h) return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
@@ -304,28 +296,29 @@ function formatDate(date: Date): string {
   return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatDateShort(date: Date): string {
+  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
 function getOffsetHours(iana: string, refDate: Date): number {
   const utcStr = refDate.toLocaleString("en-US", { timeZone: "UTC" });
   const tzStr = refDate.toLocaleString("en-US", { timeZone: iana });
-  const diff = new Date(tzStr).getTime() - new Date(utcStr).getTime();
-  return diff / (1000 * 60 * 60);
+  return (new Date(tzStr).getTime() - new Date(utcStr).getTime()) / (1000 * 60 * 60);
+}
+
+function getOffsetLabel(iana: string, refDate: Date): string {
+  const h = getOffsetHours(iana, refDate);
+  const sign = h >= 0 ? "+" : "";
+  return h % 1 === 0 ? `GMT${sign}${h.toFixed(0)}` : `GMT${sign}${h.toFixed(2).replace(/0$/, "")}`;
 }
 
 function getTimeOfDayIcon(hour: number) {
-  if (hour >= 6 && hour < 12) return <Sunrise className="w-4 h-4 text-amber-500" />;
-  if (hour >= 12 && hour < 18) return <Sun className="w-4 h-4 text-yellow-500" />;
-  if (hour >= 18 && hour < 21) return <Sunset className="w-4 h-4 text-orange-500" />;
-  return <Moon className="w-4 h-4 text-indigo-400" />;
+  if (hour >= 6 && hour < 12) return <Sunrise className="w-3.5 h-3.5 text-amber-500" />;
+  if (hour >= 12 && hour < 18) return <Sun className="w-3.5 h-3.5 text-yellow-500" />;
+  if (hour >= 18 && hour < 21) return <Sunset className="w-3.5 h-3.5 text-orange-500" />;
+  return <Moon className="w-3.5 h-3.5 text-indigo-400" />;
 }
 
-function getHourBg(hour: number): string {
-  if (hour >= 9 && hour < 17) return "bg-emerald-500/20 border-emerald-500/30";
-  if (hour >= 6 && hour < 9) return "bg-amber-500/15 border-amber-500/25";
-  if (hour >= 17 && hour < 21) return "bg-orange-500/15 border-orange-500/25";
-  return "bg-slate-500/15 border-slate-500/25";
-}
-
-// ─── Detect Local TZ ────────────────────────────────────────────────
 function detectLocalTimezone(): TZInfo {
   const iana = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const found = FULL_TIMEZONE_DB.find((tz) => tz.iana === iana);
@@ -336,7 +329,7 @@ function detectLocalTimezone(): TZInfo {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// SMALL CARD WIDGET (for sidebar)
+// SMALL CARD WIDGET (for sidebar / header)
 // ═══════════════════════════════════════════════════════════════════════
 export function GlobalTimeZoneWidget() {
   const [open, setOpen] = useState(false);
@@ -352,7 +345,6 @@ export function GlobalTimeZoneWidget() {
 
   return (
     <>
-      {/* Small Card */}
       <div
         onClick={() => setOpen(true)}
         className="group cursor-pointer rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md hover:border-primary/30"
@@ -361,7 +353,7 @@ export function GlobalTimeZoneWidget() {
           <div className="p-2 rounded-lg bg-indigo-500/10">
             <Globe className="w-4 h-4 text-indigo-500" />
           </div>
-          <h3 className="text-sm font-semibold text-foreground">Compare Time Zones</h3>
+          <h3 className="text-sm font-semibold text-foreground">Time Zones</h3>
         </div>
         <div className="text-2xl font-bold text-foreground tabular-nums">{formatTime(localTime)}</div>
         <p className="text-xs text-muted-foreground mt-1">
@@ -372,7 +364,6 @@ export function GlobalTimeZoneWidget() {
         </p>
       </div>
 
-      {/* Modal */}
       {open && <TimeZoneModal onClose={() => setOpen(false)} />}
     </>
   );
@@ -389,6 +380,7 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
   const [selectedZones, setSelectedZones] = useState<TZInfo[]>([]);
   const [search, setSearch] = useState("");
   const [use24h, setUse24h] = useState(false);
+  const [refZone, setRefZone] = useState<string>(localTz.iana);
 
   // Live tick
   useEffect(() => {
@@ -406,7 +398,7 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Filter search results
+  // Search
   const searchResults = useMemo(() => {
     if (!search.trim()) return [];
     const q = search.toLowerCase();
@@ -439,13 +431,30 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
     return QUICK_ADD_DB.filter((tz) => tz.iana !== localTz.iana && !selectedZones.some((s) => s.iana === tz.iana));
   }, [localTz, selectedZones]);
 
+  // Time/date derived from the selected reference zone
+  const refZoneTime = getTimeInZone(refZone, refDate);
+  const refTimeStr = `${String(refZoneTime.getHours()).padStart(2, "0")}:${String(refZoneTime.getMinutes()).padStart(2, "0")}`;
+  const refDateStr = `${refZoneTime.getFullYear()}-${String(refZoneTime.getMonth() + 1).padStart(2, "0")}-${String(refZoneTime.getDate()).padStart(2, "0")}`;
+
+  // Local time for display
+  const localTime = getTimeInZone(localTz.iana, refDate);
+  const localOffsetLabel = getOffsetLabel(localTz.iana, refDate);
+
+  // Get friendly name for selected ref zone
+  const refZoneName = useMemo(() => {
+    if (refZone === localTz.iana) return `${localTz.label} (${localTz.abbr})`;
+    const usLabel = US_ZONE_LABELS[refZone];
+    const tz = US_TIMEZONE_PRESETS.find((t) => t.iana === refZone);
+    if (usLabel && tz) return `${usLabel} (${tz.abbr})`;
+    return refZone;
+  }, [refZone, localTz]);
+
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsLive(false);
     const [h, m] = e.target.value.split(":").map(Number);
-    const d = new Date(refDate);
-    const localNow = getTimeInZone(localTz.iana, d);
-    localNow.setHours(h, m, 0, 0);
-    const offset = localNow.getTime() - getTimeInZone(localTz.iana, refDate).getTime();
+    const current = getTimeInZone(refZone, refDate);
+    current.setHours(h, m, 0, 0);
+    const offset = current.getTime() - getTimeInZone(refZone, refDate).getTime();
     setRefDate(new Date(refDate.getTime() + offset));
   };
 
@@ -453,35 +462,27 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
     setIsLive(false);
     const parts = e.target.value.split("-").map(Number);
     if (parts.length !== 3) return;
-    const d = new Date(refDate);
-    const localNow = getTimeInZone(localTz.iana, d);
-    localNow.setFullYear(parts[0], parts[1] - 1, parts[2]);
-    const offset = localNow.getTime() - getTimeInZone(localTz.iana, refDate).getTime();
+    const current = getTimeInZone(refZone, refDate);
+    current.setFullYear(parts[0], parts[1] - 1, parts[2]);
+    const offset = current.getTime() - getTimeInZone(refZone, refDate).getTime();
     setRefDate(new Date(refDate.getTime() + offset));
   };
 
   const resetToNow = () => {
     setRefDate(new Date());
     setIsLive(true);
+    setRefZone(localTz.iana);
   };
-
-  const localTime = getTimeInZone(localTz.iana, refDate);
-  const localTimeStr = `${String(localTime.getHours()).padStart(2, "0")}:${String(localTime.getMinutes()).padStart(2, "0")}`;
-  const localDateStr = `${localTime.getFullYear()}-${String(localTime.getMonth() + 1).padStart(2, "0")}-${String(localTime.getDate()).padStart(2, "0")}`;
-
-  const hours = Array.from({ length: 24 }, (_, i) => i);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
-      {/* Modal Content */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
+        className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
       >
-        {/* Header */}
+        {/* ── Header ──────────────────────────────────────── */}
         <div className="sticky top-0 z-20 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-indigo-500/10">
@@ -492,107 +493,171 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
               <p className="text-xs text-muted-foreground">Compare times across multiple time zones</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={use24h}
+                onChange={(e) => setUse24h(e.target.checked)}
+                className="rounded"
+              />
+              24h
+            </label>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="p-6 space-y-6">
-          {/* ── Your Local Time ─────────────────────────────── */}
-          <div className="rounded-xl border border-border p-5 bg-muted/30">
-            <h3 className="font-semibold text-foreground mb-4">Your Local Time</h3>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground mb-1">
-                  {localTz.label} ({localTz.abbr || "Local"})
-                  {isLive && <span className="ml-2 inline-block w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />}
-                </p>
-                <div className="text-3xl font-bold text-foreground tabular-nums">{formatTime(localTime, use24h)}</div>
-                <p className="text-sm text-muted-foreground">{formatDate(localTime)}</p>
+          {/* ═══════════════════════════════════════════════════
+              TOP SECTION: Local Time (left) + US Zones (right)
+              ═══════════════════════════════════════════════════ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* ── LEFT: Local Time + Controls ──────────────── */}
+            <div className="rounded-xl border border-border p-5 bg-muted/30">
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="font-semibold text-foreground text-sm">Your Local Time</h3>
+                {isLive && <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />}
               </div>
-              <div className="flex flex-wrap gap-3">
+
+              {/* City + offset */}
+              <p className="text-xs text-muted-foreground">
+                {localTz.label} ({localOffsetLabel})
+              </p>
+
+              {/* Big time */}
+              <div className="text-4xl font-bold text-foreground tabular-nums mt-1">
+                {formatTime(localTime, use24h)}
+              </div>
+
+              {/* Date */}
+              <p className="text-sm text-muted-foreground mt-1">{formatDate(localTime)}</p>
+
+              {/* ── Reference zone selector + time/date inputs ── */}
+              <div className="space-y-3 mt-4 pt-4 border-t border-border">
+                {/* Zone selector */}
                 <div>
-                  <label className="text-xs text-muted-foreground block mb-1">
-                    <Clock className="w-3 h-3 inline mr-1" />
-                    Change Time
+                  <label className="text-[11px] font-medium text-muted-foreground block mb-1.5">
+                    Setting time as seen in
                   </label>
-                  <input
-                    type="time"
-                    value={localTimeStr}
-                    onChange={handleTimeChange}
-                    className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm"
-                  />
+                  <div className="relative group">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <select
+                      value={refZone}
+                      onChange={(e) => {
+                        setRefZone(e.target.value);
+                        setIsLive(false);
+                      }}
+                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border-2 border-border bg-background text-foreground text-sm font-medium shadow-sm hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option value={localTz.iana}>
+                        🏠 {localTz.label} ({localTz.abbr})
+                      </option>
+                      <optgroup label="🇺🇸 US Zones">
+                        {US_TIMEZONE_PRESETS.map((tz) => (
+                          <option key={tz.iana} value={tz.iana}>
+                            {US_ZONE_LABELS[tz.iana]} — {tz.abbr}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                  {refZone !== localTz.iana && (
+                    <p className="text-[11px] text-primary/80 mt-1.5">
+                      Entering time from <span className="font-semibold">{refZoneName}</span> perspective
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Change Date</label>
-                  <input
-                    type="date"
-                    value={localDateStr}
-                    onChange={handleDateChange}
-                    className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm"
-                  />
+
+                {/* Time & Date inputs */}
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="text-[11px] font-medium text-muted-foreground block mb-1.5">Change Time</label>
+                    <div className="relative group">
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <input
+                        type="time"
+                        value={refTimeStr}
+                        onChange={handleTimeChange}
+                        className="w-full pl-10 pr-3 py-2.5 rounded-xl border-2 border-border bg-background text-foreground text-sm font-medium tabular-nums shadow-sm hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-[160px]">
+                    <label className="text-[11px] font-medium text-muted-foreground block mb-1.5">Change Date</label>
+                    <div className="relative group">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <input
+                        type="date"
+                        value={refDateStr}
+                        onChange={handleDateChange}
+                        className="w-full pl-10 pr-3 py-2.5 rounded-xl border-2 border-border bg-background text-foreground text-sm font-medium tabular-nums shadow-sm hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  {!isLive && (
+                    <button
+                      onClick={resetToNow}
+                      className="px-3 py-2.5 text-xs font-medium text-primary bg-primary/5 border-2 border-primary/20 rounded-xl hover:bg-primary/10 hover:border-primary/40 transition-all"
+                    >
+                      ↻ Reset
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4 mt-3">
-              {!isLive && (
-                <button onClick={resetToNow} className="text-xs text-primary hover:underline">
-                  ↻ Reset to current time
-                </button>
-              )}
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer ml-auto">
-                <input
-                  type="checkbox"
-                  checked={use24h}
-                  onChange={(e) => setUse24h(e.target.checked)}
-                  className="rounded"
-                />
-                24-hour format
-              </label>
+
+            {/* ── RIGHT: US Zones (always visible) ────────── */}
+            <div className="rounded-xl border border-border p-5 bg-muted/30">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-base">🇺🇸</span>
+                <h3 className="font-semibold text-foreground text-sm">US Time Zones</h3>
+              </div>
+              <div className="space-y-2">
+                {US_TIMEZONE_PRESETS.map((tz) => {
+                  const t = getTimeInZone(tz.iana, refDate);
+                  const hour = t.getHours();
+                  const offset = getOffsetLabel(tz.iana, refDate);
+                  const friendlyName = US_ZONE_LABELS[tz.iana] || tz.label;
+                  return (
+                    <div
+                      key={tz.iana}
+                      className={`flex items-center justify-between py-2 px-3 rounded-lg border transition-colors ${
+                        tz.iana === refZone
+                          ? "bg-primary/5 border-primary/30"
+                          : "bg-card border-border/50 hover:border-border"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {getTimeOfDayIcon(hour)}
+                        <div>
+                          <span className="text-sm font-medium text-foreground">{friendlyName}</span>
+                          <span className="text-xs text-muted-foreground ml-1.5">{tz.abbr}</span>
+                          <span className="text-xs text-muted-foreground/60 ml-1">({offset})</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-bold text-foreground tabular-nums">{formatTime(t, use24h)}</span>
+                        <span className="text-[11px] text-muted-foreground ml-2">{formatDateShort(t)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {/* ── Time Zone Comparison ───────────────────────── */}
+          {/* ═══════════════════════════════════════════════════
+              BOTTOM: Search + Quick Add + Custom zones
+              ═══════════════════════════════════════════════════ */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-muted-foreground" />
-                <h3 className="font-semibold text-foreground">Time Zone Comparison</h3>
-              </div>
-              <select
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "all-us") {
-                    const usZones = US_TIMEZONE_PRESETS.filter(
-                      (tz) => tz.iana !== localTz.iana && !selectedZones.some((s) => s.iana === tz.iana),
-                    );
-                    if (usZones.length > 0) setSelectedZones((prev) => [...prev, ...usZones]);
-                  } else if (val) {
-                    const found = US_TIMEZONE_PRESETS.find((tz) => tz.iana === val);
-                    if (found && !selectedZones.some((s) => s.iana === found.iana) && found.iana !== localTz.iana) {
-                      setSelectedZones((prev) => [...prev, found]);
-                    }
-                  }
-                  e.target.value = "";
-                }}
-                defaultValue=""
-                className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
-              >
-                <option value="" disabled>
-                  🇺🇸 US Zones
-                </option>
-                <option value="all-us">Add all 6 US zones</option>
-                {US_TIMEZONE_PRESETS.filter(
-                  (tz) => tz.iana !== localTz.iana && !selectedZones.some((s) => s.iana === tz.iana),
-                ).map((tz) => (
-                  <option key={tz.iana} value={tz.iana}>
-                    {tz.label} ({tz.abbr})
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center gap-2 mb-4">
+              <Globe className="w-4 h-4 text-muted-foreground" />
+              <h3 className="font-semibold text-foreground text-sm">Add More Time Zones</h3>
             </div>
 
             {/* Search */}
@@ -632,7 +697,7 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
               )}
             </div>
 
-            {/* Quick add buttons */}
+            {/* Quick add pills */}
             <div className="mb-4">
               <p className="text-xs text-muted-foreground mb-2">Quick add:</p>
               <div className="flex flex-wrap gap-1.5">
@@ -648,195 +713,57 @@ function TimeZoneModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            {/* Selected Zones */}
-            {selectedZones.length === 0 ? (
-              <div className="text-center py-10 border border-dashed border-border rounded-xl bg-muted/20">
-                <Globe className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No time zones added yet.</p>
-                <p className="text-xs text-muted-foreground">
-                  Add a time zone using the search or quick add buttons above.
+            {/* Custom added zones */}
+            {selectedZones.length > 0 && (
+              <div className="space-y-2 mt-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                  Your Added Zones
                 </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {/* Local as reference */}
-                <ZoneRow tz={localTz} refDate={refDate} use24h={use24h} isLocal onRemove={undefined} />
-                {selectedZones.map((tz) => (
-                  <ZoneRow
-                    key={tz.iana}
-                    tz={tz}
-                    refDate={refDate}
-                    use24h={use24h}
-                    isLocal={false}
-                    onRemove={() => removeZone(tz.iana)}
-                    localIana={localTz.iana}
-                  />
-                ))}
-
-                {/* ── 24h Timeline Grid ──────────────────── */}
-                {selectedZones.length > 0 && (
-                  <div className="mt-6 rounded-xl border border-border p-4 overflow-x-auto bg-muted/20">
-                    <h4 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
-                      24-Hour Overlap View
-                    </h4>
-                    <div className="min-w-[600px]">
-                      {/* Hour labels */}
-                      <div className="flex mb-1 ml-[120px]">
-                        {hours
-                          .filter((_, i) => i % 3 === 0)
-                          .map((h) => (
-                            <div
-                              key={h}
-                              className="text-[10px] text-muted-foreground tabular-nums"
-                              style={{ width: `${(3 / 24) * 100}%` }}
-                            >
-                              {use24h
-                                ? `${String(h).padStart(2, "0")}:00`
-                                : `${h === 0 ? 12 : h > 12 ? h - 12 : h}${h < 12 ? "a" : "p"}`}
-                            </div>
-                          ))}
+                {selectedZones.map((tz) => {
+                  const t = getTimeInZone(tz.iana, refDate);
+                  const hour = t.getHours();
+                  const offset = getOffsetLabel(tz.iana, refDate);
+                  const localOff = getOffsetHours(localTz.iana, refDate);
+                  const tzOff = getOffsetHours(tz.iana, refDate);
+                  const diff = tzOff - localOff;
+                  const diffStr =
+                    diff === 0
+                      ? "Same time"
+                      : `${diff > 0 ? "+" : ""}${diff % 1 === 0 ? diff.toFixed(0) : diff.toFixed(1)}h`;
+                  return (
+                    <div
+                      key={tz.iana}
+                      className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-card border border-border hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {getTimeOfDayIcon(hour)}
+                        <div>
+                          <span className="text-sm font-medium text-foreground">{tz.label}</span>
+                          <span className="text-xs text-muted-foreground ml-1.5">({offset})</span>
+                          <span className="text-[11px] text-muted-foreground ml-1.5">{diffStr}</span>
+                        </div>
                       </div>
-                      {/* Local row */}
-                      <TimelineRow
-                        label={localTz.label}
-                        iana={localTz.iana}
-                        refDate={refDate}
-                        localIana={localTz.iana}
-                      />
-                      {/* Selected rows */}
-                      {selectedZones.map((tz) => (
-                        <TimelineRow
-                          key={tz.iana}
-                          label={tz.label}
-                          iana={tz.iana}
-                          refDate={refDate}
-                          localIana={localTz.iana}
-                        />
-                      ))}
-                      {/* Legend */}
-                      <div className="flex gap-4 mt-3 ml-[120px]">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded-sm bg-emerald-500/30 border border-emerald-500/40" />
-                          <span className="text-[10px] text-muted-foreground">Business hours (9-5)</span>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-sm font-bold text-foreground tabular-nums">
+                            {formatTime(t, use24h)}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground ml-2">{formatDateShort(t)}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded-sm bg-amber-500/20 border border-amber-500/30" />
-                          <span className="text-[10px] text-muted-foreground">Early / Late</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded-sm bg-slate-500/20 border border-slate-500/30" />
-                          <span className="text-[10px] text-muted-foreground">Night</span>
-                        </div>
+                        <button
+                          onClick={() => removeZone(tz.iana)}
+                          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Zone Row Component
-// ═══════════════════════════════════════════════════════════════════════
-function ZoneRow({
-  tz,
-  refDate,
-  use24h,
-  isLocal,
-  onRemove,
-  localIana,
-}: {
-  tz: TZInfo;
-  refDate: Date;
-  use24h: boolean;
-  isLocal: boolean;
-  onRemove: (() => void) | undefined;
-  localIana?: string;
-}) {
-  const time = getTimeInZone(tz.iana, refDate);
-  const hour = time.getHours();
-  const offset = getOffsetHours(tz.iana, refDate);
-  const localOffset = localIana ? getOffsetHours(localIana, refDate) : offset;
-  const diff = offset - localOffset;
-  const diffStr = isLocal
-    ? "Local"
-    : diff === 0
-      ? "Same time"
-      : `${diff > 0 ? "+" : ""}${diff % 1 === 0 ? diff.toFixed(0) : diff.toFixed(1)}h`;
-
-  return (
-    <div
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
-        isLocal ? "bg-primary/5 border-primary/20" : "bg-card border-border hover:bg-muted/40"
-      }`}
-    >
-      {getTimeOfDayIcon(hour)}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-foreground text-sm truncate">{tz.label}</span>
-          <span className="text-xs text-muted-foreground">({tz.abbr || "Local"})</span>
-          {isLocal && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">YOU</span>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">{formatDate(time)}</p>
-      </div>
-      <div className="text-right">
-        <div className="text-lg font-bold text-foreground tabular-nums">{formatTime(time, use24h)}</div>
-        <p className="text-xs text-muted-foreground">{diffStr}</p>
-      </div>
-      {onRemove && (
-        <button
-          onClick={onRemove}
-          className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Timeline Row
-// ═══════════════════════════════════════════════════════════════════════
-function TimelineRow({
-  label,
-  iana,
-  refDate,
-  localIana,
-}: {
-  label: string;
-  iana: string;
-  refDate: Date;
-  localIana: string;
-}) {
-  const localOffset = getOffsetHours(localIana, refDate);
-  const tzOffset = getOffsetHours(iana, refDate);
-  const hourShift = tzOffset - localOffset;
-
-  return (
-    <div className="flex items-center mb-1">
-      <div className="w-[120px] flex-shrink-0 text-xs text-muted-foreground truncate pr-2">{label}</div>
-      <div className="flex flex-1">
-        {Array.from({ length: 24 }, (_, i) => {
-          let h = (i + Math.round(hourShift)) % 24;
-          if (h < 0) h += 24;
-          return (
-            <div
-              key={i}
-              className={`flex-1 h-6 border ${getHourBg(h)} flex items-center justify-center ${i === 0 ? "rounded-l" : ""} ${i === 23 ? "rounded-r" : ""}`}
-              title={`${label}: ${String(h).padStart(2, "0")}:00`}
-            >
-              <span className="text-[9px] text-muted-foreground/70 tabular-nums">{h}</span>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
