@@ -362,7 +362,6 @@ export function GlobalTimeZoneWidget() {
             <Globe className="w-4 h-4 text-indigo-500" />
           </div>
           <h3 className="text-sm font-semibold text-foreground">Compare Time Zones</h3>
-          <p>Focus World Connect</p>
         </div>
         <div className="text-2xl font-bold text-foreground tabular-nums">{formatTime(localTime)}</div>
         <p className="text-xs text-muted-foreground mt-1">
