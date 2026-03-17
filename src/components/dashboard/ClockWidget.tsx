@@ -50,9 +50,12 @@ export function ClockWidget() {
     startPause,
     endPause,
     status: clockStatus,
+    actionInProgress,
     employeeTimezone,
     employeeTimezoneAbbr,
   } = useAttendance();
+
+  const isBusy = !!actionInProgress;
 
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
@@ -341,8 +344,8 @@ export function ClockWidget() {
             <div className="grid grid-cols-2 gap-2 w-full">
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
-                  <Button onClick={() => clockIn(clockType, "wfo")} className="gap-2" size="lg">
-                    <Play className="h-4 w-4" />
+                  <Button onClick={() => clockIn(clockType, "wfo")} className="gap-2" size="lg" disabled={isBusy}>
+                    {actionInProgress === "clock_in" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                     Clock IN (WFO)
                   </Button>
                 </TooltipTrigger>
@@ -357,8 +360,9 @@ export function ClockWidget() {
                     variant="outline"
                     className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
                     size="lg"
+                    disabled={isBusy}
                   >
-                    <Play className="h-4 w-4" />
+                    {actionInProgress === "clock_in" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                     Clock IN (WFH)
                   </Button>
                 </TooltipTrigger>
@@ -379,9 +383,9 @@ export function ClockWidget() {
                     : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60",
                 )}
                 size="lg"
-                disabled={clockStatus === "paused"}
+                disabled={clockStatus === "paused" || isBusy}
               >
-                <Coffee className="h-4 w-4" />
+                {(actionInProgress === "start_break" || actionInProgress === "end_break") ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coffee className="h-4 w-4" />}
                 {clockStatus === "break" ? "Resume" : "Break"}
               </Button>
               <Button
@@ -394,13 +398,13 @@ export function ClockWidget() {
                     : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60",
                 )}
                 size="lg"
-                disabled={clockStatus === "break"}
+                disabled={clockStatus === "break" || isBusy}
               >
-                <Pause className="h-4 w-4" />
+                {(actionInProgress === "start_pause" || actionInProgress === "end_pause") ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />}
                 {clockStatus === "paused" ? "Resume" : "Pause"}
               </Button>
-              <Button onClick={handleClockOutClick} variant="destructive" className="flex-1 gap-2" size="lg">
-                <Square className="h-4 w-4" />
+              <Button onClick={handleClockOutClick} variant="destructive" className="flex-1 gap-2" size="lg" disabled={isBusy}>
+                {actionInProgress === "clock_out" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
                 Clock Out
               </Button>
             </>

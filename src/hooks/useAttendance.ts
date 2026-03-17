@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
-interface AttendanceLog {
+export interface AttendanceLog {
   id: string;
   clock_in: string;
   clock_out: string | null;
@@ -53,9 +53,12 @@ export function useAttendance(weekStart?: Date) {
   const [monthlyLogs, setMonthlyLogs] = useState<AttendanceLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [clockType, setClockType] = useState<"payroll" | "billable">("payroll");
-  // Server-provided timezone info for display
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [employeeTimezone, setEmployeeTimezone] = useState<string | null>(null);
   const [employeeTimezoneAbbr, setEmployeeTimezoneAbbr] = useState<string | null>(null);
+
+  // Track previous log for rollback on optimistic failure
+  const prevLogRef = useRef<AttendanceLog | null>(null);
 
   const fetchCurrentLog = useCallback(async () => {
     if (!user) return;
@@ -94,8 +97,7 @@ export function useAttendance(weekStart?: Date) {
         const today = new Date();
         const utcDay = today.getUTCDay();
         const diff = utcDay === 0 ? -6 : 1 - utcDay;
-        const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + diff));
-        return start;
+        return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + diff));
       })();
 
     const endDate = new Date(Date.UTC(
@@ -140,7 +142,6 @@ export function useAttendance(weekStart?: Date) {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      // Get profile -> employee -> timezone
       const { data: profile } = await supabase
         .from("profiles")
         .select("id")
@@ -168,9 +169,67 @@ export function useAttendance(weekStart?: Date) {
     })();
   }, [user]);
 
+  // Initial data fetch
   useEffect(() => {
     Promise.all([fetchCurrentLog(), fetchWeeklyLogs(), fetchMonthlyLogs()]);
   }, [fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // REAL-TIME SUBSCRIPTION — cross-device sync
+  // ═══════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`attendance-sync-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance_logs",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // Skip if we're in the middle of an optimistic action
+          // (server response will reconcile via the action's own setState)
+          if (actionInProgress) return;
+
+          const { eventType, new: newRecord } = payload;
+
+          if (eventType === "INSERT") {
+            const log = newRecord as AttendanceLog;
+            if (!log.clock_out) {
+              // Derive status from fields
+              if (log.pause_start && !log.pause_end) log.status = "paused";
+              else if (log.break_start && !log.break_end) log.status = "break";
+              else log.status = "active";
+              setCurrentLog(log);
+            }
+          } else if (eventType === "UPDATE") {
+            const log = newRecord as AttendanceLog;
+            if (log.clock_out || log.status === "completed" || log.status === "auto_clocked_out") {
+              setCurrentLog(null);
+              // Refresh weekly/monthly in background
+              fetchWeeklyLogs();
+              fetchMonthlyLogs();
+            } else {
+              if (log.pause_start && !log.pause_end) log.status = "paused";
+              else if (log.break_start && !log.break_end) log.status = "break";
+              else log.status = "active";
+              setCurrentLog(log);
+            }
+          } else if (eventType === "DELETE") {
+            setCurrentLog(null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, actionInProgress, fetchWeeklyLogs, fetchMonthlyLogs]);
 
   // 8-hour work duration reminder
   const reminderSentRef = useRef(false);
@@ -230,31 +289,49 @@ export function useAttendance(weekStart?: Date) {
 
     checkWorkDuration();
     const interval = setInterval(checkWorkDuration, 60 * 1000);
-
     return () => clearInterval(interval);
   }, [currentLog, user]);
 
-  /**
-   * Clock In — calls server-side edge function.
-   * Server determines the timestamp using UTC. Client sends NO timezone.
-   */
-  const clockIn = async (type: "payroll" | "billable" = "payroll", workMode: "wfo" | "wfh" = "wfo") => {
-    if (!user) return;
+  // ═══════════════════════════════════════════════════════════════════
+  // OPTIMISTIC ACTIONS — instant UI, server confirms/reconciles
+  // ═══════════════════════════════════════════════════════════════════
 
-    // Optional: gather geolocation for metadata (NOT for timezone)
-    let locationName = "Office";
-    if ("geolocation" in navigator) {
-      try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-        });
-        locationName = `${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`;
-      } catch {
-        // Location not available
-      }
-    }
+  const clockIn = async (type: "payroll" | "billable" = "payroll", workMode: "wfo" | "wfh" = "wfo") => {
+    if (!user || actionInProgress) return;
+    setActionInProgress("clock_in");
+
+    // Optimistic: immediately show as clocked in
+    const optimisticLog: AttendanceLog = {
+      id: "optimistic-" + Date.now(),
+      clock_in: new Date().toISOString(),
+      clock_out: null,
+      break_start: null,
+      break_end: null,
+      total_break_minutes: 0,
+      pause_start: null,
+      pause_end: null,
+      total_pause_minutes: 0,
+      clock_type: type,
+      status: "active",
+      location_name: workMode === "wfh" ? "Home" : "Office",
+    };
+    prevLogRef.current = currentLog;
+    setCurrentLog(optimisticLog);
+
+    // Don't block on geolocation — fire and forget
+    let locationName = workMode === "wfh" ? "Home" : "Office";
+    const geoPromise = ("geolocation" in navigator)
+      ? new Promise<string>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`),
+            () => resolve(locationName),
+            { timeout: 3000 }
+          );
+        })
+      : Promise.resolve(locationName);
 
     try {
+      locationName = await geoPromise;
       const result = await callAttendanceClock({
         action: "clock_in",
         clock_type: type,
@@ -262,89 +339,126 @@ export function useAttendance(weekStart?: Date) {
         location_name: locationName,
       });
 
+      // Reconcile with server truth
       setCurrentLog(result.log as AttendanceLog);
       if (result.timezone) setEmployeeTimezone(result.timezone);
       if (result.timezone_abbr) setEmployeeTimezoneAbbr(result.timezone_abbr);
 
       toast({
         title: "Clocked In",
-        description: `You are now tracking ${type} time (${workMode === "wfh" ? "Work From Home" : "Office"}) — ${result.local_time} ${result.timezone_abbr || ""}`,
+        description: `Now tracking ${type} time (${workMode === "wfh" ? "WFH" : "Office"}) — ${result.local_time} ${result.timezone_abbr || ""}`,
       });
     } catch (err: any) {
+      // Rollback optimistic
+      setCurrentLog(prevLogRef.current);
       toast({ title: "Error", description: err.message || "Failed to clock in", variant: "destructive" });
+    } finally {
+      setActionInProgress(null);
     }
   };
 
   const clockOut = async () => {
-    if (!user || !currentLog) return;
+    if (!user || !currentLog || actionInProgress) return;
+    setActionInProgress("clock_out");
+
+    // Optimistic: immediately show as clocked out
+    prevLogRef.current = currentLog;
+    setCurrentLog(null);
 
     try {
       const result = await callAttendanceClock({
         action: "clock_out",
-        log_id: currentLog.id,
+        log_id: prevLogRef.current!.id,
       });
 
-      setCurrentLog(null);
       fetchWeeklyLogs();
+      fetchMonthlyLogs();
       toast({
         title: "Clocked Out",
-        description: `Your time has been recorded at ${result.local_time} ${result.timezone_abbr || ""}. All active logs have been closed.`,
+        description: `Time recorded at ${result.local_time} ${result.timezone_abbr || ""}`,
       });
     } catch (err: any) {
+      // Rollback
+      setCurrentLog(prevLogRef.current);
       toast({ title: "Error", description: err.message || "Failed to clock out", variant: "destructive" });
+    } finally {
+      setActionInProgress(null);
     }
   };
 
   const startBreak = async () => {
-    if (!user || !currentLog) return;
+    if (!user || !currentLog || actionInProgress) return;
+    setActionInProgress("start_break");
+
+    // Optimistic
+    prevLogRef.current = { ...currentLog };
+    setCurrentLog({ ...currentLog, status: "break", break_start: new Date().toISOString(), break_end: null });
 
     try {
       const result = await callAttendanceClock({
         action: "start_break",
         log_id: currentLog.id,
       });
-
       setCurrentLog({ ...result.log, status: "break" } as AttendanceLog);
       toast({ title: "Break Started", description: "Enjoy your break!" });
     } catch (err: any) {
+      setCurrentLog(prevLogRef.current);
       toast({ title: "Error", description: err.message || "Failed to start break", variant: "destructive" });
+    } finally {
+      setActionInProgress(null);
     }
   };
 
   const endBreak = async () => {
-    if (!user || !currentLog || !currentLog.break_start) return;
+    if (!user || !currentLog || !currentLog.break_start || actionInProgress) return;
+    setActionInProgress("end_break");
+
+    prevLogRef.current = { ...currentLog };
+    setCurrentLog({ ...currentLog, status: "active", break_start: null, break_end: new Date().toISOString() });
 
     try {
       const result = await callAttendanceClock({
         action: "end_break",
         log_id: currentLog.id,
       });
-
       setCurrentLog({ ...result.log, status: "active" } as AttendanceLog);
       toast({ title: "Back to Work", description: `Break time: ${result.break_minutes} minutes` });
     } catch (err: any) {
+      setCurrentLog(prevLogRef.current);
       toast({ title: "Error", description: err.message || "Failed to end break", variant: "destructive" });
+    } finally {
+      setActionInProgress(null);
     }
   };
 
   const startPause = async () => {
-    if (!user || !currentLog) return;
+    if (!user || !currentLog || actionInProgress) return;
+    setActionInProgress("start_pause");
+
+    prevLogRef.current = { ...currentLog };
+    setCurrentLog({ ...currentLog, status: "paused", pause_start: new Date().toISOString(), pause_end: null });
 
     try {
       const result = await callAttendanceClock({
         action: "start_pause",
         log_id: currentLog.id,
       });
-
       setCurrentLog({ ...result.log, status: "paused" } as AttendanceLog);
-      toast({ title: "Clock Paused", description: "Your time tracking is paused. Resume when you continue working." });
+      toast({ title: "Clock Paused", description: "Your time tracking is paused." });
     } catch (err: any) {
+      setCurrentLog(prevLogRef.current);
       toast({ title: "Error", description: err.message || "Failed to pause clock", variant: "destructive" });
+    } finally {
+      setActionInProgress(null);
     }
   };
 
   const endPause = async (newWorkMode?: "wfo" | "wfh") => {
-    if (!user || !currentLog || !currentLog.pause_start) return;
+    if (!user || !currentLog || !currentLog.pause_start || actionInProgress) return;
+    setActionInProgress("end_pause");
+
+    prevLogRef.current = { ...currentLog };
+    setCurrentLog({ ...currentLog, status: "active", pause_start: null, pause_end: new Date().toISOString() });
 
     try {
       const result = await callAttendanceClock({
@@ -352,14 +466,16 @@ export function useAttendance(weekStart?: Date) {
         log_id: currentLog.id,
         new_work_mode: newWorkMode,
       });
-
       setCurrentLog({ ...result.log, status: "active" } as AttendanceLog);
       toast({
         title: "Clock Resumed",
-        description: `Pause time: ${result.pause_minutes} minutes${newWorkMode ? ` — now ${newWorkMode === "wfh" ? "Working From Home" : "Working From Office"}` : ""}`,
+        description: `Pause time: ${result.pause_minutes} minutes${newWorkMode ? ` — now ${newWorkMode === "wfh" ? "WFH" : "Office"}` : ""}`,
       });
     } catch (err: any) {
+      setCurrentLog(prevLogRef.current);
       toast({ title: "Error", description: err.message || "Failed to resume clock", variant: "destructive" });
+    } finally {
+      setActionInProgress(null);
     }
   };
 
@@ -430,9 +546,8 @@ export function useAttendance(weekStart?: Date) {
     monthlyHours,
     getTimeBreakdown,
     refetch,
-    /** Employee's profile timezone (IANA), e.g. "Asia/Kathmandu" */
+    actionInProgress,
     employeeTimezone,
-    /** Short abbreviation, e.g. "NPT" */
     employeeTimezoneAbbr,
   };
 }
