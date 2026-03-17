@@ -21,6 +21,7 @@ import {
   DollarSign,
   Pause,
   PenLine,
+  Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAttendance } from "@/hooks/useAttendance";
@@ -49,6 +50,8 @@ const Attendance = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const currentDate = new Date();
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState("00:00:00");
+  const [showResumeLocationDialog, setShowResumeLocationDialog] = useState(false);
   const [adjustmentLog, setAdjustmentLog] = useState<{
     id: string;
     clock_in: string;
@@ -86,6 +89,49 @@ const Attendance = () => {
   };
 
   const clockStatus = getClockStatus();
+
+  // Elapsed time timer (like ClockWidget)
+  useEffect(() => {
+    if (clockStatus === "out" || !currentLog) {
+      setElapsedTime("00:00:00");
+      return;
+    }
+
+    const updateElapsed = () => {
+      const now = new Date();
+      const clockInTime = new Date(currentLog.clock_in);
+      let elapsed = now.getTime() - clockInTime.getTime();
+
+      const totalBreakMs = (currentLog.total_break_minutes || 0) * 60 * 1000;
+      const totalPauseMs = ((currentLog as any).total_pause_minutes || 0) * 60 * 1000;
+      elapsed -= totalBreakMs;
+      elapsed -= totalPauseMs;
+
+      if (clockStatus === "break" && currentLog.break_start) {
+        const breakStart = new Date(currentLog.break_start);
+        elapsed -= now.getTime() - breakStart.getTime();
+      }
+
+      if (clockStatus === "paused" && (currentLog as any).pause_start) {
+        const pauseStart = new Date((currentLog as any).pause_start);
+        elapsed -= now.getTime() - pauseStart.getTime();
+      }
+
+      elapsed = Math.max(0, elapsed);
+
+      const hours = Math.floor(elapsed / (1000 * 60 * 60));
+      const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+
+      setElapsedTime(
+        `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`,
+      );
+    };
+
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [clockStatus, currentLog]);
 
   /**
    * Net time worked today: elapsed - breaks - pauses.
@@ -162,11 +208,17 @@ const Attendance = () => {
 
   const handlePause = async () => {
     if (clockStatus === "paused") {
-      await endPause();
+      setShowResumeLocationDialog(true);
     } else {
       await startPause();
     }
   };
+
+  const handleResumeWithLocation = async (workMode: "wfo" | "wfh") => {
+    setShowResumeLocationDialog(false);
+    await endPause(workMode);
+  };
+
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
@@ -299,19 +351,26 @@ const Attendance = () => {
             )}
 
             <div className="text-center py-8 rounded-xl bg-secondary/50 border border-border">
-              <p className="text-5xl font-display font-bold tracking-wider">
-                {currentDate.toLocaleTimeString("en-US", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </p>
-              <p className="text-muted-foreground mt-2">
+              <p className="text-5xl font-display font-bold tracking-wider text-foreground">{elapsedTime}</p>
+
+              {currentLog && !currentLog.clock_out && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Clocked in at{" "}
+                  {new Date(currentLog.clock_in).toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              )}
+
+              <p className="text-muted-foreground mt-1 text-sm">
                 {currentDate.toLocaleDateString("en-US", {
                   weekday: "long",
                   month: "long",
                   day: "numeric",
                 })}
               </p>
+
               <Badge
                 variant="outline"
                 className={cn(
@@ -327,14 +386,35 @@ const Attendance = () => {
                 {clockStatus === "break" && "On Break"}
                 {clockStatus === "paused" && "Paused"}
               </Badge>
+
+              {clockStatus === "paused" && (currentLog as any)?.pause_start && (
+                <p className="text-xs text-info mt-1">
+                  Paused since{" "}
+                  {new Date((currentLog as any).pause_start).toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              )}
             </div>
 
             <div className="flex gap-2 flex-wrap">
               {clockStatus === "out" ? (
-                <Button onClick={handleClockIn} className="flex-1 gap-2" size="lg">
-                  <Play className="h-4 w-4" />
-                  Clock In
-                </Button>
+                <div className="grid grid-cols-2 gap-2 w-full">
+                  <Button onClick={() => clockIn(clockType, "wfo")} className="flex-1 gap-2" size="lg">
+                    <Play className="h-4 w-4" />
+                    Clock IN (WFO)
+                  </Button>
+                  <Button
+                    onClick={() => clockIn(clockType, "wfh")}
+                    variant="outline"
+                    className="flex-1 gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+                    size="lg"
+                  >
+                    <Play className="h-4 w-4" />
+                    Clock IN (WFH)
+                  </Button>
+                </div>
               ) : (
                 <>
                   <Button
@@ -403,6 +483,45 @@ const Attendance = () => {
                     <Square className="h-4 w-4 fill-current" />
                     Confirm Clock Out
                   </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            {/* Resume Location Dialog */}
+            <AlertDialog open={showResumeLocationDialog} onOpenChange={setShowResumeLocationDialog}>
+              <AlertDialogContent className="max-w-md">
+                <AlertDialogHeader className="space-y-4">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-100">
+                    <Briefcase className="h-7 w-7 text-blue-600" />
+                  </div>
+                  <AlertDialogTitle className="text-center text-xl">Where are you working from?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-center text-base">
+                    You're about to resume your shift. Please select your current work location.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="flex flex-col gap-3 mt-4">
+                  <Button
+                    onClick={() => handleResumeWithLocation("wfo")}
+                    className="w-full gap-2 h-12 text-base"
+                    size="lg"
+                  >
+                    <Briefcase className="h-5 w-5" />
+                    Office (WFO)
+                  </Button>
+                  <Button
+                    onClick={() => handleResumeWithLocation("wfh")}
+                    variant="outline"
+                    className="w-full gap-2 h-12 text-base border-blue-300 text-blue-600 hover:bg-blue-50"
+                    size="lg"
+                  >
+                    <Home className="h-5 w-5" />
+                    Home (WFH)
+                  </Button>
+                </div>
+                <AlertDialogFooter className="mt-3">
+                  <AlertDialogCancel className="w-full gap-2">
+                    <X className="h-4 w-4" />
+                    Stay Paused
+                  </AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
