@@ -344,8 +344,8 @@ export function ClockWidget() {
             <div className="grid grid-cols-2 gap-2 w-full">
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
-                  <Button onClick={() => clockIn(clockType, "wfo")} className="gap-2" size="lg">
-                    <Play className="h-4 w-4" />
+                  <Button onClick={() => clockIn(clockType, "wfo")} className="gap-2" size="lg" disabled={isBusy}>
+                    {actionInProgress === "clock_in" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                     Clock IN (WFO)
                   </Button>
                 </TooltipTrigger>
@@ -360,8 +360,9 @@ export function ClockWidget() {
                     variant="outline"
                     className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
                     size="lg"
+                    disabled={isBusy}
                   >
-                    <Play className="h-4 w-4" />
+                    {actionInProgress === "clock_in" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                     Clock IN (WFH)
                   </Button>
                 </TooltipTrigger>
