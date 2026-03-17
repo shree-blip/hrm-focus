@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.send-loan-notification]
 verify_jwt = false
+
+[functions.attendance-clock]
+verify_jwt = false

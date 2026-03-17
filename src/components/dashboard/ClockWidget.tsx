@@ -50,6 +50,8 @@ export function ClockWidget() {
     startPause,
     endPause,
     status: clockStatus,
+    employeeTimezone,
+    employeeTimezoneAbbr,
   } = useAttendance();
 
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
@@ -311,6 +313,13 @@ export function ClockWidget() {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
+            </p>
+          )}
+          {/* Timezone indicator — server-side single source of truth */}
+          {employeeTimezoneAbbr && clockStatus !== "out" && (
+            <p className="text-xs text-muted-foreground mt-1.5 flex items-center justify-center gap-1">
+              <Clock className="h-3 w-3" />
+              Time zone: {employeeTimezoneAbbr}
             </p>
           )}
         </div>

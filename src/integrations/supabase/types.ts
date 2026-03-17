@@ -922,6 +922,7 @@ export type Database = {
           social_security: number | null
           status: string | null
           termination_date: string | null
+          timezone: string
           updated_at: string
         }
         Insert: {
@@ -954,6 +955,7 @@ export type Database = {
           social_security?: number | null
           status?: string | null
           termination_date?: string | null
+          timezone?: string
           updated_at?: string
         }
         Update: {
@@ -986,6 +988,7 @@ export type Database = {
           social_security?: number | null
           status?: string | null
           termination_date?: string | null
+          timezone?: string
           updated_at?: string
         }
         Relationships: [
