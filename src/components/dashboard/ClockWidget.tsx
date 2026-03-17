@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import { Clock, Play, Square, Coffee, Loader2, Briefcase, Pause, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +21,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-// Extended type for attendance log with pause support
 interface AttendanceLogWithPause {
   id: string;
   clock_in: string;
@@ -35,7 +34,28 @@ interface AttendanceLogWithPause {
   total_pause_minutes: number;
 }
 
-export function ClockWidget() {
+function formatElapsed(ms: number): string {
+  const total = Math.max(0, ms);
+  const hours = Math.floor(total / 3600000);
+  const minutes = Math.floor((total % 3600000) / 60000);
+  const seconds = Math.floor((total % 60000) / 1000);
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function computeHours(logs: any[]): string {
+  let totalMinutes = 0;
+  logs.forEach((log) => {
+    const start = new Date(log.clock_in);
+    const end = log.clock_out ? new Date(log.clock_out) : new Date();
+    const breakMin = log.total_break_minutes || 0;
+    const pauseMin = log.total_pause_minutes || 0;
+    const diffMs = end.getTime() - start.getTime() - (breakMin + pauseMin) * 60000;
+    totalMinutes += Math.max(0, diffMs / 60000);
+  });
+  return `${Math.floor(totalMinutes / 60)}h ${Math.round(totalMinutes % 60)}m`;
+}
+
+export const ClockWidget = memo(function ClockWidget() {
   const {
     currentLog,
     weeklyLogs,
@@ -51,178 +71,99 @@ export function ClockWidget() {
     endPause,
     status: clockStatus,
     actionInProgress,
-    employeeTimezone,
     employeeTimezoneAbbr,
   } = useAttendance();
 
   const isBusy = !!actionInProgress;
-
-  const [elapsedTime, setElapsedTime] = useState("00:00:00");
-  const [showClockOutDialog, setShowClockOutDialog] = useState(false);
-  const [showResumeLocationDialog, setShowResumeLocationDialog] = useState(false);
-
-  // Cast currentLog to include pause fields
   const typedCurrentLog = currentLog as AttendanceLogWithPause | null;
 
-  // Update elapsed time every second
+  // ── Elapsed timer using ref to avoid stale closures ──
+  const [elapsedTime, setElapsedTime] = useState("00:00:00");
+  const logRef = useRef(typedCurrentLog);
+  const statusRef = useRef(clockStatus);
+  logRef.current = typedCurrentLog;
+  statusRef.current = clockStatus;
+
   useEffect(() => {
     if (clockStatus === "out" || !typedCurrentLog) {
       setElapsedTime("00:00:00");
       return;
     }
 
-    const updateElapsed = () => {
-      const now = new Date();
-      const clockInTime = new Date(typedCurrentLog.clock_in);
-      let elapsed = now.getTime() - clockInTime.getTime();
+    const tick = () => {
+      const log = logRef.current;
+      const st = statusRef.current;
+      if (!log) return;
 
-      // Subtract total break time and total pause time
-      const totalBreakMs = (typedCurrentLog.total_break_minutes || 0) * 60 * 1000;
-      const totalPauseMs = (typedCurrentLog.total_pause_minutes || 0) * 60 * 1000;
-      elapsed -= totalBreakMs;
-      elapsed -= totalPauseMs;
+      const now = Date.now();
+      let elapsed = now - new Date(log.clock_in).getTime();
+      elapsed -= (log.total_break_minutes || 0) * 60000;
+      elapsed -= (log.total_pause_minutes || 0) * 60000;
 
-      // If currently on break, subtract current break time
-      if (clockStatus === "break" && typedCurrentLog.break_start) {
-        const breakStart = new Date(typedCurrentLog.break_start);
-        elapsed -= now.getTime() - breakStart.getTime();
+      if (st === "break" && log.break_start) {
+        elapsed -= now - new Date(log.break_start).getTime();
+      }
+      if (st === "paused" && log.pause_start) {
+        elapsed -= now - new Date(log.pause_start).getTime();
       }
 
-      // If currently paused, subtract current pause time
-      if (clockStatus === "paused" && typedCurrentLog.pause_start) {
-        const pauseStart = new Date(typedCurrentLog.pause_start);
-        elapsed -= now.getTime() - pauseStart.getTime();
-      }
-
-      // Ensure we don't show negative time
-      elapsed = Math.max(0, elapsed);
-
-      const hours = Math.floor(elapsed / (1000 * 60 * 60));
-      const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
-
-      setElapsedTime(
-        `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`,
-      );
+      setElapsedTime(formatElapsed(elapsed));
     };
 
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 1000);
-    return () => clearInterval(interval);
-  }, [clockStatus, typedCurrentLog]);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  // Only restart interval when the log identity or status category changes
+  }, [typedCurrentLog?.id, clockStatus]);
 
-  const handleClockIn = async () => {
-    await clockIn(clockType);
-  };
+  // ── Dialogs ──
+  const [showClockOutDialog, setShowClockOutDialog] = useState(false);
+  const [showResumeLocationDialog, setShowResumeLocationDialog] = useState(false);
 
-  const handleClockOut = async () => {
-    await clockOut();
-  };
-  //handel clockout click to show confirmation dialog
-  const handleClockOutClick = () => {
-    setShowClockOutDialog(true);
-  };
-
-  const handleConfirmClockOut = async () => {
+  // ── Memoized handlers ──
+  const handleClockOutClick = useCallback(() => setShowClockOutDialog(true), []);
+  const handleConfirmClockOut = useCallback(async () => {
     setShowClockOutDialog(false);
     await clockOut();
-  };
+  }, [clockOut]);
 
-  const handleBreak = async () => {
-    if (clockStatus === "break") {
-      await endBreak();
-    } else {
-      await startBreak();
-    }
-  };
+  const handleBreak = useCallback(async () => {
+    if (clockStatus === "break") await endBreak();
+    else await startBreak();
+  }, [clockStatus, endBreak, startBreak]);
 
-  const handlePause = async () => {
-    if (clockStatus === "paused") {
-      // Instead of resuming directly, show the location choice dialog
-      setShowResumeLocationDialog(true);
-    } else {
-      await startPause();
-    }
-  };
+  const handlePause = useCallback(async () => {
+    if (clockStatus === "paused") setShowResumeLocationDialog(true);
+    else await startPause();
+  }, [clockStatus, startPause]);
 
-  const handleResumeWithLocation = async (workMode: "wfo" | "wfh") => {
+  const handleResumeWithLocation = useCallback(async (workMode: "wfo" | "wfh") => {
     setShowResumeLocationDialog(false);
     await endPause(workMode);
-  };
+  }, [endPause]);
 
-  // Calculate today's hours from logs (excluding breaks and pauses)
-  const getTodayHours = () => {
-    const today = format(new Date(), "yyyy-MM-dd");
-    const todayLogs = weeklyLogs.filter((log) => {
-      const logDate = format(new Date(log.clock_in), "yyyy-MM-dd");
-      return logDate === today;
-    });
+  // ── Memoized computed values ──
+  const todayStr = format(new Date(), "yyyy-MM-dd");
 
-    let totalMinutes = 0;
-    todayLogs.forEach((log) => {
-      const typedLog = log as AttendanceLogWithPause;
-      const start = new Date(typedLog.clock_in);
-      const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
-      const breakMinutes = typedLog.total_break_minutes || 0;
-      const pauseMinutes = typedLog.total_pause_minutes || 0;
-      const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
-      totalMinutes += Math.max(0, diffMs / (1000 * 60));
-    });
+  const todayHours = useMemo(() => {
+    const todayLogs = weeklyLogs.filter(
+      (log) => format(new Date(log.clock_in), "yyyy-MM-dd") === todayStr
+    );
+    return computeHours(todayLogs);
+  }, [weeklyLogs, todayStr]);
 
-    const hours = Math.floor(totalMinutes / 60);
-    const mins = Math.round(totalMinutes % 60);
-    return `${hours}h ${mins}m`;
-  };
-
-  // Calculate weekly hours (excluding breaks and pauses)
-  const getWeeklyHours = () => {
+  const weeklyHours = useMemo(() => {
     const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-
-    let totalMinutes = 0;
-    weeklyLogs.forEach((log) => {
-      const typedLog = log as AttendanceLogWithPause;
-      const logDate = new Date(typedLog.clock_in);
-      if (logDate >= weekStart && logDate <= weekEnd) {
-        const start = new Date(typedLog.clock_in);
-        const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
-        const breakMinutes = typedLog.total_break_minutes || 0;
-        const pauseMinutes = typedLog.total_pause_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
-        totalMinutes += Math.max(0, diffMs / (1000 * 60));
-      }
+    const ws = startOfWeek(now, { weekStartsOn: 1 });
+    const we = endOfWeek(now, { weekStartsOn: 1 });
+    const filtered = weeklyLogs.filter((log) => {
+      const d = new Date(log.clock_in);
+      return d >= ws && d <= we;
     });
+    return computeHours(filtered);
+  }, [weeklyLogs]);
 
-    const hours = Math.floor(totalMinutes / 60);
-    const mins = Math.round(totalMinutes % 60);
-    return `${hours}h ${mins}m`;
-  };
-
-  // Calculate utilization (assuming 8h target per day, 40h per week)
-  const getUtilization = () => {
-    const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-
-    let totalMinutes = 0;
-    weeklyLogs.forEach((log) => {
-      const typedLog = log as AttendanceLogWithPause;
-      const logDate = new Date(typedLog.clock_in);
-      if (logDate >= weekStart && logDate <= weekEnd) {
-        const start = new Date(typedLog.clock_in);
-        const end = typedLog.clock_out ? new Date(typedLog.clock_out) : new Date();
-        const breakMinutes = typedLog.total_break_minutes || 0;
-        const pauseMinutes = typedLog.total_pause_minutes || 0;
-        const diffMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
-        totalMinutes += Math.max(0, diffMs / (1000 * 60));
-      }
-    });
-
-    const targetMinutes = 40 * 60; // 40 hours per week
-    const utilization = Math.round((totalMinutes / targetMinutes) * 100);
-    return Math.min(utilization, 100);
-  };
+  const clockInTime = typedCurrentLog ? new Date(typedCurrentLog.clock_in) : null;
 
   if (loading) {
     return (
@@ -251,8 +192,6 @@ export function ClockWidget() {
       </Card>
     );
   }
-
-  const clockInTime = typedCurrentLog ? new Date(typedCurrentLog.clock_in) : null;
 
   return (
     <Card
@@ -283,7 +222,6 @@ export function ClockWidget() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Clock Type Selector */}
         {clockStatus === "out" && (
           <div className="flex items-center gap-2">
             <Briefcase className="h-4 w-4 text-muted-foreground" />
@@ -293,7 +231,6 @@ export function ClockWidget() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="payroll">Payroll Time</SelectItem>
-                {/* <SelectItem value="billable">Billable Time</SelectItem> */}
               </SelectContent>
             </Select>
           </div>
@@ -308,7 +245,6 @@ export function ClockWidget() {
               {typedCurrentLog?.clock_type === "billable" && " (Billable)"}
             </p>
           )}
-          {/* Show pause info if paused */}
           {clockStatus === "paused" && typedCurrentLog?.pause_start && (
             <p className="text-xs text-info mt-1">
               Paused since{" "}
@@ -318,7 +254,6 @@ export function ClockWidget() {
               })}
             </p>
           )}
-          {/* Timezone indicator — server-side single source of truth */}
           {employeeTimezoneAbbr && clockStatus !== "out" && (
             <p className="text-xs text-muted-foreground mt-1.5 flex items-center justify-center gap-1">
               <Clock className="h-3 w-3" />
@@ -326,17 +261,6 @@ export function ClockWidget() {
             </p>
           )}
         </div>
-
-        {/* Clock out button only visible when active (status "in") */}
-        {status === "in" && (
-          <button
-            onClick={handleClockOut}
-            className="px-4 py-3 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl font-bold transition-all active:scale-[0.98] animate-in fade-in zoom-in-95 duration-200"
-            title="Clock Out"
-          >
-            <Square className="h-5 w-5 fill-current" />
-          </button>
-        )}
 
         {/* Action Buttons */}
         <div className="flex gap-2 flex-wrap">
@@ -414,11 +338,11 @@ export function ClockWidget() {
         {/* Today's Summary */}
         <div className="grid grid-cols-3 gap-3 pt-2">
           <div className="text-center p-3 rounded-lg bg-accent/50">
-            <p className="text-lg font-semibold text-foreground">{getTodayHours()}</p>
+            <p className="text-lg font-semibold text-foreground">{todayHours}</p>
             <p className="text-xs text-muted-foreground">Today</p>
           </div>
           <div className="text-center p-3 rounded-lg bg-accent/50">
-            <p className="text-lg font-semibold text-foreground">{getWeeklyHours()}</p>
+            <p className="text-lg font-semibold text-foreground">{weeklyHours}</p>
             <p className="text-xs text-muted-foreground">This Week</p>
           </div>
           <div className="text-center p-3 rounded-lg bg-accent/50">
@@ -503,4 +427,4 @@ export function ClockWidget() {
       </CardContent>
     </Card>
   );
-}
+});
