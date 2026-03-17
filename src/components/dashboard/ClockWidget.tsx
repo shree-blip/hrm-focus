@@ -50,6 +50,8 @@ export function ClockWidget() {
     startPause,
     endPause,
     status: clockStatus,
+    employeeTimezone,
+    employeeTimezoneAbbr,
   } = useAttendance();
 
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
