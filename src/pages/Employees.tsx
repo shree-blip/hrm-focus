@@ -24,6 +24,8 @@ import {
   UserPlus,
   UserMinus,
   TrendingUp,
+  ChevronRight,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
@@ -48,6 +50,87 @@ interface ClickedEmployeeTeamMember {
   department: string | null;
   job_title: string | null;
   status: string | null;
+}
+
+interface SubTeamView {
+  employeeId: string;
+  employeeName: string;
+}
+
+/** Fetch all team members from both junction table AND legacy columns, deduplicated */
+async function fetchCombinedTeam(employeeId: string): Promise<ClickedEmployeeTeamMember[]> {
+  // 1. Junction table (team_members)
+  const { data: junctionRows } = await supabase
+    .from("team_members")
+    .select("member_employee_id")
+    .eq("manager_employee_id", employeeId);
+
+  const junctionIds = (junctionRows || []).map((r: any) => r.member_employee_id);
+
+  // 2. Legacy columns (line_manager_id, manager_id)
+  const { data: lineReports } = await supabase
+    .from("employees")
+    .select("id, first_name, last_name, email, department, job_title, status")
+    .eq("line_manager_id", employeeId)
+    .order("first_name", { ascending: true });
+
+  const { data: managerReports } = await supabase
+    .from("employees")
+    .select("id, first_name, last_name, email, department, job_title, status")
+    .eq("manager_id", employeeId)
+    .order("first_name", { ascending: true });
+
+  // 3. Fetch junction members not already covered by legacy queries
+  const legacyIds = new Set([...(lineReports || []).map((e) => e.id), ...(managerReports || []).map((e) => e.id)]);
+  const missingJunctionIds = junctionIds.filter((id) => !legacyIds.has(id));
+
+  let junctionMembers: ClickedEmployeeTeamMember[] = [];
+  if (missingJunctionIds.length > 0) {
+    const { data } = await supabase
+      .from("employees")
+      .select("id, first_name, last_name, email, department, job_title, status")
+      .in("id", missingJunctionIds)
+      .order("first_name", { ascending: true });
+    junctionMembers = data || [];
+  }
+
+  // 4. Merge & deduplicate
+  const allReports = [...(lineReports || []), ...(managerReports || []), ...junctionMembers];
+  const uniqueReports = allReports.filter((emp, index, self) => self.findIndex((e) => e.id === emp.id) === index);
+  uniqueReports.sort((a, b) => a.first_name.localeCompare(b.first_name));
+  return uniqueReports;
+}
+
+/** Check which employee IDs have sub-teams (junction table OR legacy columns) */
+async function detectManagersAmong(employeeIds: string[]): Promise<Set<string>> {
+  if (employeeIds.length === 0) return new Set();
+
+  const ids = new Set<string>();
+
+  // Check junction table
+  const { data: junctionManagers } = await supabase
+    .from("team_members")
+    .select("manager_employee_id")
+    .in("manager_employee_id", employeeIds);
+  (junctionManagers || []).forEach((r: any) => {
+    if (r.manager_employee_id) ids.add(r.manager_employee_id);
+  });
+
+  // Check legacy columns
+  const { data: lineManaged } = await supabase
+    .from("employees")
+    .select("line_manager_id")
+    .in("line_manager_id", employeeIds);
+  (lineManaged || []).forEach((r: any) => {
+    if (r.line_manager_id) ids.add(r.line_manager_id);
+  });
+
+  const { data: managed } = await supabase.from("employees").select("manager_id").in("manager_id", employeeIds);
+  (managed || []).forEach((r: any) => {
+    if (r.manager_id) ids.add(r.manager_id);
+  });
+
+  return ids;
 }
 
 // Component to handle individual employee avatar with signed URL
@@ -82,6 +165,13 @@ const Employees = () => {
   const [clickedEmployeeTeam, setClickedEmployeeTeam] = useState<ClickedEmployeeTeamMember[]>([]);
   const [loadingClickedTeam, setLoadingClickedTeam] = useState(false);
 
+  // Sub-team drill-down state
+  const [subTeamDialogOpen, setSubTeamDialogOpen] = useState(false);
+  const [subTeamMembers, setSubTeamMembers] = useState<ClickedEmployeeTeamMember[]>([]);
+  const [subTeamLoading, setSubTeamLoading] = useState(false);
+  const [subTeamStack, setSubTeamStack] = useState<SubTeamView[]>([]);
+  const [clickedTeamManagerIds, setClickedTeamManagerIds] = useState<Set<string>>(new Set());
+
   // Add to team dialog for managing another employee's team (VP/admin)
   const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
   const [managingEmployeeId, setManagingEmployeeId] = useState<string | null>(null);
@@ -106,26 +196,15 @@ const Employees = () => {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
 
-  // Fetch team for clicked employee
+  // Fetch team for clicked employee — now uses combined fetch (junction + legacy)
   const fetchClickedEmployeeTeam = async (employeeId: string) => {
     setLoadingClickedTeam(true);
     try {
-      const { data: lineReports } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name, email, department, job_title, status")
-        .eq("line_manager_id", employeeId)
-        .order("first_name", { ascending: true });
+      const members = await fetchCombinedTeam(employeeId);
+      setClickedEmployeeTeam(members);
 
-      const { data: managerReports } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name, email, department, job_title, status")
-        .eq("manager_id", employeeId)
-        .order("first_name", { ascending: true });
-
-      const allReports = [...(lineReports || []), ...(managerReports || [])];
-      const uniqueReports = allReports.filter((emp, index, self) => self.findIndex((e) => e.id === emp.id) === index);
-      uniqueReports.sort((a, b) => a.first_name.localeCompare(b.first_name));
-      setClickedEmployeeTeam(uniqueReports);
+      const mgrIds = await detectManagersAmong(members.map((m) => m.id));
+      setClickedTeamManagerIds(mgrIds);
     } catch (err) {
       console.error("Failed to fetch team:", err);
       setClickedEmployeeTeam([]);
@@ -133,12 +212,70 @@ const Employees = () => {
     setLoadingClickedTeam(false);
   };
 
+  // ─── Sub-team drill-down helpers ───
+
+  const openSubTeamFromClicked = async (member: ClickedEmployeeTeamMember) => {
+    setSubTeamLoading(true);
+    setSubTeamDialogOpen(true);
+    setSubTeamStack([{ employeeId: member.id, employeeName: `${member.first_name} ${member.last_name}` }]);
+    await fetchSubTeamFor(member.id);
+    setSubTeamLoading(false);
+  };
+
+  const drillIntoSubTeam = async (member: ClickedEmployeeTeamMember) => {
+    setSubTeamLoading(true);
+    setSubTeamStack((prev) => [
+      ...prev,
+      { employeeId: member.id, employeeName: `${member.first_name} ${member.last_name}` },
+    ]);
+    await fetchSubTeamFor(member.id);
+    setSubTeamLoading(false);
+  };
+
+  const goBackSubTeam = async () => {
+    if (subTeamStack.length <= 1) {
+      closeSubTeamDialog();
+      return;
+    }
+    setSubTeamLoading(true);
+    const newStack = subTeamStack.slice(0, -1);
+    setSubTeamStack(newStack);
+    await fetchSubTeamFor(newStack[newStack.length - 1].employeeId);
+    setSubTeamLoading(false);
+  };
+
+  const fetchSubTeamFor = async (managerId: string) => {
+    try {
+      const members = await fetchCombinedTeam(managerId);
+      setSubTeamMembers(members);
+
+      const mgrIds = await detectManagersAmong(members.map((m) => m.id));
+      setClickedTeamManagerIds((prev) => {
+        const merged = new Set(prev);
+        mgrIds.forEach((id) => merged.add(id));
+        return merged;
+      });
+    } catch (err) {
+      console.error("Failed to fetch sub-team:", err);
+      setSubTeamMembers([]);
+    }
+  };
+
+  const closeSubTeamDialog = () => {
+    setSubTeamDialogOpen(false);
+    setSubTeamStack([]);
+    setSubTeamMembers([]);
+  };
+
+  const currentSubTeamName = subTeamStack.length > 0 ? subTeamStack[subTeamStack.length - 1].employeeName : "";
+
   // When clicked employee changes, fetch their team
   useEffect(() => {
     if (clickedEmployee?.id) {
       fetchClickedEmployeeTeam(String(clickedEmployee.id));
     } else {
       setClickedEmployeeTeam([]);
+      setClickedTeamManagerIds(new Set());
     }
   }, [clickedEmployee?.id]);
 
@@ -296,18 +433,16 @@ const Employees = () => {
 
       // Auto-whitelist the email for signup
       if (res?.id) {
-        const { error: whitelistError } = await supabase
-          .from("allowed_signups")
-          .upsert(
-            {
-              email: data.email.trim().toLowerCase(),
-              employee_id: res.id,
-              invited_by: user?.id || null,
-              invited_at: new Date().toISOString(),
-              is_used: false,
-            },
-            { onConflict: "email" }
-          );
+        const { error: whitelistError } = await supabase.from("allowed_signups").upsert(
+          {
+            email: data.email.trim().toLowerCase(),
+            employee_id: res.id,
+            invited_by: user?.id || null,
+            invited_at: new Date().toISOString(),
+            is_used: false,
+          },
+          { onConflict: "email" },
+        );
 
         if (whitelistError) {
           console.error("Failed to whitelist email:", whitelistError);
@@ -393,7 +528,11 @@ const Employees = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">
-            {showMyTeamSection && !showFullDirectory ? "My Team" : showFullDirectory ? "Employees" : "Employee Directory"}
+            {showMyTeamSection && !showFullDirectory
+              ? "My Team"
+              : showFullDirectory
+                ? "Employees"
+                : "Employee Directory"}
           </h1>
           <p className="text-muted-foreground mt-1">
             {showMyTeamSection && !showFullDirectory
@@ -721,56 +860,79 @@ const Employees = () => {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {clickedEmployeeTeam.map((member) => (
-                              <TableRow key={member.id}>
-                                <TableCell className="py-2">
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-7 w-7">
-                                      <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">
-                                        {getInitials(member.first_name, member.last_name)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                      <p className="font-medium text-sm">
-                                        {member.first_name} {member.last_name}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">{member.email}</p>
+                            {clickedEmployeeTeam.map((member) => {
+                              const isSubManager = clickedTeamManagerIds.has(member.id);
+                              return (
+                                <TableRow
+                                  key={member.id}
+                                  className={cn(isSubManager && "cursor-pointer hover:bg-accent/50")}
+                                  onClick={() => {
+                                    if (isSubManager) openSubTeamFromClicked(member);
+                                  }}
+                                >
+                                  <TableCell className="py-2">
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-7 w-7">
+                                        <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">
+                                          {getInitials(member.first_name, member.last_name)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                        <div className="flex items-center gap-1.5">
+                                          <p className="font-medium text-sm">
+                                            {member.first_name} {member.last_name}
+                                          </p>
+                                          {isSubManager && (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-[10px] px-1.5 py-0 border-primary/40 text-primary"
+                                            >
+                                              <Users className="h-2.5 w-2.5 mr-0.5" />
+                                              Team Lead
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{member.email}</p>
+                                      </div>
+                                      {isSubManager && (
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                                      )}
                                     </div>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="py-2 text-sm">{member.job_title || "-"}</TableCell>
-                                <TableCell className="py-2">
-                                  <Badge variant="secondary" className="font-normal text-xs">
-                                    {member.department || "-"}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="py-2">
-                                  <Badge
-                                    variant="outline"
-                                    className={cn(
-                                      "text-xs",
-                                      member.status === "active" && "border-success/50 text-success bg-success/10",
-                                      member.status === "probation" && "border-warning/50 text-warning bg-warning/10",
-                                      member.status === "inactive" &&
-                                        "border-destructive/50 text-destructive bg-destructive/10",
-                                    )}
-                                  >
-                                    {member.status || "active"}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="py-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleRemoveFromClickedTeam(member)}
-                                    title="Remove from team"
-                                  >
-                                    <UserMinus className="h-3.5 w-3.5" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                                  </TableCell>
+                                  <TableCell className="py-2 text-sm">{member.job_title || "-"}</TableCell>
+                                  <TableCell className="py-2">
+                                    <Badge variant="secondary" className="font-normal text-xs">
+                                      {member.department || "-"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <Badge
+                                      variant="outline"
+                                      className={cn(
+                                        "text-xs",
+                                        member.status === "active" && "border-success/50 text-success bg-success/10",
+                                        member.status === "probation" && "border-warning/50 text-warning bg-warning/10",
+                                        member.status === "inactive" &&
+                                          "border-destructive/50 text-destructive bg-destructive/10",
+                                      )}
+                                    >
+                                      {member.status || "active"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      onClick={() => handleRemoveFromClickedTeam(member)}
+                                      title="Remove from team"
+                                    >
+                                      <UserMinus className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       </div>
@@ -782,6 +944,130 @@ const Employees = () => {
           </Card>
         </div>
       )}
+
+      {/* ─── Sub-team Drill-down Modal ─── */}
+      <Dialog
+        open={subTeamDialogOpen}
+        onOpenChange={(o) => {
+          if (!o) closeSubTeamDialog();
+        }}
+      >
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              {subTeamStack.length > 1 && (
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={goBackSubTeam}>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
+              <div>
+                <DialogTitle className="font-display text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  {currentSubTeamName}'s Team
+                </DialogTitle>
+                {subTeamStack.length > 1 && (
+                  <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground flex-wrap">
+                    {subTeamStack.map((item, idx) => (
+                      <span key={item.employeeId} className="flex items-center gap-1">
+                        {idx > 0 && <ChevronRight className="h-3 w-3" />}
+                        <span className={idx === subTeamStack.length - 1 ? "text-foreground font-medium" : ""}>
+                          {item.employeeName}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+
+          {subTeamLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : subTeamMembers.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">No team members under {currentSubTeamName}</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="font-semibold text-xs">Employee</TableHead>
+                    <TableHead className="font-semibold text-xs">Role</TableHead>
+                    <TableHead className="font-semibold text-xs">Department</TableHead>
+                    <TableHead className="font-semibold text-xs">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {subTeamMembers.map((member) => {
+                    const isSubManager = clickedTeamManagerIds.has(member.id);
+                    return (
+                      <TableRow
+                        key={member.id}
+                        className={cn(isSubManager && "cursor-pointer hover:bg-accent/50")}
+                        onClick={() => {
+                          if (isSubManager) drillIntoSubTeam(member);
+                        }}
+                      >
+                        <TableCell className="py-2.5">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">
+                                {getInitials(member.first_name, member.last_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-medium text-sm">
+                                  {member.first_name} {member.last_name}
+                                </p>
+                                {isSubManager && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0 border-primary/40 text-primary"
+                                  >
+                                    <Users className="h-2.5 w-2.5 mr-0.5" />
+                                    Team Lead
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{member.email}</p>
+                            </div>
+                            {isSubManager && <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-2.5 text-sm">{member.job_title || "-"}</TableCell>
+                        <TableCell className="py-2.5">
+                          <Badge variant="secondary" className="font-normal text-xs">
+                            {member.department || "-"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="py-2.5">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-xs",
+                              member.status === "active" && "border-success/50 text-success bg-success/10",
+                              member.status === "probation" && "border-warning/50 text-warning bg-warning/10",
+                              member.status === "inactive" &&
+                                "border-destructive/50 text-destructive bg-destructive/10",
+                            )}
+                          >
+                            {member.status || "active"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialogs */}
       <AddEmployeeDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} onAdd={handleAddEmployee} />
