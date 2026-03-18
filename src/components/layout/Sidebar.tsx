@@ -92,6 +92,7 @@ export const Sidebar = memo(function Sidebar({ onNavigate, collapsed: controlled
   const location = useLocation();
   const { isManager, isVP } = useAuth();
   const { hasPermission } = usePermissions();
+  const { getBadgeCount, clearBadge } = useSidebarBadges();
 
   const isItemVisible = (item: MenuItem): boolean => {
     // Hide if user has a higher-level permission that supersedes this entry
