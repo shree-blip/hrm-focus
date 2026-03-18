@@ -24,7 +24,7 @@ import {
   Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAttendance } from "@/hooks/useAttendance";
+import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
 import { AdjustmentRequestDialog } from "@/components/attendance/AdjustmentRequestDialog";
 import { ManagerAdjustmentPanel } from "@/components/attendance/ManagerAdjustmentPanel";
