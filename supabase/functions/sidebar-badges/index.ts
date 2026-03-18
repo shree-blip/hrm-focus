@@ -21,10 +21,10 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Get current user
+    // Authenticate user
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -38,128 +38,149 @@ Deno.serve(async (req) => {
 
     const userId = user.id;
 
-    // Fetch user roles
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    const roles = (rolesData || []).map((r: any) => r.role as string);
+    // Fetch role + permissions in parallel
+    const [rolesResult, rolePermsResult, overridesResult] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", userId),
+      supabase.from("user_roles").select("role").eq("user_id", userId).limit(1).single()
+        .then(async ({ data: roleData }) => {
+          if (!roleData) return { data: [] };
+          return supabase.from("role_permissions").select("permission, enabled").eq("role", roleData.role);
+        }),
+      supabase.from("user_permission_overrides").select("permission, enabled").eq("user_id", userId),
+    ]);
 
-    // Fetch user permissions (effective)
-    const { data: permData } = await supabase.rpc("get_effective_permissions", { _user_id: userId });
-    const perms: string[] = Array.isArray(permData) ? permData.map((p: any) => p.permission || p) : [];
+    // Build effective permission set
+    const perms = new Set<string>();
+    if (rolePermsResult.data) {
+      for (const rp of rolePermsResult.data as any[]) {
+        if (rp.enabled) perms.add(rp.permission);
+      }
+    }
+    if (overridesResult.data) {
+      for (const o of overridesResult.data as any[]) {
+        if (o.enabled) {
+          perms.add(o.permission);
+        } else {
+          perms.delete(o.permission);
+        }
+      }
+    }
 
-    const isManagerPlus = roles.some((r: string) => ["admin", "vp", "manager", "supervisor", "line_manager"].includes(r));
-
+    const has = (p: string) => perms.has(p);
     const badges: Record<string, number> = {};
-
-    // Run all counts in parallel
-    const today = new Date().toISOString().slice(0, 10);
-
     const queries: Promise<void>[] = [];
 
-    // Leave: pending requests (managers see pending approvals, employees see their own pending)
-    if (perms.includes("approve_leave")) {
+    // Leave: pending
+    if (has("approve_leave")) {
       queries.push(
         supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
           .then(({ count }) => { badges.leave = count || 0; })
       );
-    } else if (perms.includes("view_leave")) {
+    } else if (has("view_leave")) {
       queries.push(
         supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending")
           .then(({ count }) => { badges.leave = count || 0; })
       );
     }
 
-    // Tasks: open tasks assigned to user
-    if (perms.includes("manage_tasks") || perms.includes("view_tasks")) {
+    // Tasks: open tasks assigned to user via task_assignees
+    if (has("manage_tasks") || has("view_tasks")) {
       queries.push(
-        supabase.from("tasks").select("id", { count: "exact", head: true }).eq("assigned_to", userId).in("status", ["pending", "in_progress"])
-          .then(({ count }) => { badges.tasks = count || 0; })
+        (async () => {
+          const { data: assignedTaskIds } = await supabase
+            .from("task_assignees").select("task_id").eq("user_id", userId);
+          if (assignedTaskIds && assignedTaskIds.length > 0) {
+            const ids = assignedTaskIds.map((r: any) => r.task_id);
+            const { count } = await supabase
+              .from("tasks").select("id", { count: "exact", head: true })
+              .in("id", ids).in("status", ["pending", "in_progress"]);
+            badges.tasks = count || 0;
+          } else {
+            badges.tasks = 0;
+          }
+        })()
       );
     }
 
-    // Announcements: active announcements
-    if (perms.includes("view_announcements") || perms.includes("add_announcement")) {
+    // Announcements: active
+    if (has("view_announcements") || has("add_announcement")) {
       queries.push(
         supabase.from("announcements").select("id", { count: "exact", head: true }).eq("is_active", true)
           .then(({ count }) => { badges.announcements = count || 0; })
       );
     }
 
-    // Documents: unread shared documents for user
-    if (perms.includes("view_documents") || perms.includes("manage_documents")) {
+    // Documents: unread shared
+    if (has("view_documents") || has("manage_documents")) {
       queries.push(
         supabase.from("document_shares").select("id", { count: "exact", head: true }).eq("recipient_id", userId).eq("is_read", false)
           .then(({ count }) => { badges.documents = count || 0; })
       );
     }
 
-    // Invoices: pending invoices
-    if (perms.includes("manage_invoices")) {
+    // Invoices
+    if (has("manage_invoices")) {
       queries.push(
         supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "submitted")
           .then(({ count }) => { badges.invoices = count || 0; })
       );
-    } else if (perms.includes("view_invoices")) {
+    } else if (has("view_invoices")) {
       queries.push(
         supabase.from("invoices").select("id", { count: "exact", head: true }).eq("user_id", userId).in("status", ["submitted", "draft"])
           .then(({ count }) => { badges.invoices = count || 0; })
       );
     }
 
-    // Loans: pending loan requests
-    if (perms.includes("manage_loans")) {
+    // Loans
+    if (has("manage_loans")) {
       queries.push(
         supabase.from("loan_requests").select("id", { count: "exact", head: true }).in("status", ["pending", "manager_approved", "hr_reviewed"])
           .then(({ count }) => { badges.loans = count || 0; })
       );
-    } else if (perms.includes("view_loans")) {
+    } else if (has("view_loans")) {
       queries.push(
         supabase.from("loan_requests").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending")
           .then(({ count }) => { badges.loans = count || 0; })
       );
     }
 
-    // Support: open bug reports + grievances + asset requests
-    if (perms.includes("manage_support") || perms.includes("view_support") || perms.includes("view_bug_reports") || perms.includes("view_grievances") || perms.includes("view_asset_requests")) {
-      const supportQueries: Promise<number>[] = [];
+    // Support: aggregate
+    if (has("manage_support") || has("view_support") || has("view_bug_reports") || has("view_grievances") || has("view_asset_requests")) {
+      const supportCounts: Promise<number>[] = [];
 
-      if (perms.includes("manage_support") || perms.includes("view_bug_reports")) {
-        supportQueries.push(
+      if (has("manage_support") || has("view_bug_reports")) {
+        supportCounts.push(
           supabase.from("bug_reports").select("id", { count: "exact", head: true }).in("status", ["open", "in_progress"])
             .then(({ count }) => count || 0)
         );
       }
-      if (perms.includes("manage_support") || perms.includes("view_grievances")) {
-        supportQueries.push(
+      if (has("manage_support") || has("view_grievances")) {
+        supportCounts.push(
           supabase.from("grievances").select("id", { count: "exact", head: true }).in("status", ["open", "investigating"])
             .then(({ count }) => count || 0)
         );
       }
-      if (perms.includes("manage_support") || perms.includes("view_asset_requests")) {
-        supportQueries.push(
+      if (has("manage_support") || has("view_asset_requests")) {
+        supportCounts.push(
           supabase.from("asset_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
             .then(({ count }) => count || 0)
         );
       }
 
       queries.push(
-        Promise.all(supportQueries).then((counts) => {
+        Promise.all(supportCounts).then((counts) => {
           badges.support = counts.reduce((a, b) => a + b, 0);
         })
       );
     }
 
-    // Attendance: pending adjustment requests for managers
-    if (perms.includes("view_attendance_all") || perms.includes("edit_attendance")) {
+    // Attendance: pending adjustment requests
+    if (has("view_attendance_all") || has("edit_attendance")) {
       queries.push(
         supabase.from("attendance_adjustment_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
           .then(({ count }) => { badges.attendance = count || 0; })
       );
     }
-
-    // Log Sheet: no natural badge count - skip
 
     await Promise.all(queries);
 
