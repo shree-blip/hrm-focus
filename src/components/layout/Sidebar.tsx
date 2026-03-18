@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions, Permission } from "@/hooks/usePermissions";
+import { useSidebarBadges } from "@/hooks/useSidebarBadges";
 import focusLogo from "@/assets/focus-logo.png";
 
 interface MenuItem {
