@@ -189,7 +189,7 @@ function DepartmentSelect({ value, onChange, compact = false }: DepartmentSelect
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start">
-        <div className="max-h-[400px] overflow-y-auto p-1">
+        <div className="max-h-[200px] overflow-y-auto p-1" onWheel={(e) => e.stopPropagation()}>
           {DEPARTMENTS.map((dept) => {
             const hasChildren = dept.children && dept.children.length > 0;
             const isExpanded = expandedGroups.has(dept.value);
