@@ -149,11 +149,12 @@ export const Sidebar = memo(function Sidebar({ onNavigate, collapsed: controlled
           {visibleMenuItems.map((item, index) => {
             const isActive = location.pathname === item.href;
             const Icon = item.icon;
+            const badgeCount = getBadgeCount(item.href);
 
             const linkContent = (
               <Link
                 to={item.href}
-                onClick={handleNavClick}
+                onClick={() => handleNavClick(item.href)}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   "hover:bg-sidebar-accent",
@@ -165,6 +166,11 @@ export const Sidebar = memo(function Sidebar({ onNavigate, collapsed: controlled
               >
                 <Icon className={cn("h-5 w-5 shrink-0", collapsed && "mx-auto")} />
                 {!collapsed && <span className="truncate">{item.label}</span>}
+                {badgeCount > 0 && (
+                  <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold leading-none text-destructive-foreground">
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
+                )}
               </Link>
             );
 
