@@ -95,16 +95,8 @@ const Attendance = () => {
 
   const { myRequests, teamRequests, submitRequest, reviewRequest, getAdjustmentStatus } = useAttendanceAdjustments();
 
-  // Calculate clock status
-  const getClockStatus = () => {
-    if (!currentLog) return "out";
-    if (currentLog.clock_out) return "out";
-    if ((currentLog as any).pause_start && !(currentLog as any).pause_end) return "paused";
-    if (currentLog.break_start && !currentLog.break_end) return "break";
-    return "in";
-  };
-
-  const clockStatus = getClockStatus();
+  // Use shared status from context
+  const clockStatus = sharedStatus;
 
   // Elapsed time timer (like ClockWidget)
   useEffect(() => {
