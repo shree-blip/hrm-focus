@@ -151,6 +151,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <TimeTrackerProvider>
             <ActivityAlertsProvider />
             <Suspense fallback={<PageLoader />}>
               <Routes>
