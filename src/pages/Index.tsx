@@ -36,7 +36,7 @@ const Index = () => {
   const { employees } = useEmployees();
   const { tasks } = useTasks();
   const { requests, ownRequests, teamLeaves } = useLeaveRequests();
-  const { monthlyHours } = useAttendance();
+  const { monthlyHours } = useTimeTracker();
 
   const firstName = profile?.first_name || "User";
   const pendingTasks = tasks.filter((t) => t.status !== "done").length;

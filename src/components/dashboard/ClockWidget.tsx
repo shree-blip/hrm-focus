@@ -72,7 +72,7 @@ export const ClockWidget = memo(function ClockWidget() {
     status: clockStatus,
     actionInProgress,
     employeeTimezoneAbbr,
-  } = useAttendance();
+  } = useTimeTracker();
 
   const isBusy = !!actionInProgress;
   const typedCurrentLog = currentLog as AttendanceLogWithPause | null;
