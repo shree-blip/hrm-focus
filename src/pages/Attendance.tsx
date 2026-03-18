@@ -64,7 +64,7 @@ const Attendance = () => {
 
   const {
     currentLog,
-    weeklyLogs,
+    weeklyLogs: defaultWeeklyLogs,
     monthlyLogs,
     loading,
     clockIn,
@@ -75,7 +75,23 @@ const Attendance = () => {
     endPause,
     monthlyHours,
     refetch,
-  } = useAttendance(currentWeekStart);
+    fetchWeeklyLogsForRange,
+    status: sharedStatus,
+    actionInProgress,
+  } = useTimeTracker();
+
+  // Week-specific logs for navigation (defaults to shared context's current week)
+  const [navigatedWeeklyLogs, setNavigatedWeeklyLogs] = useState<any[] | null>(null);
+  const isCurrentWeek = startOfWeek(new Date(), { weekStartsOn: 1 }).getTime() === currentWeekStart.getTime();
+  const weeklyLogs = isCurrentWeek ? defaultWeeklyLogs : (navigatedWeeklyLogs ?? defaultWeeklyLogs);
+
+  useEffect(() => {
+    if (!isCurrentWeek) {
+      fetchWeeklyLogsForRange(currentWeekStart).then(setNavigatedWeeklyLogs);
+    } else {
+      setNavigatedWeeklyLogs(null);
+    }
+  }, [currentWeekStart, isCurrentWeek, fetchWeeklyLogsForRange]);
 
   const { myRequests, teamRequests, submitRequest, reviewRequest, getAdjustmentStatus } = useAttendanceAdjustments();
 
