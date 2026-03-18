@@ -6,6 +6,7 @@ import { ActivityAlertsProvider } from "@/components/ActivityAlertsProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { TimeTrackerProvider } from "@/contexts/TimeTrackerContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
@@ -150,6 +151,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <TimeTrackerProvider>
             <ActivityAlertsProvider />
             <Suspense fallback={<PageLoader />}>
               <Routes>
@@ -373,6 +375,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </TimeTrackerProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

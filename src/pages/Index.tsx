@@ -17,7 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useTasks } from "@/hooks/useTasks";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
-import { useAttendance } from "@/hooks/useAttendance";
+import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
 import { useMemo, lazy, Suspense } from "react";
 import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -36,7 +36,7 @@ const Index = () => {
   const { employees } = useEmployees();
   const { tasks } = useTasks();
   const { requests, ownRequests, teamLeaves } = useLeaveRequests();
-  const { monthlyHours } = useAttendance();
+  const { monthlyHours } = useTimeTracker();
 
   const firstName = profile?.first_name || "User";
   const pendingTasks = tasks.filter((t) => t.status !== "done").length;

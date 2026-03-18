@@ -24,7 +24,7 @@ import {
   Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAttendance } from "@/hooks/useAttendance";
+import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
 import { AdjustmentRequestDialog } from "@/components/attendance/AdjustmentRequestDialog";
 import { ManagerAdjustmentPanel } from "@/components/attendance/ManagerAdjustmentPanel";
@@ -64,7 +64,7 @@ const Attendance = () => {
 
   const {
     currentLog,
-    weeklyLogs,
+    weeklyLogs: defaultWeeklyLogs,
     monthlyLogs,
     loading,
     clockIn,
@@ -75,20 +75,28 @@ const Attendance = () => {
     endPause,
     monthlyHours,
     refetch,
-  } = useAttendance(currentWeekStart);
+    fetchWeeklyLogsForRange,
+    status: sharedStatus,
+    actionInProgress,
+  } = useTimeTracker();
+
+  // Week-specific logs for navigation (defaults to shared context's current week)
+  const [navigatedWeeklyLogs, setNavigatedWeeklyLogs] = useState<any[] | null>(null);
+  const isCurrentWeek = startOfWeek(new Date(), { weekStartsOn: 1 }).getTime() === currentWeekStart.getTime();
+  const weeklyLogs = isCurrentWeek ? defaultWeeklyLogs : (navigatedWeeklyLogs ?? defaultWeeklyLogs);
+
+  useEffect(() => {
+    if (!isCurrentWeek) {
+      fetchWeeklyLogsForRange(currentWeekStart).then(setNavigatedWeeklyLogs);
+    } else {
+      setNavigatedWeeklyLogs(null);
+    }
+  }, [currentWeekStart, isCurrentWeek, fetchWeeklyLogsForRange]);
 
   const { myRequests, teamRequests, submitRequest, reviewRequest, getAdjustmentStatus } = useAttendanceAdjustments();
 
-  // Calculate clock status
-  const getClockStatus = () => {
-    if (!currentLog) return "out";
-    if (currentLog.clock_out) return "out";
-    if ((currentLog as any).pause_start && !(currentLog as any).pause_end) return "paused";
-    if (currentLog.break_start && !currentLog.break_end) return "break";
-    return "in";
-  };
-
-  const clockStatus = getClockStatus();
+  // Use shared status from context
+  const clockStatus = sharedStatus;
 
   // Elapsed time timer (like ClockWidget)
   useEffect(() => {

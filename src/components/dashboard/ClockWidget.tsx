@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { useAttendance } from "@/hooks/useAttendance";
+import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { AlertTriangle, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -72,7 +72,7 @@ export const ClockWidget = memo(function ClockWidget() {
     status: clockStatus,
     actionInProgress,
     employeeTimezoneAbbr,
-  } = useAttendance();
+  } = useTimeTracker();
 
   const isBusy = !!actionInProgress;
   const typedCurrentLog = currentLog as AttendanceLogWithPause | null;
