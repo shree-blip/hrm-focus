@@ -114,7 +114,8 @@ export const Sidebar = memo(function Sidebar({ onNavigate, collapsed: controlled
     [hasPermission, isManager]
   );
 
-  const handleNavClick = () => {
+  const handleNavClick = (href: string) => {
+    clearBadge(href);
     if (onNavigate) {
       onNavigate();
     }
