@@ -320,62 +320,64 @@ function ClientCombobox({
             <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[320px] p-0" align="start">
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput placeholder="Search name or ID..." value={query} onValueChange={setQuery} />
-            <CommandList>
-              <CommandEmpty>
-                <div className="py-3 text-center text-sm">
-                  <p className="text-muted-foreground">No clients found</p>
-                  {canAddClient && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="mt-1 text-primary"
-                      onClick={() => {
-                        onAddNew();
-                        setOpen(false);
-                      }}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      Add New Client
-                    </Button>
-                  )}
-                </div>
-              </CommandEmpty>
-              <CommandGroup>
-                <CommandItem
-                  value="__none__"
-                  onSelect={() => {
-                    onChange("");
-                    setOpen(false);
-                    setQuery("");
-                  }}
-                >
-                  <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
-                  <span className="text-muted-foreground italic">No client</span>
-                </CommandItem>
-                {filtered.map((client) => (
+            <div className="max-h-[200px] overflow-y-auto p-1" onWheel={(e) => e.stopPropagation()}>
+              <CommandList className="max-h-none overflow-visible">
+                <CommandEmpty>
+                  <div className="py-3 text-center text-sm">
+                    <p className="text-muted-foreground">No clients found</p>
+                    {canAddClient && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="mt-1 text-primary"
+                        onClick={() => {
+                          onAddNew();
+                          setOpen(false);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Add New Client
+                      </Button>
+                    )}
+                  </div>
+                </CommandEmpty>
+                <CommandGroup>
                   <CommandItem
-                    key={client.id}
-                    value={client.id}
+                    value="__none__"
                     onSelect={() => {
-                      onChange(client.id);
+                      onChange("");
                       setOpen(false);
                       setQuery("");
                     }}
                   >
-                    <Check className={cn("mr-2 h-4 w-4", value === client.id ? "opacity-100" : "opacity-0")} />
-                    <div className="flex flex-col min-w-0">
-                      <span className="truncate">{client.name}</span>
-                      {client.client_id && (
-                        <span className="text-xs text-muted-foreground">ID: {client.client_id}</span>
-                      )}
-                    </div>
+                    <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                    <span className="text-muted-foreground italic">No client</span>
                   </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
+                  {filtered.map((client) => (
+                    <CommandItem
+                      key={client.id}
+                      value={client.id}
+                      onSelect={() => {
+                        onChange(client.id);
+                        setOpen(false);
+                        setQuery("");
+                      }}
+                    >
+                      <Check className={cn("mr-2 h-4 w-4", value === client.id ? "opacity-100" : "opacity-0")} />
+                      <div className="flex flex-col min-w-0">
+                        <span className="truncate">{client.name}</span>
+                        {client.client_id && (
+                          <span className="text-xs text-muted-foreground">ID: {client.client_id}</span>
+                        )}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </div>
           </Command>
         </PopoverContent>
       </Popover>
