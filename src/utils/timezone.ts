@@ -4,7 +4,7 @@
  */
 
 const NPT_OFFSET_MINUTES = 5 * 60 + 45; // UTC+5:45
-const PST_OFFSET_MINUTES = -8 * 60;      // UTC-8
+const PST_OFFSET_MINUTES = -8 * 60; // UTC-8
 
 function applyOffset(utcDate: Date, offsetMinutes: number): Date {
   return new Date(utcDate.getTime() + offsetMinutes * 60 * 1000);
@@ -40,8 +40,22 @@ export function toNPT(utcDate: string): string {
  */
 export function toPST(utcDate: string): string {
   const date = new Date(utcDate);
-  const pst = applyOffset(date, PST_OFFSET_MINUTES);
-  return `${formatTime12h(pst)} PST`;
+  const formatted = date.toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  // Get the abbreviation (PST or PDT) dynamically
+  const tzAbbr = date
+    .toLocaleString("en-US", {
+      timeZone: "America/Los_Angeles",
+      timeZoneName: "short",
+    })
+    .split(" ")
+    .pop();
+
+  return `${formatted} ${tzAbbr}`;
 }
 
 /**
@@ -91,8 +105,12 @@ export function getNPTDateDisplay(utcDate: string): string {
  * Ensures all date range filters sent to Supabase are in UTC ISO format.
  */
 export function buildUTCDateRange(
-  startYear: number, startMonth: number, startDay: number,
-  endYear: number, endMonth: number, endDay: number
+  startYear: number,
+  startMonth: number,
+  startDay: number,
+  endYear: number,
+  endMonth: number,
+  endDay: number,
 ): { start: string; end: string } {
   const start = new Date(Date.UTC(startYear, startMonth, startDay, 0, 0, 0, 0));
   const end = new Date(Date.UTC(endYear, endMonth, endDay, 23, 59, 59, 999));
@@ -100,7 +118,7 @@ export function buildUTCDateRange(
 }
 
 /**
- * Get the current UTC time as an ISO string. 
+ * Get the current UTC time as an ISO string.
  * Always use this (or new Date().toISOString()) when saving to the database.
  */
 export function nowUTC(): string {
