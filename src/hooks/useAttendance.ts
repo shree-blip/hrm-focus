@@ -479,11 +479,11 @@ export function useAttendance(weekStart?: Date) {
     }
   };
 
-  const status = useMemo(() => {
-    if (!currentLog) return "out";
-    if (currentLog.status === "paused") return "paused";
-    if (currentLog.status === "break") return "break";
-    return "in";
+  const status: "in" | "out" | "break" | "paused" = useMemo(() => {
+    if (!currentLog) return "out" as const;
+    if (currentLog.status === "paused") return "paused" as const;
+    if (currentLog.status === "break") return "break" as const;
+    return "in" as const;
   }, [currentLog]);
 
   const monthlyHours = useMemo(() => {
