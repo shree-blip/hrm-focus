@@ -32,7 +32,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, X } from "lucide-react";
-import { toNPT, toPST, getNPTDateDisplay } from "@/utils/timezone";
+import { formatAttendanceTime, getWorkDate, getWorkDateDisplay, isNightShift, DEFAULT_TIMEZONE } from "@/utils/timezoneUtils";
 import {
   AlertDialog,
   AlertDialogAction,
