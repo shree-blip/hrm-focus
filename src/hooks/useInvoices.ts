@@ -118,19 +118,21 @@ export function useInvoiceComments(invoiceId: string | undefined) {
       if (error) throw error;
 
       // Fetch profile info for commenters
-      const userIds = [...new Set((data || []).map(c => c.user_id))];
+      const userIds = [...new Set((data || []).map((c) => c.user_id))];
       const { data: profiles } = userIds.length
         ? await supabase.from("profiles").select("user_id, first_name, last_name, avatar_url").in("user_id", userIds)
         : { data: [] };
 
-      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
-      return (data || []).map(c => ({
+      const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+      return (data || []).map((c) => ({
         ...c,
-        profiles: profileMap.get(c.user_id) ? {
-          first_name: profileMap.get(c.user_id)!.first_name,
-          last_name: profileMap.get(c.user_id)!.last_name,
-          avatar_url: profileMap.get(c.user_id)!.avatar_url,
-        } : null,
+        profiles: profileMap.get(c.user_id)
+          ? {
+              first_name: profileMap.get(c.user_id)!.first_name,
+              last_name: profileMap.get(c.user_id)!.last_name,
+              avatar_url: profileMap.get(c.user_id)!.avatar_url,
+            }
+          : null,
       })) as InvoiceComment[];
     },
     enabled: !!invoiceId,
@@ -165,7 +167,7 @@ export function useCreateInvoice() {
           invoice_date: formData.invoice_date,
           due_date: formData.due_date || null,
           month_of_service: formData.month_of_service || null,
-          service_description: formData.service_description || null,
+          service_description: "IT and Software Service Contract",
           amount: formData.amount,
           currency: formData.currency,
           payment_account_name: formData.payment_account_name || null,
