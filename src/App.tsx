@@ -103,6 +103,7 @@ const prefetchMap: Record<string, () => Promise<any>> = {
   "my-payslips": () => import("./pages/MyPayslips"),
   "my-onboarding": () => import("./pages/MyOnboarding"),
   "my-offboarding": () => import("./pages/MyOffboarding"),
+  "timezone-management": () => import("./pages/TimezoneManagement"),
 };
 
 /**

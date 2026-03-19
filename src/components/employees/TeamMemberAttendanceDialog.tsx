@@ -19,7 +19,12 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { toNPT, toPST, getNPTDateDisplay } from "@/utils/timezone";
+import {
+  formatAttendanceTime,
+  getWorkDateDisplay,
+  isNightShift,
+  DEFAULT_TIMEZONE,
+} from "@/utils/timezoneUtils";
 
 interface TeamMember {
   id: string;
@@ -53,12 +58,24 @@ export function TeamMemberAttendanceDialog({
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [attendanceLogs, setAttendanceLogs] = useState<AttendanceLog[]>([]);
   const [loading, setLoading] = useState(false);
+  const [employeeTimezone, setEmployeeTimezone] = useState(DEFAULT_TIMEZONE);
 
   useEffect(() => {
     if (open && employee) {
       fetchAttendance();
+      fetchTimezone();
     }
   }, [open, employee, currentWeekStart]);
+
+  const fetchTimezone = async () => {
+    if (!employee) return;
+    const { data } = await supabase
+      .from("employees")
+      .select("timezone")
+      .eq("id", employee.id)
+      .single();
+    if (data?.timezone) setEmployeeTimezone(data.timezone);
+  };
 
   const fetchAttendance = async () => {
     if (!employee) return;
@@ -82,6 +99,7 @@ export function TeamMemberAttendanceDialog({
 
   if (!employee) return null;
 
+  const tz = employeeTimezone;
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
   const totalHours = attendanceLogs.reduce((sum, log) => {
     if (log.clock_in && log.clock_out) {
@@ -155,7 +173,7 @@ export function TeamMemberAttendanceDialog({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
+                    <TableHead>Work Date</TableHead>
                     <TableHead>Clock In</TableHead>
                     <TableHead>Clock Out</TableHead>
                     <TableHead>Break</TableHead>
@@ -172,33 +190,33 @@ export function TeamMemberAttendanceDialog({
                     </TableRow>
                   ) : (
                     attendanceLogs.map((log) => {
-                      const clockIn = new Date(log.clock_in);
                       const clockOut = log.clock_out ? new Date(log.clock_out) : null;
                       const breakMinutes = log.total_break_minutes || 0;
                       
                       let hours = "-";
                       if (clockOut) {
-                        const diffMs = clockOut.getTime() - clockIn.getTime() - (breakMinutes * 60 * 1000);
+                        const diffMs = clockOut.getTime() - new Date(log.clock_in).getTime() - (breakMinutes * 60 * 1000);
                         hours = `${(diffMs / (1000 * 60 * 60)).toFixed(2)}h`;
                       }
+
+                      const inFmt = formatAttendanceTime(log.clock_in, tz);
+                      const outFmt = log.clock_out ? formatAttendanceTime(log.clock_out, tz) : null;
+                      const nightShift = log.clock_out ? isNightShift(log.clock_in, log.clock_out, tz) : false;
                       
                       return (
                         <TableRow key={log.id}>
-                        <TableCell className="font-medium">
-                            {getNPTDateDisplay(log.clock_in)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-xs space-y-0.5">
-                              <div>{toNPT(log.clock_in)}</div>
-                              <div className="text-muted-foreground">{toPST(log.clock_in)}</div>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-1.5">
+                              {getWorkDateDisplay(log.clock_in, tz)}
+                              {nightShift && <span title="Night shift">🌙</span>}
                             </div>
                           </TableCell>
                           <TableCell>
-                            {clockOut ? (
-                              <div className="text-xs space-y-0.5">
-                                <div>{toNPT(log.clock_out!)}</div>
-                                <div className="text-muted-foreground">{toPST(log.clock_out!)}</div>
-                              </div>
+                            <span className="text-xs">{inFmt.localTime} {inFmt.tzAbbr}</span>
+                          </TableCell>
+                          <TableCell>
+                            {outFmt ? (
+                              <span className="text-xs">{outFmt.localTime} {outFmt.tzAbbr}</span>
                             ) : "-"}
                           </TableCell>
                           <TableCell>{breakMinutes > 0 ? `${breakMinutes}m` : "-"}</TableCell>
