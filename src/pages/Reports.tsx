@@ -55,6 +55,7 @@ interface DailyAttendanceRecord {
   user_id: string;
   employee_name: string;
   email: string;
+  employee_timezone: string;
   clock_in: string;
   clock_out: string | null;
   hours_worked: number;
