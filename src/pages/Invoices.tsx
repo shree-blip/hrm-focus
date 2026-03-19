@@ -26,7 +26,7 @@ const defaultForm: InvoiceFormData = {
   invoice_date: today,
   due_date: "",
   month_of_service: "",
-  service_description: "",
+  service_description: "IT and Software Service Contract",
   amount: 0,
   currency: "NPR",
   payment_account_name: "",
