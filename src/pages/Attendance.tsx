@@ -78,6 +78,7 @@ const Attendance = () => {
     fetchWeeklyLogsForRange,
     status: sharedStatus,
     actionInProgress,
+    employeeTimezone,
   } = useTimeTracker();
 
   // Week-specific logs for navigation (defaults to shared context's current week)
