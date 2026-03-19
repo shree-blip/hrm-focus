@@ -104,7 +104,7 @@ export default function InvoiceForm({ formData, onChange, disabled }: Props) {
             placeholder="Your address"
           />
         </div>
-        <div>
+        {/* <div>
           <Label className="text-xs">Email</Label>
           <Input
             type="email"
@@ -112,7 +112,7 @@ export default function InvoiceForm({ formData, onChange, disabled }: Props) {
             onChange={(e) => onChange({ sender_email: e.target.value })}
             placeholder="Your email"
           />
-        </div>
+        </div> */}
       </fieldset>
 
       {/* INVOICE DETAILS */}
