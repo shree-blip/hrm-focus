@@ -682,18 +682,21 @@ const Attendance = () => {
                 </TableRow>
               ) : (
                 weeklyLogs.map((log, index) => {
-                  const clockInDate = new Date(log.clock_in);
                   const clockOutDate = log.clock_out ? new Date(log.clock_out) : null;
                   const breakMinutes = log.total_break_minutes || 0;
                   const pauseMinutes = (log as any).total_pause_minutes || 0;
 
                   let hours = "-";
                   if (clockOutDate) {
+                    const clockInDate = new Date(log.clock_in);
                     const diffMs = clockOutDate.getTime() - clockInDate.getTime();
-                    // Subtract both break and pause — both are inactive (non-working) states
                     const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
                     hours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
                   }
+
+                  const inFmt = formatAttendanceTime(log.clock_in, tz);
+                  const outFmt = log.clock_out ? formatAttendanceTime(log.clock_out, tz) : null;
+                  const nightShift = log.clock_out ? isNightShift(log.clock_in, log.clock_out, tz) : false;
 
                   return (
                     <TableRow
@@ -701,19 +704,18 @@ const Attendance = () => {
                       className="animate-fade-in"
                       style={{ animationDelay: `${400 + index * 50}ms` }}
                     >
-                      <TableCell className="font-medium">{getNPTDateDisplay(log.clock_in)}</TableCell>
-                      <TableCell>
-                        <div className="text-xs space-y-0.5">
-                          <div>{toNPT(log.clock_in)}</div>
-                          <div className="text-muted-foreground">{toPST(log.clock_in)}</div>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-1.5">
+                          {getWorkDateDisplay(log.clock_in, tz)}
+                          {nightShift && <span title="Night shift">🌙</span>}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {clockOutDate ? (
-                          <div className="text-xs space-y-0.5">
-                            <div>{toNPT(log.clock_out!)}</div>
-                            <div className="text-muted-foreground">{toPST(log.clock_out!)}</div>
-                          </div>
+                        <span className="text-xs">{inFmt.localTime} {inFmt.tzAbbr}</span>
+                      </TableCell>
+                      <TableCell>
+                        {outFmt ? (
+                          <span className="text-xs">{outFmt.localTime} {outFmt.tzAbbr}</span>
                         ) : (
                           "-"
                         )}

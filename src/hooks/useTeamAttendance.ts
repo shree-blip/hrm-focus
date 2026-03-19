@@ -215,12 +215,15 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         hoursWorked = Math.max(0, (totalMinutes - breakMinutes - pauseMinutes) / 60);
       }
 
+      const empTz = userTimezoneMap.get(userId) || "Asia/Kathmandu";
+
       dailyRecords.push({
         id: log.id,
         user_id: userId,
         employee_id: employeeId,
         employee_name: name,
         email: email,
+        employee_timezone: empTz,
         clock_in: log.clock_in,
         clock_out: log.clock_out,
         break_start: log.break_start,
