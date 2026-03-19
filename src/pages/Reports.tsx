@@ -82,7 +82,7 @@ const getDateRangeLabel = (rangeType: DateRangeType): string => {
       year: "numeric",
     });
   };
-  return `${formatDate(start)} - ${formatDate(end)}`;
+  return `${formatDateLocal(start)} - ${formatDateLocal(end)}`;
 };
 
 const Reports = () => {
@@ -190,7 +190,7 @@ const Reports = () => {
     // Filter by date
     if (searchDate) {
       filtered = filtered.filter((att) => {
-        const attDate = formatDate(att.clock_in);
+        const attDate = formatDateLocal(att.clock_in);
         return attDate === searchDate;
       });
     }
@@ -399,8 +399,8 @@ const Reports = () => {
       avgBreakPerDay: employeeRecords.length > 0 ? Math.round(totalBreakMinutes / employeeRecords.length) : 0,
       avgPausePerDay: employeeRecords.length > 0 ? Math.round(totalPauseMinutes / employeeRecords.length) : 0,
       dateRange: {
-        from: formatDate(firstDate.toISOString()),
-        to: formatDate(lastDate.toISOString()),
+        from: formatDateLocal(firstDate.toISOString()),
+        to: formatDateLocal(lastDate.toISOString()),
       },
       completedDays: completedRecords.length,
       inProgressDays: employeeRecords.length - completedRecords.length,
@@ -454,7 +454,7 @@ const Reports = () => {
     let csvContent = "";
     let filename = "";
     const today = new Date();
-    const dateStr = formatDate(today.toISOString());
+    const dateStr = formatDateLocal(today.toISOString());
 
     if (type === "leave") {
       // Group leave requests by employee and month
@@ -574,7 +574,7 @@ const Reports = () => {
 
       filteredDailyAttendance.forEach((att) => {
         const typedAtt = att as DailyAttendanceRecord;
-        const date = formatDate(typedAtt.clock_in);
+        const date = formatDateLocal(typedAtt.clock_in);
         const clockIn = formatTime24(typedAtt.clock_in);
         const clockOut = formatTime24(typedAtt.clock_out);
         const breaks = getBreaks(typedAtt);
@@ -1208,7 +1208,7 @@ const Reports = () => {
                                   </Button>
                                 )}
                               </td>
-                              <td className="p-3 font-medium">{formatDate(typedAtt.clock_in)}</td>
+                              <td className="p-3 font-medium">{formatDateLocal(typedAtt.clock_in)}</td>
                               <td className="p-3">
                                 <div>
                                   <p className="font-medium">{typedAtt.employee_name}</p>
