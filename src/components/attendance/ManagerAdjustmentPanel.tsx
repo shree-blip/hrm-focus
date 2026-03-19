@@ -256,7 +256,11 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
                 <Button
                   variant="destructive"
                   className="flex-1"
-                  onClick={() => handleDecision("rejected")}
+                  onClick={() => {
+                    if (selectedRequest && comment.trim()) {
+                      setRejectConfirm({ id: selectedRequest.id, comment: comment.trim() });
+                    }
+                  }}
                   disabled={!comment.trim() || submitting}
                 >
                   <ThumbsDown className="h-4 w-4 mr-1" /> Reject
