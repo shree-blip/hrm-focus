@@ -224,6 +224,14 @@ export type Database = {
           attendance_log_id: string
           created_at: string
           id: string
+          original_break_minutes: number | null
+          original_clock_in: string | null
+          original_clock_out: string | null
+          original_pause_minutes: number | null
+          override_at: string | null
+          override_by: string | null
+          override_comment: string | null
+          override_status: string | null
           proposed_break_minutes: number | null
           proposed_clock_in: string | null
           proposed_clock_out: string | null
@@ -239,6 +247,14 @@ export type Database = {
           attendance_log_id: string
           created_at?: string
           id?: string
+          original_break_minutes?: number | null
+          original_clock_in?: string | null
+          original_clock_out?: string | null
+          original_pause_minutes?: number | null
+          override_at?: string | null
+          override_by?: string | null
+          override_comment?: string | null
+          override_status?: string | null
           proposed_break_minutes?: number | null
           proposed_clock_in?: string | null
           proposed_clock_out?: string | null
@@ -254,6 +270,14 @@ export type Database = {
           attendance_log_id?: string
           created_at?: string
           id?: string
+          original_break_minutes?: number | null
+          original_clock_in?: string | null
+          original_clock_out?: string | null
+          original_pause_minutes?: number | null
+          override_at?: string | null
+          override_by?: string | null
+          override_comment?: string | null
+          override_status?: string | null
           proposed_break_minutes?: number | null
           proposed_clock_in?: string | null
           proposed_clock_out?: string | null
