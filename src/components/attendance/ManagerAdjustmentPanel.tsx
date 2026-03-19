@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { format } from "date-fns";
-import { ThumbsUp, ThumbsDown, ClipboardList, AlertTriangle } from "lucide-react";
+import { ThumbsUp, ThumbsDown, ClipboardList, AlertTriangle, ShieldAlert } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,13 +22,18 @@ import type { AdjustmentRequest } from "@/hooks/useAttendanceAdjustments";
 interface Props {
   requests: AdjustmentRequest[];
   onReview: (id: string, decision: "approved" | "rejected", comment: string) => Promise<boolean | undefined>;
+  onOverride?: (id: string, decision: "approved" | "rejected", comment: string) => Promise<boolean | undefined>;
+  canOverride?: boolean;
 }
 
-export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
+export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOverride }: Props) {
   const [selectedRequest, setSelectedRequest] = useState<AdjustmentRequest | null>(null);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [rejectConfirm, setRejectConfirm] = useState<{ id: string; comment: string } | null>(null);
+  const [overrideDialog, setOverrideDialog] = useState<{ req: AdjustmentRequest } | null>(null);
+  const [overrideComment, setOverrideComment] = useState("");
+  const [overrideDecision, setOverrideDecision] = useState<"approved" | "rejected">("rejected");
 
   const pending = requests.filter((r) => r.status === "pending");
   const reviewed = requests.filter((r) => r.status !== "pending");
@@ -125,6 +130,7 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
                     <TableHead>Status</TableHead>
                     <TableHead>Reviewed By</TableHead>
                     <TableHead>Reviewed At</TableHead>
+                    {canOverride && <TableHead className="text-right">Override</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -135,6 +141,10 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
                     const reviewerName = req.reviewer_profile
                       ? `${req.reviewer_profile.first_name} ${req.reviewer_profile.last_name}`
                       : "-";
+                    const overriderName = (req as any).override_profile
+                      ? `${(req as any).override_profile.first_name} ${(req as any).override_profile.last_name}`
+                      : null;
+
                     return (
                       <TableRow key={req.id}>
                         <TableCell className="text-sm">{empName}</TableCell>
@@ -142,12 +152,55 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
                           {req.attendance_log?.clock_in ? format(new Date(req.attendance_log.clock_in), "MMM d") : "-"}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={req.status === "approved" ? "default" : "destructive"}>{req.status}</Badge>
+                          <div className="flex flex-col gap-1">
+                            <Badge variant={req.status === "approved" ? "default" : "destructive"}>{req.status}</Badge>
+                            {req.override_status && (
+                              <Badge variant="outline" className="text-xs border-amber-500 text-amber-600 bg-amber-50">
+                                Overridden
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-sm font-medium">{reviewerName}</TableCell>
+                        <TableCell className="text-sm">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium">{reviewerName}</span>
+                            {overriderName && (
+                              <span className="text-xs text-amber-600">Override by {overriderName}</span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {req.reviewed_at ? format(new Date(req.reviewed_at), "MMM d, h:mm a") : "-"}
+                          {req.override_at && (
+                            <p className="text-amber-600">
+                              Override: {format(new Date(req.override_at), "MMM d, h:mm a")}
+                            </p>
+                          )}
                         </TableCell>
+                        {canOverride && (
+                          <TableCell className="text-right">
+                            {req.override_status ? (
+                              <Badge variant="outline" className="text-xs capitalize border-amber-500 text-amber-600">
+                                {req.override_status}
+                              </Badge>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1 border-amber-400 text-amber-600 hover:bg-amber-50"
+                                onClick={() => {
+                                  setOverrideDialog({ req });
+                                  setOverrideComment("");
+                                  // Pre-select the opposite of current status
+                                  setOverrideDecision(req.status === "approved" ? "rejected" : "approved");
+                                }}
+                              >
+                                <ShieldAlert className="h-3 w-3" />
+                                Override
+                              </Button>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
@@ -270,6 +323,7 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
           )}
         </DialogContent>
       </Dialog>
+
       {/* Reject Confirmation Dialog */}
       <AlertDialog
         open={!!rejectConfirm}
@@ -305,6 +359,96 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
               }}
             >
               Confirm Reject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Override Dialog (CEO/Admin only) */}
+      <AlertDialog
+        open={!!overrideDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setOverrideDialog(null);
+            setOverrideComment("");
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+              <ShieldAlert className="h-7 w-7 text-amber-600" />
+            </div>
+            <AlertDialogTitle className="text-center text-lg">Override Decision</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              {overrideDialog?.req.requester_profile
+                ? `${overrideDialog.req.requester_profile.first_name} ${overrideDialog.req.requester_profile.last_name}'s request — currently "${overrideDialog.req.status}" by line manager.`
+                : `This request is currently "${overrideDialog?.req.status}".`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-3 pt-2">
+            {/* Show original reviewer's comment */}
+            {overrideDialog?.req.reviewer_comment && (
+              <div className="p-2 bg-muted rounded-lg text-xs">
+                <p className="text-muted-foreground">Line Manager's Comment:</p>
+                <p className="text-sm mt-0.5">{overrideDialog.req.reviewer_comment}</p>
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm font-medium mb-1">Override to:</p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={overrideDecision === "approved" ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setOverrideDecision("approved")}
+                >
+                  <ThumbsUp className="h-3 w-3 mr-1" /> Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant={overrideDecision === "rejected" ? "destructive" : "outline"}
+                  className="flex-1"
+                  onClick={() => setOverrideDecision("rejected")}
+                >
+                  <ThumbsDown className="h-3 w-3 mr-1" /> Reject
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-1">
+                Reason <span className="text-destructive">*</span>
+              </p>
+              <Textarea
+                value={overrideComment}
+                onChange={(e) => setOverrideComment(e.target.value)}
+                placeholder="Reason for overriding the line manager's decision..."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            <AlertDialogCancel className="flex-1">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={!overrideComment.trim() || submitting}
+              onClick={async () => {
+                if (overrideDialog && onOverride && overrideComment.trim()) {
+                  setSubmitting(true);
+                  const success = await onOverride(overrideDialog.req.id, overrideDecision, overrideComment.trim());
+                  setSubmitting(false);
+                  if (success) {
+                    setOverrideDialog(null);
+                    setOverrideComment("");
+                  }
+                }
+              }}
+            >
+              Confirm Override
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
