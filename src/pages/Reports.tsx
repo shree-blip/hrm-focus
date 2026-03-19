@@ -407,8 +407,12 @@ const Reports = () => {
     };
   }, [selectedEmployee, dailyAttendance]);
 
-  const formatTime24 = (dateString: string | null) => {
+  const formatTimeLocal = (dateString: string | null, tz?: string) => {
     if (!dateString) return "-";
+    if (tz) {
+      const fmt = formatAttendanceTime(dateString, tz);
+      return `${fmt.localTime} ${fmt.tzAbbr}`;
+    }
     const date = new Date(dateString);
     let hours = date.getHours();
     const minutes = String(date.getMinutes()).padStart(2, "0");
