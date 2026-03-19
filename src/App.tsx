@@ -71,6 +71,7 @@ const Invoices = lazyRetry(() => import("./pages/Invoices"));
 const MyPayslips = lazyRetry(() => import("./pages/MyPayslips"));
 const MyOnboarding = lazyRetry(() => import("./pages/MyOnboarding"));
 const MyOffboarding = lazyRetry(() => import("./pages/MyOffboarding"));
+const TimezoneManagement = lazyRetry(() => import("./pages/TimezoneManagement"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
 // ─────────────────────────────────────────────────────────
@@ -102,6 +103,7 @@ const prefetchMap: Record<string, () => Promise<any>> = {
   "my-payslips": () => import("./pages/MyPayslips"),
   "my-onboarding": () => import("./pages/MyOnboarding"),
   "my-offboarding": () => import("./pages/MyOffboarding"),
+  "timezone-management": () => import("./pages/TimezoneManagement"),
 };
 
 /**
@@ -367,6 +369,15 @@ const App = () => (
                   element={
                     <ProtectedRoute requiredPermission={["view_invoices", "manage_invoices"]}>
                       <Invoices />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/timezone-management"
+                  element={
+                    <ProtectedRoute requiredPermission="manage_access">
+                      <TimezoneManagement />
                     </ProtectedRoute>
                   }
                 />

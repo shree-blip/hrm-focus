@@ -19,6 +19,7 @@ interface DailyAttendanceRecord {
   employee_id: string | null;
   employee_name: string;
   email: string;
+  employee_timezone: string;
   clock_in: string;
   clock_out: string | null;
   break_start: string | null;
@@ -136,12 +137,29 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
       return;
     }
 
-    // Fetch profiles and employees for name resolution
+    // Fetch profiles and employees for name resolution + timezone
     const { data: profiles } = await supabase.from("profiles").select("user_id, first_name, last_name, email");
-    const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id");
+    const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id, timezone");
 
     const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
     const employeeMap = new Map(employees?.map((e) => [e.id, e]) || []);
+    // Build a map from profile_id → timezone
+    const profileIdToTimezone = new Map(
+      employees?.filter(e => e.profile_id).map(e => [e.profile_id, e.timezone || "Asia/Kathmandu"]) || []
+    );
+    // Build userId → timezone using profiles
+    const userTimezoneMap = new Map<string, string>();
+    profiles?.forEach(p => {
+      const tz = profileIdToTimezone.get(p.user_id) || "Asia/Kathmandu";
+      userTimezoneMap.set(p.user_id, tz);
+    });
+    // Also map via employee.profile_id
+    employees?.forEach(e => {
+      if (e.profile_id) {
+        // profile_id in employees table is profiles.id (which equals profiles.user_id in this schema)
+        userTimezoneMap.set(e.profile_id, e.timezone || "Asia/Kathmandu");
+      }
+    });
 
     const userTotals = new Map<
       string,
@@ -197,12 +215,15 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         hoursWorked = Math.max(0, (totalMinutes - breakMinutes - pauseMinutes) / 60);
       }
 
+      const empTz = userTimezoneMap.get(userId) || "Asia/Kathmandu";
+
       dailyRecords.push({
         id: log.id,
         user_id: userId,
         employee_id: employeeId,
         employee_name: name,
         email: email,
+        employee_timezone: empTz,
         clock_in: log.clock_in,
         clock_out: log.clock_out,
         break_start: log.break_start,

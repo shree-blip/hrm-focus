@@ -32,7 +32,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, X } from "lucide-react";
-import { toNPT, toPST, getNPTDateDisplay } from "@/utils/timezone";
+import { formatAttendanceTime, getWorkDate, getWorkDateDisplay, isNightShift, DEFAULT_TIMEZONE } from "@/utils/timezoneUtils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,6 +78,7 @@ const Attendance = () => {
     fetchWeeklyLogsForRange,
     status: sharedStatus,
     actionInProgress,
+    employeeTimezone,
   } = useTimeTracker();
 
   // Week-specific logs for navigation (defaults to shared context's current week)
@@ -167,10 +168,13 @@ const Attendance = () => {
    * Net hours worked in a day: elapsed - breaks - pauses.
    * Pause (hybrid commute) is treated as non-working, same as break.
    */
+  // Get the employee's timezone from context
+  const tz = employeeTimezone || DEFAULT_TIMEZONE;
+
   const getHoursForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     const dayLogs = weeklyLogs.filter((log) => {
-      const logDate = format(new Date(log.clock_in), "yyyy-MM-dd");
+      const logDate = getWorkDate(log.clock_in, tz);
       return logDate === dateStr;
     });
 
@@ -235,18 +239,20 @@ const Attendance = () => {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
   const handleExport = () => {
+    const fmt = (ts: string) => formatAttendanceTime(ts, tz);
     const headers = [
-      "Date",
+      "Work Date",
       "Clock In",
+      "Clock In TZ",
       "Clock Out",
-      "Break Start",
-      "Break End",
+      "Clock Out TZ",
       "Break Duration",
-      "Pause Start",
-      "Pause End",
       "Pause Duration",
       "Net Hours Worked",
       "Type",
+      "Night Shift",
+      "Clock In UTC",
+      "Clock Out UTC",
     ];
     const rows = weeklyLogs.map((log) => {
       const clockIn = new Date(log.clock_in);
@@ -259,20 +265,22 @@ const Attendance = () => {
         const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
         hours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
       }
+      const inFmt = fmt(log.clock_in);
+      const outFmt = log.clock_out ? fmt(log.clock_out) : null;
+      const nightShift = log.clock_out ? isNightShift(log.clock_in, log.clock_out, tz) : false;
       return [
-        getNPTDateDisplay(log.clock_in),
-        toNPT(log.clock_in),
-        toPST(log.clock_in),
-        clockOut ? toNPT(log.clock_out!) : "-",
-        clockOut ? toPST(log.clock_out!) : "-",
-        log.break_start ? toNPT(log.break_start) : "-",
-        log.break_end ? toNPT(log.break_end) : "-",
+        getWorkDateDisplay(log.clock_in, tz),
+        inFmt.localTime,
+        inFmt.tzAbbr,
+        outFmt ? outFmt.localTime : "-",
+        outFmt ? outFmt.tzAbbr : "-",
         breakMinutes > 0 ? formatDuration(breakMinutes) : "-",
-        (log as any).pause_start ? toNPT((log as any).pause_start) : "-",
-        (log as any).pause_end ? toNPT((log as any).pause_end) : "-",
         pauseMinutes > 0 ? formatDuration(pauseMinutes) : "-",
         hours,
         log.clock_type || "payroll",
+        nightShift ? "Yes" : "No",
+        log.clock_in,
+        log.clock_out || "-",
       ].join(",");
     });
 
@@ -675,18 +683,21 @@ const Attendance = () => {
                 </TableRow>
               ) : (
                 weeklyLogs.map((log, index) => {
-                  const clockInDate = new Date(log.clock_in);
                   const clockOutDate = log.clock_out ? new Date(log.clock_out) : null;
                   const breakMinutes = log.total_break_minutes || 0;
                   const pauseMinutes = (log as any).total_pause_minutes || 0;
 
                   let hours = "-";
                   if (clockOutDate) {
+                    const clockInDate = new Date(log.clock_in);
                     const diffMs = clockOutDate.getTime() - clockInDate.getTime();
-                    // Subtract both break and pause — both are inactive (non-working) states
                     const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
                     hours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
                   }
+
+                  const inFmt = formatAttendanceTime(log.clock_in, tz);
+                  const outFmt = log.clock_out ? formatAttendanceTime(log.clock_out, tz) : null;
+                  const nightShift = log.clock_out ? isNightShift(log.clock_in, log.clock_out, tz) : false;
 
                   return (
                     <TableRow
@@ -694,19 +705,18 @@ const Attendance = () => {
                       className="animate-fade-in"
                       style={{ animationDelay: `${400 + index * 50}ms` }}
                     >
-                      <TableCell className="font-medium">{getNPTDateDisplay(log.clock_in)}</TableCell>
-                      <TableCell>
-                        <div className="text-xs space-y-0.5">
-                          <div>{toNPT(log.clock_in)}</div>
-                          <div className="text-muted-foreground">{toPST(log.clock_in)}</div>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-1.5">
+                          {getWorkDateDisplay(log.clock_in, tz)}
+                          {nightShift && <span title="Night shift">🌙</span>}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {clockOutDate ? (
-                          <div className="text-xs space-y-0.5">
-                            <div>{toNPT(log.clock_out!)}</div>
-                            <div className="text-muted-foreground">{toPST(log.clock_out!)}</div>
-                          </div>
+                        <span className="text-xs">{inFmt.localTime} {inFmt.tzAbbr}</span>
+                      </TableCell>
+                      <TableCell>
+                        {outFmt ? (
+                          <span className="text-xs">{outFmt.localTime} {outFmt.tzAbbr}</span>
                         ) : (
                           "-"
                         )}

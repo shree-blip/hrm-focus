@@ -1,4 +1,5 @@
 import { useState, Fragment, useMemo, useRef } from "react";
+import { formatAttendanceTime, getWorkDate, getWorkDateDisplay, isNightShift, getTimezoneAbbr } from "@/utils/timezoneUtils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -55,6 +56,7 @@ interface DailyAttendanceRecord {
   user_id: string;
   employee_name: string;
   email: string;
+  employee_timezone: string;
   clock_in: string;
   clock_out: string | null;
   hours_worked: number;
@@ -136,8 +138,9 @@ const Reports = () => {
     totalDaysWorked: teamAttendance.reduce((sum, emp) => sum + emp.days_worked, 0),
   };
 
-  const formatDate = (dateString: string | null) => {
+  const formatDateLocal = (dateString: string | null, tz?: string) => {
     if (!dateString) return "-";
+    if (tz) return getWorkDate(dateString, tz);
     const date = new Date(dateString);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -187,7 +190,7 @@ const Reports = () => {
     // Filter by date
     if (searchDate) {
       filtered = filtered.filter((att) => {
-        const attDate = formatDate(att.clock_in);
+        const attDate = formatDateLocal(att.clock_in);
         return attDate === searchDate;
       });
     }
@@ -396,16 +399,20 @@ const Reports = () => {
       avgBreakPerDay: employeeRecords.length > 0 ? Math.round(totalBreakMinutes / employeeRecords.length) : 0,
       avgPausePerDay: employeeRecords.length > 0 ? Math.round(totalPauseMinutes / employeeRecords.length) : 0,
       dateRange: {
-        from: formatDate(firstDate.toISOString()),
-        to: formatDate(lastDate.toISOString()),
+        from: formatDateLocal(firstDate.toISOString()),
+        to: formatDateLocal(lastDate.toISOString()),
       },
       completedDays: completedRecords.length,
       inProgressDays: employeeRecords.length - completedRecords.length,
     };
   }, [selectedEmployee, dailyAttendance]);
 
-  const formatTime24 = (dateString: string | null) => {
+  const formatTimeLocal = (dateString: string | null, tz?: string) => {
     if (!dateString) return "-";
+    if (tz) {
+      const fmt = formatAttendanceTime(dateString, tz);
+      return `${fmt.localTime} ${fmt.tzAbbr}`;
+    }
     const date = new Date(dateString);
     let hours = date.getHours();
     const minutes = String(date.getMinutes()).padStart(2, "0");
@@ -451,7 +458,7 @@ const Reports = () => {
     let csvContent = "";
     let filename = "";
     const today = new Date();
-    const dateStr = formatDate(today.toISOString());
+    const dateStr = formatDateLocal(today.toISOString());
 
     if (type === "leave") {
       // Group leave requests by employee and month
@@ -571,9 +578,9 @@ const Reports = () => {
 
       filteredDailyAttendance.forEach((att) => {
         const typedAtt = att as DailyAttendanceRecord;
-        const date = formatDate(typedAtt.clock_in);
-        const clockIn = formatTime24(typedAtt.clock_in);
-        const clockOut = formatTime24(typedAtt.clock_out);
+        const date = formatDateLocal(typedAtt.clock_in);
+        const clockIn = formatTimeLocal(typedAtt.clock_in);
+        const clockOut = formatTimeLocal(typedAtt.clock_out);
         const breaks = getBreaks(typedAtt);
         const pauses = getPauses(typedAtt);
         const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
@@ -587,8 +594,8 @@ const Reports = () => {
         for (let i = 0; i < maxBreaks; i++) {
           if (breaks[i]) {
             const brk = breaks[i];
-            const breakStart = formatTime24(brk.break_start);
-            const breakEnd = formatTime24(brk.break_end);
+            const breakStart = formatTimeLocal(brk.break_start);
+            const breakEnd = formatTimeLocal(brk.break_end);
             let breakDuration = brk.duration_minutes || 0;
             if (!breakDuration && brk.break_start && brk.break_end) {
               const start = new Date(brk.break_start).getTime();
@@ -606,8 +613,8 @@ const Reports = () => {
         for (let i = 0; i < maxPauses; i++) {
           if (pauses[i]) {
             const pause = pauses[i];
-            const pauseStart = formatTime24(pause.pause_start);
-            const pauseEnd = formatTime24(pause.pause_end);
+            const pauseStart = formatTimeLocal(pause.pause_start);
+            const pauseEnd = formatTimeLocal(pause.pause_end);
             let pauseDuration = pause.duration_minutes || 0;
             if (!pauseDuration && pause.pause_start && pause.pause_end) {
               const start = new Date(pause.pause_start).getTime();
@@ -1158,7 +1165,7 @@ const Reports = () => {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-3 font-medium w-8"></th>
-                        <th className="text-left p-3 font-medium">Date</th>
+                        <th className="text-left p-3 font-medium">Work Date</th>
                         <th className="text-left p-3 font-medium">Employee</th>
                         <th className="text-left p-3 font-medium">Clock In</th>
                         <th className="text-left p-3 font-medium">Breaks</th>
@@ -1205,20 +1212,27 @@ const Reports = () => {
                                   </Button>
                                 )}
                               </td>
-                              <td className="p-3 font-medium">{formatDate(typedAtt.clock_in)}</td>
+                              <td className="p-3 font-medium">
+                                <div className="flex items-center gap-1.5">
+                                  {getWorkDateDisplay(typedAtt.clock_in, typedAtt.employee_timezone || "Asia/Kathmandu")}
+                                  {typedAtt.clock_out && isNightShift(typedAtt.clock_in, typedAtt.clock_out, typedAtt.employee_timezone || "Asia/Kathmandu") && (
+                                    <span title="Night shift">🌙</span>
+                                  )}
+                                </div>
+                              </td>
                               <td className="p-3">
                                 <div>
                                   <p className="font-medium">{typedAtt.employee_name}</p>
                                   <p className="text-xs text-slate-600">{typedAtt.email}</p>
                                 </div>
                               </td>
-                              <td className="p-3 text-green-600 font-mono">{formatTime24(typedAtt.clock_in)}</td>
+                              <td className="p-3 text-green-600 font-mono">{formatTimeLocal(typedAtt.clock_in, typedAtt.employee_timezone)}</td>
                               <td className="p-3">
                                 {breaks.length === 0 ? (
                                   <span className="text-slate-400">-</span>
                                 ) : breaks.length === 1 ? (
                                   <span className="text-yellow-600 font-mono">
-                                    {formatTime24(breaks[0].break_start)} - {formatTime24(breaks[0].break_end)}
+                                    {formatTimeLocal(breaks[0].break_start)} - {formatTimeLocal(breaks[0].break_end)}
                                   </span>
                                 ) : (
                                   <Badge variant="outline" className="gap-1">
@@ -1236,7 +1250,7 @@ const Reports = () => {
                                   <span className="text-slate-400">-</span>
                                 ) : pauses.length === 1 ? (
                                   <span className="text-cyan-600 font-mono">
-                                    {formatTime24(pauses[0].pause_start)} - {formatTime24(pauses[0].pause_end)}
+                                    {formatTimeLocal(pauses[0].pause_start)} - {formatTimeLocal(pauses[0].pause_end)}
                                   </span>
                                 ) : (
                                   <Badge variant="outline" className="gap-1 border-cyan-300 text-cyan-600">
@@ -1248,7 +1262,7 @@ const Reports = () => {
                               <td className="p-3 font-medium text-cyan-600">
                                 {totalPauseMinutes > 0 ? formatBreakDuration(totalPauseMinutes) : "-"}
                               </td>
-                              <td className="p-3 text-red-600 font-mono">{formatTime24(typedAtt.clock_out)}</td>
+                              <td className="p-3 text-red-600 font-mono">{formatTimeLocal(typedAtt.clock_out, typedAtt.employee_timezone)}</td>
                               <td className="p-3 font-bold">
                                 {totalHours !== null ? `${totalHours.toFixed(2)}h` : "-"}
                               </td>
@@ -1314,7 +1328,7 @@ const Reports = () => {
                                                 Break {brkIndex + 1}
                                               </Badge>
                                               <span className="text-yellow-600 font-mono">
-                                                {formatTime24(brk.break_start)} - {formatTime24(brk.break_end)}
+                                                {formatTimeLocal(brk.break_start)} - {formatTimeLocal(brk.break_end)}
                                               </span>
                                               <span className="text-slate-600">({brk.duration_minutes || 0} min)</span>
                                             </div>
@@ -1339,7 +1353,7 @@ const Reports = () => {
                                                 Pause {pauseIndex + 1}
                                               </Badge>
                                               <span className="text-cyan-600 font-mono">
-                                                {formatTime24(pause.pause_start)} - {formatTime24(pause.pause_end)}
+                                                {formatTimeLocal(pause.pause_start)} - {formatTimeLocal(pause.pause_end)}
                                               </span>
                                               <span className="text-slate-600">
                                                 ({pause.duration_minutes || 0} min)
