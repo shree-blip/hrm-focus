@@ -169,7 +169,7 @@ const Attendance = () => {
    * Pause (hybrid commute) is treated as non-working, same as break.
    */
   // Get the employee's timezone from context
-  const tz = (useTimeTracker() as any).employeeTimezone || DEFAULT_TIMEZONE;
+  const tz = employeeTimezone || DEFAULT_TIMEZONE;
 
   const getHoursForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
