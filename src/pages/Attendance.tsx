@@ -167,10 +167,13 @@ const Attendance = () => {
    * Net hours worked in a day: elapsed - breaks - pauses.
    * Pause (hybrid commute) is treated as non-working, same as break.
    */
+  // Get the employee's timezone from context
+  const tz = (useTimeTracker() as any).employeeTimezone || DEFAULT_TIMEZONE;
+
   const getHoursForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     const dayLogs = weeklyLogs.filter((log) => {
-      const logDate = format(new Date(log.clock_in), "yyyy-MM-dd");
+      const logDate = getWorkDate(log.clock_in, tz);
       return logDate === dateStr;
     });
 
