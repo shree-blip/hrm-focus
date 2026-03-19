@@ -976,6 +976,10 @@ export type Database = {
           status: string | null
           termination_date: string | null
           timezone: string
+          timezone_effective_from: string | null
+          timezone_status: string
+          timezone_verified_at: string | null
+          timezone_verified_by: string | null
           updated_at: string
         }
         Insert: {
@@ -1009,6 +1013,10 @@ export type Database = {
           status?: string | null
           termination_date?: string | null
           timezone?: string
+          timezone_effective_from?: string | null
+          timezone_status?: string
+          timezone_verified_at?: string | null
+          timezone_verified_by?: string | null
           updated_at?: string
         }
         Update: {
@@ -1042,6 +1050,10 @@ export type Database = {
           status?: string | null
           termination_date?: string | null
           timezone?: string
+          timezone_effective_from?: string | null
+          timezone_status?: string
+          timezone_verified_at?: string | null
+          timezone_verified_by?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3685,6 +3697,61 @@ export type Database = {
           {
             foreignKeyName: "team_members_member_employee_id_fkey"
             columns: ["member_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timezone_change_log: {
+        Row: {
+          changed_by: string
+          created_at: string
+          effective_from: string
+          employee_id: string
+          id: string
+          new_timezone: string
+          old_timezone: string
+          reason: string
+        }
+        Insert: {
+          changed_by: string
+          created_at?: string
+          effective_from?: string
+          employee_id: string
+          id?: string
+          new_timezone: string
+          old_timezone: string
+          reason: string
+        }
+        Update: {
+          changed_by?: string
+          created_at?: string
+          effective_from?: string
+          employee_id?: string
+          id?: string
+          new_timezone?: string
+          old_timezone?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timezone_change_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timezone_change_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timezone_change_log_employee_id_fkey"
+            columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
