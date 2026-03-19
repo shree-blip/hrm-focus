@@ -59,7 +59,7 @@ export default function InvoiceForm({ formData, onChange, disabled }: Props) {
           const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
           onChange({
             sender_name: fullName,
-            sender_email: data.email || user.email || "",
+            // sender_email: data.email || user.email || "",
           });
         }
       });
