@@ -26,10 +26,21 @@ export interface AdjustmentRequest {
   reviewer_comment: string | null;
   reviewed_at: string | null;
   created_at: string;
+  // original values (saved by trigger before first apply, used for revert)
+  original_clock_in: string | null;
+  original_clock_out: string | null;
+  original_break_minutes: number | null;
+  original_pause_minutes: number | null;
+  // override fields (CEO/Admin only)
+  override_status: "approved" | "rejected" | null;
+  override_by: string | null;
+  override_comment: string | null;
+  override_at: string | null;
   // joined fields
   attendance_log?: AttendanceLogRecord | null;
   requester_profile?: { first_name: string; last_name: string } | null;
   reviewer_profile?: { first_name: string; last_name: string } | null;
+  override_profile?: { first_name: string; last_name: string } | null;
 }
 
 // Table not yet in generated Database types — confine the cast here
@@ -41,6 +52,14 @@ export function useAttendanceAdjustments() {
   const [myRequests, setMyRequests] = useState<AdjustmentRequest[]>([]);
   const [teamRequests, setTeamRequests] = useState<AdjustmentRequest[]>([]);
   const [loading, setLoading] = useState(false);
+
+  /*
+   * NOTE: No applyAdjustment / revertAdjustment RPC calls needed!
+   * The database trigger `trg_apply_attendance_adjustment` automatically:
+   *   - Saves original values & applies proposed values when status → approved
+   *   - Reverts to original values when status approved → rejected (override)
+   * All we need to do is UPDATE the status column — the trigger does the rest.
+   */
 
   // Fetch requests the current user submitted
   const fetchMyRequests = useCallback(async () => {
@@ -62,7 +81,16 @@ export function useAttendanceAdjustments() {
               .single();
             reviewer_profile = profile || null;
           }
-          return { ...req, reviewer_profile };
+          let override_profile = null;
+          if (req.override_by) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("first_name, last_name")
+              .eq("user_id", req.override_by)
+              .single();
+            override_profile = profile || null;
+          }
+          return { ...req, reviewer_profile, override_profile };
         }),
       );
       setMyRequests(enriched);
@@ -97,10 +125,10 @@ export function useAttendanceAdjustments() {
         filtered = filtered.filter((r) => teamUserIds!.includes(r.requested_by));
       }
 
-      // Enrich with requester profile and attendance log
+      // Enrich with requester profile, attendance log, reviewer profile, and override profile
       const enriched = await Promise.all(
         filtered.map(async (req) => {
-          const [profileRes, logRes, reviewerRes] = await Promise.all([
+          const [profileRes, logRes, reviewerRes, overrideRes] = await Promise.all([
             supabase.from("profiles").select("first_name, last_name").eq("user_id", req.requested_by).single(),
             supabase
               .from("attendance_logs")
@@ -110,12 +138,16 @@ export function useAttendanceAdjustments() {
             req.reviewer_id
               ? supabase.from("profiles").select("first_name, last_name").eq("user_id", req.reviewer_id).single()
               : Promise.resolve({ data: null }),
+            req.override_by
+              ? supabase.from("profiles").select("first_name, last_name").eq("user_id", req.override_by).single()
+              : Promise.resolve({ data: null }),
           ]);
           return {
             ...req,
             requester_profile: profileRes.data || null,
             attendance_log: logRes.data || null,
             reviewer_profile: reviewerRes.data || null,
+            override_profile: overrideRes.data || null,
           };
         }),
       );
@@ -155,6 +187,7 @@ export function useAttendanceAdjustments() {
   };
 
   // Manager reviews a request
+  // The trigger automatically applies proposed values when status → approved
   const reviewRequest = async (requestId: string, decision: "approved" | "rejected", comment: string) => {
     if (!user) return;
 
@@ -203,6 +236,60 @@ export function useAttendanceAdjustments() {
     return true;
   };
 
+  // CEO/Admin overrides a previously reviewed request
+  // The trigger automatically:
+  //   - Applies proposed values when status changes TO approved
+  //   - Reverts to original values when status changes FROM approved TO rejected
+  const overrideRequest = async (requestId: string, decision: "approved" | "rejected", comment: string) => {
+    if (!user) return false;
+
+    const { error } = await adjTable()
+      .update({
+        override_status: decision,
+        override_by: user.id,
+        override_comment: comment,
+        override_at: new Date().toISOString(),
+        // Update main status — this is what the trigger watches
+        status: decision,
+      })
+      .eq("id", requestId);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return false;
+    }
+
+    // Notify the requester
+    try {
+      const existingReq = teamRequests.find((r) => r.id === requestId);
+      if (existingReq) {
+        await supabase.rpc("create_notification", {
+          p_user_id: existingReq.requested_by,
+          p_title: decision === "approved" ? "✅ Adjustment Override: Approved" : "❌ Adjustment Override: Rejected",
+          p_message:
+            decision === "approved"
+              ? "Your attendance adjustment has been approved by senior management. Your log has been updated."
+              : `Your attendance adjustment was overridden to rejected by senior management. Your log has been reverted to original values. Reason: ${comment}`,
+          p_type: "attendance",
+          p_link: "/attendance",
+        });
+      }
+    } catch (err) {
+      console.error("Error sending override notification:", err);
+    }
+
+    toast({
+      title: "Override Applied",
+      description:
+        decision === "approved"
+          ? "Request approved — attendance record updated."
+          : "Request rejected — attendance record reverted to original values.",
+    });
+
+    await fetchTeamRequests();
+    return true;
+  };
+
   // Get the latest adjustment status for a specific attendance log
   const getAdjustmentStatus = (logId: string): AdjustmentRequest | undefined => {
     return myRequests.find((r) => r.attendance_log_id === logId);
@@ -235,6 +322,7 @@ export function useAttendanceAdjustments() {
     loading,
     submitRequest,
     reviewRequest,
+    overrideRequest,
     getAdjustmentStatus,
     refetch: () => Promise.all([fetchMyRequests(), fetchTeamRequests()]),
   };
