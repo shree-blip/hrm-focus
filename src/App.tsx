@@ -71,6 +71,7 @@ const Invoices = lazyRetry(() => import("./pages/Invoices"));
 const MyPayslips = lazyRetry(() => import("./pages/MyPayslips"));
 const MyOnboarding = lazyRetry(() => import("./pages/MyOnboarding"));
 const MyOffboarding = lazyRetry(() => import("./pages/MyOffboarding"));
+const TimezoneManagement = lazyRetry(() => import("./pages/TimezoneManagement"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
 // ─────────────────────────────────────────────────────────
