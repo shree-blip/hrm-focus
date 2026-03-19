@@ -270,6 +270,45 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
           )}
         </DialogContent>
       </Dialog>
+      {/* Reject Confirmation Dialog */}
+      <AlertDialog
+        open={!!rejectConfirm}
+        onOpenChange={(open) => {
+          if (!open) setRejectConfirm(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+              <AlertTriangle className="h-7 w-7 text-red-600" />
+            </div>
+            <AlertDialogTitle className="text-center text-xl">Are you sure you want to reject?</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              This will reject the employee's attendance adjustment request. They will be notified of the decision.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            <AlertDialogCancel className="flex-1">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              onClick={async () => {
+                if (rejectConfirm) {
+                  setSubmitting(true);
+                  const success = await onReview(rejectConfirm.id, "rejected", rejectConfirm.comment);
+                  setSubmitting(false);
+                  if (success) {
+                    setRejectConfirm(null);
+                    setSelectedRequest(null);
+                    setComment("");
+                  }
+                }
+              }}
+            >
+              Confirm Reject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
