@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +31,24 @@ const CLIENT_ADDRESSES: Record<string, string> = {
   "gain consult llc": "United States of America",
 };
 
+const DUE_DATE_OPTIONS = [
+  { label: "Due on Receipt", days: 0 },
+  { label: "Due in 3 Days", days: 3 },
+  { label: "Due in 7 Days", days: 7 },
+  { label: "Due in 15 Days", days: 15 },
+  { label: "Due in 30 Days", days: 30 },
+];
+
+function calculateDueDate(invoiceDate: string, daysToAdd: number): string {
+  if (!invoiceDate) return "";
+  const [year, month, day] = invoiceDate.split("-").map(Number);
+  const date = new Date(year, month - 1, day + daysToAdd);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 interface Props {
   formData: InvoiceFormData;
   onChange: (partial: Partial<InvoiceFormData>) => void;
@@ -40,6 +58,7 @@ interface Props {
 export default function InvoiceForm({ formData, onChange, disabled }: Props) {
   const { clients } = useClients();
   const { user } = useAuth();
+  const [dueDateOption, setDueDateOption] = useState<string>("");
 
   // Filter clients to only show the allowed ones
   const invoiceClients = clients.filter((c) =>
@@ -79,6 +98,17 @@ export default function InvoiceForm({ formData, onChange, disabled }: Props) {
       }
     }
   }, [formData.bill_to_client_id, invoiceClients]);
+
+  // Recalculate due date when invoice date changes and a due date option is selected
+  useEffect(() => {
+    if (dueDateOption && formData.invoice_date) {
+      const days = DUE_DATE_OPTIONS.find((o) => o.label === dueDateOption)?.days ?? 0;
+      const calculated = calculateDueDate(formData.invoice_date, days);
+      if (formData.due_date !== calculated) {
+        onChange({ due_date: calculated });
+      }
+    }
+  }, [formData.invoice_date, dueDateOption]);
 
   return (
     <div className="space-y-6">
@@ -158,7 +188,31 @@ export default function InvoiceForm({ formData, onChange, disabled }: Props) {
           </div>
           <div>
             <Label className="text-xs">Due Date</Label>
-            <Input type="date" value={formData.due_date} onChange={(e) => onChange({ due_date: e.target.value })} />
+            <Select
+              value={dueDateOption}
+              onValueChange={(v) => {
+                setDueDateOption(v);
+                const days = DUE_DATE_OPTIONS.find((o) => o.label === v)?.days ?? 0;
+                const calculated = calculateDueDate(formData.invoice_date, days);
+                onChange({ due_date: calculated });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select term" />
+              </SelectTrigger>
+              <SelectContent>
+                {DUE_DATE_OPTIONS.map((o) => (
+                  <SelectItem key={o.label} value={o.label}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {formData.due_date && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Due: {new Date(formData.due_date + "T00:00:00").toLocaleDateString()}
+              </p>
+            )}
           </div>
         </div>
         <div>
