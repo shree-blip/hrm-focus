@@ -28,6 +28,7 @@ export function ManagerAdjustmentPanel({ requests, onReview }: Props) {
   const [selectedRequest, setSelectedRequest] = useState<AdjustmentRequest | null>(null);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [rejectConfirm, setRejectConfirm] = useState<{ id: string; comment: string } | null>(null);
 
   const pending = requests.filter((r) => r.status === "pending");
   const reviewed = requests.filter((r) => r.status !== "pending");
