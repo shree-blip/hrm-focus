@@ -238,18 +238,20 @@ const Attendance = () => {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
   const handleExport = () => {
+    const fmt = (ts: string) => formatAttendanceTime(ts, tz);
     const headers = [
-      "Date",
+      "Work Date",
       "Clock In",
+      "Clock In TZ",
       "Clock Out",
-      "Break Start",
-      "Break End",
+      "Clock Out TZ",
       "Break Duration",
-      "Pause Start",
-      "Pause End",
       "Pause Duration",
       "Net Hours Worked",
       "Type",
+      "Night Shift",
+      "Clock In UTC",
+      "Clock Out UTC",
     ];
     const rows = weeklyLogs.map((log) => {
       const clockIn = new Date(log.clock_in);
@@ -262,20 +264,22 @@ const Attendance = () => {
         const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
         hours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
       }
+      const inFmt = fmt(log.clock_in);
+      const outFmt = log.clock_out ? fmt(log.clock_out) : null;
+      const nightShift = log.clock_out ? isNightShift(log.clock_in, log.clock_out, tz) : false;
       return [
-        getNPTDateDisplay(log.clock_in),
-        toNPT(log.clock_in),
-        toPST(log.clock_in),
-        clockOut ? toNPT(log.clock_out!) : "-",
-        clockOut ? toPST(log.clock_out!) : "-",
-        log.break_start ? toNPT(log.break_start) : "-",
-        log.break_end ? toNPT(log.break_end) : "-",
+        getWorkDateDisplay(log.clock_in, tz),
+        inFmt.localTime,
+        inFmt.tzAbbr,
+        outFmt ? outFmt.localTime : "-",
+        outFmt ? outFmt.tzAbbr : "-",
         breakMinutes > 0 ? formatDuration(breakMinutes) : "-",
-        (log as any).pause_start ? toNPT((log as any).pause_start) : "-",
-        (log as any).pause_end ? toNPT((log as any).pause_end) : "-",
         pauseMinutes > 0 ? formatDuration(pauseMinutes) : "-",
         hours,
         log.clock_type || "payroll",
+        nightShift ? "Yes" : "No",
+        log.clock_in,
+        log.clock_out || "-",
       ].join(",");
     });
 
