@@ -143,6 +143,23 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
 
     const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
     const employeeMap = new Map(employees?.map((e) => [e.id, e]) || []);
+    // Build a map from profile_id → timezone
+    const profileIdToTimezone = new Map(
+      employees?.filter(e => e.profile_id).map(e => [e.profile_id, e.timezone || "Asia/Kathmandu"]) || []
+    );
+    // Build userId → timezone using profiles
+    const userTimezoneMap = new Map<string, string>();
+    profiles?.forEach(p => {
+      const tz = profileIdToTimezone.get(p.user_id) || "Asia/Kathmandu";
+      userTimezoneMap.set(p.user_id, tz);
+    });
+    // Also map via employee.profile_id
+    employees?.forEach(e => {
+      if (e.profile_id) {
+        // profile_id in employees table is profiles.id (which equals profiles.user_id in this schema)
+        userTimezoneMap.set(e.profile_id, e.timezone || "Asia/Kathmandu");
+      }
+    });
 
     const userTotals = new Map<
       string,
