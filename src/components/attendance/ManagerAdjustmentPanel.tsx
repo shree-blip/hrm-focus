@@ -411,10 +411,99 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
 
           <div className="space-y-3 pt-2">
             {/* Show original reviewer's comment */}
-            {overrideDialog?.req.reviewer_comment && (
-              <div className="p-2 bg-muted rounded-lg text-xs">
-                <p className="text-muted-foreground">Line Manager's Comment:</p>
-                <p className="text-sm mt-0.5">{overrideDialog.req.reviewer_comment}</p>
+            {/* Show full adjustment details */}
+            {overrideDialog?.req && (
+              <div className="p-3 bg-muted rounded-lg text-xs space-y-2">
+                {/* Attendance date */}
+                {overrideDialog.req.attendance_log?.clock_in && (
+                  <p className="font-medium text-sm">
+                    {format(new Date(overrideDialog.req.attendance_log.clock_in), "EEEE, MMM d, yyyy")}
+                  </p>
+                )}
+
+                {/* Current vs Proposed values */}
+                {overrideDialog.req.attendance_log && (
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                    <p className="text-muted-foreground">Current Clock In:</p>
+                    <p>
+                      {format(new Date(overrideDialog.req.attendance_log.clock_in), "MMM d")} —{" "}
+                      {formatTime(overrideDialog.req.attendance_log.clock_in)}
+                    </p>
+
+                    {overrideDialog.req.proposed_clock_in && (
+                      <>
+                        <p className="text-muted-foreground">Proposed Clock In:</p>
+                        <p className="text-blue-600 font-medium">
+                          {format(new Date(overrideDialog.req.proposed_clock_in), "MMM d")} —{" "}
+                          {formatTime(overrideDialog.req.proposed_clock_in)}
+                        </p>
+                      </>
+                    )}
+
+                    <p className="text-muted-foreground">Current Clock Out:</p>
+                    <p>
+                      {overrideDialog.req.attendance_log.clock_out
+                        ? `${format(new Date(overrideDialog.req.attendance_log.clock_out), "MMM d")} — ${formatTime(overrideDialog.req.attendance_log.clock_out)}`
+                        : "-"}
+                    </p>
+
+                    {overrideDialog.req.proposed_clock_out && (
+                      <>
+                        <p className="text-muted-foreground">Proposed Clock Out:</p>
+                        <p className="text-blue-600 font-medium">
+                          {format(new Date(overrideDialog.req.proposed_clock_out), "MMM d")} —{" "}
+                          {formatTime(overrideDialog.req.proposed_clock_out)}
+                        </p>
+                      </>
+                    )}
+
+                    {overrideDialog.req.proposed_break_minutes != null && (
+                      <>
+                        <p className="text-muted-foreground">Break:</p>
+                        <p>
+                          {overrideDialog.req.attendance_log.total_break_minutes || 0}m →{" "}
+                          <span className="text-blue-600 font-medium">
+                            {overrideDialog.req.proposed_break_minutes}m
+                          </span>
+                        </p>
+                      </>
+                    )}
+
+                    {overrideDialog.req.proposed_pause_minutes != null && (
+                      <>
+                        <p className="text-muted-foreground">Pause:</p>
+                        <p>
+                          {overrideDialog.req.attendance_log.total_pause_minutes || 0}m →{" "}
+                          <span className="text-blue-600 font-medium">
+                            {overrideDialog.req.proposed_pause_minutes}m
+                          </span>
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Employee's reason */}
+                <div className="pt-1 border-t">
+                  <p className="text-muted-foreground">Employee's Reason:</p>
+                  <p className="text-sm mt-0.5">{overrideDialog.req.reason}</p>
+                </div>
+
+                {/* Line manager's decision & comment */}
+                <div className="pt-1 border-t">
+                  <div className="flex items-center gap-2">
+                    <p className="text-muted-foreground">Line Manager:</p>
+                    <Badge
+                      variant={overrideDialog.req.status === "approved" ? "default" : "destructive"}
+                      className="text-xs capitalize"
+                    >
+                      {overrideDialog.req.status}
+                    </Badge>
+                  </div>
+                  {overrideDialog.req.reviewer_comment && (
+                    <p className="text-sm mt-0.5">{overrideDialog.req.reviewer_comment}</p>
+                  )}
+                </div>
               </div>
             )}
 
