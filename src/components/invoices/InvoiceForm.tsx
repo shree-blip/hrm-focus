@@ -178,12 +178,7 @@ export default function InvoiceForm({ formData, onChange, disabled }: Props) {
         </div>
         <div>
           <Label className="text-xs">Service Description</Label>
-          <Textarea
-            rows={3}
-            value={formData.service_description}
-            onChange={(e) => onChange({ service_description: e.target.value })}
-            placeholder="Describe the service provided"
-          />
+          <Textarea rows={3} value={formData.service_description} readOnly className="bg-muted" />
         </div>
         <div>
           <Label className="text-xs">Amount (NPR)</Label>
