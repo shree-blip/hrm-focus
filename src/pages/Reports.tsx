@@ -1262,7 +1262,7 @@ const Reports = () => {
                               <td className="p-3 font-medium text-cyan-600">
                                 {totalPauseMinutes > 0 ? formatBreakDuration(totalPauseMinutes) : "-"}
                               </td>
-                              <td className="p-3 text-red-600 font-mono">{formatTimeLocal(typedAtt.clock_out)}</td>
+                              <td className="p-3 text-red-600 font-mono">{formatTimeLocal(typedAtt.clock_out, typedAtt.employee_timezone)}</td>
                               <td className="p-3 font-bold">
                                 {totalHours !== null ? `${totalHours.toFixed(2)}h` : "-"}
                               </td>
