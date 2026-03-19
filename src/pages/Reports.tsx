@@ -1212,14 +1212,21 @@ const Reports = () => {
                                   </Button>
                                 )}
                               </td>
-                              <td className="p-3 font-medium">{formatDateLocal(typedAtt.clock_in)}</td>
+                              <td className="p-3 font-medium">
+                                <div className="flex items-center gap-1.5">
+                                  {getWorkDateDisplay(typedAtt.clock_in, typedAtt.employee_timezone || "Asia/Kathmandu")}
+                                  {typedAtt.clock_out && isNightShift(typedAtt.clock_in, typedAtt.clock_out, typedAtt.employee_timezone || "Asia/Kathmandu") && (
+                                    <span title="Night shift">🌙</span>
+                                  )}
+                                </div>
+                              </td>
                               <td className="p-3">
                                 <div>
                                   <p className="font-medium">{typedAtt.employee_name}</p>
                                   <p className="text-xs text-slate-600">{typedAtt.email}</p>
                                 </div>
                               </td>
-                              <td className="p-3 text-green-600 font-mono">{formatTimeLocal(typedAtt.clock_in)}</td>
+                              <td className="p-3 text-green-600 font-mono">{formatTimeLocal(typedAtt.clock_in, typedAtt.employee_timezone)}</td>
                               <td className="p-3">
                                 {breaks.length === 0 ? (
                                   <span className="text-slate-400">-</span>
