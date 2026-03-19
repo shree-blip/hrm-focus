@@ -329,7 +329,7 @@ function detectLocalTimezone(): TZInfo {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// SMALL CARD WIDGET (for sidebar / header)
+// SMALL CARD WIDGET (for sidebar / dashboard)
 // ═══════════════════════════════════════════════════════════════════════
 export function GlobalTimeZoneWidget() {
   const [open, setOpen] = useState(false);
@@ -370,9 +370,9 @@ export function GlobalTimeZoneWidget() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// FULL MODAL
+// FULL MODAL (exported so Header can use it directly)
 // ═══════════════════════════════════════════════════════════════════════
-function TimeZoneModal({ onClose }: { onClose: () => void }) {
+export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   const localTz = useMemo(() => detectLocalTimezone(), []);
 
   const [refDate, setRefDate] = useState(new Date());
