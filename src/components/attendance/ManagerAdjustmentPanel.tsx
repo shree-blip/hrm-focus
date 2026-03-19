@@ -149,7 +149,16 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                       <TableRow key={req.id}>
                         <TableCell className="text-sm">{empName}</TableCell>
                         <TableCell className="text-sm">
-                          {req.attendance_log?.clock_in ? format(new Date(req.attendance_log.clock_in), "MMM d") : "-"}
+                          <div className="flex flex-col gap-0.5">
+                            <span>
+                              {req.attendance_log?.clock_in
+                                ? format(new Date(req.attendance_log.clock_in), "EEE, MMM d")
+                                : "-"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              Requested: {format(new Date(req.created_at), "MMM d, h:mm a")}
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
