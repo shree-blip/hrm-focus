@@ -82,7 +82,7 @@ const getDateRangeLabel = (rangeType: DateRangeType): string => {
       year: "numeric",
     });
   };
-  return `${formatDateLocal(start)} - ${formatDateLocal(end)}`;
+  return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
 const Reports = () => {
