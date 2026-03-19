@@ -72,6 +72,7 @@ const ALL_MENU_ITEMS: MenuItem[] = [
   { icon: Bug, label: "Support", href: "/support", permissions: ["manage_support", "view_support"] },
   { icon: Users, label: "Profile", href: "/profile", alwaysVisible: true },
   { icon: Shield, label: "Access Control", href: "/access-control", permissions: ["manage_access"] },
+  { icon: Globe, label: "Timezones", href: "/timezone-management", permissions: ["manage_access"] },
 ];
 
 const bottomMenuItems: MenuItem[] = [{ icon: Settings, label: "Settings", href: "/settings", alwaysVisible: true }];

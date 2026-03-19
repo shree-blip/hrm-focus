@@ -372,6 +372,15 @@ const App = () => (
                   }
                 />
 
+                <Route
+                  path="/timezone-management"
+                  element={
+                    <ProtectedRoute requiredPermission="manage_access">
+                      <TimezoneManagement />
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* ── Catch-all ── */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

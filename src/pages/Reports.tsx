@@ -1165,7 +1165,7 @@ const Reports = () => {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-3 font-medium w-8"></th>
-                        <th className="text-left p-3 font-medium">Date</th>
+                        <th className="text-left p-3 font-medium">Work Date</th>
                         <th className="text-left p-3 font-medium">Employee</th>
                         <th className="text-left p-3 font-medium">Clock In</th>
                         <th className="text-left p-3 font-medium">Breaks</th>
