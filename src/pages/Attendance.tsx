@@ -45,7 +45,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const Attendance = () => {
-  const { user, isManager, isLineManager } = useAuth();
+  const { user, isManager, isLineManager, isAdmin, isVP } = useAuth();
   const [clockType, setClockType] = useState<"payroll" | "billable">("payroll");
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const currentDate = new Date();
@@ -93,7 +93,8 @@ const Attendance = () => {
     }
   }, [currentWeekStart, isCurrentWeek, fetchWeeklyLogsForRange]);
 
-  const { myRequests, teamRequests, submitRequest, reviewRequest, getAdjustmentStatus } = useAttendanceAdjustments();
+  const { myRequests, teamRequests, submitRequest, reviewRequest, overrideRequest, getAdjustmentStatus } =
+    useAttendanceAdjustments();
 
   // Use shared status from context
   const clockStatus = sharedStatus;
@@ -776,6 +777,11 @@ const Attendance = () => {
                                 {reviewerName && (
                                   <span className="text-xs text-muted-foreground">by {reviewerName}</span>
                                 )}
+                                {adj.override_status && (
+                                  <Badge variant="outline" className="text-xs border-amber-500 text-amber-600">
+                                    Overridden
+                                  </Badge>
+                                )}
                               </div>
                             );
                           }
@@ -809,6 +815,14 @@ const Attendance = () => {
             const success = await reviewRequest(id, decision, comment);
             if (success && decision === "approved") {
               // Refetch attendance data so the corrected values show immediately
+              refetch();
+            }
+            return success;
+          }}
+          canOverride={isAdmin || isVP}
+          onOverride={async (id, decision, comment) => {
+            const success = await overrideRequest(id, decision, comment);
+            if (success) {
               refetch();
             }
             return success;
