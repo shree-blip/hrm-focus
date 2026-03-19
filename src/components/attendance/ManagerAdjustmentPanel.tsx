@@ -246,22 +246,35 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                 {selectedRequest.attendance_log && (
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                     <p className="text-muted-foreground">Current Clock In:</p>
-                    <p>{formatTime(selectedRequest.attendance_log.clock_in)}</p>
+                    <p>
+                      {format(new Date(selectedRequest.attendance_log.clock_in), "MMM d")} —{" "}
+                      {formatTime(selectedRequest.attendance_log.clock_in)}
+                    </p>
 
                     {selectedRequest.proposed_clock_in && (
                       <>
                         <p className="text-muted-foreground">Proposed Clock In:</p>
-                        <p className="text-blue-600 font-medium">{formatTime(selectedRequest.proposed_clock_in)}</p>
+                        <p className="text-blue-600 font-medium">
+                          {format(new Date(selectedRequest.proposed_clock_in), "MMM d")} —{" "}
+                          {formatTime(selectedRequest.proposed_clock_in)}
+                        </p>
                       </>
                     )}
 
                     <p className="text-muted-foreground">Current Clock Out:</p>
-                    <p>{formatTime(selectedRequest.attendance_log.clock_out)}</p>
+                    <p>
+                      {selectedRequest.attendance_log.clock_out
+                        ? `${format(new Date(selectedRequest.attendance_log.clock_out), "MMM d")} — ${formatTime(selectedRequest.attendance_log.clock_out)}`
+                        : "-"}
+                    </p>
 
                     {selectedRequest.proposed_clock_out && (
                       <>
                         <p className="text-muted-foreground">Proposed Clock Out:</p>
-                        <p className="text-blue-600 font-medium">{formatTime(selectedRequest.proposed_clock_out)}</p>
+                        <p className="text-blue-600 font-medium">
+                          {format(new Date(selectedRequest.proposed_clock_out), "MMM d")} —{" "}
+                          {formatTime(selectedRequest.proposed_clock_out)}
+                        </p>
                       </>
                     )}
 
