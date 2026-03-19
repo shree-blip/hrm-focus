@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,13 +31,15 @@ interface Props {
 
 export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: Props) {
   const clockInDate = new Date(log.clock_in);
-  const dateStr = format(clockInDate, "yyyy-MM-dd");
+  const clockOutDate = log.clock_out ? new Date(log.clock_out) : null;
 
-  // Pre-fill with current values
+  // Pre-fill with current values (date + time separately)
+  const [clockInDateStr, setClockInDateStr] = useState(format(clockInDate, "yyyy-MM-dd"));
   const [clockIn, setClockIn] = useState(format(clockInDate, "HH:mm"));
-  const [clockOut, setClockOut] = useState(
-    log.clock_out ? format(new Date(log.clock_out), "HH:mm") : "",
+  const [clockOutDateStr, setClockOutDateStr] = useState(
+    clockOutDate ? format(clockOutDate, "yyyy-MM-dd") : format(clockInDate, "yyyy-MM-dd"),
   );
+  const [clockOut, setClockOut] = useState(clockOutDate ? format(clockOutDate, "HH:mm") : "");
   const [breakMinutes, setBreakMinutes] = useState(log.total_break_minutes || 0);
   const [pauseMinutes, setPauseMinutes] = useState(log.total_pause_minutes || 0);
   const [reason, setReason] = useState("");
@@ -66,15 +62,17 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
       reason: reason.trim(),
     };
 
+    const originalClockInDate = format(clockInDate, "yyyy-MM-dd");
     const originalClockIn = format(clockInDate, "HH:mm");
-    const originalClockOut = log.clock_out ? format(new Date(log.clock_out), "HH:mm") : "";
+    const originalClockOutDate = clockOutDate ? format(clockOutDate, "yyyy-MM-dd") : "";
+    const originalClockOut = clockOutDate ? format(clockOutDate, "HH:mm") : "";
 
-    if (clockIn !== originalClockIn) {
-      proposed.proposed_clock_in = new Date(`${dateStr}T${clockIn}:00`).toISOString();
+    if (clockIn !== originalClockIn || clockInDateStr !== originalClockInDate) {
+      proposed.proposed_clock_in = new Date(`${clockInDateStr}T${clockIn}:00`).toISOString();
     }
 
-    if (clockOut !== originalClockOut && clockOut) {
-      proposed.proposed_clock_out = new Date(`${dateStr}T${clockOut}:00`).toISOString();
+    if ((clockOut !== originalClockOut || clockOutDateStr !== originalClockOutDate) && clockOut) {
+      proposed.proposed_clock_out = new Date(`${clockOutDateStr}T${clockOut}:00`).toISOString();
     }
 
     if (breakMinutes !== (log.total_break_minutes || 0)) {
@@ -98,40 +96,55 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Request Attendance Adjustment</DialogTitle>
-          <DialogDescription>
-            Correct your attendance for {format(clockInDate, "EEEE, MMM d, yyyy")}
-          </DialogDescription>
+          <DialogDescription>Correct your attendance for {format(clockInDate, "EEEE, MMM d, yyyy")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
           {/* Current values summary */}
           <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
             <p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">Current Values</p>
-            <p><strong>Clock In:</strong> {toNPT(log.clock_in)} / {toPST(log.clock_in)}</p>
-            <p><strong>Clock Out:</strong> {log.clock_out ? `${toNPT(log.clock_out)} / ${toPST(log.clock_out)}` : "Not clocked out"}</p>
-            <p><strong>Break:</strong> {log.total_break_minutes || 0} min</p>
-            <p><strong>Pause:</strong> {log.total_pause_minutes || 0} min</p>
+            <p>
+              <strong>Clock In:</strong> {toNPT(log.clock_in)} / {toPST(log.clock_in)}
+            </p>
+            <p>
+              <strong>Clock Out:</strong>{" "}
+              {log.clock_out ? `${toNPT(log.clock_out)} / ${toPST(log.clock_out)}` : "Not clocked out"}
+            </p>
+            <p>
+              <strong>Break:</strong> {log.total_break_minutes || 0} min
+            </p>
+            <p>
+              <strong>Pause:</strong> {log.total_pause_minutes || 0} min
+            </p>
           </div>
 
           {/* Corrected values */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="adj-clock-in">Clock In</Label>
+              <Label htmlFor="adj-clock-in-date">Clock In Date</Label>
               <Input
-                id="adj-clock-in"
-                type="time"
-                value={clockIn}
-                onChange={(e) => setClockIn(e.target.value)}
+                id="adj-clock-in-date"
+                type="date"
+                value={clockInDateStr}
+                onChange={(e) => setClockInDateStr(e.target.value)}
               />
             </div>
             <div>
-              <Label htmlFor="adj-clock-out">Clock Out</Label>
+              <Label htmlFor="adj-clock-in">Clock In Time</Label>
+              <Input id="adj-clock-in" type="time" value={clockIn} onChange={(e) => setClockIn(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="adj-clock-out-date">Clock Out Date</Label>
               <Input
-                id="adj-clock-out"
-                type="time"
-                value={clockOut}
-                onChange={(e) => setClockOut(e.target.value)}
+                id="adj-clock-out-date"
+                type="date"
+                value={clockOutDateStr}
+                onChange={(e) => setClockOutDateStr(e.target.value)}
               />
+            </div>
+            <div>
+              <Label htmlFor="adj-clock-out">Clock Out Time</Label>
+              <Input id="adj-clock-out" type="time" value={clockOut} onChange={(e) => setClockOut(e.target.value)} />
             </div>
             <div>
               <Label htmlFor="adj-break">Break (minutes)</Label>
@@ -173,19 +186,10 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
 
           {/* Actions */}
           <div className="flex gap-2 pt-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => onOpenChange(false)}
-              disabled={submitting}
-            >
+            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={submitting}>
               Cancel
             </Button>
-            <Button
-              className="flex-1"
-              onClick={handleSubmit}
-              disabled={!reason.trim() || submitting}
-            >
+            <Button className="flex-1" onClick={handleSubmit} disabled={!reason.trim() || submitting}>
               {submitting ? "Submitting..." : "Submit Request"}
             </Button>
           </div>
