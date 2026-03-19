@@ -21,7 +21,6 @@ import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import focusLogo from "@/assets/focus-logo.png";
-import { TimeZoneModal } from "@/components/dashboard/GlobalTimeZoneWidget";
 
 interface HeaderProps {
   isMobile?: boolean;
@@ -30,7 +29,6 @@ interface HeaderProps {
 export function Header({ isMobile }: HeaderProps = {}) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
-  const [showTimeZoneModal, setShowTimeZoneModal] = useState(false);
   const navigate = useNavigate();
   const { signOut, profile, role } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
@@ -50,9 +48,25 @@ export function Header({ isMobile }: HeaderProps = {}) {
       timeZone: "Asia/Kathmandu",
     });
 
-  const formatDateShort = (date: Date) =>
+  const formatCaliforniaTime = (date: Date) =>
+    date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "America/Los_Angeles",
+    });
+
+  const formatCSTTime = (date: Date) =>
+    date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "America/Chicago",
+    });
+
+  const formatDate = (date: Date) =>
     date.toLocaleDateString("en-US", {
-      weekday: "short",
+      weekday: "long",
       month: "short",
       day: "numeric",
     });
@@ -66,6 +80,7 @@ export function Header({ isMobile }: HeaderProps = {}) {
   };
 
   const handleProfileClick = () => navigate("/profile");
+  const handleTimesheetClick = () => navigate("/attendance");
 
   const getRoleLabel = () => {
     switch (role) {
@@ -150,232 +165,187 @@ export function Header({ isMobile }: HeaderProps = {}) {
     return "Ganesh Dahal";
   };
 
+  // Combine notifications with pinned announcements for the dropdown
   const recentNotifications = notifications.slice(0, 3);
   const pinnedAnnouncements = announcements.filter((a) => a.is_pinned).slice(0, 2);
-  const totalUnread = unreadCount;
+  const totalUnread = unreadCount; // Remove pinnedAnnouncements.length
 
   return (
-    <>
-      <header
-        className={cn(
-          "sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-4 lg:px-6",
-          isMobile ? "h-14" : "h-16",
-        )}
-      >
-        <div className={cn("flex items-center gap-4 flex-1", isMobile ? "max-w-xs" : "max-w-xl")}>
-          {/* Mobile logo */}
-          <div className="md:hidden flex items-center gap-2 shrink-0">
-            <img src={focusLogo} alt="Focus" className="h-8 w-8 object-contain" />
-          </div>
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder={isMobile ? "Search..." : "Search employees, tasks, documents..."}
-              className="pl-10 bg-secondary/50 border-transparent focus:border-primary focus:bg-card transition-all"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearch}
-            />
-          </div>
+    <header
+      className={cn(
+        "sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-4 lg:px-6",
+        isMobile ? "h-14" : "h-16",
+      )}
+    >
+      <div className={cn("flex items-center gap-4 flex-1", isMobile ? "max-w-xs" : "max-w-xl")}>
+        {/* Mobile logo */}
+        <div className="md:hidden flex items-center gap-2 shrink-0">
+          <img src={focusLogo} alt="Focus" className="h-8 w-8 object-contain" />
+        </div>
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder={isMobile ? "Search..." : "Search employees, tasks, documents..."}
+            className="pl-10 bg-secondary/50 border-transparent focus:border-primary focus:bg-card transition-all"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearch}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span className="text-sm font-bold">
+            {formatNepalTime(currentTime)} <span className="text-blue-500">NPT</span> | {formatCSTTime(currentTime)}{" "}
+            <span className="text-emerald-500">CST</span> | {formatCaliforniaTime(currentTime)}{" "}
+            <span className="text-amber-500">PST</span> • {formatDate(currentTime)}
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* ★ Desktop: Clock Card → opens TimeZone Modal ★ */}
-          <button
-            onClick={() => setShowTimeZoneModal(true)}
-            className="hidden md:flex items-center gap-3 h-12 px-3.5 rounded-2xl border border-primary/15 bg-gradient-to-br from-white via-white to-primary/5 shadow-[0_6px_20px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_28px_rgba(0,0,0,0.10)] hover:border-primary/30 hover:-translate-y-[1px] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0 group"
-            title="View world clocks"
-          >
-            <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Clock className="w-4 h-4" />
-              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
-            </div>
-
-            <div className="flex flex-col items-start justify-center leading-none min-w-[110px]">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900 tabular-nums tracking-tight">
-                  {formatNepalTime(currentTime)}
-                </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/15 uppercase tracking-wide">
-                  NPT
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[11px] text-slate-500 font-medium">{formatDateShort(currentTime)}</span>
-                <span className="text-[11px] text-primary font-semibold">World Clock</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 group-hover:bg-primary/10 transition-colors">
-              <svg
-                className="w-3.5 h-3.5 text-slate-500 group-hover:text-primary transition-colors"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 111.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-          </button>
-
-          {/* ★ Mobile: Compact clock chip ★ */}
-          <button
-            onClick={() => setShowTimeZoneModal(true)}
-            className="md:hidden flex items-center gap-1.5 h-9 px-2 rounded-lg bg-slate-100 active:bg-slate-200 transition-colors shrink-0"
-            title="World Clock"
-          >
-            <Clock className="w-3.5 h-3.5 text-primary" />
-            <span className="text-[11px] font-semibold tabular-nums text-slate-900">
-              {formatNepalTime(currentTime)}
-            </span>
-          </button>
-
-          {/* Notifications */}
-          <DropdownMenu
-            onOpenChange={(open) => {
-              if (open && unreadCount > 0) {
-                notifications.forEach((notification) => {
-                  if (!notification.is_read) {
-                    markAsRead(notification.id);
-                  }
-                });
-              }
-            }}
-          >
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                {totalUnread > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
-                    <Badge className="relative h-5 min-w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
-                      {totalUnread > 9 ? "9+" : totalUnread}
-                    </Badge>
-                  </span>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
-              <DropdownMenuLabel className="font-display flex items-center justify-between">
-                <span>Notifications</span>
-                {unreadCount > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {unreadCount} unread
+        <DropdownMenu
+          onOpenChange={(open) => {
+            if (open && unreadCount > 0) {
+              notifications.forEach((notification) => {
+                if (!notification.is_read) {
+                  markAsRead(notification.id);
+                }
+              });
+            }
+          }}
+        >
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-5 w-5" />
+              {totalUnread > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
+                  <Badge className="relative h-5 min-w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
+                    {totalUnread > 9 ? "9+" : totalUnread}
                   </Badge>
-                )}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-
-              {pinnedAnnouncements.length > 0 && (
-                <>
-                  {pinnedAnnouncements.map((announcement) => (
-                    <DropdownMenuItem
-                      key={`announcement-${announcement.id}`}
-                      className="flex flex-col items-start gap-1 py-3 cursor-pointer bg-warning/5"
-                      onClick={() => navigate("/notifications")}
-                    >
-                      <div className="flex items-center gap-2 w-full">
-                        <Megaphone className="h-4 w-4 text-warning shrink-0" />
-                        <span className="font-medium text-sm truncate">{announcement.title}</span>
-                        <Badge variant="outline" className="text-xs border-warning text-warning ml-auto shrink-0">
-                          Pinned
-                        </Badge>
-                      </div>
-                      <span className="text-xs text-muted-foreground line-clamp-2 pl-6">{announcement.content}</span>
-                      <div className="flex items-center justify-between pl-6 w-full">
-                        <span className="text-xs text-muted-foreground">
-                          By {announcement.publisher_name || "System"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatNotificationTime(announcement.created_at)}
-                        </span>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                </>
+                </span>
               )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+            <DropdownMenuLabel className="font-display flex items-center justify-between">
+              <span>Notifications</span>
+              {unreadCount > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {unreadCount} unread
+                </Badge>
+              )}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
 
-              {recentNotifications.length > 0 ? (
-                recentNotifications.map((notification) => (
+            {/* Pinned Announcements */}
+            {pinnedAnnouncements.length > 0 && (
+              <>
+                {pinnedAnnouncements.map((announcement) => (
                   <DropdownMenuItem
-                    key={notification.id}
-                    className={cn(
-                      "flex flex-col items-start gap-1 py-3 cursor-pointer",
-                      !notification.is_read && "bg-primary/5",
-                    )}
-                    onClick={() => handleNotificationClick(notification)}
+                    key={`announcement-${announcement.id}`}
+                    className="flex flex-col items-start gap-1 py-3 cursor-pointer bg-warning/5"
+                    onClick={() => navigate("/notifications")}
                   >
                     <div className="flex items-center gap-2 w-full">
-                      <span className="font-medium text-sm">{notification.title}</span>
-                      {!notification.is_read && <div className="h-2 w-2 rounded-full bg-primary ml-auto" />}
+                      <Megaphone className="h-4 w-4 text-warning shrink-0" />
+                      <span className="font-medium text-sm truncate">{announcement.title}</span>
+                      <Badge variant="outline" className="text-xs border-warning text-warning ml-auto shrink-0">
+                        Pinned
+                      </Badge>
                     </div>
-                    <span className="text-xs text-muted-foreground line-clamp-2">{notification.message}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatNotificationTime(notification.created_at)}
-                    </span>
+                    <span className="text-xs text-muted-foreground line-clamp-2 pl-6">{announcement.content}</span>
+                    <div className="flex items-center justify-between pl-6 w-full">
+                      <span className="text-xs text-muted-foreground">
+                        By {announcement.publisher_name || "System"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatNotificationTime(announcement.created_at)}
+                      </span>
+                    </div>
                   </DropdownMenuItem>
-                ))
-              ) : (
-                <div className="py-6 text-center text-muted-foreground text-sm">No new notifications</div>
-              )}
+                ))}
+                <DropdownMenuSeparator />
+              </>
+            )}
 
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-center text-primary cursor-pointer justify-center"
-                onClick={() => navigate("/notifications")}
-              >
-                View all notifications
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-3 pl-2 pr-3 max-w-[260px] w-auto">
-                <Avatar className="h-8 w-8 overflow-hidden rounded-full">
-                  <AvatarImage src={avatarUrl || ""} className="h-full w-full object-cover" />
-                  <AvatarFallback className="bg-primary text-primary-foreground font-medium">
-                    {getInitials()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="hidden md:flex flex-col items-start text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{getDisplayName()}</span>
-                    <Badge className={cn("text-xs", getRoleBadgeColor())}>{getRoleLabel()}</Badge>
+            {/* Recent Notifications */}
+            {recentNotifications.length > 0 ? (
+              recentNotifications.map((notification) => (
+                <DropdownMenuItem
+                  key={notification.id}
+                  className={cn(
+                    "flex flex-col items-start gap-1 py-3 cursor-pointer",
+                    !notification.is_read && "bg-primary/5",
+                  )}
+                  onClick={() => handleNotificationClick(notification)}
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <span className="font-medium text-sm">{notification.title}</span>
+                    {!notification.is_read && <div className="h-2 w-2 rounded-full bg-primary ml-auto" />}
                   </div>
-                  <span className="text-xs text-muted-foreground">{profile?.job_title || "Employee"}</span>
-                </div>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="font-display">My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer" onClick={handleProfileClick}>
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/settings")}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive cursor-pointer" onClick={handleSignOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
+                  <span className="text-xs text-muted-foreground line-clamp-2">{notification.message}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatNotificationTime(notification.created_at)}
+                  </span>
+                </DropdownMenuItem>
+              ))
+            ) : (
+              <div className="py-6 text-center text-muted-foreground text-sm">No new notifications</div>
+            )}
 
-      {/* ★ Global TimeZone Modal — triggered from clock chip ★ */}
-      {showTimeZoneModal && <TimeZoneModal onClose={() => setShowTimeZoneModal(false)} />}
-    </>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-center text-primary cursor-pointer justify-center"
+              onClick={() => navigate("/notifications")}
+            >
+              View all notifications
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="flex items-center gap-3 pl-2 pr-3 max-w-[260px] w-auto">
+              <Avatar className="h-8 w-8 overflow-hidden rounded-full">
+                <AvatarImage src={avatarUrl || ""} className="h-full w-full object-cover" />
+                <AvatarFallback className="bg-primary text-primary-foreground font-medium">
+                  {getInitials()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="hidden md:flex flex-col items-start text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{getDisplayName()}</span>
+                  <Badge className={cn("text-xs", getRoleBadgeColor())}>{getRoleLabel()}</Badge>
+                </div>
+                <span className="text-xs text-muted-foreground">{profile?.job_title || "Employee"}</span>
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="font-display">My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer" onClick={handleProfileClick}>
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            {/* <DropdownMenuItem className="cursor-pointer" onClick={handleTimesheetClick}>
+              <FileText className="mr-2 h-4 w-4" />
+              My Timesheet
+            </DropdownMenuItem> */}
+            <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/settings")}>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive cursor-pointer" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
   );
 }
