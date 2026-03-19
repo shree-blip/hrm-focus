@@ -136,9 +136,9 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
       return;
     }
 
-    // Fetch profiles and employees for name resolution
+    // Fetch profiles and employees for name resolution + timezone
     const { data: profiles } = await supabase.from("profiles").select("user_id, first_name, last_name, email");
-    const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id");
+    const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id, timezone");
 
     const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
     const employeeMap = new Map(employees?.map((e) => [e.id, e]) || []);
