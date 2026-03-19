@@ -579,8 +579,8 @@ const Reports = () => {
       filteredDailyAttendance.forEach((att) => {
         const typedAtt = att as DailyAttendanceRecord;
         const date = formatDateLocal(typedAtt.clock_in);
-        const clockIn = formatTime24(typedAtt.clock_in);
-        const clockOut = formatTime24(typedAtt.clock_out);
+        const clockIn = formatTimeLocal(typedAtt.clock_in);
+        const clockOut = formatTimeLocal(typedAtt.clock_out);
         const breaks = getBreaks(typedAtt);
         const pauses = getPauses(typedAtt);
         const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
@@ -594,8 +594,8 @@ const Reports = () => {
         for (let i = 0; i < maxBreaks; i++) {
           if (breaks[i]) {
             const brk = breaks[i];
-            const breakStart = formatTime24(brk.break_start);
-            const breakEnd = formatTime24(brk.break_end);
+            const breakStart = formatTimeLocal(brk.break_start);
+            const breakEnd = formatTimeLocal(brk.break_end);
             let breakDuration = brk.duration_minutes || 0;
             if (!breakDuration && brk.break_start && brk.break_end) {
               const start = new Date(brk.break_start).getTime();
@@ -613,8 +613,8 @@ const Reports = () => {
         for (let i = 0; i < maxPauses; i++) {
           if (pauses[i]) {
             const pause = pauses[i];
-            const pauseStart = formatTime24(pause.pause_start);
-            const pauseEnd = formatTime24(pause.pause_end);
+            const pauseStart = formatTimeLocal(pause.pause_start);
+            const pauseEnd = formatTimeLocal(pause.pause_end);
             let pauseDuration = pause.duration_minutes || 0;
             if (!pauseDuration && pause.pause_start && pause.pause_end) {
               const start = new Date(pause.pause_start).getTime();
@@ -1219,13 +1219,13 @@ const Reports = () => {
                                   <p className="text-xs text-slate-600">{typedAtt.email}</p>
                                 </div>
                               </td>
-                              <td className="p-3 text-green-600 font-mono">{formatTime24(typedAtt.clock_in)}</td>
+                              <td className="p-3 text-green-600 font-mono">{formatTimeLocal(typedAtt.clock_in)}</td>
                               <td className="p-3">
                                 {breaks.length === 0 ? (
                                   <span className="text-slate-400">-</span>
                                 ) : breaks.length === 1 ? (
                                   <span className="text-yellow-600 font-mono">
-                                    {formatTime24(breaks[0].break_start)} - {formatTime24(breaks[0].break_end)}
+                                    {formatTimeLocal(breaks[0].break_start)} - {formatTimeLocal(breaks[0].break_end)}
                                   </span>
                                 ) : (
                                   <Badge variant="outline" className="gap-1">
@@ -1243,7 +1243,7 @@ const Reports = () => {
                                   <span className="text-slate-400">-</span>
                                 ) : pauses.length === 1 ? (
                                   <span className="text-cyan-600 font-mono">
-                                    {formatTime24(pauses[0].pause_start)} - {formatTime24(pauses[0].pause_end)}
+                                    {formatTimeLocal(pauses[0].pause_start)} - {formatTimeLocal(pauses[0].pause_end)}
                                   </span>
                                 ) : (
                                   <Badge variant="outline" className="gap-1 border-cyan-300 text-cyan-600">
@@ -1255,7 +1255,7 @@ const Reports = () => {
                               <td className="p-3 font-medium text-cyan-600">
                                 {totalPauseMinutes > 0 ? formatBreakDuration(totalPauseMinutes) : "-"}
                               </td>
-                              <td className="p-3 text-red-600 font-mono">{formatTime24(typedAtt.clock_out)}</td>
+                              <td className="p-3 text-red-600 font-mono">{formatTimeLocal(typedAtt.clock_out)}</td>
                               <td className="p-3 font-bold">
                                 {totalHours !== null ? `${totalHours.toFixed(2)}h` : "-"}
                               </td>
@@ -1321,7 +1321,7 @@ const Reports = () => {
                                                 Break {brkIndex + 1}
                                               </Badge>
                                               <span className="text-yellow-600 font-mono">
-                                                {formatTime24(brk.break_start)} - {formatTime24(brk.break_end)}
+                                                {formatTimeLocal(brk.break_start)} - {formatTimeLocal(brk.break_end)}
                                               </span>
                                               <span className="text-slate-600">({brk.duration_minutes || 0} min)</span>
                                             </div>
@@ -1346,7 +1346,7 @@ const Reports = () => {
                                                 Pause {pauseIndex + 1}
                                               </Badge>
                                               <span className="text-cyan-600 font-mono">
-                                                {formatTime24(pause.pause_start)} - {formatTime24(pause.pause_end)}
+                                                {formatTimeLocal(pause.pause_start)} - {formatTimeLocal(pause.pause_end)}
                                               </span>
                                               <span className="text-slate-600">
                                                 ({pause.duration_minutes || 0} min)
