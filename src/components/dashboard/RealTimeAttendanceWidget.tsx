@@ -8,10 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 // Add Download to your lucide-react import
 import { cn } from "@/lib/utils";
-import {
-  format,
-  formatDistanceToNow,
-} from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import {
   Users,
   Briefcase,
@@ -165,8 +162,12 @@ export function RealTimeAttendanceWidget() {
 
   const fetchData = useCallback(async () => {
     const now = new Date();
-    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)).toISOString();
-    const dayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)).toISOString();
+    const dayStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
+    ).toISOString();
+    const dayEnd = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999),
+    ).toISOString();
 
     // Fetch employees - include active and probation status
     const { data: emps } = await supabase
@@ -271,7 +272,7 @@ export function RealTimeAttendanceWidget() {
     // Build events - create maps for both employee_id and user_id lookup
     const empMap = new Map((emps || []).map((e: any) => [e.id, e]));
     const userEmpMap = new Map((emps || []).map((e: any) => [e.profiles?.user_id, e]));
-    
+
     // Also create a reverse lookup: user_id -> employee for logs that only have user_id
     const evts: Event[] = [];
 
@@ -468,7 +469,9 @@ export function RealTimeAttendanceWidget() {
       let start: Date, end: Date;
 
       // Determine date range in UTC
-      const y = now.getUTCFullYear(), m = now.getUTCMonth(), d = now.getUTCDate();
+      const y = now.getUTCFullYear(),
+        m = now.getUTCMonth(),
+        d = now.getUTCDate();
       if (timeframe === "today") {
         start = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
         end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
@@ -645,15 +648,16 @@ export function RealTimeAttendanceWidget() {
             <div className="relative hidden sm:block">
               <select
                 disabled={isExporting}
+                defaultValue=""
                 onChange={(e) => {
                   if (e.target.value) {
                     exportHistoricalCSV(e.target.value as "today" | "week" | "month");
-                    e.target.value = ""; // Reset dropdown after selection
+                    e.target.value = "";
                   }
                 }}
                 className="appearance-none bg-transparent border rounded-md h-8 pl-8 pr-8 text-xs font-medium cursor-pointer hover:bg-muted/50 disabled:opacity-50"
               >
-                <option value="" disabled selected>
+                <option value="" disabled>
                   Export CSV
                 </option>
                 <option value="today">Today's Data</option>
