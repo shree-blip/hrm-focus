@@ -169,15 +169,21 @@ const Tasks = () => {
     return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`.toUpperCase();
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
+  // Skeleton card for loading state
+  const TaskSkeleton = () => (
+    <div className="rounded-xl border bg-card p-4 space-y-3">
+      <div className="flex justify-between">
+        <Skeleton className="h-4 w-8" />
+        <Skeleton className="h-5 w-14 rounded-full" />
+      </div>
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-3 w-1/2" />
+      <div className="flex justify-between pt-2">
+        <Skeleton className="h-6 w-6 rounded-full" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+    </div>
+  );
 
   return (
     <DashboardLayout>
