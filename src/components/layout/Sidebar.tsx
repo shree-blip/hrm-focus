@@ -206,6 +206,8 @@ export const Sidebar = memo(function Sidebar({
               <Link
                 to={item.href}
                 onClick={() => handleNavClick(item.href)}
+                onMouseEnter={() => handlePrefetch(item.href)}
+                onFocus={() => handlePrefetch(item.href)}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   "hover:bg-sidebar-accent",
