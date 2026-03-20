@@ -196,14 +196,38 @@ export function Header({ isMobile }: HeaderProps = {}) {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" />
-          <span className="text-sm font-bold">
-            {formatNepalTime(currentTime)} <span className="text-blue-500">NPT</span> | {formatCSTTime(currentTime)}{" "}
-            <span className="text-emerald-500">CST</span> | {formatCaliforniaTime(currentTime)}{" "}
-            <span className="text-amber-500">PST</span> • {formatDate(currentTime)}
-          </span>
-        </div>
+        <button
+          onClick={() => setShowTimeZoneModal(true)}
+          className="hidden md:flex items-center gap-3 h-12 px-4 rounded-2xl border border-primary/15 bg-gradient-to-br from-white via-white to-primary/5 shadow-[0_6px_20px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_28px_rgba(0,0,0,0.10)] hover:border-primary/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0 group"
+          title="View world clocks"
+        >
+          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-primary text-primary-foreground shadow-sm">
+            <Clock className="w-4 h-4" />
+            <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+          </div>
+
+          <div className="flex flex-col items-start justify-center leading-none min-w-[110px]">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-slate-900 tabular-nums tracking-tight">
+                {formatNepalTime(currentTime)}
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/15 uppercase tracking-wide">
+                NPT
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="text-[11px] text-slate-500 font-medium">{formatDate(currentTime)}</span>
+            </div>
+          </div>
+        </button>
+        <button
+          onClick={() => setShowTimeZoneModal(true)}
+          className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 hover:bg-primary/20 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0"
+          title="World Clock"
+        >
+          <Clock className="w-4 h-4 text-primary" />
+        </button>
 
         <DropdownMenu
           onOpenChange={(open) => {
