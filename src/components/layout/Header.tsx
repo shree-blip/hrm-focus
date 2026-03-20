@@ -172,205 +172,208 @@ export function Header({ isMobile }: HeaderProps = {}) {
   const totalUnread = unreadCount; // Remove pinnedAnnouncements.length
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-4 lg:px-6",
-        isMobile ? "h-14" : "h-16",
-      )}
-    >
-      <div className={cn("flex items-center gap-4 flex-1", isMobile ? "max-w-xs" : "max-w-xl")}>
-        {/* Mobile logo */}
-        <div className="md:hidden flex items-center gap-2 shrink-0">
-          <img src={focusLogo} alt="Focus" className="h-8 w-8 object-contain" />
-        </div>
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={isMobile ? "Search..." : "Search employees, tasks, documents..."}
-            className="pl-10 bg-secondary/50 border-transparent focus:border-primary focus:bg-card transition-all"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleSearch}
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => setShowTimeZoneModal(true)}
-          className="hidden md:flex items-center gap-3 h-12 px-4 rounded-2xl border border-primary/15 bg-gradient-to-br from-white via-white to-primary/5 shadow-[0_6px_20px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_28px_rgba(0,0,0,0.10)] hover:border-primary/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0 group"
-          title="View world clocks"
-        >
-          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <Clock className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+    <>
+      <header
+        className={cn(
+          "sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-4 lg:px-6",
+          isMobile ? "h-14" : "h-16",
+        )}
+      >
+        <div className={cn("flex items-center gap-4 flex-1", isMobile ? "max-w-xs" : "max-w-xl")}>
+          {/* Mobile logo */}
+          <div className="md:hidden flex items-center gap-2 shrink-0">
+            <img src={focusLogo} alt="Focus" className="h-8 w-8 object-contain" />
           </div>
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={isMobile ? "Search..." : "Search employees, tasks, documents..."}
+              className="pl-10 bg-secondary/50 border-transparent focus:border-primary focus:bg-card transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearch}
+            />
+          </div>
+        </div>
 
-          <div className="flex flex-col items-start justify-center leading-none min-w-[110px]">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-slate-900 tabular-nums tracking-tight">
-                {formatNepalTime(currentTime)}
-              </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/15 uppercase tracking-wide">
-                NPT
-              </span>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowTimeZoneModal(true)}
+            className="hidden md:flex items-center gap-3 h-12 px-4 rounded-2xl border border-primary/15 bg-gradient-to-br from-white via-white to-primary/5 shadow-[0_6px_20px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_28px_rgba(0,0,0,0.10)] hover:border-primary/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0 group"
+            title="View world clocks"
+          >
+            <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <Clock className="w-4 h-4" />
+              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
             </div>
 
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-[11px] text-slate-500 font-medium">{formatDate(currentTime)}</span>
-            </div>
-          </div>
-        </button>
-        <button
-          onClick={() => setShowTimeZoneModal(true)}
-          className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 hover:bg-primary/20 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0"
-          title="World Clock"
-        >
-          <Clock className="w-4 h-4 text-primary" />
-        </button>
-
-        <DropdownMenu
-          onOpenChange={(open) => {
-            if (open && unreadCount > 0) {
-              notifications.forEach((notification) => {
-                if (!notification.is_read) {
-                  markAsRead(notification.id);
-                }
-              });
-            }
-          }}
-        >
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              {totalUnread > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
-                  <Badge className="relative h-5 min-w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
-                    {totalUnread > 9 ? "9+" : totalUnread}
-                  </Badge>
+            <div className="flex flex-col items-start justify-center leading-none min-w-[110px]">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-900 tabular-nums tracking-tight">
+                  {formatNepalTime(currentTime)}
                 </span>
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
-            <DropdownMenuLabel className="font-display flex items-center justify-between">
-              <span>Notifications</span>
-              {unreadCount > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  {unreadCount} unread
-                </Badge>
-              )}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/15 uppercase tracking-wide">
+                  NPT
+                </span>
+              </div>
 
-            {/* Pinned Announcements */}
-            {pinnedAnnouncements.length > 0 && (
-              <>
-                {pinnedAnnouncements.map((announcement) => (
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-[11px] text-slate-500 font-medium">{formatDate(currentTime)}</span>
+              </div>
+            </div>
+          </button>
+          <button
+            onClick={() => setShowTimeZoneModal(true)}
+            className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 hover:bg-primary/20 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0"
+            title="World Clock"
+          >
+            <Clock className="w-4 h-4 text-primary" />
+          </button>
+
+          <DropdownMenu
+            onOpenChange={(open) => {
+              if (open && unreadCount > 0) {
+                notifications.forEach((notification) => {
+                  if (!notification.is_read) {
+                    markAsRead(notification.id);
+                  }
+                });
+              }
+            }}
+          >
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5" />
+                {totalUnread > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
+                    <Badge className="relative h-5 min-w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
+                      {totalUnread > 9 ? "9+" : totalUnread}
+                    </Badge>
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+              <DropdownMenuLabel className="font-display flex items-center justify-between">
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {unreadCount} unread
+                  </Badge>
+                )}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              {/* Pinned Announcements */}
+              {pinnedAnnouncements.length > 0 && (
+                <>
+                  {pinnedAnnouncements.map((announcement) => (
+                    <DropdownMenuItem
+                      key={`announcement-${announcement.id}`}
+                      className="flex flex-col items-start gap-1 py-3 cursor-pointer bg-warning/5"
+                      onClick={() => navigate("/notifications")}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <Megaphone className="h-4 w-4 text-warning shrink-0" />
+                        <span className="font-medium text-sm truncate">{announcement.title}</span>
+                        <Badge variant="outline" className="text-xs border-warning text-warning ml-auto shrink-0">
+                          Pinned
+                        </Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground line-clamp-2 pl-6">{announcement.content}</span>
+                      <div className="flex items-center justify-between pl-6 w-full">
+                        <span className="text-xs text-muted-foreground">
+                          By {announcement.publisher_name || "System"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatNotificationTime(announcement.created_at)}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                </>
+              )}
+
+              {/* Recent Notifications */}
+              {recentNotifications.length > 0 ? (
+                recentNotifications.map((notification) => (
                   <DropdownMenuItem
-                    key={`announcement-${announcement.id}`}
-                    className="flex flex-col items-start gap-1 py-3 cursor-pointer bg-warning/5"
-                    onClick={() => navigate("/notifications")}
+                    key={notification.id}
+                    className={cn(
+                      "flex flex-col items-start gap-1 py-3 cursor-pointer",
+                      !notification.is_read && "bg-primary/5",
+                    )}
+                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex items-center gap-2 w-full">
-                      <Megaphone className="h-4 w-4 text-warning shrink-0" />
-                      <span className="font-medium text-sm truncate">{announcement.title}</span>
-                      <Badge variant="outline" className="text-xs border-warning text-warning ml-auto shrink-0">
-                        Pinned
-                      </Badge>
+                      <span className="font-medium text-sm">{notification.title}</span>
+                      {!notification.is_read && <div className="h-2 w-2 rounded-full bg-primary ml-auto" />}
                     </div>
-                    <span className="text-xs text-muted-foreground line-clamp-2 pl-6">{announcement.content}</span>
-                    <div className="flex items-center justify-between pl-6 w-full">
-                      <span className="text-xs text-muted-foreground">
-                        By {announcement.publisher_name || "System"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatNotificationTime(announcement.created_at)}
-                      </span>
-                    </div>
+                    <span className="text-xs text-muted-foreground line-clamp-2">{notification.message}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatNotificationTime(notification.created_at)}
+                    </span>
                   </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-              </>
-            )}
+                ))
+              ) : (
+                <div className="py-6 text-center text-muted-foreground text-sm">No new notifications</div>
+              )}
 
-            {/* Recent Notifications */}
-            {recentNotifications.length > 0 ? (
-              recentNotifications.map((notification) => (
-                <DropdownMenuItem
-                  key={notification.id}
-                  className={cn(
-                    "flex flex-col items-start gap-1 py-3 cursor-pointer",
-                    !notification.is_read && "bg-primary/5",
-                  )}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    <span className="font-medium text-sm">{notification.title}</span>
-                    {!notification.is_read && <div className="h-2 w-2 rounded-full bg-primary ml-auto" />}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-center text-primary cursor-pointer justify-center"
+                onClick={() => navigate("/notifications")}
+              >
+                View all notifications
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-3 pl-2 pr-3 max-w-[260px] w-auto">
+                <Avatar className="h-8 w-8 overflow-hidden rounded-full">
+                  <AvatarImage src={avatarUrl || ""} className="h-full w-full object-cover" />
+                  <AvatarFallback className="bg-primary text-primary-foreground font-medium">
+                    {getInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden md:flex flex-col items-start text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{getDisplayName()}</span>
+                    <Badge className={cn("text-xs", getRoleBadgeColor())}>{getRoleLabel()}</Badge>
                   </div>
-                  <span className="text-xs text-muted-foreground line-clamp-2">{notification.message}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatNotificationTime(notification.created_at)}
-                  </span>
-                </DropdownMenuItem>
-              ))
-            ) : (
-              <div className="py-6 text-center text-muted-foreground text-sm">No new notifications</div>
-            )}
-
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-center text-primary cursor-pointer justify-center"
-              onClick={() => navigate("/notifications")}
-            >
-              View all notifications
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-3 pl-2 pr-3 max-w-[260px] w-auto">
-              <Avatar className="h-8 w-8 overflow-hidden rounded-full">
-                <AvatarImage src={avatarUrl || ""} className="h-full w-full object-cover" />
-                <AvatarFallback className="bg-primary text-primary-foreground font-medium">
-                  {getInitials()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="hidden md:flex flex-col items-start text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{getDisplayName()}</span>
-                  <Badge className={cn("text-xs", getRoleBadgeColor())}>{getRoleLabel()}</Badge>
+                  <span className="text-xs text-muted-foreground">{profile?.job_title || "Employee"}</span>
                 </div>
-                <span className="text-xs text-muted-foreground">{profile?.job_title || "Employee"}</span>
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="font-display">My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" onClick={handleProfileClick}>
-              <User className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            {/* <DropdownMenuItem className="cursor-pointer" onClick={handleTimesheetClick}>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-display">My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="cursor-pointer" onClick={handleProfileClick}>
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </DropdownMenuItem>
+              {/* <DropdownMenuItem className="cursor-pointer" onClick={handleTimesheetClick}>
               <FileText className="mr-2 h-4 w-4" />
               My Timesheet
             </DropdownMenuItem> */}
-            <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/settings")}>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive cursor-pointer" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </header>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/settings")}>
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive cursor-pointer" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+      {showTimeZoneModal && <TimeZoneModal onClose={() => setShowTimeZoneModal(false)} />}
+    </>
   );
 }
