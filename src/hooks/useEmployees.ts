@@ -91,6 +91,7 @@ export function useEmployees() {
             avatar_url: emp.profile_id ? profileToAvatarMap.get(emp.profile_id) || null : null,
           }));
           setEmployees(employeesWithUserId as Employee[]);
+          _employeesCache = employeesWithUserId as Employee[];
         }
       } else {
         // Regular employees use the directory view (no sensitive data)
