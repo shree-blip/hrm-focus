@@ -113,7 +113,7 @@ export const ClockWidget = memo(function ClockWidget() {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  // Only restart interval when the log identity or status category changes
+    // Only restart interval when the log identity or status category changes
   }, [typedCurrentLog?.id, clockStatus]);
 
   // ── Dialogs ──
@@ -137,18 +137,19 @@ export const ClockWidget = memo(function ClockWidget() {
     else await startPause();
   }, [clockStatus, startPause]);
 
-  const handleResumeWithLocation = useCallback(async (workMode: "wfo" | "wfh") => {
-    setShowResumeLocationDialog(false);
-    await endPause(workMode);
-  }, [endPause]);
+  const handleResumeWithLocation = useCallback(
+    async (workMode: "wfo" | "wfh") => {
+      setShowResumeLocationDialog(false);
+      await endPause(workMode);
+    },
+    [endPause],
+  );
 
   // ── Memoized computed values ──
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const todayHours = useMemo(() => {
-    const todayLogs = weeklyLogs.filter(
-      (log) => format(new Date(log.clock_in), "yyyy-MM-dd") === todayStr
-    );
+    const todayLogs = weeklyLogs.filter((log) => format(new Date(log.clock_in), "yyyy-MM-dd") === todayStr);
     return computeHours(todayLogs);
   }, [weeklyLogs, todayStr]);
 
@@ -269,7 +270,11 @@ export const ClockWidget = memo(function ClockWidget() {
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button onClick={() => clockIn(clockType, "wfo")} className="gap-2" size="lg" disabled={isBusy}>
-                    {actionInProgress === "clock_in" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                    {actionInProgress === "clock_in" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
                     Clock IN (WFO)
                   </Button>
                 </TooltipTrigger>
@@ -286,7 +291,11 @@ export const ClockWidget = memo(function ClockWidget() {
                     size="lg"
                     disabled={isBusy}
                   >
-                    {actionInProgress === "clock_in" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                    {actionInProgress === "clock_in" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
                     Clock IN (WFH)
                   </Button>
                 </TooltipTrigger>
@@ -297,38 +306,92 @@ export const ClockWidget = memo(function ClockWidget() {
             </div>
           ) : (
             <>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleBreak}
+                    variant="secondary"
+                    className={cn(
+                      "flex-1 gap-2",
+                      clockStatus === "break"
+                        ? "bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700"
+                        : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60",
+                    )}
+                    size="lg"
+                    disabled={clockStatus === "paused" || isBusy}
+                  >
+                    {actionInProgress === "start_break" || actionInProgress === "end_break" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Coffee className="h-4 w-4" />
+                    )}
+                    {clockStatus === "break" ? "Resume" : "Break"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  sideOffset={10}
+                  className="font-medium text-xs px-4 py-2.5 max-w-[220px] text-center bg-[#4FB0D6] text-black rounded-lg shadow-lg border-0"
+                >
+                  {clockStatus === "break" ? "End break and resume working" : "Taking a short break at your location"}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handlePause}
+                    variant="secondary"
+                    className={cn(
+                      "flex-1 gap-2",
+                      clockStatus === "paused"
+                        ? "bg-indigo-500 hover:bg-indigo-600 text-white dark:bg-indigo-600 dark:hover:bg-indigo-700"
+                        : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60",
+                    )}
+                    size="lg"
+                    disabled={clockStatus === "break" || isBusy}
+                  >
+                    {actionInProgress === "start_pause" || actionInProgress === "end_pause" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Pause className="h-4 w-4" />
+                    )}
+                    {clockStatus === "paused" ? "Resume" : "Pause"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  sideOffset={12}
+                  className="
+    max-w-[250px]
+    rounded-2xl
+    border border-white/20
+    bg-gradient-to-br from-[#67C9EC] via-[#4FB0D6] to-[#3E9FC3]
+    px-4 py-3
+    text-center
+    text-xs font-semibold leading-5 text-slate-900
+    shadow-[0_14px_40px_rgba(0,0,0,0.16)]
+    ring-1 ring-white/10
+    backdrop-blur-lg
+  "
+                >
+                  {clockStatus === "paused"
+                    ? "Click to resume work from a new location"
+                    : "You’re leaving your current location — continue later"}
+                </TooltipContent>
+              </Tooltip>
+
               <Button
-                onClick={handleBreak}
-                variant="secondary"
-                className={cn(
-                  "flex-1 gap-2",
-                  clockStatus === "break"
-                    ? "bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700"
-                    : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60",
-                )}
+                onClick={handleClockOutClick}
+                variant="destructive"
+                className="flex-1 gap-2"
                 size="lg"
-                disabled={clockStatus === "paused" || isBusy}
+                disabled={isBusy}
               >
-                {(actionInProgress === "start_break" || actionInProgress === "end_break") ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coffee className="h-4 w-4" />}
-                {clockStatus === "break" ? "Resume" : "Break"}
-              </Button>
-              <Button
-                onClick={handlePause}
-                variant="secondary"
-                className={cn(
-                  "flex-1 gap-2",
-                  clockStatus === "paused"
-                    ? "bg-indigo-500 hover:bg-indigo-600 text-white dark:bg-indigo-600 dark:hover:bg-indigo-700"
-                    : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60",
+                {actionInProgress === "clock_out" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Square className="h-4 w-4" />
                 )}
-                size="lg"
-                disabled={clockStatus === "break" || isBusy}
-              >
-                {(actionInProgress === "start_pause" || actionInProgress === "end_pause") ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />}
-                {clockStatus === "paused" ? "Resume" : "Pause"}
-              </Button>
-              <Button onClick={handleClockOutClick} variant="destructive" className="flex-1 gap-2" size="lg" disabled={isBusy}>
-                {actionInProgress === "clock_out" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
                 Clock Out
               </Button>
             </>
