@@ -30,11 +30,14 @@ export interface Task {
   comment_count?: number;
 }
 
+// Module-level cache so revisiting the page shows data instantly
+let _tasksCache: Task[] | null = null;
+
 export function useTasks() {
   const { user } = useAuth();
   const userId = user?.id;
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState<Task[]>(_tasksCache || []);
+  const [loading, setLoading] = useState(_tasksCache === null);
 
   const fetchTasks = useCallback(async () => {
     if (!userId) return;
