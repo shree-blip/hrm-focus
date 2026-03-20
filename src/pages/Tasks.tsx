@@ -26,6 +26,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 import { useTasks } from "@/hooks/useTasks";
