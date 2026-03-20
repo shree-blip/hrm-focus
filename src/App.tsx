@@ -10,7 +10,7 @@ import { TimeTrackerProvider } from "@/contexts/TimeTrackerContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
-import { ThemeProvider } from "./components/dashboard/Themecontext";
+import { ThemeProvider } from "./components/dashboard/ThemeContext";
 
 // ─────────────────────────────────────────────────────────
 // 1. EAGER IMPORTS — Core pages users hit on every session.
