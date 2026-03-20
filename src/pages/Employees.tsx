@@ -106,30 +106,17 @@ async function fetchCombinedTeam(employeeId: string): Promise<ClickedEmployeeTea
 async function detectManagersAmong(employeeIds: string[]): Promise<Set<string>> {
   if (employeeIds.length === 0) return new Set();
 
+  // Check all sources in parallel
+  const [junctionResult, lineResult, managerResult] = await Promise.all([
+    supabase.from("team_members").select("manager_employee_id").in("manager_employee_id", employeeIds),
+    supabase.from("employees").select("line_manager_id").in("line_manager_id", employeeIds),
+    supabase.from("employees").select("manager_id").in("manager_id", employeeIds),
+  ]);
+
   const ids = new Set<string>();
-
-  // Check junction table
-  const { data: junctionManagers } = await supabase
-    .from("team_members")
-    .select("manager_employee_id")
-    .in("manager_employee_id", employeeIds);
-  (junctionManagers || []).forEach((r: any) => {
-    if (r.manager_employee_id) ids.add(r.manager_employee_id);
-  });
-
-  // Check legacy columns
-  const { data: lineManaged } = await supabase
-    .from("employees")
-    .select("line_manager_id")
-    .in("line_manager_id", employeeIds);
-  (lineManaged || []).forEach((r: any) => {
-    if (r.line_manager_id) ids.add(r.line_manager_id);
-  });
-
-  const { data: managed } = await supabase.from("employees").select("manager_id").in("manager_id", employeeIds);
-  (managed || []).forEach((r: any) => {
-    if (r.manager_id) ids.add(r.manager_id);
-  });
+  (junctionResult.data || []).forEach((r: any) => { if (r.manager_employee_id) ids.add(r.manager_employee_id); });
+  (lineResult.data || []).forEach((r: any) => { if (r.line_manager_id) ids.add(r.line_manager_id); });
+  (managerResult.data || []).forEach((r: any) => { if (r.manager_id) ids.add(r.manager_id); });
 
   return ids;
 }
