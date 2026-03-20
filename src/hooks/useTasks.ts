@@ -43,28 +43,25 @@ export function useTasks() {
     if (!userId) return;
 
     try {
-      // Fetch tasks
-      const { data: tasksData, error: tasksError } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("created_at", { ascending: false });
+      // Fetch all data in parallel for faster loading
+      const [tasksResult, assigneesResult, profilesResult, commentsResult] = await Promise.all([
+        supabase.from("tasks").select("*").order("created_at", { ascending: false }),
+        supabase.from("task_assignees").select("*"),
+        supabase.from("profiles").select("user_id, first_name, last_name"),
+        supabase.from("task_comments").select("task_id"),
+      ]);
 
-      if (tasksError) {
-        console.error("Error fetching tasks:", tasksError);
+      if (tasksResult.error) {
+        console.error("Error fetching tasks:", tasksResult.error);
         setLoading(false);
         return;
       }
 
-      // Fetch task assignees
-      const { data: assigneesData } = await supabase.from("task_assignees").select("*");
+      const tasksData = tasksResult.data;
+      const assigneesData = assigneesResult.data;
+      const profilesData = profilesResult.data;
+      const commentsData = commentsResult.data;
 
-      // Fetch profiles for names
-      const { data: profilesData } = await supabase.from("profiles").select("user_id, first_name, last_name");
-
-      // Fetch comment counts per task
-      const { data: commentsData } = await supabase
-        .from("task_comments")
-        .select("task_id");
       const commentCountMap = new Map<string, number>();
       (commentsData || []).forEach((c: { task_id: string }) => {
         commentCountMap.set(c.task_id, (commentCountMap.get(c.task_id) || 0) + 1);
