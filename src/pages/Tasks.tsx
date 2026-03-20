@@ -250,7 +250,13 @@ const Tasks = () => {
               </div>
 
               <div className="space-y-3 min-h-[400px]">
-                {columnTasks.map((task, index) => (
+                {loading ? (
+                  <>
+                    <TaskSkeleton />
+                    <TaskSkeleton />
+                    {column.id === "todo" && <TaskSkeleton />}
+                  </>
+                ) : columnTasks.map((task, index) => (
                   <Card
                     key={task.id}
                     className="group cursor-pointer hover:shadow-md hover:border-primary/20 transition-all animate-scale-in relative"
