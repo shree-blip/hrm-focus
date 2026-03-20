@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "").trim();
     const { data: claimsData, error: claimsError } = await supabaseAnon.auth.getClaims(token);
-    const userId = claimsData?.claims?.sub;
+    const userId = claimsData?.claims?.sub as string | undefined;
+    const userEmail = claimsData?.claims?.email as string | undefined;
 
     if (claimsError || !userId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -57,7 +58,7 @@ Deno.serve(async (req) => {
       const driftMs = Math.abs(serverNow.getTime() - clientTime.getTime());
       if (driftMs > 60_000) {
         console.warn(
-          `[TIMEZONE CONFLICT] user=${user.id} drift=${Math.round(driftMs / 1000)}s ` +
+          `[TIMEZONE CONFLICT] user=${userId} drift=${Math.round(driftMs / 1000)}s ` +
           `client=${client_timestamp} server=${serverUtc} — using server time`
         );
       }
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
         await supabaseAdmin
           .from("profiles")
           .select("id")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .single()
       ).data?.id)
       .single();
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
       const { data: empByEmail } = await supabaseAdmin
         .from("employees")
         .select("id, timezone")
-        .eq("email", user.email)
+        .eq("email", userEmail)
         .single();
       if (empByEmail) {
         employeeTimezone = empByEmail.timezone || "Asia/Kathmandu";
@@ -117,7 +118,7 @@ Deno.serve(async (req) => {
         const { data, error } = await supabaseAdmin
           .from("attendance_logs")
           .insert({
-            user_id: user.id,
+            user_id: userId,
             employee_id: employeeId,
             clock_in: serverUtc,
             clock_type: clock_type || "payroll",
@@ -132,7 +133,7 @@ Deno.serve(async (req) => {
 
         // Create notification
         await supabaseAdmin.rpc("create_notification", {
-          p_user_id: user.id,
+          p_user_id: userId,
           p_title: "⏰ Clocked In",
           p_message: `You clocked in at ${localTimeStr} ${tzAbbr} (${clock_type || "payroll"} time).`,
           p_type: "attendance",
@@ -196,7 +197,7 @@ Deno.serve(async (req) => {
         const { data: activeLogs } = await supabaseAdmin
           .from("work_logs")
           .select("id, start_time, pause_start, total_pause_minutes, status")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .is("end_time", null)
           .in("status", ["in_progress", "on_hold", "pending", "break", "paused"]);
 
@@ -235,7 +236,7 @@ Deno.serve(async (req) => {
         }
 
         await supabaseAdmin.rpc("create_notification", {
-          p_user_id: user.id,
+          p_user_id: userId,
           p_title: "⏰ Clocked Out",
           p_message: `You clocked out at ${localTimeStr} ${tzAbbr}. Your time has been recorded.`,
           p_type: "attendance",
@@ -273,7 +274,7 @@ Deno.serve(async (req) => {
         const { data: activeWorkLog } = await supabaseAdmin
           .from("work_logs")
           .select("id")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .eq("status", "in_progress")
           .is("end_time", null)
           .order("created_at", { ascending: false })
@@ -288,7 +289,7 @@ Deno.serve(async (req) => {
         }
 
         await supabaseAdmin.rpc("create_notification", {
-          p_user_id: user.id,
+          p_user_id: userId,
           p_title: "☕ Break Started",
           p_message: `You started a break at ${localTimeStr} ${tzAbbr}.`,
           p_type: "attendance",
@@ -331,7 +332,7 @@ Deno.serve(async (req) => {
         const { data: pausedLog } = await supabaseAdmin
           .from("work_logs")
           .select("id, pause_start, total_pause_minutes")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .eq("status", "on_hold")
           .is("end_time", null)
           .order("created_at", { ascending: false })
@@ -350,7 +351,7 @@ Deno.serve(async (req) => {
         }
 
         await supabaseAdmin.rpc("create_notification", {
-          p_user_id: user.id,
+          p_user_id: userId,
           p_title: "💼 Break Ended",
           p_message: `You resumed work after a ${breakMinutes} minute break.`,
           p_type: "attendance",
@@ -382,7 +383,7 @@ Deno.serve(async (req) => {
         const { data: activeWorkLog } = await supabaseAdmin
           .from("work_logs")
           .select("id")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .eq("status", "in_progress")
           .is("end_time", null)
           .order("created_at", { ascending: false })
@@ -397,7 +398,7 @@ Deno.serve(async (req) => {
         }
 
         await supabaseAdmin.rpc("create_notification", {
-          p_user_id: user.id,
+          p_user_id: userId,
           p_title: "⏸️ Clock Paused",
           p_message: `You paused your clock at ${localTimeStr} ${tzAbbr}.`,
           p_type: "attendance",
@@ -443,7 +444,7 @@ Deno.serve(async (req) => {
         const { data: pausedLog } = await supabaseAdmin
           .from("work_logs")
           .select("id, pause_start, total_pause_minutes")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .eq("status", "on_hold")
           .is("end_time", null)
           .order("created_at", { ascending: false })
@@ -462,7 +463,7 @@ Deno.serve(async (req) => {
         }
 
         await supabaseAdmin.rpc("create_notification", {
-          p_user_id: user.id,
+          p_user_id: userId,
           p_title: "▶️ Clock Resumed",
           p_message: `You resumed work after a ${pauseMinutes} minute pause.${new_work_mode === "wfh" ? " Now working from home." : new_work_mode === "wfo" ? " Now working from office." : ""}`,
           p_type: "attendance",
