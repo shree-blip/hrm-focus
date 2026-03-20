@@ -21,7 +21,7 @@ import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import focusLogo from "@/assets/focus-logo.png";
-
+import { TimeZoneModal } from "@/components/dashboard/GlobalTimeZoneWidget";
 interface HeaderProps {
   isMobile?: boolean;
 }
