@@ -380,20 +380,42 @@ export const ClockWidget = memo(function ClockWidget() {
                 </TooltipContent>
               </Tooltip>
 
-              <Button
-                onClick={handleClockOutClick}
-                variant="destructive"
-                className="flex-1 gap-2"
-                size="lg"
-                disabled={isBusy}
-              >
-                {actionInProgress === "clock_out" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Square className="h-4 w-4" />
-                )}
-                Clock Out
-              </Button>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleClockOutClick}
+                    variant="destructive"
+                    className="flex-1 gap-2"
+                    size="lg"
+                    disabled={isBusy}
+                  >
+                    {actionInProgress === "clock_out" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                    Clock Out
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  sideOffset={12}
+                  className="
+    max-w-[250px]
+    rounded-2xl
+    border border-white/20
+    bg-gradient-to-br from-[#67C9EC] via-[#4FB0D6] to-[#3E9FC3]
+    px-4 py-3
+    text-center
+    text-xs font-semibold leading-5 text-slate-900
+    shadow-[0_14px_40px_rgba(0,0,0,0.16)]
+    ring-1 ring-white/10
+    backdrop-blur-lg
+  "
+                >
+                  End your shift for the day
+                </TooltipContent>
+              </Tooltip>
             </>
           )}
         </div>
