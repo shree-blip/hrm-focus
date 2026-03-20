@@ -29,6 +29,7 @@ interface HeaderProps {
 export function Header({ isMobile }: HeaderProps = {}) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
+  const [showTimeZoneModal, setShowTimeZoneModal] = useState(false);
   const navigate = useNavigate();
   const { signOut, profile, role } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
