@@ -133,6 +133,7 @@ export function useEmployees() {
             avatar_url: emp.profile_id ? profileToAvatarMap.get(emp.profile_id) || null : null,
           }));
           setEmployees(mapped);
+          _employeesCache = mapped;
         }
       }
       setLoading(false);

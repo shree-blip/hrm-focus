@@ -123,6 +123,7 @@ export function useTasks() {
       });
 
       setTasks(filteredTasks);
+      _tasksCache = filteredTasks;
     } catch (error) {
       console.error("Unexpected error in fetchTasks:", error);
     } finally {
