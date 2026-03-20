@@ -10,6 +10,7 @@ import { TimeTrackerProvider } from "@/contexts/TimeTrackerContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 // ─────────────────────────────────────────────────────────
 // 1. EAGER IMPORTS — Core pages users hit on every session.
@@ -147,250 +148,252 @@ const PageLoader = () => (
 // ─────────────────────────────────────────────────────────
 const App = () => (
   <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <TimeTrackerProvider>
-            <ActivityAlertsProvider />
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                {/* ── Public (eager) ── */}
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/login" element={<Auth />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <TimeTrackerProvider>
+                <ActivityAlertsProvider />
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    {/* ── Public (eager) ── */}
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/login" element={<Auth />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
 
-                {/* ── Core protected (eager — no loading spinner) ── */}
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <Index />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <Settings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/notifications"
-                  element={
-                    <ProtectedRoute>
-                      <Notifications />
-                    </ProtectedRoute>
-                  }
-                />
+                    {/* ── Core protected (eager — no loading spinner) ── */}
+                    <Route
+                      path="/"
+                      element={
+                        <ProtectedRoute>
+                          <Index />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute>
+                          <Profile />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <ProtectedRoute>
+                          <Settings />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/notifications"
+                      element={
+                        <ProtectedRoute>
+                          <Notifications />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                {/* ── Lazy protected routes ── */}
-                <Route
-                  path="/employees"
-                  element={
-                    <ProtectedRoute
-                      requiredPermission={["manage_employees", "view_employees_all", "view_employees_reports_only"]}
-                    >
-                      <Employees />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/attendance"
-                  element={
-                    <ProtectedRoute
-                      requiredPermission={[
-                        "view_attendance_all",
-                        "view_attendance_reports_only",
-                        "view_own_attendance",
-                      ]}
-                    >
-                      <Attendance />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/leave"
-                  element={
-                    <ProtectedRoute requiredPermission={["view_leave", "approve_leave"]}>
-                      <Leave />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/approvals"
-                  element={
-                    <ProtectedRoute requiredPermission="approve_leave">
-                      <Approvals />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/tasks"
-                  element={
-                    <ProtectedRoute requiredPermission={["manage_tasks", "view_tasks"]}>
-                      <Tasks />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/payroll"
-                  element={
-                    <ProtectedRoute requiredPermission={["manage_payroll", "view_payroll", "view_payslips"]}>
-                      <Payroll />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/my-payslips"
-                  element={
-                    <ProtectedRoute requiredPermission="view_payslips">
-                      <MyPayslips />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/performance"
-                  element={
-                    <ProtectedRoute requiredPermission="view_performance">
-                      <Performance />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/documents"
-                  element={
-                    <ProtectedRoute requiredPermission={["manage_documents", "view_documents"]}>
-                      <Documents />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/onboarding"
-                  element={
-                    <ProtectedRoute requiredPermission="manage_onboarding">
-                      <Onboarding />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/my-onboarding"
-                  element={
-                    <ProtectedRoute requiredPermission="view_onboarding">
-                      <MyOnboarding />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/my-offboarding"
-                  element={
-                    <ProtectedRoute requiredPermission="view_onboarding">
-                      <MyOffboarding />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/reports"
-                  element={
-                    <ProtectedRoute requiredPermission="view_reports">
-                      <Reports />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/announcements"
-                  element={
-                    <ProtectedRoute
-                      requiredPermission={[
-                        "add_announcement",
-                        "edit_announcement",
-                        "delete_announcement",
-                        "view_announcements",
-                      ]}
-                    >
-                      <Announcements />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/access-control"
-                  element={
-                    <ProtectedRoute requiredPermission="manage_access">
-                      <AccessControl />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/log-sheet"
-                  element={
-                    <ProtectedRoute requiredPermission="view_log_sheet">
-                      <LogSheet />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/support"
-                  element={
-                    <ProtectedRoute
-                      requiredPermission={[
-                        "manage_support",
-                        "view_support",
-                        "view_bug_reports",
-                        "view_grievances",
-                        "view_asset_requests",
-                      ]}
-                    >
-                      <Support />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/loans"
-                  element={
-                    <ProtectedRoute requiredPermission={["manage_loans", "view_loans"]}>
-                      <Loans />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/invoices"
-                  element={
-                    <ProtectedRoute requiredPermission={["view_invoices", "manage_invoices"]}>
-                      <Invoices />
-                    </ProtectedRoute>
-                  }
-                />
+                    {/* ── Lazy protected routes ── */}
+                    <Route
+                      path="/employees"
+                      element={
+                        <ProtectedRoute
+                          requiredPermission={["manage_employees", "view_employees_all", "view_employees_reports_only"]}
+                        >
+                          <Employees />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/attendance"
+                      element={
+                        <ProtectedRoute
+                          requiredPermission={[
+                            "view_attendance_all",
+                            "view_attendance_reports_only",
+                            "view_own_attendance",
+                          ]}
+                        >
+                          <Attendance />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/leave"
+                      element={
+                        <ProtectedRoute requiredPermission={["view_leave", "approve_leave"]}>
+                          <Leave />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/approvals"
+                      element={
+                        <ProtectedRoute requiredPermission="approve_leave">
+                          <Approvals />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/tasks"
+                      element={
+                        <ProtectedRoute requiredPermission={["manage_tasks", "view_tasks"]}>
+                          <Tasks />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/payroll"
+                      element={
+                        <ProtectedRoute requiredPermission={["manage_payroll", "view_payroll", "view_payslips"]}>
+                          <Payroll />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/my-payslips"
+                      element={
+                        <ProtectedRoute requiredPermission="view_payslips">
+                          <MyPayslips />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/performance"
+                      element={
+                        <ProtectedRoute requiredPermission="view_performance">
+                          <Performance />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/documents"
+                      element={
+                        <ProtectedRoute requiredPermission={["manage_documents", "view_documents"]}>
+                          <Documents />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/onboarding"
+                      element={
+                        <ProtectedRoute requiredPermission="manage_onboarding">
+                          <Onboarding />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/my-onboarding"
+                      element={
+                        <ProtectedRoute requiredPermission="view_onboarding">
+                          <MyOnboarding />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/my-offboarding"
+                      element={
+                        <ProtectedRoute requiredPermission="view_onboarding">
+                          <MyOffboarding />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/reports"
+                      element={
+                        <ProtectedRoute requiredPermission="view_reports">
+                          <Reports />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/announcements"
+                      element={
+                        <ProtectedRoute
+                          requiredPermission={[
+                            "add_announcement",
+                            "edit_announcement",
+                            "delete_announcement",
+                            "view_announcements",
+                          ]}
+                        >
+                          <Announcements />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/access-control"
+                      element={
+                        <ProtectedRoute requiredPermission="manage_access">
+                          <AccessControl />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/log-sheet"
+                      element={
+                        <ProtectedRoute requiredPermission="view_log_sheet">
+                          <LogSheet />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/support"
+                      element={
+                        <ProtectedRoute
+                          requiredPermission={[
+                            "manage_support",
+                            "view_support",
+                            "view_bug_reports",
+                            "view_grievances",
+                            "view_asset_requests",
+                          ]}
+                        >
+                          <Support />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/loans"
+                      element={
+                        <ProtectedRoute requiredPermission={["manage_loans", "view_loans"]}>
+                          <Loans />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/invoices"
+                      element={
+                        <ProtectedRoute requiredPermission={["view_invoices", "manage_invoices"]}>
+                          <Invoices />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="/timezone-management"
-                  element={
-                    <ProtectedRoute requiredPermission="manage_access">
-                      <TimezoneManagement />
-                    </ProtectedRoute>
-                  }
-                />
+                    <Route
+                      path="/timezone-management"
+                      element={
+                        <ProtectedRoute requiredPermission="manage_access">
+                          <TimezoneManagement />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                {/* ── Catch-all ── */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-            </TimeTrackerProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+                    {/* ── Catch-all ── */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </TimeTrackerProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   </ErrorBoundary>
 );
 
