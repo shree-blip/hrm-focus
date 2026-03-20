@@ -282,34 +282,81 @@ const US_TIMEZONE_PRESETS: TZInfo[] = Object.keys(US_ZONE_LABELS).map((iana) => 
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────
+
+// STEP 1: New helper — extracts year/month/day/hour/minute/second as
+// plain numbers via Intl, so we never parse a locale string back into Date.
+function getPartsInZone(iana: string, refDate: Date) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: iana,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(refDate);
+  const get = (type: string) => {
+    const p = parts.find((x) => x.type === type);
+    return p ? parseInt(p.value, 10) : 0;
+  };
+  return {
+    year: get("year"),
+    month: get("month"), // 1-based
+    day: get("day"),
+    hour: get("hour") === 24 ? 0 : get("hour"), // midnight edge case
+    minute: get("minute"),
+    second: get("second"),
+  };
+}
+
 function getTimeInZone(iana: string, refDate: Date): Date {
-  const str = refDate.toLocaleString("en-US", { timeZone: iana });
-  return new Date(str);
+  // STEP 2: Build Date from numeric parts instead of parsing locale string
+  try {
+    const p = getPartsInZone(iana, refDate);
+    return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  } catch {
+    return new Date(NaN);
+  }
 }
 
 function formatTime(date: Date, use24h = false): string {
+  // STEP 5: Guard against Invalid Date
+  if (!date || isNaN(date.getTime())) return "--:--";
   if (use24h) return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 function formatDate(date: Date): string {
+  if (!date || isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatDateShort(date: Date): string {
+  if (!date || isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
 function getOffsetHours(iana: string, refDate: Date): number {
-  const utcStr = refDate.toLocaleString("en-US", { timeZone: "UTC" });
-  const tzStr = refDate.toLocaleString("en-US", { timeZone: iana });
-  return (new Date(tzStr).getTime() - new Date(utcStr).getTime()) / (1000 * 60 * 60);
+  // STEP 3: Compare numeric parts in UTC vs target zone
+  const utc = getPartsInZone("UTC", refDate);
+  const tz = getPartsInZone(iana, refDate);
+  const utcMins = Date.UTC(utc.year, utc.month - 1, utc.day, utc.hour, utc.minute, utc.second) / 60000;
+  const tzMins = Date.UTC(tz.year, tz.month - 1, tz.day, tz.hour, tz.minute, tz.second) / 60000;
+  return (tzMins - utcMins) / 60;
 }
 
 function getOffsetLabel(iana: string, refDate: Date): string {
+  // STEP 4: Format fractional offsets as GMT+5:45 instead of GMT+5.75
   const h = getOffsetHours(iana, refDate);
-  const sign = h >= 0 ? "+" : "";
-  return h % 1 === 0 ? `GMT${sign}${h.toFixed(0)}` : `GMT${sign}${h.toFixed(2).replace(/0$/, "")}`;
+  if (isNaN(h)) return "GMT";
+  const sign = h >= 0 ? "+" : "-";
+  const absH = Math.abs(h);
+  const hours = Math.floor(absH);
+  const mins = Math.round((absH - hours) * 60);
+  if (mins === 0) return `GMT${sign}${hours}`;
+  return `GMT${sign}${hours}:${String(mins).padStart(2, "0")}`;
 }
 
 function getTimeOfDayIcon(hour: number) {
@@ -375,19 +422,24 @@ export function GlobalTimeZoneWidget() {
 export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   const localTz = useMemo(() => detectLocalTimezone(), []);
 
-  const [refDate, setRefDate] = useState(new Date());
-  const [isLive, setIsLive] = useState(true);
+  // Store a millisecond offset from real "now" — when user changes time,
+  // we adjust this offset so the clock keeps ticking from the new point.
+  const [offsetMs, setOffsetMs] = useState(0);
+  const [now, setNow] = useState(new Date());
+
+  // Always tick — the displayed time = real now + offsetMs
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // refDate is always "now + user's offset" — it keeps ticking
+  const refDate = new Date(now.getTime() + offsetMs);
+
   const [selectedZones, setSelectedZones] = useState<TZInfo[]>([]);
   const [search, setSearch] = useState("");
   const [use24h, setUse24h] = useState(false);
   const [refZone, setRefZone] = useState<string>(localTz.iana);
-
-  // Live tick
-  useEffect(() => {
-    if (!isLive) return;
-    const id = setInterval(() => setRefDate(new Date()), 1000);
-    return () => clearInterval(id);
-  }, [isLive]);
 
   // ESC to close
   useEffect(() => {
@@ -431,10 +483,10 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
     return QUICK_ADD_DB.filter((tz) => tz.iana !== localTz.iana && !selectedZones.some((s) => s.iana === tz.iana));
   }, [localTz, selectedZones]);
 
-  // Time/date derived from the selected reference zone
-  const refZoneTime = getTimeInZone(refZone, refDate);
-  const refTimeStr = `${String(refZoneTime.getHours()).padStart(2, "0")}:${String(refZoneTime.getMinutes()).padStart(2, "0")}`;
-  const refDateStr = `${refZoneTime.getFullYear()}-${String(refZoneTime.getMonth() + 1).padStart(2, "0")}-${String(refZoneTime.getDate()).padStart(2, "0")}`;
+  // STEP 6: Derive input values from getPartsInZone (never touches Invalid Date)
+  const refParts = getPartsInZone(refZone, refDate);
+  const refTimeStr = `${String(refParts.hour).padStart(2, "0")}:${String(refParts.minute).padStart(2, "0")}`;
+  const refDateStr = `${refParts.year}-${String(refParts.month).padStart(2, "0")}-${String(refParts.day).padStart(2, "0")}`;
 
   // Local time for display
   const localTime = getTimeInZone(localTz.iana, refDate);
@@ -450,27 +502,32 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   }, [refZone, localTz]);
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setIsLive(false);
-    const [h, m] = e.target.value.split(":").map(Number);
-    const current = getTimeInZone(refZone, refDate);
-    current.setHours(h, m, 0, 0);
-    const offset = current.getTime() - getTimeInZone(refZone, refDate).getTime();
-    setRefDate(new Date(refDate.getTime() + offset));
+    const val = e.target.value;
+    if (!val || !val.includes(":")) return;
+    const [h, m] = val.split(":").map(Number);
+    if (isNaN(h) || isNaN(m)) return;
+    const currentParts = getPartsInZone(refZone, refDate);
+    const currentMins = currentParts.hour * 60 + currentParts.minute;
+    const desiredMins = h * 60 + m;
+    const diffMs = (desiredMins - currentMins) * 60 * 1000;
+    setOffsetMs((prev) => prev + diffMs);
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setIsLive(false);
-    const parts = e.target.value.split("-").map(Number);
-    if (parts.length !== 3) return;
-    const current = getTimeInZone(refZone, refDate);
-    current.setFullYear(parts[0], parts[1] - 1, parts[2]);
-    const offset = current.getTime() - getTimeInZone(refZone, refDate).getTime();
-    setRefDate(new Date(refDate.getTime() + offset));
+    const val = e.target.value;
+    if (!val) return;
+    const parts = val.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return;
+    const [yr, mo, dy] = parts;
+    const currentParts = getPartsInZone(refZone, refDate);
+    const currentUtc = Date.UTC(currentParts.year, currentParts.month - 1, currentParts.day);
+    const desiredUtc = Date.UTC(yr, mo - 1, dy);
+    const diffMs = desiredUtc - currentUtc;
+    setOffsetMs((prev) => prev + diffMs);
   };
 
   const resetToNow = () => {
-    setRefDate(new Date());
-    setIsLive(true);
+    setOffsetMs(0);
     setRefZone(localTz.iana);
   };
 
@@ -521,7 +578,7 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
             <div className="rounded-xl border border-border p-5 bg-muted/30">
               <div className="flex items-center gap-2 mb-4">
                 <h3 className="font-semibold text-foreground text-sm">Your Local Time</h3>
-                {isLive && <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />}
+                {offsetMs === 0 && <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />}
               </div>
 
               {/* City + offset */}
@@ -550,7 +607,6 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
                       value={refZone}
                       onChange={(e) => {
                         setRefZone(e.target.value);
-                        setIsLive(false);
                       }}
                       className="w-full pl-10 pr-3 py-2.5 rounded-xl border-2 border-border bg-background text-foreground text-sm font-medium shadow-sm hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all appearance-none cursor-pointer"
                     >
@@ -599,7 +655,7 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
                       />
                     </div>
                   </div>
-                  {!isLive && (
+                  {offsetMs !== 0 && (
                     <button
                       onClick={resetToNow}
                       className="px-3 py-2.5 text-xs font-medium text-primary bg-primary/5 border-2 border-primary/20 rounded-xl hover:bg-primary/10 hover:border-primary/40 transition-all"
