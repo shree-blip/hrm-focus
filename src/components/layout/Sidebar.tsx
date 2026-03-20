@@ -135,6 +135,7 @@ export const Sidebar = memo(function Sidebar({
   const { isManager, isVP } = useAuth();
   const { hasPermission } = usePermissions();
   const { getBadgeCount, clearBadge } = useSidebarBadges();
+  const { theme, toggleTheme } = useTheme();
 
   const isItemVisible = (item: MenuItem): boolean => {
     // Hide if user has a higher-level permission that supersedes this entry
@@ -292,6 +293,34 @@ export const Sidebar = memo(function Sidebar({
             </>
           )}
         </Button>
+        {/* Theme Toggle */}
+        {collapsed ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleTheme}
+                className="w-full justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+              >
+                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="font-medium">
+              {theme === "dark" ? "Light Mode" : "Dark Mode"}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleTheme}
+            className="w-full justify-start px-3 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            {theme === "dark" ? <Sun className="h-5 w-5 mr-2" /> : <Moon className="h-5 w-5 mr-2" />}
+            <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
+          </Button>
+        )}
       </div>
     </aside>
   );
