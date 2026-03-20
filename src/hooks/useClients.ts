@@ -36,6 +36,7 @@ export function useClients() {
 
       if (error) throw error;
       setClients((data as Client[]) || []);
+      _clientsCache = (data as Client[]) || [];
     } catch (error: any) {
       console.error("Error fetching clients:", error);
       toast({
