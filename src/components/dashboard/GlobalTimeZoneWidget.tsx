@@ -436,7 +436,13 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   // refDate is always "now + user's offset" — it keeps ticking
   const refDate = new Date(now.getTime() + offsetMs);
 
-  const [selectedZones, setSelectedZones] = useState<TZInfo[]>([]);
+  const [selectedZones, setSelectedZones] = useState<TZInfo[]>(() => {
+    if (localTz.iana !== "Asia/Kathmandu") {
+      const nepal = FULL_TIMEZONE_DB.find((tz) => tz.iana === "Asia/Kathmandu");
+      return nepal ? [nepal] : [];
+    }
+    return [];
+  });
   const [search, setSearch] = useState("");
   const [use24h, setUse24h] = useState(false);
   const [refZone, setRefZone] = useState<string>(localTz.iana);
