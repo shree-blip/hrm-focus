@@ -158,12 +158,19 @@ export const Sidebar = memo(function Sidebar({
     [hasPermission, isManager],
   );
 
-  const handleNavClick = (href: string) => {
+  const handleNavClick = useCallback((href: string) => {
     clearBadge(href);
     if (onNavigate) {
       onNavigate();
     }
-  };
+  }, [clearBadge, onNavigate]);
+
+  /** Prefetch the route chunk on hover so navigation feels instant */
+  const handlePrefetch = useCallback((href: string) => {
+    // Convert href like "/log-sheet" → "log-sheet", "/" → skip
+    const key = href === "/" ? "" : href.replace(/^\//, "");
+    if (key) prefetchRoute(key);
+  }, []);
 
   return (
     <aside
