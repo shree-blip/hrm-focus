@@ -86,14 +86,16 @@ Deno.serve(async (req) => {
       employeeId = empData.id;
     } else {
       // Try fetching via email match
-      const { data: empByEmail } = await supabaseAdmin
-        .from("employees")
-        .select("id, timezone")
-        .eq("email", userEmail)
-        .single();
-      if (empByEmail) {
-        employeeTimezone = empByEmail.timezone || "Asia/Kathmandu";
-        employeeId = empByEmail.id;
+      if (userEmail) {
+        const { data: empByEmail } = await supabaseAdmin
+          .from("employees")
+          .select("id, timezone")
+          .eq("email", userEmail)
+          .single();
+        if (empByEmail) {
+          employeeTimezone = empByEmail.timezone || "Asia/Kathmandu";
+          employeeId = empByEmail.id;
+        }
       }
     }
 
