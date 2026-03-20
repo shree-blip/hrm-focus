@@ -351,6 +351,7 @@ export type Database = {
           location_lat: number | null
           location_lng: number | null
           location_name: string | null
+          name: string | null
           notes: string | null
           org_id: string | null
           pause_end: string | null
@@ -376,6 +377,7 @@ export type Database = {
           location_lat?: number | null
           location_lng?: number | null
           location_name?: string | null
+          name?: string | null
           notes?: string | null
           org_id?: string | null
           pause_end?: string | null
@@ -401,6 +403,7 @@ export type Database = {
           location_lat?: number | null
           location_lng?: number | null
           location_name?: string | null
+          name?: string | null
           notes?: string | null
           org_id?: string | null
           pause_end?: string | null
@@ -1503,6 +1506,7 @@ export type Database = {
       leave_balances: {
         Row: {
           created_at: string
+          employee_name: string | null
           id: string
           leave_type: string
           org_id: string | null
@@ -1514,6 +1518,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          employee_name?: string | null
           id?: string
           leave_type: string
           org_id?: string | null
@@ -1525,6 +1530,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          employee_name?: string | null
           id?: string
           leave_type?: string
           org_id?: string | null
@@ -4384,6 +4390,20 @@ export type Database = {
           },
         ]
       }
+      v_leave_dashboard: {
+        Row: {
+          first_name: string | null
+          full_name: string | null
+          id: string | null
+          last_name: string | null
+          remaining_days: number | null
+          total_days: number | null
+          used_days: number | null
+          user_id: string | null
+          year: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_group_member: {
@@ -4498,6 +4518,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_leave_used: {
+        Args: { p_days: number; p_user_id: string; p_year: number }
+        Returns: undefined
+      }
       increment_used_hours: {
         Args: { hours_to_add: number; record_id: string }
         Returns: undefined
@@ -4523,6 +4547,7 @@ export type Database = {
         Returns: boolean
       }
       mark_signup_used: { Args: { check_email: string }; Returns: boolean }
+      reset_annual_leave_for_new_period: { Args: never; Returns: undefined }
       sync_profile_with_employee: { Args: never; Returns: undefined }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }
