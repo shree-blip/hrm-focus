@@ -297,6 +297,13 @@ export type Database = {
             referencedRelation: "attendance_logs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "attendance_adjustment_requests_attendance_log_id_fkey"
+            columns: ["attendance_log_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_logs_with_names"
+            referencedColumns: ["id"]
+          },
         ]
       }
       attendance_edit_logs: {
@@ -4113,6 +4120,38 @@ export type Database = {
       }
     }
     Views: {
+      attendance_logs_with_names: {
+        Row: {
+          created_at: string | null
+          employee_id: string | null
+          employee_name: string | null
+          id: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_directory: {
         Row: {
           department: string | null
