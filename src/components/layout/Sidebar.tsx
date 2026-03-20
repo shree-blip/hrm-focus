@@ -23,6 +23,8 @@ import {
   Shield,
   Receipt,
   Globe,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -30,6 +32,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions, Permission } from "@/hooks/usePermissions";
 import { useSidebarBadges } from "@/hooks/useSidebarBadges";
 import focusLogo from "@/assets/focus-logo.png";
+import { useTheme } from "@/components/dashboard/ThemeContext";
 
 interface MenuItem {
   icon: typeof LayoutDashboard;
@@ -54,21 +57,54 @@ interface MenuItem {
 const ALL_MENU_ITEMS: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/", alwaysVisible: true },
   { icon: CheckSquare, label: "Approvals", href: "/approvals", permissions: ["approve_leave"] },
-  { icon: Users, label: "Team", href: "/employees", permissions: ["manage_employees", "view_employees_all", "view_employees_reports_only"] },
-  { icon: Clock, label: "Attendance", href: "/attendance", permissions: ["view_attendance_all", "view_attendance_reports_only", "view_own_attendance"] },
+  {
+    icon: Users,
+    label: "Team",
+    href: "/employees",
+    permissions: ["manage_employees", "view_employees_all", "view_employees_reports_only"],
+  },
+  {
+    icon: Clock,
+    label: "Attendance",
+    href: "/attendance",
+    permissions: ["view_attendance_all", "view_attendance_reports_only", "view_own_attendance"],
+  },
   { icon: Calendar, label: "Leave", href: "/leave", permissions: ["view_leave", "approve_leave"] },
   { icon: CheckSquare, label: "Tasks", href: "/tasks", permissions: ["manage_tasks", "view_tasks"] },
   { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet", permissions: ["view_log_sheet"] },
   { icon: TrendingUp, label: "Reports", href: "/reports", permissions: ["view_reports"] },
   { icon: Award, label: "Performance", href: "/performance", permissions: ["view_performance"] },
-  { icon: Megaphone, label: "Announcements", href: "/announcements", permissions: ["add_announcement", "edit_announcement", "delete_announcement", "view_announcements"] },
+  {
+    icon: Megaphone,
+    label: "Announcements",
+    href: "/announcements",
+    permissions: ["add_announcement", "edit_announcement", "delete_announcement", "view_announcements"],
+  },
   { icon: FileText, label: "Documents", href: "/documents", permissions: ["manage_documents", "view_documents"] },
   { icon: Receipt, label: "Invoices", href: "/invoices", permissions: ["view_invoices", "manage_invoices"] },
   { icon: UserPlus, label: "Onboarding", href: "/onboarding", permissions: ["manage_onboarding"] },
-  { icon: UserPlus, label: "My Onboarding", href: "/my-onboarding", permissions: ["view_onboarding"], hideIfHas: ["manage_onboarding"] },
-  { icon: UserMinus, label: "My Offboarding", href: "/my-offboarding", permissions: ["view_onboarding"], hideIfHas: ["manage_onboarding"] },
+  {
+    icon: UserPlus,
+    label: "My Onboarding",
+    href: "/my-onboarding",
+    permissions: ["view_onboarding"],
+    hideIfHas: ["manage_onboarding"],
+  },
+  {
+    icon: UserMinus,
+    label: "My Offboarding",
+    href: "/my-offboarding",
+    permissions: ["view_onboarding"],
+    hideIfHas: ["manage_onboarding"],
+  },
   { icon: Wallet, label: "Payroll", href: "/payroll", permissions: ["manage_payroll", "view_payroll"] },
-  { icon: Wallet, label: "Payroll", href: "/my-payslips", permissions: ["view_payslips"], hideIfHas: ["manage_payroll", "view_payroll"] },
+  {
+    icon: Wallet,
+    label: "Payroll",
+    href: "/my-payslips",
+    permissions: ["view_payslips"],
+    hideIfHas: ["manage_payroll", "view_payroll"],
+  },
   { icon: Landmark, label: "Loans", href: "/loans", permissions: ["manage_loans", "view_loans"] },
   { icon: Bug, label: "Support", href: "/support", permissions: ["manage_support", "view_support"] },
   { icon: Users, label: "Profile", href: "/profile", alwaysVisible: true },
@@ -84,7 +120,11 @@ interface SidebarProps {
   onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-export const Sidebar = memo(function Sidebar({ onNavigate, collapsed: controlledCollapsed, onCollapsedChange }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({
+  onNavigate,
+  collapsed: controlledCollapsed,
+  onCollapsedChange,
+}: SidebarProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const collapsed = controlledCollapsed ?? internalCollapsed;
   const setCollapsed = (v: boolean) => {
@@ -98,7 +138,7 @@ export const Sidebar = memo(function Sidebar({ onNavigate, collapsed: controlled
 
   const isItemVisible = (item: MenuItem): boolean => {
     // Hide if user has a higher-level permission that supersedes this entry
-    if (item.hideIfHas?.some(p => hasPermission(p))) return false;
+    if (item.hideIfHas?.some((p) => hasPermission(p))) return false;
     if (item.alwaysVisible) return true;
     if (item.permissions) {
       // Check effective permissions (role + overrides)
@@ -113,7 +153,7 @@ export const Sidebar = memo(function Sidebar({ onNavigate, collapsed: controlled
   const visibleMenuItems = useMemo(
     () => ALL_MENU_ITEMS.filter(isItemVisible),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hasPermission, isManager]
+    [hasPermission, isManager],
   );
 
   const handleNavClick = (href: string) => {
@@ -177,7 +217,11 @@ export const Sidebar = memo(function Sidebar({ onNavigate, collapsed: controlled
             );
 
             return (
-              <li key={item.href + item.label} className="animate-slide-in-left" style={{ animationDelay: `${index * 50}ms` }}>
+              <li
+                key={item.href + item.label}
+                className="animate-slide-in-left"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
                 {collapsed ? (
                   <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
