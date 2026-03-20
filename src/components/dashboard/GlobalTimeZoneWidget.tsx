@@ -372,7 +372,7 @@ export function GlobalTimeZoneWidget() {
 // ═══════════════════════════════════════════════════════════════════════
 // FULL MODAL
 // ═══════════════════════════════════════════════════════════════════════
-function TimeZoneModal({ onClose }: { onClose: () => void }) {
+export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   const localTz = useMemo(() => detectLocalTimezone(), []);
 
   const [refDate, setRefDate] = useState(new Date());
