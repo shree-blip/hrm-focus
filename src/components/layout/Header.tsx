@@ -199,32 +199,58 @@ export function Header({ isMobile }: HeaderProps = {}) {
         <div className="flex items-center gap-4">
           <button
             onClick={() => setShowTimeZoneModal(true)}
-            className="hidden md:flex items-center gap-3 h-12 px-4 rounded-2xl border border-primary/15 bg-gradient-to-br from-white via-white to-primary/5 shadow-[0_6px_20px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_28px_rgba(0,0,0,0.10)] hover:border-primary/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0 group"
+            className={cn(
+              "hidden md:flex items-center gap-3.5 h-12 px-4 rounded-2xl border shrink-0 group transition-all duration-200",
+              "bg-background/80 backdrop-blur-xl border-border/70 shadow-sm",
+              "hover:shadow-lg hover:-translate-y-[1px] hover:border-primary/40",
+              "focus:outline-none focus:ring-2 focus:ring-primary/30",
+            )}
             title="View world clocks"
           >
-            <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Clock className="w-4 h-4" />
-              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-2xl bg-primary/12 border border-primary/15">
+              <Clock className="w-4.5 h-4.5 text-primary transition-transform duration-200 group-hover:scale-110" />
+              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background" />
             </div>
 
-            <div className="flex flex-col items-start justify-center leading-none min-w-[110px]">
+            <div className="flex flex-col justify-center min-w-[122px] leading-none">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900 tabular-nums tracking-tight">
+                <span className="text-sm font-semibold tabular-nums text-foreground tracking-tight">
                   {formatNepalTime(currentTime)}
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/15 uppercase tracking-wide">
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/15 uppercase tracking-wide">
                   NPT
                 </span>
               </div>
 
               <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[11px] text-slate-500 font-medium">{formatDate(currentTime)}</span>
+                <span className="text-[11px] text-muted-foreground">{formatDate(currentTime)}</span>
+                <span className="h-1 w-1 rounded-full bg-border" />
+                <span className="text-[11px] text-primary/90 font-medium">World Clock</span>
               </div>
+            </div>
+
+            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted/70 border border-border/60 transition-colors group-hover:bg-primary/10 group-hover:border-primary/20">
+              <svg
+                className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 111.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
             </div>
           </button>
           <button
             onClick={() => setShowTimeZoneModal(true)}
-            className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 hover:bg-primary/20 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0"
+            className={cn(
+              "md:hidden flex items-center justify-center w-10 h-10 rounded-xl shrink-0 transition-all duration-200",
+              "bg-background/80 backdrop-blur-xl border border-border/70 shadow-sm",
+              "hover:border-primary/40 hover:shadow-md active:scale-95",
+              "focus:outline-none focus:ring-2 focus:ring-primary/30",
+            )}
             title="World Clock"
           >
             <Clock className="w-4 h-4 text-primary" />
