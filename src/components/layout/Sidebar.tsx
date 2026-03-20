@@ -1,6 +1,7 @@
-import { useState, useMemo, memo } from "react";
+import { useState, useMemo, memo, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { prefetchRoute } from "@/App";
 import {
   LayoutDashboard,
   Users,
