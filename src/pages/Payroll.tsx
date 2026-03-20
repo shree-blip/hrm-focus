@@ -140,33 +140,28 @@ const Payroll = () => {
     }
   }, [modalEmpId, employees]);
 
-  // Fetch active (disbursed) loans for export preview
-  useEffect(() => {
-    if (!isVP) return;
-    supabase
-      .from("loan_requests")
-      .select("id, employee_id, amount, term_months, interest_rate, remaining_balance, estimated_monthly_installment, status, disbursed_at")
-      .in("status", ["disbursed"])
-      .then(({ data }) => {
-        if (data) setActiveLoansForPreview(data);
-      });
-  }, [isVP]);
-
-  // Fetch approved leaves for the current month (export preview)
+  // Fetch loans and leaves in parallel for export preview
   useEffect(() => {
     if (!isVP) return;
     const now = new Date();
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
     const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
-    supabase
-      .from("leave_requests")
-      .select("user_id, leave_type, start_date, end_date, days")
-      .eq("status", "approved")
-      .lte("start_date", monthEnd)
-      .gte("end_date", monthStart)
-      .then(({ data }) => {
-        if (data) setApprovedLeavesForPreview(data);
-      });
+
+    Promise.all([
+      supabase
+        .from("loan_requests")
+        .select("id, employee_id, amount, term_months, interest_rate, remaining_balance, estimated_monthly_installment, status, disbursed_at")
+        .in("status", ["disbursed"]),
+      supabase
+        .from("leave_requests")
+        .select("user_id, leave_type, start_date, end_date, days")
+        .eq("status", "approved")
+        .lte("start_date", monthEnd)
+        .gte("end_date", monthStart),
+    ]).then(([loansRes, leavesRes]) => {
+      if (loansRes.data) setActiveLoansForPreview(loansRes.data);
+      if (leavesRes.data) setApprovedLeavesForPreview(leavesRes.data);
+    });
   }, [isVP]);
 
   // Filter employees by region (case-insensitive)

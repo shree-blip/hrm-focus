@@ -50,10 +50,13 @@ interface EmployeeDirectory {
   profile_id: string | null;
 }
 
+// Module-level cache so revisiting the page shows data instantly
+let _employeesCache: Employee[] | null = null;
+
 export function useEmployees() {
   const { user, isManager } = useAuth();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState<Employee[]>(_employeesCache || []);
+  const [loading, setLoading] = useState(_employeesCache === null);
   const [hasFetched, setHasFetched] = useState(false);
 
   const fetchEmployees = useCallback(
@@ -88,6 +91,7 @@ export function useEmployees() {
             avatar_url: emp.profile_id ? profileToAvatarMap.get(emp.profile_id) || null : null,
           }));
           setEmployees(employeesWithUserId as Employee[]);
+          _employeesCache = employeesWithUserId as Employee[];
         }
       } else {
         // Regular employees use the directory view (no sensitive data)
@@ -129,6 +133,7 @@ export function useEmployees() {
             avatar_url: emp.profile_id ? profileToAvatarMap.get(emp.profile_id) || null : null,
           }));
           setEmployees(mapped);
+          _employeesCache = mapped;
         }
       }
       setLoading(false);

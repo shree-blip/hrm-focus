@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 import { useTasks } from "@/hooks/useTasks";
@@ -71,7 +72,7 @@ const Tasks = () => {
   const [draggedTask, setDraggedTask] = useState<TaskUI | null>(null);
 
   // Transform database tasks to UI format
-  const transformedTasks: TaskUI[] = tasks.map((task) => ({
+  const transformedTasks: TaskUI[] = useMemo(() => tasks.map((task) => ({
     id: task.id,
     title: task.title,
     client: task.client_name || "Internal",
@@ -84,7 +85,7 @@ const Tasks = () => {
     created_by_name: task.created_by_name,
     assignees: task.assignees,
     comment_count: task.comment_count || 0,
-  }));
+  })), [tasks]);
 
   const getTasksByStatus = (status: string) =>
     transformedTasks.filter(
@@ -168,15 +169,21 @@ const Tasks = () => {
     return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`.toUpperCase();
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
+  // Skeleton card for loading state
+  const TaskSkeleton = () => (
+    <div className="rounded-xl border bg-card p-4 space-y-3">
+      <div className="flex justify-between">
+        <Skeleton className="h-4 w-8" />
+        <Skeleton className="h-5 w-14 rounded-full" />
+      </div>
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-3 w-1/2" />
+      <div className="flex justify-between pt-2">
+        <Skeleton className="h-6 w-6 rounded-full" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+    </div>
+  );
 
   return (
     <DashboardLayout>
@@ -243,7 +250,13 @@ const Tasks = () => {
               </div>
 
               <div className="space-y-3 min-h-[400px]">
-                {columnTasks.map((task, index) => (
+                {loading ? (
+                  <>
+                    <TaskSkeleton />
+                    <TaskSkeleton />
+                    {column.id === "todo" && <TaskSkeleton />}
+                  </>
+                ) : columnTasks.map((task, index) => (
                   <Card
                     key={task.id}
                     className="group cursor-pointer hover:shadow-md hover:border-primary/20 transition-all animate-scale-in relative"

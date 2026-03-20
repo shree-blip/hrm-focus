@@ -18,9 +18,12 @@ export interface ClientInput {
   client_id?: string;
 }
 
+// Module-level cache so revisiting pages shows data instantly
+let _clientsCache: Client[] | null = null;
+
 export function useClients() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState<Client[]>(_clientsCache || []);
+  const [loading, setLoading] = useState(_clientsCache === null);
   const { toast } = useToast();
 
   const fetchClients = useCallback(async () => {
@@ -33,6 +36,7 @@ export function useClients() {
 
       if (error) throw error;
       setClients((data as Client[]) || []);
+      _clientsCache = (data as Client[]) || [];
     } catch (error: any) {
       console.error("Error fetching clients:", error);
       toast({

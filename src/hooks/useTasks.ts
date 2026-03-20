@@ -30,38 +30,38 @@ export interface Task {
   comment_count?: number;
 }
 
+// Module-level cache so revisiting the page shows data instantly
+let _tasksCache: Task[] | null = null;
+
 export function useTasks() {
   const { user } = useAuth();
   const userId = user?.id;
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState<Task[]>(_tasksCache || []);
+  const [loading, setLoading] = useState(_tasksCache === null);
 
   const fetchTasks = useCallback(async () => {
     if (!userId) return;
 
     try {
-      // Fetch tasks
-      const { data: tasksData, error: tasksError } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("created_at", { ascending: false });
+      // Fetch all data in parallel for faster loading
+      const [tasksResult, assigneesResult, profilesResult, commentsResult] = await Promise.all([
+        supabase.from("tasks").select("*").order("created_at", { ascending: false }),
+        supabase.from("task_assignees").select("*"),
+        supabase.from("profiles").select("user_id, first_name, last_name"),
+        supabase.from("task_comments").select("task_id"),
+      ]);
 
-      if (tasksError) {
-        console.error("Error fetching tasks:", tasksError);
+      if (tasksResult.error) {
+        console.error("Error fetching tasks:", tasksResult.error);
         setLoading(false);
         return;
       }
 
-      // Fetch task assignees
-      const { data: assigneesData } = await supabase.from("task_assignees").select("*");
+      const tasksData = tasksResult.data;
+      const assigneesData = assigneesResult.data;
+      const profilesData = profilesResult.data;
+      const commentsData = commentsResult.data;
 
-      // Fetch profiles for names
-      const { data: profilesData } = await supabase.from("profiles").select("user_id, first_name, last_name");
-
-      // Fetch comment counts per task
-      const { data: commentsData } = await supabase
-        .from("task_comments")
-        .select("task_id");
       const commentCountMap = new Map<string, number>();
       (commentsData || []).forEach((c: { task_id: string }) => {
         commentCountMap.set(c.task_id, (commentCountMap.get(c.task_id) || 0) + 1);
@@ -120,6 +120,7 @@ export function useTasks() {
       });
 
       setTasks(filteredTasks);
+      _tasksCache = filteredTasks;
     } catch (error) {
       console.error("Unexpected error in fetchTasks:", error);
     } finally {

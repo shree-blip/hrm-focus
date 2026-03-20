@@ -59,29 +59,30 @@ interface SubTeamView {
 
 /** Fetch all team members from both junction table AND legacy columns, deduplicated */
 async function fetchCombinedTeam(employeeId: string): Promise<ClickedEmployeeTeamMember[]> {
-  // 1. Junction table (team_members)
-  const { data: junctionRows } = await supabase
-    .from("team_members")
-    .select("member_employee_id")
-    .eq("manager_employee_id", employeeId);
+  // Fetch junction table and legacy columns in parallel
+  const [junctionResult, lineReportsResult, managerReportsResult] = await Promise.all([
+    supabase
+      .from("team_members")
+      .select("member_employee_id")
+      .eq("manager_employee_id", employeeId),
+    supabase
+      .from("employees")
+      .select("id, first_name, last_name, email, department, job_title, status")
+      .eq("line_manager_id", employeeId)
+      .order("first_name", { ascending: true }),
+    supabase
+      .from("employees")
+      .select("id, first_name, last_name, email, department, job_title, status")
+      .eq("manager_id", employeeId)
+      .order("first_name", { ascending: true }),
+  ]);
 
-  const junctionIds = (junctionRows || []).map((r: any) => r.member_employee_id);
+  const junctionIds = (junctionResult.data || []).map((r: any) => r.member_employee_id);
+  const lineReports = lineReportsResult.data || [];
+  const managerReports = managerReportsResult.data || [];
 
-  // 2. Legacy columns (line_manager_id, manager_id)
-  const { data: lineReports } = await supabase
-    .from("employees")
-    .select("id, first_name, last_name, email, department, job_title, status")
-    .eq("line_manager_id", employeeId)
-    .order("first_name", { ascending: true });
-
-  const { data: managerReports } = await supabase
-    .from("employees")
-    .select("id, first_name, last_name, email, department, job_title, status")
-    .eq("manager_id", employeeId)
-    .order("first_name", { ascending: true });
-
-  // 3. Fetch junction members not already covered by legacy queries
-  const legacyIds = new Set([...(lineReports || []).map((e) => e.id), ...(managerReports || []).map((e) => e.id)]);
+  // Fetch junction members not already covered by legacy queries
+  const legacyIds = new Set([...lineReports.map((e) => e.id), ...managerReports.map((e) => e.id)]);
   const missingJunctionIds = junctionIds.filter((id) => !legacyIds.has(id));
 
   let junctionMembers: ClickedEmployeeTeamMember[] = [];
@@ -94,8 +95,8 @@ async function fetchCombinedTeam(employeeId: string): Promise<ClickedEmployeeTea
     junctionMembers = data || [];
   }
 
-  // 4. Merge & deduplicate
-  const allReports = [...(lineReports || []), ...(managerReports || []), ...junctionMembers];
+  // Merge & deduplicate
+  const allReports = [...lineReports, ...managerReports, ...junctionMembers];
   const uniqueReports = allReports.filter((emp, index, self) => self.findIndex((e) => e.id === emp.id) === index);
   uniqueReports.sort((a, b) => a.first_name.localeCompare(b.first_name));
   return uniqueReports;
@@ -105,30 +106,17 @@ async function fetchCombinedTeam(employeeId: string): Promise<ClickedEmployeeTea
 async function detectManagersAmong(employeeIds: string[]): Promise<Set<string>> {
   if (employeeIds.length === 0) return new Set();
 
+  // Check all sources in parallel
+  const [junctionResult, lineResult, managerResult] = await Promise.all([
+    supabase.from("team_members").select("manager_employee_id").in("manager_employee_id", employeeIds),
+    supabase.from("employees").select("line_manager_id").in("line_manager_id", employeeIds),
+    supabase.from("employees").select("manager_id").in("manager_id", employeeIds),
+  ]);
+
   const ids = new Set<string>();
-
-  // Check junction table
-  const { data: junctionManagers } = await supabase
-    .from("team_members")
-    .select("manager_employee_id")
-    .in("manager_employee_id", employeeIds);
-  (junctionManagers || []).forEach((r: any) => {
-    if (r.manager_employee_id) ids.add(r.manager_employee_id);
-  });
-
-  // Check legacy columns
-  const { data: lineManaged } = await supabase
-    .from("employees")
-    .select("line_manager_id")
-    .in("line_manager_id", employeeIds);
-  (lineManaged || []).forEach((r: any) => {
-    if (r.line_manager_id) ids.add(r.line_manager_id);
-  });
-
-  const { data: managed } = await supabase.from("employees").select("manager_id").in("manager_id", employeeIds);
-  (managed || []).forEach((r: any) => {
-    if (r.manager_id) ids.add(r.manager_id);
-  });
+  (junctionResult.data || []).forEach((r: any) => { if (r.manager_employee_id) ids.add(r.manager_employee_id); });
+  (lineResult.data || []).forEach((r: any) => { if (r.line_manager_id) ids.add(r.line_manager_id); });
+  (managerResult.data || []).forEach((r: any) => { if (r.manager_id) ids.add(r.manager_id); });
 
   return ids;
 }
