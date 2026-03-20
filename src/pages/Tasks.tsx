@@ -72,7 +72,7 @@ const Tasks = () => {
   const [draggedTask, setDraggedTask] = useState<TaskUI | null>(null);
 
   // Transform database tasks to UI format
-  const transformedTasks: TaskUI[] = tasks.map((task) => ({
+  const transformedTasks: TaskUI[] = useMemo(() => tasks.map((task) => ({
     id: task.id,
     title: task.title,
     client: task.client_name || "Internal",
@@ -85,7 +85,7 @@ const Tasks = () => {
     created_by_name: task.created_by_name,
     assignees: task.assignees,
     comment_count: task.comment_count || 0,
-  }));
+  })), [tasks]);
 
   const getTasksByStatus = (status: string) =>
     transformedTasks.filter(
