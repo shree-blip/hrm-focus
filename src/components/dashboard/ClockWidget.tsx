@@ -90,11 +90,7 @@ export const ClockWidget = memo(function ClockWidget() {
       return;
     }
 
-    const tick = () => {
-      const log = logRef.current;
-      const st = statusRef.current;
-      if (!log) return;
-
+    const computeElapsed = (log: AttendanceLogWithPause, st: string) => {
       const now = Date.now();
       let elapsed = now - new Date(log.clock_in).getTime();
       elapsed -= (log.total_break_minutes || 0) * 60000;
@@ -106,15 +102,29 @@ export const ClockWidget = memo(function ClockWidget() {
       if (st === "paused" && log.pause_start) {
         elapsed -= now - new Date(log.pause_start).getTime();
       }
-
-      setElapsedTime(formatElapsed(elapsed));
+      return elapsed;
     };
 
-    tick();
+    // Compute once immediately
+    const frozen = computeElapsed(typedCurrentLog, clockStatus);
+    setElapsedTime(formatElapsed(frozen));
+
+    // If paused or on break, the value is frozen — no interval needed
+    if (clockStatus === "break" || clockStatus === "paused") {
+      return;
+    }
+
+    // Only tick when actively working
+    const tick = () => {
+      const log = logRef.current;
+      const st = statusRef.current;
+      if (!log || st === "break" || st === "paused") return;
+      setElapsedTime(formatElapsed(computeElapsed(log, st)));
+    };
+
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-    // Only restart interval when the log identity or status category changes
-  }, [typedCurrentLog?.id, clockStatus]);
+  }, [typedCurrentLog?.id, clockStatus, typedCurrentLog?.total_break_minutes, typedCurrentLog?.total_pause_minutes]);
 
   // ── Dialogs ──
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
