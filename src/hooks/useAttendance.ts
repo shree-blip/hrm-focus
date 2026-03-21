@@ -195,9 +195,8 @@ export function useAttendance(weekStart?: Date) {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          // Skip if we're in the middle of an optimistic action
-          // (server response will reconcile via the action's own setState)
-          if (actionInProgress) return;
+          // Skip only if THIS device triggered the action (optimistic UI handles it)
+          if (actionInProgressRef.current) return;
 
           const { eventType, new: newRecord } = payload;
 
