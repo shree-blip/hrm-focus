@@ -95,17 +95,13 @@ export const ClockWidget = memo(function ClockWidget() {
       const st = statusRef.current;
       if (!log) return;
 
+      // Freeze displayed time while paused or on break
+      if (st === "paused" || st === "break") return;
+
       const now = Date.now();
       let elapsed = now - new Date(log.clock_in).getTime();
       elapsed -= (log.total_break_minutes || 0) * 60000;
       elapsed -= (log.total_pause_minutes || 0) * 60000;
-
-      if (st === "break" && log.break_start) {
-        elapsed -= now - new Date(log.break_start).getTime();
-      }
-      if (st === "paused" && log.pause_start) {
-        elapsed -= now - new Date(log.pause_start).getTime();
-      }
 
       setElapsedTime(formatElapsed(elapsed));
     };
