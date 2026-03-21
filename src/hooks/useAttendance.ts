@@ -498,7 +498,9 @@ export function useAttendance(weekStart?: Date) {
         action: "start_pause",
         log_id: currentLog.id,
       });
-      setCurrentLog({ ...result.log, status: "paused" } as AttendanceLog);
+      const serverLog = { ...result.log, status: "paused" } as AttendanceLog;
+      applyLogFromDB(serverLog);
+      broadcastState(serverLog);
       toast({ title: "Clock Paused", description: "Your time tracking is paused." });
     } catch (err: any) {
       setCurrentLog(prevLogRef.current);
