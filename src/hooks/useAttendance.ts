@@ -474,7 +474,9 @@ export function useAttendance(weekStart?: Date) {
         action: "end_break",
         log_id: currentLog.id,
       });
-      setCurrentLog({ ...result.log, status: "active" } as AttendanceLog);
+      const serverLog = { ...result.log, status: "active" } as AttendanceLog;
+      applyLogFromDB(serverLog);
+      broadcastState(serverLog);
       toast({ title: "Back to Work", description: `Break time: ${result.break_minutes} minutes` });
     } catch (err: any) {
       setCurrentLog(prevLogRef.current);
