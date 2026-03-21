@@ -421,6 +421,7 @@ export function useAttendance(weekStart?: Date) {
         log_id: prevLogRef.current!.id,
       });
 
+      broadcastState(null);
       fetchWeeklyLogs();
       fetchMonthlyLogs();
       toast({
