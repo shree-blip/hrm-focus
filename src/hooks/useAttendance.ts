@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export interface AttendanceLog {
   id: string;
@@ -175,13 +176,46 @@ export function useAttendance(weekStart?: Date) {
   }, [fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs]);
 
   // ═══════════════════════════════════════════════════════════════════
-  // REAL-TIME SUBSCRIPTION — cross-device sync
+  // Helper: derive status from raw DB row and set as currentLog
+  // ═══════════════════════════════════════════════════════════════════
+  const applyLogFromDB = useCallback((row: any) => {
+    if (!row || row.clock_out || row.status === "completed" || row.status === "auto_clocked_out") {
+      setCurrentLog(null);
+      return;
+    }
+    const log = row as AttendanceLog;
+    if (log.pause_start && !log.pause_end) log.status = "paused";
+    else if (log.break_start && !log.break_end) log.status = "break";
+    else log.status = "active";
+    setCurrentLog(log);
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Broadcast channel ref — used to send instant state to other devices
+  // ═══════════════════════════════════════════════════════════════════
+  const broadcastChannelRef = useRef<RealtimeChannel | null>(null);
+
+  const broadcastState = useCallback((log: AttendanceLog | null) => {
+    const ch = broadcastChannelRef.current;
+    if (!ch) return;
+    ch.send({
+      type: "broadcast",
+      event: "attendance_state",
+      payload: { log, ts: Date.now() },
+    });
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // REAL-TIME SUBSCRIPTION — postgres_changes (backup, 1-3s delay)
+  // + Broadcast channel (instant, <500ms)
+  // + Visibility change handler (re-fetch on tab focus / app resume)
   // ═══════════════════════════════════════════════════════════════════
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
-      .channel(`attendance-sync-${user.id}`)
+    // --- 1. Postgres changes (backup) ---
+    const pgChannel = supabase
+      .channel(`attendance-pg-${user.id}`)
       .on(
         "postgres_changes",
         {
@@ -191,45 +225,59 @@ export function useAttendance(weekStart?: Date) {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          // Skip if we're in the middle of an optimistic action
-          // (server response will reconcile via the action's own setState)
-          if (actionInProgress) return;
-
           const { eventType, new: newRecord } = payload;
-
-          if (eventType === "INSERT") {
-            const log = newRecord as AttendanceLog;
-            if (!log.clock_out) {
-              // Derive status from fields
-              if (log.pause_start && !log.pause_end) log.status = "paused";
-              else if (log.break_start && !log.break_end) log.status = "break";
-              else log.status = "active";
-              setCurrentLog(log);
-            }
-          } else if (eventType === "UPDATE") {
-            const log = newRecord as AttendanceLog;
-            if (log.clock_out || log.status === "completed" || log.status === "auto_clocked_out") {
-              setCurrentLog(null);
-              // Refresh weekly/monthly in background
-              fetchWeeklyLogs();
-              fetchMonthlyLogs();
-            } else {
-              if (log.pause_start && !log.pause_end) log.status = "paused";
-              else if (log.break_start && !log.break_end) log.status = "break";
-              else log.status = "active";
-              setCurrentLog(log);
-            }
-          } else if (eventType === "DELETE") {
+          if (eventType === "DELETE") {
             setCurrentLog(null);
+            return;
+          }
+          const row = newRecord as any;
+          if (row.clock_out || row.status === "completed" || row.status === "auto_clocked_out") {
+            setCurrentLog(null);
+            fetchWeeklyLogs();
+            fetchMonthlyLogs();
+          } else {
+            applyLogFromDB(row);
           }
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
+    // --- 2. Broadcast channel (instant cross-device) ---
+    const bcChannel = supabase
+      .channel(`attendance-bc-${user.id}`)
+      .on("broadcast", { event: "attendance_state" }, ({ payload }) => {
+        if (!payload) return;
+        const { log } = payload as { log: AttendanceLog | null };
+        if (log === null) {
+          setCurrentLog(null);
+          fetchWeeklyLogs();
+          fetchMonthlyLogs();
+        } else {
+          applyLogFromDB(log);
+        }
+      })
+      .subscribe();
+
+    broadcastChannelRef.current = bcChannel;
+
+    // --- 3. Visibility change: re-fetch on tab focus / app resume ---
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchCurrentLog();
+      }
     };
-  }, [user, actionInProgress, fetchWeeklyLogs, fetchMonthlyLogs]);
+    document.addEventListener("visibilitychange", handleVisibility);
+    // Also handle mobile app resume via focus
+    window.addEventListener("focus", handleVisibility);
+
+    return () => {
+      supabase.removeChannel(pgChannel);
+      supabase.removeChannel(bcChannel);
+      broadcastChannelRef.current = null;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleVisibility);
+    };
+  }, [user, fetchCurrentLog, fetchWeeklyLogs, fetchMonthlyLogs, applyLogFromDB]);
 
   // 8-hour work duration reminder
   const reminderSentRef = useRef(false);
@@ -340,7 +388,9 @@ export function useAttendance(weekStart?: Date) {
       });
 
       // Reconcile with server truth
-      setCurrentLog(result.log as AttendanceLog);
+      const serverLog = result.log as AttendanceLog;
+      applyLogFromDB(serverLog);
+      broadcastState(serverLog);
       if (result.timezone) setEmployeeTimezone(result.timezone);
       if (result.timezone_abbr) setEmployeeTimezoneAbbr(result.timezone_abbr);
 
@@ -371,6 +421,7 @@ export function useAttendance(weekStart?: Date) {
         log_id: prevLogRef.current!.id,
       });
 
+      broadcastState(null);
       fetchWeeklyLogs();
       fetchMonthlyLogs();
       toast({
@@ -399,7 +450,9 @@ export function useAttendance(weekStart?: Date) {
         action: "start_break",
         log_id: currentLog.id,
       });
-      setCurrentLog({ ...result.log, status: "break" } as AttendanceLog);
+      const serverLog = { ...result.log, status: "break" } as AttendanceLog;
+      applyLogFromDB(serverLog);
+      broadcastState(serverLog);
       toast({ title: "Break Started", description: "Enjoy your break!" });
     } catch (err: any) {
       setCurrentLog(prevLogRef.current);
@@ -421,7 +474,9 @@ export function useAttendance(weekStart?: Date) {
         action: "end_break",
         log_id: currentLog.id,
       });
-      setCurrentLog({ ...result.log, status: "active" } as AttendanceLog);
+      const serverLog = { ...result.log, status: "active" } as AttendanceLog;
+      applyLogFromDB(serverLog);
+      broadcastState(serverLog);
       toast({ title: "Back to Work", description: `Break time: ${result.break_minutes} minutes` });
     } catch (err: any) {
       setCurrentLog(prevLogRef.current);
@@ -443,7 +498,9 @@ export function useAttendance(weekStart?: Date) {
         action: "start_pause",
         log_id: currentLog.id,
       });
-      setCurrentLog({ ...result.log, status: "paused" } as AttendanceLog);
+      const serverLog = { ...result.log, status: "paused" } as AttendanceLog;
+      applyLogFromDB(serverLog);
+      broadcastState(serverLog);
       toast({ title: "Clock Paused", description: "Your time tracking is paused." });
     } catch (err: any) {
       setCurrentLog(prevLogRef.current);
@@ -466,7 +523,9 @@ export function useAttendance(weekStart?: Date) {
         log_id: currentLog.id,
         new_work_mode: newWorkMode,
       });
-      setCurrentLog({ ...result.log, status: "active" } as AttendanceLog);
+      const serverLog = { ...result.log, status: "active" } as AttendanceLog;
+      applyLogFromDB(serverLog);
+      broadcastState(serverLog);
       toast({
         title: "Clock Resumed",
         description: `Pause time: ${result.pause_minutes} minutes${newWorkMode ? ` — now ${newWorkMode === "wfh" ? "WFH" : "Office"}` : ""}`,
