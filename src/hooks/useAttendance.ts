@@ -388,7 +388,9 @@ export function useAttendance(weekStart?: Date) {
       });
 
       // Reconcile with server truth
-      setCurrentLog(result.log as AttendanceLog);
+      const serverLog = result.log as AttendanceLog;
+      applyLogFromDB(serverLog);
+      broadcastState(serverLog);
       if (result.timezone) setEmployeeTimezone(result.timezone);
       if (result.timezone_abbr) setEmployeeTimezoneAbbr(result.timezone_abbr);
 
