@@ -523,7 +523,9 @@ export function useAttendance(weekStart?: Date) {
         log_id: currentLog.id,
         new_work_mode: newWorkMode,
       });
-      setCurrentLog({ ...result.log, status: "active" } as AttendanceLog);
+      const serverLog = { ...result.log, status: "active" } as AttendanceLog;
+      applyLogFromDB(serverLog);
+      broadcastState(serverLog);
       toast({
         title: "Clock Resumed",
         description: `Pause time: ${result.pause_minutes} minutes${newWorkMode ? ` — now ${newWorkMode === "wfh" ? "WFH" : "Office"}` : ""}`,
