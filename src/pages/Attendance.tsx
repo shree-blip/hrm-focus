@@ -107,7 +107,7 @@ const Attendance = () => {
       return;
     }
 
-    const updateElapsed = () => {
+    const computeElapsed = () => {
       const now = new Date();
       const clockInTime = new Date(currentLog.clock_in);
       let elapsed = now.getTime() - clockInTime.getTime();
@@ -118,13 +118,11 @@ const Attendance = () => {
       elapsed -= totalPauseMs;
 
       if (clockStatus === "break" && currentLog.break_start) {
-        const breakStart = new Date(currentLog.break_start);
-        elapsed -= now.getTime() - breakStart.getTime();
+        elapsed -= now.getTime() - new Date(currentLog.break_start).getTime();
       }
 
       if (clockStatus === "paused" && (currentLog as any).pause_start) {
-        const pauseStart = new Date((currentLog as any).pause_start);
-        elapsed -= now.getTime() - pauseStart.getTime();
+        elapsed -= now.getTime() - new Date((currentLog as any).pause_start).getTime();
       }
 
       elapsed = Math.max(0, elapsed);
@@ -133,13 +131,21 @@ const Attendance = () => {
       const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
 
-      setElapsedTime(
-        `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`,
-      );
+      return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     };
 
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 1000);
+    // Compute once immediately
+    setElapsedTime(computeElapsed());
+
+    // If paused or on break, the value is frozen — no interval needed
+    if (clockStatus === "break" || clockStatus === "paused") {
+      return;
+    }
+
+    // Only tick when actively working
+    const interval = setInterval(() => {
+      setElapsedTime(computeElapsed());
+    }, 1000);
     return () => clearInterval(interval);
   }, [clockStatus, currentLog]);
 
