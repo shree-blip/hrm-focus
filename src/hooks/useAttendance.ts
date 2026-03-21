@@ -54,11 +54,15 @@ export function useAttendance(weekStart?: Date) {
   const [loading, setLoading] = useState(true);
   const [clockType, setClockType] = useState<"payroll" | "billable">("payroll");
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const actionInProgressRef = useRef<string | null>(null);
   const [employeeTimezone, setEmployeeTimezone] = useState<string | null>(null);
   const [employeeTimezoneAbbr, setEmployeeTimezoneAbbr] = useState<string | null>(null);
 
   // Track previous log for rollback on optimistic failure
   const prevLogRef = useRef<AttendanceLog | null>(null);
+
+  // Keep ref in sync so realtime callback can read it without being a dependency
+  useEffect(() => { actionInProgressRef.current = actionInProgress; }, [actionInProgress]);
 
   const fetchCurrentLog = useCallback(async () => {
     if (!user) return;
