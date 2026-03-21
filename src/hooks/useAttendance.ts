@@ -232,7 +232,7 @@ export function useAttendance(weekStart?: Date) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, actionInProgress, fetchWeeklyLogs, fetchMonthlyLogs]);
+  }, [user, fetchWeeklyLogs, fetchMonthlyLogs]);
 
   // 8-hour work duration reminder
   const reminderSentRef = useRef(false);
