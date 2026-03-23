@@ -43,6 +43,7 @@ interface TaskAssignee {
 interface TaskUI {
   id: string;
   title: string;
+  description?: string;
   client: string;
   clientId?: string;
   priority: "high" | "medium" | "low";
@@ -72,20 +73,25 @@ const Tasks = () => {
   const [draggedTask, setDraggedTask] = useState<TaskUI | null>(null);
 
   // Transform database tasks to UI format
-  const transformedTasks: TaskUI[] = useMemo(() => tasks.map((task) => ({
-    id: task.id,
-    title: task.title,
-    client: task.client_name || "Internal",
-    clientId: task.client_id || undefined,
-    priority: (task.priority as "high" | "medium" | "low") || "medium",
-    dueDate: task.due_date ? format(new Date(task.due_date), "MMM d") : "No date",
-    status: (task.status?.replace("_", "-") as TaskUI["status"]) || "todo",
-    timeEstimate: task.time_estimate || "-",
-    created_by: task.created_by,
-    created_by_name: task.created_by_name,
-    assignees: task.assignees,
-    comment_count: task.comment_count || 0,
-  })), [tasks]);
+  const transformedTasks: TaskUI[] = useMemo(
+    () =>
+      tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description || undefined,
+        client: task.client_name || "Internal",
+        clientId: task.client_id || undefined,
+        priority: (task.priority as "high" | "medium" | "low") || "medium",
+        dueDate: task.due_date ? format(new Date(task.due_date), "MMM d") : "No date",
+        status: (task.status?.replace("_", "-") as TaskUI["status"]) || "todo",
+        timeEstimate: task.time_estimate || "-",
+        created_by: task.created_by,
+        created_by_name: task.created_by_name,
+        assignees: task.assignees,
+        comment_count: task.comment_count || 0,
+      })),
+    [tasks],
+  );
 
   const getTasksByStatus = (status: string) =>
     transformedTasks.filter(
@@ -97,6 +103,7 @@ const Tasks = () => {
 
   const handleAddTask = async (task: {
     title: string;
+    description?: string;
     client?: string;
     clientId?: string;
     priority: "high" | "medium" | "low";
@@ -120,7 +127,7 @@ const Tasks = () => {
       priority: task.priority,
       due_date: dueDate,
       status: statusDbMap[task.status] || "todo",
-      description: undefined,
+      description: task.description || undefined,
       assignee_ids: task.assigneeIds,
     });
   };
@@ -128,6 +135,7 @@ const Tasks = () => {
   const handleUpdateTask = async (updatedTask: TaskUI) => {
     await updateTask(updatedTask.id, {
       title: updatedTask.title,
+      description: updatedTask.description,
       client_name: updatedTask.client,
       client_id: updatedTask.clientId,
       priority: updatedTask.priority,
@@ -256,123 +264,128 @@ const Tasks = () => {
                     <TaskSkeleton />
                     {column.id === "todo" && <TaskSkeleton />}
                   </>
-                ) : columnTasks.map((task, index) => (
-                  <Card
-                    key={task.id}
-                    className="group cursor-pointer hover:shadow-md hover:border-primary/20 transition-all animate-scale-in relative"
-                    style={{ animationDelay: `${300 + index * 50}ms` }}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, task)}
-                    onClick={() => {
-                      setSelectedTask(task);
-                      setTaskDetailOpen(true);
-                    }}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-xs",
-                            task.priority === "high" && "border-destructive/50 text-destructive",
-                            task.priority === "medium" && "border-warning/50 text-warning",
-                            task.priority === "low" && "border-muted-foreground/50",
-                          )}
-                        >
-                          {task.priority}
-                        </Badge>
-                      </div>
-                      <h4 className="font-medium text-sm mb-1 line-clamp-2" title={task.title}>
-                        {task.title}
-                      </h4>
-                      <p className="text-xs text-muted-foreground mb-3" title={task.client}>
-                        {task.client}
-                      </p>
-
-                      {/* Show who created the task */}
-                      {task.created_by_name && (
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-2">
-                          <User className="h-3 w-3" />
-                          <span>by {task.created_by_name}</span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between">
-                        {/* Show assignees */}
-                        <div className="flex -space-x-1">
-                          {task.assignees && task.assignees.length > 0 ? (
-                            task.assignees.slice(0, 3).map((assignee, idx) => (
-                              <Avatar key={idx} className="h-6 w-6 border-2 border-background">
-                                <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-                                  {getInitials(assignee.assignee_name || "?")}
-                                </AvatarFallback>
-                              </Avatar>
-                            ))
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Unassigned</span>
-                          )}
-                          {task.assignees && task.assignees.length > 3 && (
-                            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs border-2 border-background">
-                              +{task.assignees.length - 3}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          {task.comment_count && task.comment_count > 0 && (
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <MessageSquare className="h-3.5 w-3.5" />
-                              {task.comment_count}
-                            </span>
-                          )}
-                          <span
+                ) : (
+                  columnTasks.map((task, index) => (
+                    <Card
+                      key={task.id}
+                      className="group cursor-pointer hover:shadow-md hover:border-primary/20 transition-all animate-scale-in relative"
+                      style={{ animationDelay: `${300 + index * 50}ms` }}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, task)}
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setTaskDetailOpen(true);
+                      }}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                          </div>
+                          <Badge
+                            variant="outline"
                             className={cn(
-                              "flex items-center gap-1",
-                              task.dueDate === "Today" && "text-destructive font-medium",
+                              "text-xs",
+                              task.priority === "high" && "border-destructive/50 text-destructive",
+                              task.priority === "medium" && "border-warning/50 text-warning",
+                              task.priority === "low" && "border-muted-foreground/50",
                             )}
                           >
-                            {task.dueDate === "Today" && <AlertCircle className="h-3 w-3" />}
-                            {task.dueDate}
-                          </span>
+                            {task.priority}
+                          </Badge>
                         </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedTask(task);
-                              setTaskDetailOpen(true);
-                            }}
-                          >
-                            Edit Task
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteTask(task.id);
-                            }}
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <h4 className="font-medium text-sm mb-1 line-clamp-2" title={task.title}>
+                          {task.title}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mb-3" title={task.client}>
+                          {task.client}
+                        </p>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground mb-2 line-clamp-2 italic">{task.description}</p>
+                        )}
+
+                        {/* Show who created the task */}
+                        {task.created_by_name && (
+                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-2">
+                            <User className="h-3 w-3" />
+                            <span>by {task.created_by_name}</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between">
+                          {/* Show assignees */}
+                          <div className="flex -space-x-1">
+                            {task.assignees && task.assignees.length > 0 ? (
+                              task.assignees.slice(0, 3).map((assignee, idx) => (
+                                <Avatar key={idx} className="h-6 w-6 border-2 border-background">
+                                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                                    {getInitials(assignee.assignee_name || "?")}
+                                  </AvatarFallback>
+                                </Avatar>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Unassigned</span>
+                            )}
+                            {task.assignees && task.assignees.length > 3 && (
+                              <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs border-2 border-background">
+                                +{task.assignees.length - 3}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            {task.comment_count && task.comment_count > 0 && (
+                              <span className="flex items-center gap-1 text-muted-foreground">
+                                <MessageSquare className="h-3.5 w-3.5" />
+                                {task.comment_count}
+                              </span>
+                            )}
+                            <span
+                              className={cn(
+                                "flex items-center gap-1",
+                                task.dueDate === "Today" && "text-destructive font-medium",
+                              )}
+                            >
+                              {task.dueDate === "Today" && <AlertCircle className="h-3 w-3" />}
+                              {task.dueDate}
+                            </span>
+                          </div>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTask(task);
+                                setTaskDetailOpen(true);
+                              }}
+                            >
+                              Edit Task
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTask(task.id);
+                              }}
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
 
                 {/* Add Task card at bottom of each column */}
 
