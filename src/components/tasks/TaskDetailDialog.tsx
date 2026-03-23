@@ -1,22 +1,10 @@
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -27,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useClients } from "@/hooks/useClients";
 import { useAuth } from "@/contexts/AuthContext";
+import { Textarea } from "@/components/ui/textarea";
 
 interface TaskAssignee {
   user_id: string;
@@ -39,6 +28,7 @@ interface TaskAssignee {
 interface Task {
   id: string;
   title: string;
+  description?: string;
   client: string;
   clientId?: string;
   priority: "high" | "medium" | "low";
@@ -70,7 +60,7 @@ export function TaskDetailDialog({
   const { employees } = useEmployees();
   const { clients } = useClients();
   const { user, profile } = useAuth();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
@@ -79,7 +69,7 @@ export function TaskDetailDialog({
   // Reset state when dialog opens/closes or task changes
   useEffect(() => {
     if (open && task) {
-      setSelectedAssignees(task.assignees?.map(a => a.user_id) || []);
+      setSelectedAssignees(task.assignees?.map((a) => a.user_id) || []);
       setShowAssigneeEditor(false);
       setIsEditing(false);
       setEditedTask(null);
@@ -129,11 +119,7 @@ export function TaskDetailDialog({
   };
 
   const toggleAssignee = (userId: string) => {
-    setSelectedAssignees(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
+    setSelectedAssignees((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
   };
 
   const getInitials = (name: string) => {
@@ -143,18 +129,22 @@ export function TaskDetailDialog({
 
   // Build list of assignable users (everyone can assign everyone)
   const assignableUsers = [
-    ...(user && profile ? [{
-      id: user.id,
-      name: `${profile.first_name} ${profile.last_name}`,
-      initials: getInitials(`${profile.first_name} ${profile.last_name}`),
-    }] : []),
+    ...(user && profile
+      ? [
+          {
+            id: user.id,
+            name: `${profile.first_name} ${profile.last_name}`,
+            initials: getInitials(`${profile.first_name} ${profile.last_name}`),
+          },
+        ]
+      : []),
     ...employees
-      .filter(emp => emp.user_id && emp.user_id !== user?.id)
-      .map(emp => ({
+      .filter((emp) => emp.user_id && emp.user_id !== user?.id)
+      .map((emp) => ({
         id: emp.user_id!,
         name: `${emp.first_name} ${emp.last_name}`,
         initials: getInitials(`${emp.first_name} ${emp.last_name}`),
-      }))
+      })),
   ];
 
   return (
@@ -165,9 +155,7 @@ export function TaskDetailDialog({
             {isEditing ? (
               <Input
                 value={editedTask?.title || task.title}
-                onChange={(e) =>
-                  setEditedTask({ ...(editedTask || task), title: e.target.value })
-                }
+                onChange={(e) => setEditedTask({ ...(editedTask || task), title: e.target.value })}
                 className="text-lg font-semibold"
               />
             ) : (
@@ -177,14 +165,14 @@ export function TaskDetailDialog({
           <DialogDescription className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             {isEditing ? (
-              <Select 
-                value={editedTask?.clientId || task.clientId || "internal"} 
+              <Select
+                value={editedTask?.clientId || task.clientId || "internal"}
                 onValueChange={(v) => {
-                  const client = clients.find(c => c.id === v);
-                  setEditedTask({ 
-                    ...(editedTask || task), 
+                  const client = clients.find((c) => c.id === v);
+                  setEditedTask({
+                    ...(editedTask || task),
                     clientId: v === "internal" ? undefined : v,
-                    client: client?.name || "Internal"
+                    client: client?.name || "Internal",
                   });
                 }}
               >
@@ -211,7 +199,27 @@ export function TaskDetailDialog({
           {task.created_by_name && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-accent/50 p-2 rounded-md">
               <User className="h-4 w-4" />
-              <span>Created by <strong className="text-foreground">{task.created_by_name}</strong></span>
+              <span>
+                Created by <strong className="text-foreground">{task.created_by_name}</strong>
+              </span>
+            </div>
+          )}
+          {/* Notes/Description */}
+          {(isEditing || currentTask.description) && (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Notes</Label>
+              {isEditing ? (
+                <Textarea
+                  value={editedTask?.description || ""}
+                  onChange={(e) => setEditedTask({ ...(editedTask || task), description: e.target.value })}
+                  rows={3}
+                  placeholder="Add notes..."
+                />
+              ) : (
+                <div className="p-3 rounded-lg bg-secondary/50 text-sm whitespace-pre-wrap">
+                  {currentTask.description || "No notes"}
+                </div>
+              )}
             </div>
           )}
 
@@ -219,10 +227,7 @@ export function TaskDetailDialog({
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <Label className="text-xs text-muted-foreground mb-2 block">Status</Label>
-              <Select
-                value={currentTask.status}
-                onValueChange={(v) => handleStatusChange(v as Task["status"])}
-              >
+              <Select value={currentTask.status} onValueChange={(v) => handleStatusChange(v as Task["status"])}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -238,9 +243,11 @@ export function TaskDetailDialog({
             <div className="flex-1">
               <Label className="text-xs text-muted-foreground mb-2 block">Priority</Label>
               {isEditing ? (
-                <Select 
-                  value={editedTask?.priority || task.priority} 
-                  onValueChange={(v) => setEditedTask({ ...(editedTask || task), priority: v as "high" | "medium" | "low" })}
+                <Select
+                  value={editedTask?.priority || task.priority}
+                  onValueChange={(v) =>
+                    setEditedTask({ ...(editedTask || task), priority: v as "high" | "medium" | "low" })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -258,7 +265,7 @@ export function TaskDetailDialog({
                     "text-sm py-1 px-3",
                     currentTask.priority === "high" && "border-destructive/50 text-destructive",
                     currentTask.priority === "medium" && "border-warning/50 text-warning",
-                    currentTask.priority === "low" && "border-muted-foreground/50"
+                    currentTask.priority === "low" && "border-muted-foreground/50",
                   )}
                 >
                   {currentTask.priority}
@@ -271,9 +278,9 @@ export function TaskDetailDialog({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">Assignees</Label>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="h-7 text-xs gap-1"
                 onClick={() => setShowAssigneeEditor(!showAssigneeEditor)}
               >
@@ -281,7 +288,7 @@ export function TaskDetailDialog({
                 Edit Assignees
               </Button>
             </div>
-            
+
             {showAssigneeEditor ? (
               <div className="space-y-2">
                 <ScrollArea className="h-[120px] border rounded-md p-2">
@@ -325,9 +332,7 @@ export function TaskDetailDialog({
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-xs">{assignee.assignee_name}</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        (by {assignee.assigner_name})
-                      </span>
+                      <span className="text-[10px] text-muted-foreground">(by {assignee.assigner_name})</span>
                     </div>
                   ))
                 ) : (
@@ -347,7 +352,7 @@ export function TaskDetailDialog({
               <span
                 className={cn(
                   "text-sm font-medium flex items-center gap-1",
-                  currentTask.dueDate === "Today" && "text-destructive"
+                  currentTask.dueDate === "Today" && "text-destructive",
                 )}
               >
                 {currentTask.dueDate === "Today" && <AlertCircle className="h-3 w-3" />}
