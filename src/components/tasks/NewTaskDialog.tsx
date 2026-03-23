@@ -148,7 +148,7 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
                     <SelectItem value="internal">
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4" />
-                        Internal (Personal Task)
+                        Internal
                       </div>
                     </SelectItem>
                     {clientsLoading ? (
