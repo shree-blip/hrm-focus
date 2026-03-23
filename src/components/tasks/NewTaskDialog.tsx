@@ -55,6 +55,7 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
       setDueDate("");
       setSelectedAssignees([]);
       setDescription("");
+      setSelectedAssignees(user?.id ? [user.id] : []);
     }
   }, [open, defaultStatus]);
 
