@@ -131,19 +131,6 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="title">
-                Task Title <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="title"
-                placeholder="Enter task title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label>Client</Label>
               <div className="flex gap-2">
                 <Select value={selectedClientId} onValueChange={setSelectedClientId}>
@@ -187,6 +174,19 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="title">
+                Task Title <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="title"
+                placeholder="Enter task title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
