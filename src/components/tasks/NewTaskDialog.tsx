@@ -139,7 +139,7 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                         {selectedClientId === "internal"
-                          ? "Internal (Personal Task)"
+                          ? "Internal "
                           : clients.find((c) => c.id === selectedClientId)?.name || "Select client"}
                       </div>
                     </SelectValue>
