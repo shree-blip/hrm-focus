@@ -12,12 +12,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, Building2 } from "lucide-react";
 import { AddClientDialog } from "@/components/logsheet/AddClientDialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface NewTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (task: {
     title: string;
+    description: string;
     client: string;
     clientId?: string;
     priority: "high" | "medium" | "low";
@@ -41,6 +43,7 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [status, setStatus] = useState<"todo" | "in-progress" | "review" | "done">(defaultStatus);
   const [showAddClientDialog, setShowAddClientDialog] = useState(false);
+  const [description, setDescription] = useState("");
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -51,6 +54,7 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
       setPriority("medium");
       setDueDate("");
       setSelectedAssignees([]);
+      setDescription("");
     }
   }, [open, defaultStatus]);
 
@@ -71,6 +75,7 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
 
     onSubmit({
       title,
+      description,
       client: isInternal ? "Internal" : selectedClient?.name || "",
       clientId: isInternal ? undefined : selectedClientId,
       priority,
@@ -186,6 +191,16 @@ export function NewTaskDialog({ open, onOpenChange, onSubmit, defaultStatus = "t
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Notes</Label>
+              <Textarea
+                id="description"
+                placeholder="Add task notes or description..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
               />
             </div>
 
