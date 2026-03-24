@@ -599,6 +599,35 @@ export function MyTeamSection() {
             : null
         }
       />
+
+      {/* ─── Remove Confirmation Dialog ─── */}
+      <Dialog open={!!removeConfirm} onOpenChange={(open) => { if (!open) setRemoveConfirm(null); }}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Remove from Team?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to remove{" "}
+            <span className="font-medium text-foreground">
+              {removeConfirm?.first_name} {removeConfirm?.last_name}
+            </span>{" "}
+            from your team? This action can be undone by re-adding them later.
+          </p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" size="sm" onClick={() => setRemoveConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => removeConfirm && handleRemoveFromTeam(removeConfirm)}
+            >
+              <UserMinus className="h-4 w-4 mr-1" />
+              Remove
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1153,121 +1153,22 @@ export default function LogSheet() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                    </div>
-                  ) : teamLogs.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                      <p className="font-medium">No team logs for this date</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Employee</TableHead>
-                            <TableHead>Client</TableHead>
-                            <TableHead>Department</TableHead>
-                            <TableHead>Task</TableHead>
-                            <TableHead>Time</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {teamLogs.map((log) => (
-                            <TableRow key={log.id}>
-                              <TableCell>
-                                <div>
-                                  <p className="font-medium text-sm">
-                                    {log.employee?.first_name} {log.employee?.last_name}
-                                  </p>
-                                  {log.employee?.department && (
-                                    <p className="text-xs text-muted-foreground">{log.employee.department}</p>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {log.client?.name ? (
-                                  <div>
-                                    <Badge variant="outline" className="text-xs py-0 h-5 font-normal">
-                                      {log.client.name}
-                                    </Badge>
-                                    {log.client.client_id && (
-                                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                                        ID: {log.client.client_id}
-                                      </p>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">—</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {log.department ? (
-                                  <Badge variant="secondary" className="font-normal text-xs py-0 h-5">
-                                    {getDepartmentDisplayLabel(log.department) || log.department}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">—</span>
-                                )}
-                              </TableCell>
-
-                              <TableCell className="max-w-[200px]">
-                                <p className="text-sm truncate">{log.task_description}</p>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="secondary" className="font-mono text-xs">
-                                  {formatTime(log.time_spent_minutes)}
-                                </Badge>
-                                {log.start_time && (
-                                  <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
-                                    {formatTime12h(log.start_time)}
-                                    {log.end_time ? ` → ${formatTime12h(log.end_time)}` : " ongoing"}
-                                  </p>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={log.status === "in_progress" ? "default" : "outline"}
-                                  className={cn(
-                                    "text-xs",
-                                    log.status === "in_progress" && "bg-green-500",
-                                    log.status === "on_hold" && "bg-yellow-500 text-yellow-950",
-                                  )}
-                                >
-                                  {log.status === "in_progress"
-                                    ? "Active"
-                                    : log.status === "on_hold"
-                                      ? "On Hold"
-                                      : "Done"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  onClick={() => {
-                                    setSelectedLogForHistory({
-                                      id: log.id,
-                                      task: log.task_description,
-                                    });
-                                    setHistoryDialogOpen(true);
-                                  }}
-                                  title="Edit history"
-                                >
-                                  <History className="h-3.5 w-3.5 text-muted-foreground" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+                  {/* ── Filters ── */}
+                  <TeamLogsFilters
+                    teamLogs={teamLogs}
+                    clients={clients}
+                    loading={loading}
+                    getDepartmentDisplayLabel={getDepartmentDisplayLabel}
+                    formatTime={formatTime}
+                    formatTime12h={formatTime12h}
+                    onViewHistory={(log) => {
+                      setSelectedLogForHistory({
+                        id: log.id,
+                        task: log.task_description,
+                      });
+                      setHistoryDialogOpen(true);
+                    }}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
