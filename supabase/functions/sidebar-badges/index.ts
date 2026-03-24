@@ -78,12 +78,12 @@ Deno.serve(async (req) => {
     // Leave: pending
     if (has("approve_leave")) {
       queries.push(
-        supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+        Promise.resolve(supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending"))
           .then(({ count }) => { badges.leave = count || 0; })
       );
     } else if (has("view_leave")) {
       queries.push(
-        supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending")
+        Promise.resolve(supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending"))
           .then(({ count }) => { badges.leave = count || 0; })
       );
     }
