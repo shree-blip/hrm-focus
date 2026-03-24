@@ -153,11 +153,18 @@ export function MyTeamSection() {
     }
   };
 
+  const [removeConfirm, setRemoveConfirm] = useState<TeamMember | null>(null);
+
   const handleRemoveFromTeam = async (member: TeamMember) => {
     if (!user) return;
     const { data: employeeId } = await supabase.rpc("get_employee_id_for_user", {
       _user_id: user.id,
     });
+
+    if (!employeeId) {
+      showStatus("error", "Could not resolve your employee record. Please contact support.");
+      return;
+    }
 
     const { error } = await supabase
       .from("team_members")
@@ -173,8 +180,10 @@ export function MyTeamSection() {
       await fetchTeamMembers();
       showStatus("success", `${member.first_name} ${member.last_name} removed from your team.`);
     } else {
-      showStatus("error", "Failed to remove employee from team. Please try again.");
+      console.error("Team member removal error:", error);
+      showStatus("error", `Failed to remove employee: ${error.message}`);
     }
+    setRemoveConfirm(null);
   };
 
   // ─── Sub-team drill-down helpers ───
@@ -416,7 +425,7 @@ export function MyTeamSection() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleRemoveFromTeam(member)}
+                              onClick={() => setRemoveConfirm(member)}
                               title="Remove from team"
                             >
                               <UserMinus className="h-4 w-4" />
@@ -590,6 +599,35 @@ export function MyTeamSection() {
             : null
         }
       />
+
+      {/* ─── Remove Confirmation Dialog ─── */}
+      <Dialog open={!!removeConfirm} onOpenChange={(open) => { if (!open) setRemoveConfirm(null); }}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Remove from Team?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to remove{" "}
+            <span className="font-medium text-foreground">
+              {removeConfirm?.first_name} {removeConfirm?.last_name}
+            </span>{" "}
+            from your team? This action can be undone by re-adding them later.
+          </p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" size="sm" onClick={() => setRemoveConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => removeConfirm && handleRemoveFromTeam(removeConfirm)}
+            >
+              <UserMinus className="h-4 w-4 mr-1" />
+              Remove
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
