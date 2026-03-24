@@ -78,12 +78,12 @@ Deno.serve(async (req) => {
     // Leave: pending
     if (has("approve_leave")) {
       queries.push(
-        supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+        Promise.resolve(supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending"))
           .then(({ count }) => { badges.leave = count || 0; })
       );
     } else if (has("view_leave")) {
       queries.push(
-        supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending")
+        Promise.resolve(supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending"))
           .then(({ count }) => { badges.leave = count || 0; })
       );
     }
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     // Announcements: active
     if (has("view_announcements") || has("add_announcement")) {
       queries.push(
-        supabase.from("announcements").select("id", { count: "exact", head: true }).eq("is_active", true)
+        Promise.resolve(supabase.from("announcements").select("id", { count: "exact", head: true }).eq("is_active", true))
           .then(({ count }) => { badges.announcements = count || 0; })
       );
     }
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     // Documents: unread shared
     if (has("view_documents") || has("manage_documents")) {
       queries.push(
-        supabase.from("document_shares").select("id", { count: "exact", head: true }).eq("recipient_id", userId).eq("is_read", false)
+        Promise.resolve(supabase.from("document_shares").select("id", { count: "exact", head: true }).eq("recipient_id", userId).eq("is_read", false))
           .then(({ count }) => { badges.documents = count || 0; })
       );
     }
@@ -126,12 +126,12 @@ Deno.serve(async (req) => {
     // Invoices
     if (has("manage_invoices")) {
       queries.push(
-        supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "submitted")
+        Promise.resolve(supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "submitted"))
           .then(({ count }) => { badges.invoices = count || 0; })
       );
     } else if (has("view_invoices")) {
       queries.push(
-        supabase.from("invoices").select("id", { count: "exact", head: true }).eq("user_id", userId).in("status", ["submitted", "draft"])
+        Promise.resolve(supabase.from("invoices").select("id", { count: "exact", head: true }).eq("user_id", userId).in("status", ["submitted", "draft"]))
           .then(({ count }) => { badges.invoices = count || 0; })
       );
     }
@@ -139,12 +139,12 @@ Deno.serve(async (req) => {
     // Loans
     if (has("manage_loans")) {
       queries.push(
-        supabase.from("loan_requests").select("id", { count: "exact", head: true }).in("status", ["pending", "manager_approved", "hr_reviewed"])
+        Promise.resolve(supabase.from("loan_requests").select("id", { count: "exact", head: true }).in("status", ["pending", "manager_approved", "hr_reviewed"]))
           .then(({ count }) => { badges.loans = count || 0; })
       );
     } else if (has("view_loans")) {
       queries.push(
-        supabase.from("loan_requests").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending")
+        Promise.resolve(supabase.from("loan_requests").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending"))
           .then(({ count }) => { badges.loans = count || 0; })
       );
     }
@@ -155,19 +155,19 @@ Deno.serve(async (req) => {
 
       if (has("manage_support") || has("view_bug_reports")) {
         supportCounts.push(
-          supabase.from("bug_reports").select("id", { count: "exact", head: true }).in("status", ["open", "in_progress"])
+          Promise.resolve(supabase.from("bug_reports").select("id", { count: "exact", head: true }).in("status", ["open", "in_progress"]))
             .then(({ count }) => count || 0)
         );
       }
       if (has("manage_support") || has("view_grievances")) {
         supportCounts.push(
-          supabase.from("grievances").select("id", { count: "exact", head: true }).in("status", ["open", "investigating"])
+          Promise.resolve(supabase.from("grievances").select("id", { count: "exact", head: true }).in("status", ["open", "investigating"]))
             .then(({ count }) => count || 0)
         );
       }
       if (has("manage_support") || has("view_asset_requests")) {
         supportCounts.push(
-          supabase.from("asset_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+          Promise.resolve(supabase.from("asset_requests").select("id", { count: "exact", head: true }).eq("status", "pending"))
             .then(({ count }) => count || 0)
         );
       }
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
     // Attendance: pending adjustment requests
     if (has("view_attendance_all") || has("edit_attendance")) {
       queries.push(
-        supabase.from("attendance_adjustment_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+        Promise.resolve(supabase.from("attendance_adjustment_requests").select("id", { count: "exact", head: true }).eq("status", "pending"))
           .then(({ count }) => { badges.attendance = count || 0; })
       );
     }
