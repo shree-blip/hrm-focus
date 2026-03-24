@@ -37,6 +37,7 @@ import { EditHistoryDialog } from "@/components/logsheet/EditHistoryDialog";
 import { AddClientDialog } from "@/components/logsheet/AddClientDialog";
 import { ClientAlertPopup } from "@/components/logsheet/ClientAlertPopup";
 import { TeamRealtimeDashboard } from "@/components/logsheet/TeamRealtimeDashboard";
+import { TeamLogsFilters } from "@/components/logsheet/TeamLogsFilters";
 import { ClientReportDownload } from "@/components/logsheet/ClientReportDownload";
 import { useWorkLogs, WorkLogInput, calcMinutesBetween } from "@/hooks/useWorkLogs";
 import { useClients } from "@/hooks/useClients";
