@@ -166,12 +166,11 @@ export function MyTeamSection() {
       return;
     }
 
-    const { error, count } = await supabase
+    const { error } = await supabase
       .from("team_members")
       .delete()
       .eq("manager_employee_id", employeeId)
-      .eq("member_employee_id", member.id)
-      .select("id", { count: "exact", head: true });
+      .eq("member_employee_id", member.id);
 
     if (!error) {
       toast({
