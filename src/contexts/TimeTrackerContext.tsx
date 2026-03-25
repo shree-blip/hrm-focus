@@ -2,6 +2,7 @@ import { createContext, useContext, ReactNode, useState, useEffect, useCallback 
 import { useAttendance, AttendanceLog } from "@/hooks/useAttendance";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { getTimezoneOffsetMinutes } from "@/utils/timezoneUtils";
 
 export interface TimeTrackerState {
   currentLog: AttendanceLog | null;
@@ -37,38 +38,53 @@ export function TimeTrackerProvider({ children }: { children: ReactNode }) {
   const attendance = useAttendance();
   const { user } = useAuth();
 
-  const fetchWeeklyLogsForRange = useCallback(async (weekStart: Date): Promise<AttendanceLog[]> => {
-    if (!user) return [];
+  const fetchWeeklyLogsForRange = useCallback(
+    async (weekStart: Date): Promise<AttendanceLog[]> => {
+      if (!user) return [];
 
-    const endDate = new Date(Date.UTC(
-      weekStart.getUTCFullYear(), weekStart.getUTCMonth(), weekStart.getUTCDate() + 6,
-      23, 59, 59, 999
-    ));
+      // 1. Get employee's timezone from DB
+      const { data: empData } = await supabase.from("employees").select("timezone").eq("id", user.id).single();
 
-    const { data, error } = await supabase
-      .from("attendance_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("clock_in", weekStart.toISOString())
-      .lte("clock_in", endDate.toISOString())
-      .order("clock_in", { ascending: false });
+      const tz = empData?.timezone || "Asia/Kathmandu";
 
-    if (!error && data) {
-      return data as AttendanceLog[];
-    }
-    return [];
-  }, [user]);
+      // 2. Build Monday 00:00:00 and Sunday 23:59:59 in employee's local time
+      const y = weekStart.getFullYear();
+      const m = weekStart.getMonth();
+      const d = weekStart.getDate();
+
+      const startLocal = new Date(y, m, d, 0, 0, 0, 0);
+      const endLocal = new Date(y, m, d + 6, 23, 59, 59, 999);
+
+      // 3. Convert those local boundaries to UTC using the employee's offset
+      const startOffsetMs = getTimezoneOffsetMinutes(tz, startLocal) * 60 * 1000;
+      const endOffsetMs = getTimezoneOffsetMinutes(tz, endLocal) * 60 * 1000;
+
+      const startUtc = new Date(startLocal.getTime() + startOffsetMs).toISOString();
+      const endUtc = new Date(endLocal.getTime() + endOffsetMs).toISOString();
+
+      // 4. Query using correct UTC boundaries
+      const { data, error } = await supabase
+        .from("attendance_logs")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("clock_in", startUtc)
+        .lte("clock_in", endUtc)
+        .order("clock_in", { ascending: false });
+
+      if (!error && data) {
+        return data as AttendanceLog[];
+      }
+      return [];
+    },
+    [user],
+  );
 
   const value: TimeTrackerState = {
     ...attendance,
     fetchWeeklyLogsForRange,
   };
 
-  return (
-    <TimeTrackerContext.Provider value={value}>
-      {children}
-    </TimeTrackerContext.Provider>
-  );
+  return <TimeTrackerContext.Provider value={value}>{children}</TimeTrackerContext.Provider>;
 }
 
 /**
