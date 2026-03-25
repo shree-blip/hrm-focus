@@ -60,26 +60,19 @@ export function AddEmployeeDialog({
 
   useEffect(() => {
     if (open) {
-      fetchManagers();
+      fetchLineManagers();
     }
   }, [open]);
 
-  const fetchManagers = async () => {
-    // Fetch managers (job_title contains 'Manager' or 'VP')
-    const { data: managerData } = await supabase
+  const fetchLineManagers = async () => {
+    const { data } = await supabase
       .from("employees")
       .select("id, first_name, last_name, job_title")
-      .or("job_title.ilike.%manager%,job_title.ilike.%vp%,job_title.ilike.%vice president%")
-      .eq("status", "active")
+      .or("status.eq.active,status.is.null")
       .order("first_name", { ascending: true });
 
-    if (managerData) {
-      setManagers(managerData);
-      // Filter for line managers specifically
-      const lineManagerList = managerData.filter(m => 
-        m.job_title?.toLowerCase().includes('line manager')
-      );
-      setLineManagers(lineManagerList.length > 0 ? lineManagerList : managerData);
+    if (data) {
+      setLineManagers(data);
     }
   };
 
