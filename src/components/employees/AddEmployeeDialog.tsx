@@ -54,10 +54,7 @@ export function AddEmployeeDialog({
   const [department, setDepartment] = useState("");
   const [location, setLocation] = useState("");
   const [phone, setPhone] = useState("");
-  const [managerId, setManagerId] = useState<string>("");
-  const [assignLineManager, setAssignLineManager] = useState(false);
   const [lineManagerId, setLineManagerId] = useState<string>("");
-  const [managers, setManagers] = useState<Manager[]>([]);
   const [lineManagers, setLineManagers] = useState<Manager[]>([]);
   const [loading, setLoading] = useState(false);
 
