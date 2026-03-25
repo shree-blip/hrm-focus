@@ -232,45 +232,19 @@ export function AddEmployeeDialog({
             </div>
 
             <div className="space-y-2 col-span-2">
-              <Label>Manager</Label>
-              <Select value={managerId} onValueChange={setManagerId}>
+              <Label>Line Manager</Label>
+              <Select value={lineManagerId} onValueChange={setLineManagerId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select manager (optional)" />
+                  <SelectValue placeholder="Select line manager (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {managers.map((manager) => (
-                    <SelectItem key={manager.id} value={manager.id}>
-                      {manager.first_name} {manager.last_name} - {manager.job_title}
+                  {lineManagers.map((lm) => (
+                    <SelectItem key={lm.id} value={lm.id}>
+                      {lm.first_name} {lm.last_name}{lm.job_title ? ` - ${lm.job_title}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-3 col-span-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="assign-line-manager">Assign a Line Manager</Label>
-                <Switch
-                  id="assign-line-manager"
-                  checked={assignLineManager}
-                  onCheckedChange={setAssignLineManager}
-                />
-              </div>
-              
-              {assignLineManager && (
-                <Select value={lineManagerId} onValueChange={setLineManagerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select line manager" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {lineManagers.map((lm) => (
-                      <SelectItem key={lm.id} value={lm.id}>
-                        {lm.first_name} {lm.last_name} - {lm.job_title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
             </div>
 
             <div className="space-y-2 col-span-2">
