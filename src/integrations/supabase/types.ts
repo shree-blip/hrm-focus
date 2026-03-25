@@ -168,43 +168,64 @@ export type Database = {
       }
       asset_requests: {
         Row: {
+          admin_approved_at: string | null
+          admin_approved_by: string | null
+          approval_stage: string
           approved_at: string | null
           approved_by: string | null
           created_at: string
           description: string
+          first_approver_id: string | null
           id: string
+          line_manager_approved_at: string | null
+          line_manager_approved_by: string | null
           org_id: string | null
           rejection_reason: string | null
           request_type: string
-          status: Database["public"]["Enums"]["request_status"] | null
+          requester_employee_id: string | null
+          status: string | null
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          admin_approved_at?: string | null
+          admin_approved_by?: string | null
+          approval_stage?: string
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
           description: string
+          first_approver_id?: string | null
           id?: string
+          line_manager_approved_at?: string | null
+          line_manager_approved_by?: string | null
           org_id?: string | null
           rejection_reason?: string | null
           request_type?: string
-          status?: Database["public"]["Enums"]["request_status"] | null
+          requester_employee_id?: string | null
+          status?: string | null
           title: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          admin_approved_at?: string | null
+          admin_approved_by?: string | null
+          approval_stage?: string
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
           description?: string
+          first_approver_id?: string | null
           id?: string
+          line_manager_approved_at?: string | null
+          line_manager_approved_by?: string | null
           org_id?: string | null
           rejection_reason?: string | null
           request_type?: string
-          status?: Database["public"]["Enums"]["request_status"] | null
+          requester_employee_id?: string | null
+          status?: string | null
           title?: string
           updated_at?: string
           user_id?: string
