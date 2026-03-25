@@ -389,7 +389,6 @@ const Employees = () => {
     location: string;
     status: string;
     phone: string;
-    managerId: string | null;
     lineManagerId: string | null;
   }) => {
     try {
@@ -411,7 +410,6 @@ const Employees = () => {
         location: data.location || "US",
         status: data.status || "active",
         hire_date: new Date().toISOString().slice(0, 10),
-        manager_id: data.managerId,
         line_manager_id: data.lineManagerId,
       };
 

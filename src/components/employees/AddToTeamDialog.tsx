@@ -75,11 +75,11 @@ export function AddToTeamDialog({
 
     const existingMemberIds = (existingTeam || []).map((r: any) => r.member_employee_id);
 
-    // Fetch all active employees
+    // Fetch all valid employees (active or null status)
     const { data: employees } = await supabase
       .from("employees")
       .select("id, first_name, last_name, email, department, job_title, status")
-      .eq("status", "active")
+      .or("status.eq.active,status.is.null")
       .order("first_name", { ascending: true });
 
     if (employees) {
