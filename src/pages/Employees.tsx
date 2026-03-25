@@ -61,10 +61,7 @@ interface SubTeamView {
 async function fetchCombinedTeam(employeeId: string): Promise<ClickedEmployeeTeamMember[]> {
   // Fetch junction table and legacy columns in parallel
   const [junctionResult, lineReportsResult, managerReportsResult] = await Promise.all([
-    supabase
-      .from("team_members")
-      .select("member_employee_id")
-      .eq("manager_employee_id", employeeId),
+    supabase.from("team_members").select("member_employee_id").eq("manager_employee_id", employeeId),
     supabase
       .from("employees")
       .select("id, first_name, last_name, email, department, job_title, status")
@@ -114,9 +111,15 @@ async function detectManagersAmong(employeeIds: string[]): Promise<Set<string>> 
   ]);
 
   const ids = new Set<string>();
-  (junctionResult.data || []).forEach((r: any) => { if (r.manager_employee_id) ids.add(r.manager_employee_id); });
-  (lineResult.data || []).forEach((r: any) => { if (r.line_manager_id) ids.add(r.line_manager_id); });
-  (managerResult.data || []).forEach((r: any) => { if (r.manager_id) ids.add(r.manager_id); });
+  (junctionResult.data || []).forEach((r: any) => {
+    if (r.manager_employee_id) ids.add(r.manager_employee_id);
+  });
+  (lineResult.data || []).forEach((r: any) => {
+    if (r.line_manager_id) ids.add(r.line_manager_id);
+  });
+  (managerResult.data || []).forEach((r: any) => {
+    if (r.manager_id) ids.add(r.manager_id);
+  });
 
   return ids;
 }
@@ -269,10 +272,16 @@ const Employees = () => {
 
   const handleRemoveFromClickedTeam = async (member: ClickedEmployeeTeamMember) => {
     if (!clickedEmployee) return;
+    const managerId = String(clickedEmployee.id);
 
-    // Remove both line_manager_id and manager_id references to the clicked employee
-    const updates: any = {};
-    // We need to check which field links this member to the clicked employee
+    // Delete from junction table
+    await supabase
+      .from("team_members")
+      .delete()
+      .eq("manager_employee_id", managerId)
+      .eq("member_employee_id", member.id);
+
+    // Also clear legacy columns if they reference this manager
     const { data: memberData } = await supabase
       .from("employees")
       .select("line_manager_id, manager_id")
@@ -280,33 +289,19 @@ const Employees = () => {
       .single();
 
     if (memberData) {
-      if (memberData.line_manager_id === String(clickedEmployee.id)) {
-        updates.line_manager_id = null;
+      const updates: any = {};
+      if (memberData.line_manager_id === managerId) updates.line_manager_id = null;
+      if (memberData.manager_id === managerId) updates.manager_id = null;
+      if (Object.keys(updates).length > 0) {
+        await supabase.from("employees").update(updates).eq("id", member.id);
       }
-      if (memberData.manager_id === String(clickedEmployee.id)) {
-        updates.manager_id = null;
-      }
     }
 
-    if (Object.keys(updates).length === 0) {
-      updates.line_manager_id = null;
-    }
-
-    const { error } = await supabase.from("employees").update(updates).eq("id", member.id);
-
-    if (!error) {
-      toast({
-        title: "Removed from Team",
-        description: `${member.first_name} ${member.last_name} has been removed from ${clickedEmployee.first_name}'s team.`,
-      });
-      fetchClickedEmployeeTeam(String(clickedEmployee.id));
-    } else {
-      toast({
-        title: "Error",
-        description: "Failed to remove employee from team.",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Removed from Team",
+      description: `${member.first_name} ${member.last_name} has been removed from ${clickedEmployee.first_name}'s team.`,
+    });
+    fetchClickedEmployeeTeam(managerId);
   };
 
   const handleManageTeam = () => {
