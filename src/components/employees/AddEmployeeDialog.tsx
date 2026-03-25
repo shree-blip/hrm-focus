@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -39,7 +39,6 @@ interface AddEmployeeDialogProps {
     status: string;
     initials: string;
     phone: string;
-    managerId: string | null;
     lineManagerId: string | null;
   }) => void;
 }
@@ -55,35 +54,25 @@ export function AddEmployeeDialog({
   const [department, setDepartment] = useState("");
   const [location, setLocation] = useState("");
   const [phone, setPhone] = useState("");
-  const [managerId, setManagerId] = useState<string>("");
-  const [assignLineManager, setAssignLineManager] = useState(false);
   const [lineManagerId, setLineManagerId] = useState<string>("");
-  const [managers, setManagers] = useState<Manager[]>([]);
   const [lineManagers, setLineManagers] = useState<Manager[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
-      fetchManagers();
+      fetchLineManagers();
     }
   }, [open]);
 
-  const fetchManagers = async () => {
-    // Fetch managers (job_title contains 'Manager' or 'VP')
-    const { data: managerData } = await supabase
+  const fetchLineManagers = async () => {
+    const { data } = await supabase
       .from("employees")
       .select("id, first_name, last_name, job_title")
-      .or("job_title.ilike.%manager%,job_title.ilike.%vp%,job_title.ilike.%vice president%")
-      .eq("status", "active")
+      .or("status.eq.active,status.is.null")
       .order("first_name", { ascending: true });
 
-    if (managerData) {
-      setManagers(managerData);
-      // Filter for line managers specifically
-      const lineManagerList = managerData.filter(m => 
-        m.job_title?.toLowerCase().includes('line manager')
-      );
-      setLineManagers(lineManagerList.length > 0 ? lineManagerList : managerData);
+    if (data) {
+      setLineManagers(data);
     }
   };
 
@@ -148,8 +137,7 @@ export function AddEmployeeDialog({
       status: "active",
       initials: getInitials(name),
       phone,
-      managerId: managerId || null,
-      lineManagerId: assignLineManager && lineManagerId ? lineManagerId : null,
+      lineManagerId: lineManagerId || null,
     });
 
     // Reset form
@@ -159,8 +147,6 @@ export function AddEmployeeDialog({
     setDepartment("");
     setLocation("");
     setPhone("");
-    setManagerId("");
-    setAssignLineManager(false);
     setLineManagerId("");
     setLoading(false);
     onOpenChange(false);
@@ -246,45 +232,19 @@ export function AddEmployeeDialog({
             </div>
 
             <div className="space-y-2 col-span-2">
-              <Label>Manager</Label>
-              <Select value={managerId} onValueChange={setManagerId}>
+              <Label>Line Manager</Label>
+              <Select value={lineManagerId} onValueChange={setLineManagerId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select manager (optional)" />
+                  <SelectValue placeholder="Select line manager (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {managers.map((manager) => (
-                    <SelectItem key={manager.id} value={manager.id}>
-                      {manager.first_name} {manager.last_name} - {manager.job_title}
+                  {lineManagers.map((lm) => (
+                    <SelectItem key={lm.id} value={lm.id}>
+                      {lm.first_name} {lm.last_name}{lm.job_title ? ` - ${lm.job_title}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-3 col-span-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="assign-line-manager">Assign a Line Manager</Label>
-                <Switch
-                  id="assign-line-manager"
-                  checked={assignLineManager}
-                  onCheckedChange={setAssignLineManager}
-                />
-              </div>
-              
-              {assignLineManager && (
-                <Select value={lineManagerId} onValueChange={setLineManagerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select line manager" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {lineManagers.map((lm) => (
-                      <SelectItem key={lm.id} value={lm.id}>
-                        {lm.first_name} {lm.last_name} - {lm.job_title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
             </div>
 
             <div className="space-y-2 col-span-2">
