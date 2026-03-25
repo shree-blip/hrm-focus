@@ -296,7 +296,21 @@ const Employees = () => {
         await supabase.from("employees").update(updates).eq("id", member.id);
       }
     }
-
+    // Send removal email notification
+    try {
+      await supabase.functions.invoke("send-team-assignment-notification", {
+        body: {
+          action: "removed",
+          assigner_name: user?.user_metadata?.full_name || user?.email || "System",
+          assigner_email: user?.email || "",
+          employee_name: `${member.first_name} ${member.last_name}`,
+          employee_email: member.email,
+          manager_name: `${clickedEmployee.first_name} ${clickedEmployee.last_name}`,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to send removal notification:", err);
+    }
     toast({
       title: "Removed from Team",
       description: `${member.first_name} ${member.last_name} has been removed from ${clickedEmployee.first_name}'s team.`,
