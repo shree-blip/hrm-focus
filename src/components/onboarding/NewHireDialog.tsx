@@ -322,8 +322,6 @@ export function NewHireDialog({ open, onOpenChange, onSubmit }: NewHireDialogPro
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="salary">Salary</SelectItem>
-                  <SelectItem value="hourly">Hourly</SelectItem>
-                  <SelectItem value="contractor">Contractor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
