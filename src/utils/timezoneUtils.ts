@@ -4,10 +4,7 @@
  * No component does its own timezone conversion.
  */
 
-export function formatAttendanceTime(
-  utc_timestamp: string,
-  employee_timezone: string
-) {
+export function formatAttendanceTime(utc_timestamp: string, employee_timezone: string) {
   const dt = new Date(utc_timestamp);
 
   const localDate = dt.toLocaleDateString("en-CA", {
@@ -21,21 +18,19 @@ export function formatAttendanceTime(
     hour12: true,
   });
 
-  const tzAbbr = dt
-    .toLocaleTimeString("en-US", {
-      timeZone: employee_timezone,
-      timeZoneName: "short",
-    })
-    .split(" ")
-    .pop() || employee_timezone;
+  const tzAbbr =
+    dt
+      .toLocaleTimeString("en-US", {
+        timeZone: employee_timezone,
+        timeZoneName: "short",
+      })
+      .split(" ")
+      .pop() || employee_timezone;
 
   return { localDate, localTime, tzAbbr, utc: utc_timestamp };
 }
 
-export function getWorkDate(
-  clock_in_utc: string,
-  employee_timezone: string
-): string {
+export function getWorkDate(clock_in_utc: string, employee_timezone: string): string {
   return new Date(clock_in_utc).toLocaleDateString("en-CA", {
     timeZone: employee_timezone,
   });
@@ -44,10 +39,7 @@ export function getWorkDate(
 /**
  * Get a human-readable work date display (e.g. "Mon, Mar 17")
  */
-export function getWorkDateDisplay(
-  clock_in_utc: string,
-  employee_timezone: string
-): string {
+export function getWorkDateDisplay(clock_in_utc: string, employee_timezone: string): string {
   return new Date(clock_in_utc).toLocaleDateString("en-US", {
     timeZone: employee_timezone,
     weekday: "short",
@@ -56,12 +48,8 @@ export function getWorkDateDisplay(
   });
 }
 
-export function calcHoursWorked(
-  clock_in_utc: string,
-  clock_out_utc: string
-): string {
-  const ms =
-    new Date(clock_out_utc).getTime() - new Date(clock_in_utc).getTime();
+export function calcHoursWorked(clock_in_utc: string, clock_out_utc: string): string {
+  const ms = new Date(clock_out_utc).getTime() - new Date(clock_in_utc).getTime();
   const totalMinutes = Math.floor(ms / 60000);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
@@ -71,11 +59,7 @@ export function calcHoursWorked(
 /**
  * Check if a shift crosses midnight in the employee's timezone (night shift).
  */
-export function isNightShift(
-  clock_in_utc: string,
-  clock_out_utc: string,
-  employee_timezone: string
-): boolean {
+export function isNightShift(clock_in_utc: string, clock_out_utc: string, employee_timezone: string): boolean {
   const inDate = getWorkDate(clock_in_utc, employee_timezone);
   const outDate = getWorkDate(clock_out_utc, employee_timezone);
   return inDate !== outDate;
@@ -133,6 +117,18 @@ export function getUTCOffsetString(timezone: string): string {
   } catch {
     return timezone;
   }
+}
+
+/**
+ * Get timezone offset in minutes for a given timezone and date.
+ * Returns the number of minutes to ADD to local time to get UTC.
+ */
+export function getTimezoneOffsetMinutes(timezone: string, date: Date): number {
+  const utcStr = date.toLocaleString("en-US", { timeZone: "UTC" });
+  const localStr = date.toLocaleString("en-US", { timeZone: timezone });
+  const utcDate = new Date(utcStr);
+  const localDate = new Date(localStr);
+  return (utcDate.getTime() - localDate.getTime()) / 60000;
 }
 
 /** Default timezone used when employee has no explicit timezone set */
