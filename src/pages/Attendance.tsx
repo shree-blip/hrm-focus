@@ -32,7 +32,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, X } from "lucide-react";
-import { formatAttendanceTime, getWorkDate, getWorkDateDisplay, isNightShift, DEFAULT_TIMEZONE } from "@/utils/timezoneUtils";
+import {
+  formatAttendanceTime,
+  getWorkDate,
+  getWorkDateDisplay,
+  isNightShift,
+  DEFAULT_TIMEZONE,
+} from "@/utils/timezoneUtils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,7 +53,16 @@ import {
 const Attendance = () => {
   const { user, isManager, isLineManager, isAdmin, isVP } = useAuth();
   const [clockType, setClockType] = useState<"payroll" | "billable">("payroll");
-  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    // Temporary default using Asia/Kathmandu — will be corrected by useEffect below
+    const tz = "Asia/Kathmandu";
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+    const [y, m, d] = todayStr.split("-").map(Number);
+    const todayLocal = new Date(y, m - 1, d);
+    const dow = todayLocal.getDay();
+    const diff = dow === 0 ? -6 : 1 - dow;
+    return new Date(y, m - 1, d + diff);
+  });
   const currentDate = new Date();
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
@@ -81,9 +96,32 @@ const Attendance = () => {
     employeeTimezone,
   } = useTimeTracker();
 
+  useEffect(() => {
+    const tz = employeeTimezone || "Asia/Kathmandu";
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+    const [y, m, d] = todayStr.split("-").map(Number);
+    const todayLocal = new Date(y, m - 1, d);
+    const dow = todayLocal.getDay();
+    const diff = dow === 0 ? -6 : 1 - dow;
+    const mondayDate = new Date(y, m - 1, d + diff);
+
+    if (mondayDate.getTime() !== currentWeekStart.getTime()) {
+      setCurrentWeekStart(mondayDate);
+    }
+  }, [employeeTimezone]);
+
   // Week-specific logs for navigation (defaults to shared context's current week)
   const [navigatedWeeklyLogs, setNavigatedWeeklyLogs] = useState<any[] | null>(null);
-  const isCurrentWeek = startOfWeek(new Date(), { weekStartsOn: 1 }).getTime() === currentWeekStart.getTime();
+  const isCurrentWeek = (() => {
+    const tz = employeeTimezone || "Asia/Kathmandu";
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+    const [y, m, d] = todayStr.split("-").map(Number);
+    const todayLocal = new Date(y, m - 1, d);
+    const dow = todayLocal.getDay();
+    const diff = dow === 0 ? -6 : 1 - dow;
+    const thisMonday = new Date(y, m - 1, d + diff);
+    return thisMonday.getTime() === currentWeekStart.getTime();
+  })();
   const weeklyLogs = isCurrentWeek ? defaultWeeklyLogs : (navigatedWeeklyLogs ?? defaultWeeklyLogs);
 
   useEffect(() => {
@@ -718,11 +756,15 @@ const Attendance = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs">{inFmt.localTime} {inFmt.tzAbbr}</span>
+                        <span className="text-xs">
+                          {inFmt.localTime} {inFmt.tzAbbr}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {outFmt ? (
-                          <span className="text-xs">{outFmt.localTime} {outFmt.tzAbbr}</span>
+                          <span className="text-xs">
+                            {outFmt.localTime} {outFmt.tzAbbr}
+                          </span>
                         ) : (
                           "-"
                         )}
