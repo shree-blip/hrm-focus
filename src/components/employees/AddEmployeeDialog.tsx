@@ -39,7 +39,6 @@ interface AddEmployeeDialogProps {
     status: string;
     initials: string;
     phone: string;
-    managerId: string | null;
     lineManagerId: string | null;
   }) => void;
 }
