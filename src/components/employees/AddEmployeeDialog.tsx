@@ -137,8 +137,7 @@ export function AddEmployeeDialog({
       status: "active",
       initials: getInitials(name),
       phone,
-      managerId: managerId || null,
-      lineManagerId: assignLineManager && lineManagerId ? lineManagerId : null,
+      lineManagerId: lineManagerId || null,
     });
 
     // Reset form
@@ -148,8 +147,6 @@ export function AddEmployeeDialog({
     setDepartment("");
     setLocation("");
     setPhone("");
-    setManagerId("");
-    setAssignLineManager(false);
     setLineManagerId("");
     setLoading(false);
     onOpenChange(false);
