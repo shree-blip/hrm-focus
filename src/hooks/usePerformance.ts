@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { resolveSubordinateEmployeeIds } from "@/utils/teamResolver";
 
 // ---- Types ----
 
@@ -163,10 +164,14 @@ export function usePerformance(period: PeriodType = "this-month", customRange?: 
         if (!myEmployee) { setScores([]); setLoading(false); return; }
 
         if (isLineManager || isSupervisor) {
-          // See direct reports + self
-          employeesQuery = employeesQuery.or(
-            `manager_id.eq.${myEmployee.id},line_manager_id.eq.${myEmployee.id},id.eq.${myEmployee.id}`
-          );
+          const subordinateEmployeeIds = await resolveSubordinateEmployeeIds(user.id);
+          const visibleEmployeeIds = Array.from(new Set([myEmployee.id, ...subordinateEmployeeIds]));
+          console.debug("[hierarchy][performance] employee filter", {
+            managerUserId: user.id,
+            visibleEmployeeIdsCount: visibleEmployeeIds.length,
+            visibleEmployeeIds,
+          });
+          employeesQuery = employeesQuery.in("id", visibleEmployeeIds);
         } else {
           // Regular employee sees only self
           employeesQuery = employeesQuery.eq("id", myEmployee.id);

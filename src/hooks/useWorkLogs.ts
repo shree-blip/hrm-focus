@@ -229,6 +229,13 @@ export function useWorkLogs() {
         } else {
           const teamUserIds = await resolveTeamMemberUserIds(user.id);
 
+          console.debug("[hierarchy][work_logs] applying team filter", {
+            managerUserId: user.id,
+            logDate: dateStr,
+            teamUserIdsCount: teamUserIds.length,
+            teamUserIds,
+          });
+
           if (teamUserIds.length === 0) {
             setTeamLogs([]);
             return;

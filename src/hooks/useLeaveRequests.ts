@@ -169,7 +169,13 @@ export function useLeaveRequests() {
     if (role === "admin" || role === "vp") return [];
 
     if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor" || role === "manager") {
-      return resolveTeamMemberUserIds(user.id);
+      const ids = await resolveTeamMemberUserIds(user.id);
+      console.debug("[hierarchy][leave] team user ids", {
+        managerUserId: user.id,
+        teamUserIdsCount: ids.length,
+        teamUserIds: ids,
+      });
+      return ids;
     }
 
     return [];
@@ -193,6 +199,7 @@ export function useLeaveRequests() {
 
     if ((isSupervisor || isLineManager || role === "line_manager" || role === "supervisor" || role === "manager") && role !== "admin" && role !== "vp") {
       const teamIds = await fetchTeamMemberUserIds();
+      console.debug("[hierarchy][leave] pending filter", { managerUserId: user.id, teamIdsCount: teamIds.length, teamIds });
       if (teamIds.length > 0) {
         return (data || []).filter((r) => teamIds.includes(r.user_id));
       }
@@ -225,6 +232,7 @@ export function useLeaveRequests() {
       if (error) return [];
 
       const teamIds = await fetchTeamMemberUserIds();
+      console.debug("[hierarchy][leave] all-team filter", { managerUserId: user.id, teamIdsCount: teamIds.length, teamIds });
       if (teamIds.length > 0) {
         return (data || []).filter((r) => teamIds.includes(r.user_id));
       }
