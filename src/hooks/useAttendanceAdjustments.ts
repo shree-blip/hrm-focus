@@ -102,10 +102,15 @@ export function useAttendanceAdjustments() {
     if (!user) return;
     if (!isManager && !isVP && !isAdmin && !isLineManager) return;
 
-    // For line managers / managers (non-VP, non-admin): scope to their direct reports only
+    // For line managers / managers (non-VP, non-admin): scope to recursive team tree
     let teamUserIds: string[] | null = null;
     if (!isVP && !isAdmin) {
       teamUserIds = await resolveTeamMemberUserIds(user.id);
+      console.debug("[hierarchy][attendance_adjustments] team user ids", {
+        managerUserId: user.id,
+        teamUserIdsCount: teamUserIds.length,
+        teamUserIds,
+      });
       if (!teamUserIds || teamUserIds.length === 0) return;
     }
 

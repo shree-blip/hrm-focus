@@ -104,8 +104,19 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
     const hasOrgWideAccess = isVP || isAdmin;
     let teamUserIds: string[] | null = null;
 
+    console.debug("[hierarchy][attendance] visibility mode", {
+      userId: user.id,
+      hasOrgWideAccess,
+      dateRangeType: dateRangeType || "this-month",
+    });
+
     if (!hasOrgWideAccess) {
       teamUserIds = await getTeamUserIds(user.id);
+      console.debug("[hierarchy][attendance] team user ids", {
+        managerUserId: user.id,
+        teamUserIdsCount: teamUserIds.length,
+        teamUserIds,
+      });
       if (!teamUserIds || teamUserIds.length === 0) {
         setTeamAttendance([]);
         setDailyAttendance([]);
