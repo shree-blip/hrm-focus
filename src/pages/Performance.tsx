@@ -59,9 +59,7 @@ import { GoalsList } from "@/components/performance/GoalsList";
 // ═══════════════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════
-const STANDARD_HOURS_PER_DAY = 7.5;
-const STANDARD_WORKING_DAYS = 21;
-const MONTHLY_TARGET_HOURS = STANDARD_HOURS_PER_DAY * STANDARD_WORKING_DAYS; // 157.5h
+const STANDARD_HOURS_PER_DAY = 8;
 const MIN_LOGSHEETS_PER_DAY = 3;
 const ACCEPTABLE_BREAK_MINUTES = 45;
 const MIN_LOG_MINUTES = 15; // entries under 15min are "low effort"
@@ -77,67 +75,70 @@ const PERIOD_OPTIONS: { value: PeriodType; label: string }[] = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
-// DATE RANGE HELPER
+// DATE RANGE HELPER — calculates actual Mon-Fri working days
 // ═══════════════════════════════════════════════════════════════
+
+/** Count Mon-Fri days between two dates (inclusive) */
+function countWorkingDays(start: Date, end: Date): number {
+  let count = 0;
+  const d = new Date(start);
+  d.setHours(0, 0, 0, 0);
+  const endClean = new Date(end);
+  endClean.setHours(23, 59, 59, 999);
+  while (d <= endClean) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) count++; // Skip Saturday (6) & Sunday (0)
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+
 function getDateRange(period: PeriodType) {
   const now = new Date();
   const y = now.getFullYear(),
     m = now.getMonth();
+  let start: Date, end: Date;
+
   switch (period) {
     case "this-week": {
       const day = now.getDay();
       const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-      const start = new Date(y, m, diff);
+      start = new Date(y, m, diff);
       start.setHours(0, 0, 0, 0);
-      const end = new Date(start);
+      end = new Date(start);
       end.setDate(start.getDate() + 6);
       end.setHours(23, 59, 59, 999);
-      return { start, end, workingDays: 5 };
+      break;
     }
     case "this-month":
-      return {
-        start: new Date(y, m, 1),
-        end: new Date(y, m + 1, 0, 23, 59, 59, 999),
-        workingDays: STANDARD_WORKING_DAYS,
-      };
+      start = new Date(y, m, 1);
+      end = new Date(y, m + 1, 0, 23, 59, 59, 999);
+      break;
     case "last-month":
-      return {
-        start: new Date(y, m - 1, 1),
-        end: new Date(y, m, 0, 23, 59, 59, 999),
-        workingDays: STANDARD_WORKING_DAYS,
-      };
+      start = new Date(y, m - 1, 1);
+      end = new Date(y, m, 0, 23, 59, 59, 999);
+      break;
     case "this-quarter": {
       const qs = Math.floor(m / 3) * 3;
-      return {
-        start: new Date(y, qs, 1),
-        end: new Date(y, qs + 3, 0, 23, 59, 59, 999),
-        workingDays: STANDARD_WORKING_DAYS * 3,
-      };
+      start = new Date(y, qs, 1);
+      end = new Date(y, qs + 3, 0, 23, 59, 59, 999);
+      break;
     }
     case "this-year":
-      return {
-        start: new Date(y, 0, 1),
-        end: new Date(y, 11, 31, 23, 59, 59, 999),
-        workingDays: STANDARD_WORKING_DAYS * 12,
-      };
+      start = new Date(y, 0, 1);
+      end = new Date(y, 11, 31, 23, 59, 59, 999);
+      break;
     default:
-      return {
-        start: new Date(y, m, 1),
-        end: new Date(y, m + 1, 0, 23, 59, 59, 999),
-        workingDays: STANDARD_WORKING_DAYS,
-      };
+      start = new Date(y, m, 1);
+      end = new Date(y, m + 1, 0, 23, 59, 59, 999);
   }
-}
 
-function getWorkingDaysInRange(start: Date, end: Date): number {
-  let count = 0;
-  const d = new Date(start);
-  while (d <= end) {
-    const dow = d.getDay();
-    if (dow !== 0 && dow !== 6) count++;
-    d.setDate(d.getDate() + 1);
-  }
-  return count;
+  // Dynamically count actual Mon-Fri working days in this range
+  const workingDays = countWorkingDays(start, end);
+  // Target hours = actual working days × 8h
+  const targetHours = workingDays * STANDARD_HOURS_PER_DAY;
+
+  return { start, end, workingDays, targetHours };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -325,6 +326,7 @@ const PerformanceMetrics = () => {
   const [selectedDept, setSelectedDept] = useState("All");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [periodInfo, setPeriodInfo] = useState({ workingDays: 0, targetHours: 0 });
 
   const { employees, loading: empLoading } = useEmployees();
   const { getStatus: getPresenceStatus, getOnlineCount } = useTeamPresence();
@@ -351,7 +353,8 @@ const PerformanceMetrics = () => {
     setLoading(true);
 
     try {
-      const { start, end, workingDays } = getDateRange(period);
+      const { start, end, workingDays, targetHours } = getDateRange(period);
+      setPeriodInfo({ workingDays, targetHours });
       const startISO = start.toISOString();
       const endISO = end.toISOString();
       const startDate = start.toISOString().split("T")[0];
@@ -401,13 +404,15 @@ const PerformanceMetrics = () => {
         .gte("log_date", startDate)
         .lte("log_date", endDate);
 
-      // ── FETCH: Approved leave in period ──
+      // ── FETCH: Approved leave that overlaps with this period ──
+      // A leave overlaps if: leave_start <= period_end AND leave_end >= period_start
       const { data: leaveData } = await supabase
         .from("leave_requests")
         .select("user_id, days, start_date, end_date")
         .in("user_id", userIds)
         .eq("status", "approved")
-        .or(`start_date.lte.${endDate},end_date.gte.${startDate}`);
+        .lte("start_date", endDate)
+        .gte("end_date", startDate);
 
       // ── COMPUTE per employee ──
       const results: EmployeeMetrics[] = visibleEmployees.map((emp) => {
@@ -416,8 +421,23 @@ const PerformanceMetrics = () => {
         const initials = `${emp.first_name?.charAt(0) || ""}${emp.last_name?.charAt(0) || ""}`.toUpperCase();
 
         // === LEAVE ===
+        // Only count leave days that fall within the selected period
         const empLeaves = leaveData?.filter((l) => l.user_id === uid) || [];
-        const leaveDaysTaken = empLeaves.reduce((s, l) => s + (l.days || 0), 0);
+        let leaveDaysTaken = 0;
+        empLeaves.forEach((l) => {
+          const leaveStart = new Date(l.start_date);
+          const leaveEnd = new Date(l.end_date);
+          // Clamp to period boundaries
+          const effectiveStart = leaveStart < start ? start : leaveStart;
+          const effectiveEnd = leaveEnd > end ? end : leaveEnd;
+          // Count only working days (Mon-Fri) within the effective range
+          const d = new Date(effectiveStart);
+          while (d <= effectiveEnd) {
+            const dow = d.getDay();
+            if (dow !== 0 && dow !== 6) leaveDaysTaken++;
+            d.setDate(d.getDate() + 1);
+          }
+        });
 
         // Adjusted targets
         const adjustedWorkingDays = Math.max(1, workingDays - leaveDaysTaken);
@@ -979,7 +999,7 @@ const PerformanceMetrics = () => {
             delay={120}
             title="Avg Hours"
             value={`${kpis.avgHours}h`}
-            subtitle={`of ${MONTHLY_TARGET_HOURS}h target`}
+            subtitle={`of ${periodInfo.targetHours}h target (${periodInfo.workingDays} days × ${STANDARD_HOURS_PER_DAY}h)`}
             icon={<Clock className="h-5 w-5 text-green-500" />}
             iconBg="bg-green-500/10"
           />
