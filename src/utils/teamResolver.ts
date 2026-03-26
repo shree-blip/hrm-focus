@@ -15,40 +15,14 @@ export async function resolveTeamMemberUserIds(managerUserId: string): Promise<s
 
   if (!myEmpId) return [];
 
-  // 2. Fetch from BOTH sources in parallel
-  const [junctionResult, legacyResult] = await Promise.all([
-    // Junction table (new system)
-    supabase
-      .from("team_members")
-      .select("member_employee_id")
-      .eq("manager_employee_id", myEmpId),
-    // Legacy fields
-    supabase
-      .from("employees")
-      .select("id, profile_id")
-      .or(`line_manager_id.eq.${myEmpId},manager_id.eq.${myEmpId}`),
-  ]);
+  // 2. Use recursive DB function to get ALL subordinates (direct + indirect)
+  const { data: subordinateIds } = await supabase.rpc("get_all_subordinate_employee_ids", {
+    _manager_employee_id: myEmpId,
+  });
 
-  // Collect all unique employee IDs
-  const employeeIdSet = new Set<string>();
+  if (!subordinateIds || subordinateIds.length === 0) return [];
 
-  // From junction table
-  if (junctionResult.data) {
-    for (const row of junctionResult.data) {
-      employeeIdSet.add(row.member_employee_id);
-    }
-  }
-
-  // From legacy fields
-  if (legacyResult.data) {
-    for (const row of legacyResult.data) {
-      employeeIdSet.add(row.id);
-    }
-  }
-
-  if (employeeIdSet.size === 0) return [];
-
-  const employeeIds = Array.from(employeeIdSet);
+  const employeeIds = subordinateIds as string[];
 
   // 3. Resolve employee IDs → profile_ids → user_ids
   const { data: employees } = await supabase
