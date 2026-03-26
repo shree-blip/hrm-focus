@@ -1,5 +1,35 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export async function resolveSubordinateEmployeeIds(managerUserId: string): Promise<string[]> {
+  const { data: managerEmployeeId } = await supabase.rpc("get_employee_id_for_user", {
+    _user_id: managerUserId,
+  });
+
+  if (!managerEmployeeId) {
+    console.debug("[hierarchy] no manager employee id", { managerUserId });
+    return [];
+  }
+
+  const { data: subordinateIds, error } = await supabase.rpc("get_all_subordinate_employee_ids", {
+    _manager_employee_id: managerEmployeeId,
+  });
+
+  if (error) {
+    console.error("[hierarchy] failed to resolve subordinate employee ids", { managerUserId, error });
+    return [];
+  }
+
+  const employeeIds = (subordinateIds as string[] | null) || [];
+  console.debug("[hierarchy] resolved subordinate employee ids", {
+    managerUserId,
+    managerEmployeeId,
+    count: employeeIds.length,
+    employeeIds,
+  });
+
+  return employeeIds;
+}
+
 /**
  * Resolves ALL team member user_ids for a given manager.
  * Queries BOTH the team_members junction table AND legacy line_manager_id/manager_id fields,
@@ -8,21 +38,9 @@ import { supabase } from "@/integrations/supabase/client";
  * Returns an array of user_ids (from auth/profiles) for the manager's team members.
  */
 export async function resolveTeamMemberUserIds(managerUserId: string): Promise<string[]> {
-  // 1. Get manager's employee ID
-  const { data: myEmpId } = await supabase.rpc("get_employee_id_for_user", {
-    _user_id: managerUserId,
-  });
-
-  if (!myEmpId) return [];
-
-  // 2. Use recursive DB function to get ALL subordinates (direct + indirect)
-  const { data: subordinateIds } = await supabase.rpc("get_all_subordinate_employee_ids", {
-    _manager_employee_id: myEmpId,
-  });
-
-  if (!subordinateIds || subordinateIds.length === 0) return [];
-
-  const employeeIds = subordinateIds as string[];
+  // 1) Resolve ALL subordinate employee IDs (direct + indirect)
+  const employeeIds = await resolveSubordinateEmployeeIds(managerUserId);
+  if (employeeIds.length === 0) return [];
 
   // 3. Resolve employee IDs → profile_ids → user_ids
   const { data: employees } = await supabase
@@ -66,7 +84,16 @@ export async function resolveTeamMemberUserIds(managerUserId: string): Promise<s
     }
   }
 
-  return Array.from(userIdSet);
+  const resolvedUserIds = Array.from(userIdSet);
+
+  console.debug("[hierarchy] mapped employee ids to user ids", {
+    managerUserId,
+    employeeCount: employeeIds.length,
+    resolvedUserCount: resolvedUserIds.length,
+    resolvedUserIds,
+  });
+
+  return resolvedUserIds;
 }
 
 /**
