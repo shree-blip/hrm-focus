@@ -4486,6 +4486,10 @@ export type Database = {
         }
         Returns: string
       }
+      get_all_subordinate_employee_ids: {
+        Args: { _manager_employee_id: string }
+        Returns: string[]
+      }
       get_all_user_ids_for_sharing: { Args: never; Returns: string[] }
       get_employee_id_for_user: { Args: { _user_id: string }; Returns: string }
       get_management_user_ids: { Args: never; Returns: string[] }
