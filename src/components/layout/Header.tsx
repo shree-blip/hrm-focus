@@ -89,8 +89,6 @@ export function Header({ isMobile }: HeaderProps = {}) {
         return "Admin";
       case "vp":
         return "CEO";
-      case "manager":
-        return "Manager";
       case "line_manager":
         return "Line Manager";
       case "supervisor":
