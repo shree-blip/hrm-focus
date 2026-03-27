@@ -387,14 +387,33 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={saving || !reason.trim()}>
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Save Changes
-          </Button>
+        <DialogFooter className="flex justify-between sm:justify-between">
+          <div>
+            {!confirmDelete ? (
+              <Button variant="destructive" onClick={() => setConfirmDelete(true)} disabled={saving || deleting}>
+                Delete Record
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting || !reason.trim()}>
+                  {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Confirm Delete
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                  No
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving || deleting}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving || deleting || !reason.trim()}>
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
