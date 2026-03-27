@@ -19,7 +19,7 @@ import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { format } from "date-fns";
 import { usePersistentState } from "@/hooks/usePersistentState";
 
-const ROLES = ["vp", "admin", "supervisor", "line_manager", "manager", "employee"] as const;
+const ROLES = ["vp", "admin", "supervisor", "line_manager", "employee"] as const;
 type AppRole = (typeof ROLES)[number];
 
 // ✅ Only used in Role Permissions matrix (removes "supervisor" column there)
