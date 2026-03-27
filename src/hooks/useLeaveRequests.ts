@@ -197,7 +197,7 @@ export function useLeaveRequests() {
       return [];
     }
 
-    if ((isSupervisor || isLineManager || role === "line_manager" || role === "supervisor" || role === "manager") && role !== "admin" && role !== "vp") {
+    if ((isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") && role !== "admin" && role !== "vp") {
       const teamIds = await fetchTeamMemberUserIds();
       console.debug("[hierarchy][leave] pending filter", { managerUserId: user.id, teamIdsCount: teamIds.length, teamIds });
       if (teamIds.length > 0) {
