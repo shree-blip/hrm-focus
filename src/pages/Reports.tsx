@@ -1004,39 +1004,39 @@ const Reports = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 overflow-x-auto pb-2">
-                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700">
                     <p className="text-sm text-slate-600">Days Worked</p>
                     <p className="text-2xl font-bold text-blue-600">{selectedEmployeeSummary.totalDaysWorked}</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700">
                     <p className="text-sm text-slate-600">Total Hours</p>
                     <p className="text-2xl font-bold text-green-600">{selectedEmployeeSummary.totalHoursWorked}h</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700">
                     <p className="text-sm text-slate-600">Avg Hours/Day</p>
                     <p className="text-2xl font-bold">{selectedEmployeeSummary.avgHoursPerDay}h</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700">
                     <p className="text-sm text-slate-600">Total Breaks</p>
                     <p className="text-2xl font-bold text-yellow-600">{selectedEmployeeSummary.totalBreaks}</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700">
                     <p className="text-sm text-slate-600">Break Time</p>
                     <p className="text-2xl font-bold text-orange-600">
                       {formatBreakDuration(selectedEmployeeSummary.totalBreakMinutes)}
                     </p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700">
                     <p className="text-sm text-slate-600">Total Pauses</p>
                     <p className="text-2xl font-bold text-cyan-600">{selectedEmployeeSummary.totalPauses}</p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700">
                     <p className="text-sm text-slate-600">Pause Time</p>
                     <p className="text-2xl font-bold text-indigo-600">
                       {formatBreakDuration(selectedEmployeeSummary.totalPauseMinutes)}
                     </p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border min-w-[120px]">
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700">
                     <p className="text-sm text-slate-600">Avg Pause/Day</p>
                     <p className="text-2xl font-bold text-purple-600">
                       {formatBreakDuration(selectedEmployeeSummary.avgPausePerDay)}
