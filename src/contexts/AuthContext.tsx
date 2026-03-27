@@ -283,7 +283,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const isManager = useMemo(() => role === "manager" || role === "vp" || role === "admin" || role === "supervisor" || role === "line_manager", [role]);
+  const isManager = useMemo(() => role === "vp" || role === "admin" || role === "supervisor" || role === "line_manager", [role]);
   const isAdmin = useMemo(() => role === "admin", [role]);
   const isVP = useMemo(() => role === "vp" || role === "admin", [role]);
   const isSupervisor = useMemo(() => role === "supervisor", [role]);

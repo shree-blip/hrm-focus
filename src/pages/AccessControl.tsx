@@ -572,7 +572,6 @@ export default function AccessControl() {
                               u.role === "admin" && "border-destructive text-destructive bg-destructive/10",
                               u.role === "supervisor" && "border-orange-500 text-orange-600 bg-orange-50",
                               u.role === "line_manager" && "border-blue-500 text-blue-600 bg-blue-50",
-                              u.role === "manager" && "border-green-500 text-green-600 bg-green-50",
                             )}
                           >
                             {ROLE_LABELS[u.role] || u.role}

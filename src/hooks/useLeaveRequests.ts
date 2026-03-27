@@ -223,7 +223,7 @@ export function useLeaveRequests() {
       return data || [];
     }
 
-    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor" || role === "manager") {
+    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
       const { data, error } = await supabase
         .from("leave_requests")
         .select("*")
