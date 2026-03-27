@@ -982,7 +982,7 @@ const Reports = () => {
 
           {/* Selected Employee Summary Card - Updated with pause info */}
           {selectedEmployeeSummary && (
-            <Card className="border-blue-200 bg-blue-50/50">
+            <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/50">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
