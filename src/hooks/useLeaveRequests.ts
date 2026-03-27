@@ -168,7 +168,7 @@ export function useLeaveRequests() {
 
     if (role === "admin" || role === "vp") return [];
 
-    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor" || role === "manager") {
+    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
       const ids = await resolveTeamMemberUserIds(user.id);
       console.debug("[hierarchy][leave] team user ids", {
         managerUserId: user.id,
