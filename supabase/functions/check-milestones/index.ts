@@ -2,8 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -17,6 +16,13 @@ interface MilestoneRecord {
   years: number;
 }
 
+interface ProfileRecord {
+  user_id: string;
+  email: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -25,39 +31,47 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     const cronSecret = Deno.env.get("CRON_SECRET");
-    
+
     if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
       console.log("Authenticated via CRON_SECRET");
     } else if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get today's milestones
-    const { data: milestones, error: milestonesError } = await supabase.rpc("get_todays_milestones");
+    // =========================================================
+    // 1. FETCH MILESTONES FOR 3 TIMINGS
+    // Assumes you create RPCs like:
+    // - get_milestones_in_days(days_ahead int)
+    // or equivalent DB functions.
+    // =========================================================
 
-    if (milestonesError) {
-      console.error("Error fetching milestones:", milestonesError);
-      throw milestonesError;
-    }
+    const { data: milestones20, error: error20 } = await supabase.rpc("get_milestones_in_days", {
+      days_ahead: 20,
+    });
 
-    console.log("Today's milestones:", milestones);
+    const { data: milestones1, error: error1 } = await supabase.rpc("get_milestones_in_days", {
+      days_ahead: 1,
+    });
 
-    if (!milestones || milestones.length === 0) {
-      console.log("No milestones today");
-      return new Response(
-        JSON.stringify({ message: "No milestones today", count: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { data: milestonesToday, error: errorToday } = await supabase.rpc("get_milestones_in_days", {
+      days_ahead: 0,
+    });
 
-    // Get all active users with emails
+    if (error20) throw error20;
+    if (error1) throw error1;
+    if (errorToday) throw errorToday;
+
+    // =========================================================
+    // 2. FETCH ALL PROFILES
+    // =========================================================
+
     const { data: allProfiles, error: profilesError } = await supabase
       .from("profiles")
       .select("user_id, email, first_name, last_name")
@@ -68,185 +82,440 @@ Deno.serve(async (req) => {
       throw profilesError;
     }
 
-    const allUserIds = allProfiles?.map((p) => p.user_id) || [];
-    const allEmails = allProfiles?.filter((p) => p.email).map((p) => p.email!) || [];
-    console.log(`Found ${allUserIds.length} users to notify, ${allEmails.length} with emails`);
+    const profiles = (allProfiles || []) as ProfileRecord[];
+    const allUserIds = profiles.map((p) => p.user_id);
+    const allEmails = profiles.filter((p) => p.email).map((p) => p.email!) || [];
 
-    // ===== In-app notifications =====
-    const notifications: {
-      user_id: string;
-      title: string;
-      message: string;
-      type: string;
-      link: string;
-    }[] = [];
+    // =========================================================
+    // 3. FETCH ADMIN + CEO USERS
+    // =========================================================
 
-    for (const milestone of milestones as MilestoneRecord[]) {
-      for (const userId of allUserIds) {
-        if (userId === milestone.user_id) continue;
+    const { data: privilegedUsers, error: privilegedError } = await supabase
+      .from("user_roles")
+      .select("user_id, role")
+      .in("role", ["admin", "ceo"]);
 
-        let title: string;
-        let message: string;
+    if (privilegedError) {
+      console.error("Error fetching admin/ceo users:", privilegedError);
+      throw privilegedError;
+    }
 
-        if (milestone.milestone_type === "birthday") {
-          title = `🎂 Birthday Celebration!`;
-          message = `Today is ${milestone.first_name} ${milestone.last_name}'s birthday! Wish them a happy birthday! 🎉`;
-        } else {
-          const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
-          title = `🎊 Work Anniversary!`;
-          message = `${milestone.first_name} ${milestone.last_name} celebrates ${yearsText} with the company today! Congratulations! 🎉`;
+    const privilegedUserIds = [...new Set((privilegedUsers || []).map((u) => u.user_id))];
+
+    const privilegedEmails =
+      profiles.filter((p) => privilegedUserIds.includes(p.user_id) && p.email).map((p) => p.email!) || [];
+
+    // =========================================================
+    // 4. HELPERS
+    // =========================================================
+
+    const notificationResults: Array<{ type: string; target: string; success: boolean; error?: string }> = [];
+
+    async function createInAppNotification(userId: string, title: string, message: string) {
+      try {
+        const { error } = await supabase.rpc("create_notification", {
+          p_user_id: userId,
+          p_title: title,
+          p_message: message,
+          p_type: "info",
+          p_link: "/notifications",
+        });
+
+        if (error) throw error;
+
+        notificationResults.push({ type: "in_app", target: userId, success: true });
+      } catch (err) {
+        console.error(`Failed in-app notification for ${userId}:`, err);
+        notificationResults.push({
+          type: "in_app",
+          target: userId,
+          success: false,
+          error: String(err),
+        });
+      }
+    }
+
+    async function alreadySent(eventType: string, recipientEmail: string, milestone: MilestoneRecord, yearTag: number) {
+      const { data, error } = await supabase
+        .from("notification_logs")
+        .select("id")
+        .eq("notification_type", "email")
+        .eq("event_type", eventType)
+        .eq("recipient_email", recipientEmail)
+        .contains("payload", {
+          milestone_user_id: milestone.user_id,
+          milestone_type: milestone.milestone_type,
+          milestone_year: yearTag,
+        })
+        .limit(1);
+
+      if (error) {
+        console.error("Error checking duplicate milestone email:", error);
+        return false;
+      }
+
+      return !!(data && data.length > 0);
+    }
+
+    async function sendMilestoneEmail(
+      recipientEmail: string,
+      eventType: string,
+      subject: string,
+      html: string,
+      payload: Record<string, unknown>,
+    ) {
+      const duplicate = await alreadySent(
+        eventType,
+        recipientEmail,
+        payload.milestone as MilestoneRecord,
+        payload.milestone_year as number,
+      );
+
+      if (duplicate) {
+        console.log(`Skipping duplicate ${eventType} email to ${recipientEmail}`);
+        return;
+      }
+
+      const { data: logEntry, error: logError } = await supabase
+        .from("notification_logs")
+        .insert({
+          recipient_email: recipientEmail,
+          notification_type: "email",
+          event_type: eventType,
+          payload,
+          status: "pending",
+          attempts: 0,
+          next_retry_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (logError) {
+        console.error("Failed to create notification log:", logError);
+        notificationResults.push({
+          type: "email",
+          target: recipientEmail,
+          success: false,
+          error: String(logError),
+        });
+        return;
+      }
+
+      try {
+        const res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "HRM Focus <noreply@notifications.focusyourfinance.com>",
+            to: [recipientEmail],
+            subject,
+            html,
+          }),
+        });
+
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error(`Resend API error ${res.status}: ${body}`);
         }
 
-        notifications.push({ user_id: userId, title, message, type: "info", link: "/notifications" });
+        await supabase
+          .from("notification_logs")
+          .update({
+            status: "sent",
+            attempts: 1,
+            last_attempt_at: new Date().toISOString(),
+            next_retry_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", logEntry.id);
+
+        notificationResults.push({
+          type: "email",
+          target: recipientEmail,
+          success: true,
+        });
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error(`Email to ${recipientEmail} failed:`, errorMsg);
+
+        await supabase
+          .from("notification_logs")
+          .update({
+            status: "pending",
+            attempts: 1,
+            last_attempt_at: new Date().toISOString(),
+            next_retry_at: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
+            error_message: errorMsg,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", logEntry.id);
+
+        notificationResults.push({
+          type: "email",
+          target: recipientEmail,
+          success: false,
+          error: errorMsg,
+        });
       }
     }
 
-    console.log(`Creating ${notifications.length} in-app notifications`);
+    async function processMilestones(milestones: MilestoneRecord[], phase: "early_20" | "pre_1" | "today") {
+      const currentYear = new Date().getFullYear();
 
-    if (notifications.length > 0) {
-      const batchSize = 100;
-      for (let i = 0; i < notifications.length; i += batchSize) {
-        const batch = notifications.slice(i, i + batchSize);
-        const { error: insertError } = await supabase.from("notifications").insert(batch);
-        if (insertError) console.error("Error inserting notifications batch:", insertError);
-      }
-    }
+      for (const milestone of milestones || []) {
+        const fullName = `${milestone.first_name} ${milestone.last_name}`;
 
-    // ===== Email notifications =====
-    const emailResults: Array<{ target: string; success: boolean; error?: string }> = [];
+        let inAppTitle = "";
+        let inAppMessage = "";
 
-    if (RESEND_API_KEY) {
-      // Build one email per milestone, sent to all employees
-      for (const milestone of milestones as MilestoneRecord[]) {
-        const { subject, html } = buildMilestoneEmail(milestone);
+        if (phase === "early_20") {
+          if (milestone.milestone_type === "birthday") {
+            inAppTitle = `📅 Upcoming Birthday`;
+            inAppMessage = `${fullName}'s birthday is in 20 days. Please plan accordingly.`;
+          } else {
+            const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
+            inAppTitle = `📅 Upcoming Work Anniversary`;
+            inAppMessage = `${fullName}'s ${yearsText} work anniversary is in 20 days. Please plan accordingly.`;
+          }
 
-        // Collect all emails except the person themselves + add CC
-        const recipientEmails = [
-          ...new Set([
-            ...allEmails.filter((e) => {
-              const profile = allProfiles?.find((p) => p.email === e);
-              return profile?.user_id !== milestone.user_id;
-            }),
-            FIXED_CC_EMAIL,
-          ]),
-        ];
+          // Admin + CEO only
+          for (const userId of privilegedUserIds) {
+            if (userId === milestone.user_id) continue;
+            await createInAppNotification(userId, inAppTitle, inAppMessage);
+          }
 
-        console.log(`Sending milestone email for ${milestone.first_name} to ${recipientEmails.length} recipients`);
+          if (RESEND_API_KEY) {
+            const recipients = [...new Set([...privilegedEmails, FIXED_CC_EMAIL])];
 
-        // Send emails with delay to avoid rate limiting
-        for (let i = 0; i < recipientEmails.length; i++) {
-          const email = recipientEmails[i];
+            const { subject, html } = buildPlanningMilestoneEmail(milestone);
 
-          // Log the notification
-          const { data: logEntry, error: logError } = await supabase
-            .from("notification_logs")
-            .insert({
-              recipient_email: email,
-              notification_type: "email",
-              event_type: `milestone_${milestone.milestone_type}`,
-              payload: {
-                person: `${milestone.first_name} ${milestone.last_name}`,
+            for (const email of recipients) {
+              await sendMilestoneEmail(email, `milestone_20day_${milestone.milestone_type}`, subject, html, {
+                milestone,
+                milestone_user_id: milestone.user_id,
                 milestone_type: milestone.milestone_type,
+                milestone_year: currentYear,
+                phase: "20_days_before",
+                person: fullName,
                 years: milestone.years,
-              },
-              status: "pending",
-              attempts: 0,
-              next_retry_at: new Date().toISOString(),
-            })
-            .select()
-            .single();
-
-          if (logError) {
-            console.error("Failed to create notification log:", logError);
-            emailResults.push({ target: email, success: false, error: String(logError) });
-            continue;
+              });
+            }
+          }
+        } else if (phase === "pre_1") {
+          if (milestone.milestone_type === "birthday") {
+            inAppTitle = `🎉 Birthday Tomorrow`;
+            inAppMessage = `${fullName}'s birthday is tomorrow! Don't forget to wish them.`;
+          } else {
+            const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
+            inAppTitle = `🎉 Work Anniversary Tomorrow`;
+            inAppMessage = `${fullName}'s ${yearsText} work anniversary is tomorrow!`;
           }
 
-          // Rate limit: max 2 per second
-          if (i > 0 && i % 2 === 0) {
-            await new Promise((r) => setTimeout(r, 1100));
+          // Admin + CEO + everyone except the milestone person
+          for (const userId of allUserIds) {
+            if (userId === milestone.user_id) continue;
+            await createInAppNotification(userId, inAppTitle, inAppMessage);
           }
 
-          try {
-            const res = await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${RESEND_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                from: "HRM Focus <noreply@notifications.focusyourfinance.com>",
-                to: [email],
-                subject,
-                html,
-              }),
+          if (RESEND_API_KEY) {
+            const teamEmailsExceptSelf = allEmails.filter((e) => {
+              const profile = profiles.find((p) => p.email === e);
+              return profile?.user_id !== milestone.user_id;
             });
 
-            if (!res.ok) {
-              const body = await res.text();
-              throw new Error(`Resend API error ${res.status}: ${body}`);
+            const recipients = [...new Set([...teamEmailsExceptSelf, FIXED_CC_EMAIL])];
+            const { subject, html } = buildTomorrowMilestoneEmail(milestone);
+
+            for (const email of recipients) {
+              await sendMilestoneEmail(email, `milestone_1day_${milestone.milestone_type}`, subject, html, {
+                milestone,
+                milestone_user_id: milestone.user_id,
+                milestone_type: milestone.milestone_type,
+                milestone_year: currentYear,
+                phase: "1_day_before",
+                person: fullName,
+                years: milestone.years,
+              });
             }
+          }
+        } else if (phase === "today") {
+          if (milestone.milestone_type === "birthday") {
+            inAppTitle = `🎂 Birthday Celebration!`;
+            inAppMessage = `Today is ${fullName}'s birthday! Wish them a happy birthday! 🎉`;
+          } else {
+            const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
+            inAppTitle = `🎊 Work Anniversary!`;
+            inAppMessage = `${fullName} celebrates ${yearsText} with the company today! Congratulations! 🎉`;
+          }
 
-            await supabase
-              .from("notification_logs")
-              .update({
-                status: "sent",
-                attempts: 1,
-                last_attempt_at: new Date().toISOString(),
-                next_retry_at: null,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", logEntry.id);
+          // everyone except the milestone person
+          for (const userId of allUserIds) {
+            if (userId === milestone.user_id) continue;
+            await createInAppNotification(userId, inAppTitle, inAppMessage);
+          }
 
-            emailResults.push({ target: email, success: true });
-          } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
-            console.error(`Email to ${email} failed:`, errorMsg);
+          if (RESEND_API_KEY) {
+            const teamEmailsExceptSelf = allEmails.filter((e) => {
+              const profile = profiles.find((p) => p.email === e);
+              return profile?.user_id !== milestone.user_id;
+            });
 
-            await supabase
-              .from("notification_logs")
-              .update({
-                status: "pending",
-                attempts: 1,
-                last_attempt_at: new Date().toISOString(),
-                next_retry_at: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
-                error_message: errorMsg,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", logEntry.id);
+            const recipients = [...new Set([...teamEmailsExceptSelf, FIXED_CC_EMAIL])];
+            const { subject, html } = buildTodayMilestoneEmail(milestone);
 
-            emailResults.push({ target: email, success: false, error: errorMsg });
+            for (const email of recipients) {
+              await sendMilestoneEmail(email, `milestone_today_${milestone.milestone_type}`, subject, html, {
+                milestone,
+                milestone_user_id: milestone.user_id,
+                milestone_type: milestone.milestone_type,
+                milestone_year: currentYear,
+                phase: "today",
+                person: fullName,
+                years: milestone.years,
+              });
+            }
           }
         }
       }
-    } else {
-      console.log("RESEND_API_KEY not configured, skipping emails");
     }
+
+    // =========================================================
+    // 5. PROCESS ALL PHASES
+    // =========================================================
+
+    await processMilestones((milestones20 || []) as MilestoneRecord[], "early_20");
+    await processMilestones((milestones1 || []) as MilestoneRecord[], "pre_1");
+    await processMilestones((milestonesToday || []) as MilestoneRecord[], "today");
 
     return new Response(
       JSON.stringify({
-        message: "Milestone notifications created",
-        milestones: milestones.length,
-        notifications: notifications.length,
-        emails_sent: emailResults.filter((r) => r.success).length,
-        emails_failed: emailResults.filter((r) => !r.success).length,
-        email_results: emailResults,
+        success: true,
+        milestones_20_days: (milestones20 || []).length,
+        milestones_1_day: (milestones1 || []).length,
+        milestones_today: (milestonesToday || []).length,
+        results: notificationResults,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error in check-milestones function:", error);
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("Error in milestone notification function:", error);
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
 
-// ===== Email Templates =====
+// ===================== EMAIL TEMPLATES =====================
 
-function buildMilestoneEmail(milestone: MilestoneRecord): { subject: string; html: string } {
+function buildPlanningMilestoneEmail(milestone: MilestoneRecord): { subject: string; html: string } {
+  const fullName = `${milestone.first_name} ${milestone.last_name}`;
+
+  if (milestone.milestone_type === "birthday") {
+    return {
+      subject: `📅 Upcoming Birthday in 20 Days - ${fullName}`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+    <h2 style="color:#1a1a2e;margin-top:0;">📅 Upcoming Birthday</h2>
+    <p style="color:#333;">This is an early planning reminder.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 0;color:#666;width:180px;">Employee</td><td style="padding:8px 0;font-weight:600;">${fullName}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Milestone</td><td style="padding:8px 0;">Birthday</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Timing</td><td style="padding:8px 0;">20 days before</td></tr>
+    </table>
+    <p style="color:#666;">Please plan recognition or celebration in advance.</p>
+  </div>
+</body>
+</html>`,
+    };
+  }
+
+  const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
+  return {
+    subject: `📅 Upcoming Work Anniversary in 20 Days - ${fullName}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+    <h2 style="color:#1a1a2e;margin-top:0;">📅 Upcoming Work Anniversary</h2>
+    <p style="color:#333;">This is an early planning reminder.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 0;color:#666;width:180px;">Employee</td><td style="padding:8px 0;font-weight:600;">${fullName}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Milestone</td><td style="padding:8px 0;">Work Anniversary</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Years</td><td style="padding:8px 0;font-weight:600;">${yearsText}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Timing</td><td style="padding:8px 0;">20 days before</td></tr>
+    </table>
+    <p style="color:#666;">Please plan recognition or celebration in advance.</p>
+  </div>
+</body>
+</html>`,
+  };
+}
+
+function buildTomorrowMilestoneEmail(milestone: MilestoneRecord): { subject: string; html: string } {
+  const fullName = `${milestone.first_name} ${milestone.last_name}`;
+
+  if (milestone.milestone_type === "birthday") {
+    return {
+      subject: `🎉 Birthday Tomorrow - ${fullName}`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 12px rgba(0,0,0,0.08);text-align:center;">
+    <div style="font-size:56px;margin-bottom:16px;">🎉</div>
+    <h1 style="color:#1a1a2e;margin:0 0 8px;">Birthday Tomorrow</h1>
+    <h2 style="color:#6366f1;margin:0 0 16px;">${fullName}</h2>
+    <p style="color:#666;line-height:1.6;">
+      ${milestone.first_name}'s birthday is tomorrow. Please don't forget to send your wishes and celebrate together.
+    </p>
+    <a href="https://hrm-focus.lovable.app/notifications"
+       style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;margin-top:12px;">
+      View Notifications
+    </a>
+  </div>
+</body>
+</html>`,
+    };
+  }
+
+  const ordinal = getOrdinal(milestone.years);
+  return {
+    subject: `🎉 Work Anniversary Tomorrow - ${fullName}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 12px rgba(0,0,0,0.08);text-align:center;">
+    <div style="font-size:56px;margin-bottom:16px;">🎉</div>
+    <h1 style="color:#1a1a2e;margin:0 0 8px;">Work Anniversary Tomorrow</h1>
+    <h2 style="color:#059669;margin:0 0 16px;">${fullName}</h2>
+    <p style="color:#666;line-height:1.6;">
+      Tomorrow marks ${milestone.first_name}'s ${ordinal} work anniversary. Please remember to congratulate them.
+    </p>
+    <a href="https://hrm-focus.lovable.app/notifications"
+       style="display:inline-block;background:#059669;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;margin-top:12px;">
+      View Notifications
+    </a>
+  </div>
+</body>
+</html>`,
+  };
+}
+
+function buildTodayMilestoneEmail(milestone: MilestoneRecord): { subject: string; html: string } {
   const fullName = `${milestone.first_name} ${milestone.last_name}`;
 
   if (milestone.milestone_type === "birthday") {
@@ -263,15 +532,14 @@ function buildMilestoneEmail(milestone: MilestoneRecord): { subject: string; htm
     <h2 style="color:#6366f1;margin:0 0 16px;font-size:22px;">${fullName}</h2>
     <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:8px;padding:24px;margin:20px 0;">
       <p style="color:#92400e;font-size:16px;margin:0;line-height:1.6;">
-        🎉 Today is a special day! Let's come together to wish <strong>${milestone.first_name}</strong> 
+        🎉 Today is a special day! Let's come together to wish <strong>${milestone.first_name}</strong>
         a wonderful birthday filled with joy, laughter, and happiness!
       </p>
     </div>
     <p style="color:#666;font-size:15px;line-height:1.6;margin:16px 0;">
-      Please take a moment to send your warm wishes to ${milestone.first_name}. 
-      A kind word can truly brighten someone's day! 💛
+      Please take a moment to send your warm wishes to ${milestone.first_name}.
     </p>
-    <a href="https://hrm-focus.lovable.app/notifications" 
+    <a href="https://hrm-focus.lovable.app/notifications"
        style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:12px;">
       Send Birthday Wishes 🎈
     </a>
@@ -280,13 +548,14 @@ function buildMilestoneEmail(milestone: MilestoneRecord): { subject: string; htm
 </body>
 </html>`,
     };
-  } else {
-    const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
-    const ordinal = getOrdinal(milestone.years);
+  }
 
-    return {
-      subject: `🎊 Congratulations ${fullName} — ${ordinal} Work Anniversary! 🎉`,
-      html: `
+  const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
+  const ordinal = getOrdinal(milestone.years);
+
+  return {
+    subject: `🎊 Congratulations ${fullName} — ${ordinal} Work Anniversary! 🎉`,
+    html: `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
@@ -298,15 +567,13 @@ function buildMilestoneEmail(milestone: MilestoneRecord): { subject: string; htm
     <div style="background:linear-gradient(135deg,#d1fae5,#a7f3d0);border-radius:8px;padding:24px;margin:20px 0;">
       <p style="color:#065f46;font-size:20px;font-weight:700;margin:0 0 8px;">${yearsText} 🏆</p>
       <p style="color:#065f46;font-size:16px;margin:0;line-height:1.6;">
-        Today marks <strong>${milestone.first_name}</strong>'s ${ordinal} anniversary with the company! 
-        Their dedication and hard work have been invaluable to our team.
+        Today marks <strong>${milestone.first_name}</strong>'s ${ordinal} anniversary with the company!
       </p>
     </div>
     <p style="color:#666;font-size:15px;line-height:1.6;margin:16px 0;">
-      Let's celebrate ${milestone.first_name}'s journey with us! 
-      Drop a congratulatory message to show your appreciation. 🙌
+      Let's celebrate ${milestone.first_name}'s journey with us!
     </p>
-    <a href="https://hrm-focus.lovable.app/notifications" 
+    <a href="https://hrm-focus.lovable.app/notifications"
        style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:12px;">
       Congratulate ${milestone.first_name} 🎉
     </a>
@@ -314,8 +581,7 @@ function buildMilestoneEmail(milestone: MilestoneRecord): { subject: string; htm
   </div>
 </body>
 </html>`,
-    };
-  }
+  };
 }
 
 function getOrdinal(n: number): string {
