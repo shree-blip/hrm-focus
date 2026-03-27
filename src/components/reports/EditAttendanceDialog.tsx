@@ -55,7 +55,8 @@ const formatTimeShort = (isoStr: string | null): string => {
 export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: EditAttendanceDialogProps) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
-
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [clockIn, setClockIn] = useState("");
   const [clockOut, setClockOut] = useState("");
   const [breakStart, setBreakStart] = useState("");
@@ -74,6 +75,7 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
       setPauseStart(toDatetimeLocal(record.pause_start));
       setPauseEnd(toDatetimeLocal(record.pause_end));
       setReason("");
+      setConfirmDelete(false);
     }
   };
 
@@ -117,14 +119,18 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
       const newBreakStartIso = fromDatetimeLocal(breakStart);
       const newBreakEndIso = fromDatetimeLocal(breakEnd);
       if (newBreakStartIso && newBreakEndIso) {
-        newBreakMinutes = Math.round((new Date(newBreakEndIso).getTime() - new Date(newBreakStartIso).getTime()) / 60000);
+        newBreakMinutes = Math.round(
+          (new Date(newBreakEndIso).getTime() - new Date(newBreakStartIso).getTime()) / 60000,
+        );
       }
 
       let newPauseMinutes = 0;
       const newPauseStartIso = fromDatetimeLocal(pauseStart);
       const newPauseEndIso = fromDatetimeLocal(pauseEnd);
       if (newPauseStartIso && newPauseEndIso) {
-        newPauseMinutes = Math.round((new Date(newPauseEndIso).getTime() - new Date(newPauseStartIso).getTime()) / 60000);
+        newPauseMinutes = Math.round(
+          (new Date(newPauseEndIso).getTime() - new Date(newPauseStartIso).getTime()) / 60000,
+        );
       }
 
       const newClockInIso = fromDatetimeLocal(clockIn);
@@ -160,15 +166,13 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
       if (updateError) throw updateError;
 
       // Insert audit log
-      const { error: auditError } = await supabase
-        .from("attendance_edit_logs")
-        .insert({
-          attendance_id: record.id,
-          edited_by: user.id,
-          old_values: oldValues as any,
-          new_values: newValues as any,
-          reason: reason.trim(),
-        });
+      const { error: auditError } = await supabase.from("attendance_edit_logs").insert({
+        attendance_id: record.id,
+        edited_by: user.id,
+        old_values: oldValues as any,
+        new_values: newValues as any,
+        reason: reason.trim(),
+      });
 
       if (auditError) throw auditError;
 
@@ -182,15 +186,21 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
       const editorName = editorProfile ? `${editorProfile.first_name} ${editorProfile.last_name}` : "A manager";
       const editorEmail = editorProfile?.email || "";
       const editDate = new Date(record.clock_in).toLocaleDateString("en-US", {
-        year: "numeric", month: "short", day: "numeric",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
       });
 
       // Build change summary
       const changes: string[] = [];
-      if (oldValues.clock_in !== newValues.clock_in) changes.push(`Clock In: ${formatTimeShort(oldValues.clock_in)} → ${formatTimeShort(newValues.clock_in)}`);
-      if (oldValues.clock_out !== newValues.clock_out) changes.push(`Clock Out: ${formatTimeShort(oldValues.clock_out)} → ${formatTimeShort(newValues.clock_out)}`);
-      if (oldValues.total_break_minutes !== newValues.total_break_minutes) changes.push(`Break: ${oldValues.total_break_minutes}m → ${newValues.total_break_minutes}m`);
-      if ((oldValues.total_pause_minutes || 0) !== newValues.total_pause_minutes) changes.push(`Pause: ${oldValues.total_pause_minutes || 0}m → ${newValues.total_pause_minutes}m`);
+      if (oldValues.clock_in !== newValues.clock_in)
+        changes.push(`Clock In: ${formatTimeShort(oldValues.clock_in)} → ${formatTimeShort(newValues.clock_in)}`);
+      if (oldValues.clock_out !== newValues.clock_out)
+        changes.push(`Clock Out: ${formatTimeShort(oldValues.clock_out)} → ${formatTimeShort(newValues.clock_out)}`);
+      if (oldValues.total_break_minutes !== newValues.total_break_minutes)
+        changes.push(`Break: ${oldValues.total_break_minutes}m → ${newValues.total_break_minutes}m`);
+      if ((oldValues.total_pause_minutes || 0) !== newValues.total_pause_minutes)
+        changes.push(`Pause: ${oldValues.total_pause_minutes || 0}m → ${newValues.total_pause_minutes}m`);
 
       const changeSummary = changes.length > 0 ? changes.join(", ") : "Minor adjustments";
 
@@ -248,7 +258,9 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Attendance — {record.employee_name}</DialogTitle>
-          <DialogDescription>Modify attendance data. A reason is required and an audit log will be created.</DialogDescription>
+          <DialogDescription>
+            Modify attendance data. A reason is required and an audit log will be created.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
