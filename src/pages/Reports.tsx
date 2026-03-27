@@ -1204,7 +1204,7 @@ const Reports = () => {
 
                         return (
                           <Fragment key={rowKey}>
-                            <tr className="border-b hover:bg-slate-50">
+                            <tr className="border-b hover:bg-slate-50 dark:hover:bg-slate-800">
                               <td className="p-3">
                                 {hasExpandableContent && (
                                   <Button
