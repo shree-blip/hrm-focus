@@ -92,6 +92,83 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
     resetForm();
   }
 
+  const handleDelete = async () => {
+    if (!record || !user) return;
+    if (!reason.trim()) {
+      toast({ title: "Reason required", description: "Please provide a reason for deletion.", variant: "destructive" });
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const oldValues = {
+        clock_in: record.clock_in,
+        clock_out: record.clock_out,
+        break_start: record.break_start,
+        break_end: record.break_end,
+        total_break_minutes: record.total_break_minutes,
+        pause_start: record.pause_start,
+        pause_end: record.pause_end,
+        total_pause_minutes: record.total_pause_minutes,
+      };
+
+      await supabase.from("attendance_edit_logs").insert({
+        attendance_id: record.id,
+        edited_by: user.id,
+        old_values: oldValues as any,
+        new_values: { action: "deleted" } as any,
+        reason: `[DELETED] ${reason.trim()}`,
+      });
+
+      const { error } = await supabase.from("attendance_logs").delete().eq("id", record.id);
+
+      if (error) throw error;
+
+      const { data: editorProfile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("user_id", user.id)
+        .single();
+
+      const editorName = editorProfile ? `${editorProfile.first_name} ${editorProfile.last_name}` : "A manager";
+
+      const editDate = new Date(record.clock_in).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+
+      const { data: vpUsers } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "vp" as any);
+
+      if (vpUsers?.length) {
+        for (const vp of vpUsers) {
+          if (vp.user_id !== user.id) {
+            await supabase.rpc("create_notification", {
+              p_user_id: vp.user_id,
+              p_title: "🗑️ Attendance Deleted",
+              p_message: `${editorName} deleted attendance for ${record.employee_name} on ${editDate}. Reason: ${reason.trim()}`,
+              p_type: "warning",
+              p_link: "/reports",
+            });
+          }
+        }
+      }
+
+      toast({ title: "Record Deleted", description: `Attendance for ${record.employee_name} has been deleted.` });
+      onSaved();
+      onOpenChange(false);
+    } catch (err: any) {
+      console.error("Error deleting attendance:", err);
+      toast({ title: "Error", description: err.message || "Failed to delete.", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!record || !user) return;
     if (!reason.trim()) {
