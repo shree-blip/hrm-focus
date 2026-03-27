@@ -69,8 +69,12 @@ export function TeamRealtimeDashboard() {
 
     try {
       const now = new Date();
-      const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)).toISOString();
-      const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)).toISOString();
+      const todayStart = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
+      ).toISOString();
+      const todayEnd = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999),
+      ).toISOString();
 
       // Today's logs
       let todayQuery = supabase
@@ -83,6 +87,7 @@ export function TeamRealtimeDashboard() {
         .gte("log_date", todayStart.split("T")[0])
         .lte("log_date", todayEnd.split("T")[0])
         .neq("user_id", user.id)
+        .eq("status", "in_progress")
         .order("created_at", { ascending: false })
         .limit(20);
 
