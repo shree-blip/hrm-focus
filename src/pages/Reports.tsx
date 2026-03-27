@@ -1,5 +1,11 @@
 import { useState, Fragment, useMemo, useRef } from "react";
-import { formatAttendanceTime, getWorkDate, getWorkDateDisplay, isNightShift, getTimezoneAbbr } from "@/utils/timezoneUtils";
+import {
+  formatAttendanceTime,
+  getWorkDate,
+  getWorkDateDisplay,
+  isNightShift,
+  getTimezoneAbbr,
+} from "@/utils/timezoneUtils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -89,7 +95,7 @@ const Reports = () => {
   const { requests, loading: leaveLoading } = useLeaveRequests();
   const { isVP, user } = useAuth();
   const { hasPermission } = usePermissions();
-  const canEditAttendance = isVP || hasPermission('edit_attendance');
+  const canEditAttendance = isVP || hasPermission("edit_attendance");
   const [dateRange, setDateRange] = useState<DateRangeType>("this-month");
 
   // Pass dateRange to the hook so it fetches data for the selected period
@@ -883,7 +889,7 @@ const Reports = () => {
               ) : (
                 <div className="overflow-x-auto">
                   <div className="min-w-[600px] space-y-2">
-                    <div className="grid grid-cols-4 gap-4 p-3 bg-slate-100 rounded-lg text-sm font-medium">
+                    <div className="grid grid-cols-4 gap-4 p-3 bg-slate-100 dark:bg-slate-800 rounded-lg text-sm font-medium">
                       <span>Employee</span>
                       <span>Email</span>
                       <span>Days Worked</span>
@@ -1214,10 +1220,16 @@ const Reports = () => {
                               </td>
                               <td className="p-3 font-medium">
                                 <div className="flex items-center gap-1.5">
-                                  {getWorkDateDisplay(typedAtt.clock_in, typedAtt.employee_timezone || "Asia/Kathmandu")}
-                                  {typedAtt.clock_out && isNightShift(typedAtt.clock_in, typedAtt.clock_out, typedAtt.employee_timezone || "Asia/Kathmandu") && (
-                                    <span title="Night shift">🌙</span>
+                                  {getWorkDateDisplay(
+                                    typedAtt.clock_in,
+                                    typedAtt.employee_timezone || "Asia/Kathmandu",
                                   )}
+                                  {typedAtt.clock_out &&
+                                    isNightShift(
+                                      typedAtt.clock_in,
+                                      typedAtt.clock_out,
+                                      typedAtt.employee_timezone || "Asia/Kathmandu",
+                                    ) && <span title="Night shift">🌙</span>}
                                 </div>
                               </td>
                               <td className="p-3">
@@ -1226,7 +1238,9 @@ const Reports = () => {
                                   <p className="text-xs text-slate-600">{typedAtt.email}</p>
                                 </div>
                               </td>
-                              <td className="p-3 text-green-600 font-mono">{formatTimeLocal(typedAtt.clock_in, typedAtt.employee_timezone)}</td>
+                              <td className="p-3 text-green-600 font-mono">
+                                {formatTimeLocal(typedAtt.clock_in, typedAtt.employee_timezone)}
+                              </td>
                               <td className="p-3">
                                 {breaks.length === 0 ? (
                                   <span className="text-slate-400">-</span>
@@ -1262,7 +1276,9 @@ const Reports = () => {
                               <td className="p-3 font-medium text-cyan-600">
                                 {totalPauseMinutes > 0 ? formatBreakDuration(totalPauseMinutes) : "-"}
                               </td>
-                              <td className="p-3 text-red-600 font-mono">{formatTimeLocal(typedAtt.clock_out, typedAtt.employee_timezone)}</td>
+                              <td className="p-3 text-red-600 font-mono">
+                                {formatTimeLocal(typedAtt.clock_out, typedAtt.employee_timezone)}
+                              </td>
                               <td className="p-3 font-bold">
                                 {totalHours !== null ? `${totalHours.toFixed(2)}h` : "-"}
                               </td>
@@ -1353,7 +1369,8 @@ const Reports = () => {
                                                 Pause {pauseIndex + 1}
                                               </Badge>
                                               <span className="text-cyan-600 font-mono">
-                                                {formatTimeLocal(pause.pause_start)} - {formatTimeLocal(pause.pause_end)}
+                                                {formatTimeLocal(pause.pause_start)} -{" "}
+                                                {formatTimeLocal(pause.pause_end)}
                                               </span>
                                               <span className="text-slate-600">
                                                 ({pause.duration_minutes || 0} min)
