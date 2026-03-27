@@ -212,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!error && data && data.length > 0) {
       // Pick the highest-priority role
-      const priority: AppRole[] = ["admin", "vp", "manager", "supervisor", "line_manager", "employee"];
+      const priority: AppRole[] = ["admin", "vp", "supervisor", "line_manager", "employee"];
       const roles = data.map((d) => d.role as AppRole);
       const bestRole = priority.find((p) => roles.includes(p)) || roles[0];
       setRole(bestRole);
