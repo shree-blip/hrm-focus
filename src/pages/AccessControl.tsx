@@ -23,7 +23,7 @@ const ROLES = ["vp", "admin", "supervisor", "line_manager", "employee"] as const
 type AppRole = (typeof ROLES)[number];
 
 // ✅ Only used in Role Permissions matrix (removes "supervisor" column there)
-const PERMISSION_ROLES = ROLES.filter((r): r is Exclude<AppRole, "supervisor"> => r !== "supervisor");
+const PERMISSION_ROLES = ROLES;
 
 const ROLE_LABELS: Record<string, string> = {
   vp: "CEO",
