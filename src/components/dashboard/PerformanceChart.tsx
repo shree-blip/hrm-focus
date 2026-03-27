@@ -412,19 +412,6 @@ export function PerformanceChart() {
                   <span className="h-0.5 w-4 bg-muted-foreground inline-block" />
                   Daily Target
                 </div>
-                <div className="ml-auto flex flex-wrap gap-4">
-                  <span>
-                    Full Days: <span className="font-medium text-foreground">{stats.fullDays}</span>
-                  </span>
-                  <span>
-                    Absent Days: <span className="font-medium text-foreground">{stats.absentDays}</span>
-                  </span>
-                  {stats.bestDay && (
-                    <span>
-                      Best Day: <span className="font-medium text-foreground">{stats.bestDay.hours}h</span>
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
           </>
