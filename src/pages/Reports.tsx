@@ -898,7 +898,7 @@ const Reports = () => {
                       <span>Days Worked</span>
                       <span>Total Hours</span>
                     </div>
-                    {teamAttendance.slice(0, 10).map((emp) => (
+                    {teamAttendance.map((emp) => (
                       <div
                         key={emp.user_id}
                         className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-sm"
