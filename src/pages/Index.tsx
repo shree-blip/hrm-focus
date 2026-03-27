@@ -107,7 +107,7 @@ const Index = () => {
   const getRoleLabel = () => {
     if (role === "vp") return "CEO";
     if (role === "admin") return "Admin";
-    if (role === "manager") return "Manager";
+    if (role === "supervisor") return "Supervisor";
     return "";
   };
 

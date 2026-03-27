@@ -454,7 +454,7 @@ const Profile = () => {
         return "bg-destructive text-destructive-foreground";
       case "vp":
         return "bg-primary text-primary-foreground";
-      case "manager":
+      case "supervisor":
         return "bg-info text-info-foreground";
       default:
         return "bg-secondary text-secondary-foreground";
@@ -467,8 +467,8 @@ const Profile = () => {
         return "Administrator";
       case "vp":
         return "CEO";
-      case "manager":
-        return "Manager";
+      case "supervisor":
+        return "Supervisor";
       default:
         return "Employee";
     }

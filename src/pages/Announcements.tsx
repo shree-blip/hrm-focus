@@ -85,9 +85,9 @@ const Announcements = () => {
   }, [user]);
 
   // Use effective permissions for access control
-  const canAdd = hasPermission("add_announcement") || role === "admin" || role === "vp" || role === "manager" || isPublisher;
-  const canEdit = hasPermission("edit_announcement") || role === "admin" || role === "vp" || role === "manager" || isPublisher;
-  const canDelete = hasPermission("delete_announcement") || role === "admin" || role === "vp" || role === "manager" || isPublisher;
+  const canAdd = hasPermission("add_announcement") || role === "admin" || role === "vp" || role === "supervisor" || isPublisher;
+  const canEdit = hasPermission("edit_announcement") || role === "admin" || role === "vp" || role === "supervisor" || isPublisher;
+  const canDelete = hasPermission("delete_announcement") || role === "admin" || role === "vp" || role === "supervisor" || isPublisher;
   const canManage = canAdd || canEdit || canDelete;
 
   const stats = useMemo(() => {

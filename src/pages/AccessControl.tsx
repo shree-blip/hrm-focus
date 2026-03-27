@@ -19,7 +19,7 @@ import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { format } from "date-fns";
 import { usePersistentState } from "@/hooks/usePersistentState";
 
-const ROLES = ["vp", "admin", "supervisor", "line_manager", "manager", "employee"] as const;
+const ROLES = ["vp", "admin", "supervisor", "line_manager", "employee"] as const;
 type AppRole = (typeof ROLES)[number];
 
 // ✅ Only used in Role Permissions matrix (removes "supervisor" column there)
@@ -30,7 +30,6 @@ const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
   supervisor: "Supervisor",
   line_manager: "Line Manager",
-  manager: "Manager",
   employee: "Employee",
 };
 
@@ -573,7 +572,6 @@ export default function AccessControl() {
                               u.role === "admin" && "border-destructive text-destructive bg-destructive/10",
                               u.role === "supervisor" && "border-orange-500 text-orange-600 bg-orange-50",
                               u.role === "line_manager" && "border-blue-500 text-blue-600 bg-blue-50",
-                              u.role === "manager" && "border-green-500 text-green-600 bg-green-50",
                             )}
                           >
                             {ROLE_LABELS[u.role] || u.role}

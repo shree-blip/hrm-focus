@@ -137,7 +137,7 @@ export function usePerformance(period: PeriodType = "this-month", customRange?: 
       const expectedHours = workingDays * STANDARD_HOURS_PER_DAY;
 
       // ---- 1.  Determine visible employees based on role ----
-      const hasOrgWideAccess = isVP || isAdmin || role === "manager";
+      const hasOrgWideAccess = isVP || isAdmin;
 
       let employeesQuery = supabase
         .from("employees")

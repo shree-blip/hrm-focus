@@ -89,8 +89,6 @@ export function Header({ isMobile }: HeaderProps = {}) {
         return "Admin";
       case "vp":
         return "CEO";
-      case "manager":
-        return "Manager";
       case "line_manager":
         return "Line Manager";
       case "supervisor":
@@ -106,8 +104,6 @@ export function Header({ isMobile }: HeaderProps = {}) {
         return "bg-destructive text-destructive-foreground";
       case "vp":
         return "bg-primary text-primary-foreground";
-      case "manager":
-        return "bg-info text-info-foreground";
       case "line_manager":
         return "bg-emerald-600 text-white";
       case "supervisor":
