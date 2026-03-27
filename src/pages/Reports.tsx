@@ -794,7 +794,10 @@ const Reports = () => {
             <CardContent>
               <div className="space-y-4">
                 {Object.entries(leaveStats.byType).map(([type, count]) => (
-                  <div key={type} className="flex items-center justify-between p-4 rounded-lg bg-slate-100">
+                  <div
+                    key={type}
+                    className="flex items-center justify-between p-4 rounded-lg bg-slate-100 dark:bg-slate-800"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="h-3 w-3 rounded-full bg-blue-600" />
                       <span className="font-medium">{type}</span>
