@@ -2,8 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -41,6 +40,7 @@ Deno.serve(async (req) => {
       leave_request_id,
       event_type,
       employee_name,
+      employee_email,
       leave_type,
       start_date,
       end_date,
@@ -53,29 +53,23 @@ Deno.serve(async (req) => {
       requesting_user_id,
     } = payload;
 
-    // Build notification content based on event type
+    const dateRange = `${start_date} to ${end_date}`;
+
+    // =========================
+    // 1. BUILD IN-APP CONTENT
+    // =========================
     let title: string;
     let message: string;
-    let emailSubject: string;
-    let emailHtml: string;
-
-    const dateRange = `${start_date} to ${end_date}`;
 
     if (event_type === "submitted") {
       title = `📋 New Leave Request from ${employee_name}`;
       message = `${employee_name} submitted a ${leave_type} request for ${days} day(s) (${dateRange}).${reason ? ` Reason: ${reason}` : ""}`;
-      emailSubject = `Leave Request: ${employee_name} - ${leave_type} (${days} days)`;
-      emailHtml = buildSubmittedEmail(employee_name, leave_type, start_date, end_date, days, reason);
     } else if (event_type === "approved") {
       title = `✅ Leave Request Approved`;
       message = `Your ${leave_type} request for ${days} day(s) (${dateRange}) has been approved by ${approver_name || "Manager"}.`;
-      emailSubject = `Leave Approved: ${leave_type} (${days} days)`;
-      emailHtml = buildApprovedEmail(employee_name, leave_type, start_date, end_date, days, approver_name || "Manager");
     } else if (event_type === "rejected") {
       title = `❌ Leave Request Rejected`;
       message = `Your ${leave_type} request for ${days} day(s) (${dateRange}) has been rejected by ${approver_name || "Manager"}.${rejection_reason ? ` Reason: ${rejection_reason}` : ""}`;
-      emailSubject = `Leave Rejected: ${leave_type} (${days} days)`;
-      emailHtml = buildRejectedEmail(employee_name, leave_type, start_date, end_date, days, approver_name || "Manager", rejection_reason);
     } else {
       return new Response(JSON.stringify({ error: "Invalid event_type" }), {
         status: 400,
@@ -85,7 +79,9 @@ Deno.serve(async (req) => {
 
     const results: Array<{ type: string; target: string; success: boolean; error?: string }> = [];
 
-    // 1. Create in-app notifications for target users
+    // =========================
+    // 2. CREATE IN-APP NOTIFICATIONS
+    // =========================
     for (const userId of target_user_ids) {
       try {
         const { error } = await supabase.rpc("create_notification", {
@@ -95,39 +91,256 @@ Deno.serve(async (req) => {
           p_type: "leave",
           p_link: event_type === "submitted" ? "/approvals" : "/leave",
         });
+
         if (error) throw error;
+
         results.push({ type: "in_app", target: userId, success: true });
       } catch (err) {
         console.error(`Failed to create notification for ${userId}:`, err);
-        results.push({ type: "in_app", target: userId, success: false, error: String(err) });
+        results.push({
+          type: "in_app",
+          target: userId,
+          success: false,
+          error: String(err),
+        });
       }
     }
 
-    // 2. Send emails via Resend
-    const allEmails = [...new Set([...target_emails, FIXED_CC_EMAIL])];
+    // =========================
+    // 3. SPLIT EMAIL RECIPIENTS
+    // =========================
+    const normalizedTargetEmails = [...new Set(target_emails.filter(Boolean))];
+    const normalizedEmployeeEmail = employee_email?.trim().toLowerCase() || "";
 
-    for (const email of allEmails) {
-      const logEntry = await createNotificationLog(supabase, {
-        recipient_email: email,
-        event_type,
-        payload: { leave_request_id, employee_name, leave_type, start_date, end_date, days },
-        status: "pending",
-      });
+    let employeeRecipients: string[] = [];
+    let managementRecipients: string[] = [];
 
-      const emailResult = await sendEmailWithRetry(
-        supabase,
-        logEntry.id,
-        email,
-        emailSubject,
-        emailHtml
+    if (normalizedEmployeeEmail) {
+      employeeRecipients = normalizedTargetEmails.filter(
+        (email) => email.trim().toLowerCase() === normalizedEmployeeEmail,
       );
 
-      results.push({
-        type: "email",
-        target: email,
-        success: emailResult.success,
-        error: emailResult.error,
-      });
+      managementRecipients = normalizedTargetEmails.filter(
+        (email) => email.trim().toLowerCase() !== normalizedEmployeeEmail,
+      );
+    } else {
+      // If employee_email is not supplied, then we cannot safely distinguish.
+      // For submitted requests, target_emails are usually management anyway.
+      // For approved/rejected, if employee_email is missing, fall back to sending
+      // the management template to target emails to avoid "Hi Employee" going to admins.
+      employeeRecipients = [];
+      managementRecipients = normalizedTargetEmails;
+    }
+
+    // CC goes only to management-side emails, not to employee-facing email
+    if (!managementRecipients.includes(FIXED_CC_EMAIL)) {
+      managementRecipients.push(FIXED_CC_EMAIL);
+    }
+
+    // =========================
+    // 4. SEND EMAILS BY EVENT TYPE
+    // =========================
+
+    // ---- SUBMITTED ----
+    if (event_type === "submitted") {
+      const subject = `Leave Request: ${employee_name} - ${leave_type} (${days} days)`;
+      const html = buildSubmittedEmail(employee_name, leave_type, start_date, end_date, days, reason);
+
+      for (const email of managementRecipients) {
+        const logEntry = await createNotificationLog(supabase, {
+          recipient_email: email,
+          event_type,
+          payload: {
+            leave_request_id,
+            employee_name,
+            leave_type,
+            start_date,
+            end_date,
+            days,
+            recipient_group: "management",
+          },
+          status: "pending",
+        });
+
+        const emailResult = await sendEmailWithRetry(supabase, logEntry.id, email, subject, html);
+
+        results.push({
+          type: "email",
+          target: email,
+          success: emailResult.success,
+          error: emailResult.error,
+        });
+      }
+    }
+
+    // ---- APPROVED ----
+    else if (event_type === "approved") {
+      // Employee-facing email
+      if (employeeRecipients.length > 0) {
+        const employeeSubject = `Leave Approved: ${leave_type} (${days} days)`;
+        const employeeHtml = buildApprovedEmployeeEmail(
+          employee_name,
+          leave_type,
+          start_date,
+          end_date,
+          days,
+          approver_name || "Manager",
+        );
+
+        for (const email of employeeRecipients) {
+          const logEntry = await createNotificationLog(supabase, {
+            recipient_email: email,
+            event_type,
+            payload: {
+              leave_request_id,
+              employee_name,
+              leave_type,
+              start_date,
+              end_date,
+              days,
+              approver_name,
+              recipient_group: "employee",
+            },
+            status: "pending",
+          });
+
+          const emailResult = await sendEmailWithRetry(supabase, logEntry.id, email, employeeSubject, employeeHtml);
+
+          results.push({
+            type: "email",
+            target: email,
+            success: emailResult.success,
+            error: emailResult.error,
+          });
+        }
+      }
+
+      // Management-facing email
+      if (managementRecipients.length > 0) {
+        const managementSubject = `Leave Approved: ${employee_name} - ${leave_type} (${days} days)`;
+        const managementHtml = buildApprovedManagementEmail(
+          employee_name,
+          leave_type,
+          start_date,
+          end_date,
+          days,
+          approver_name || "Manager",
+        );
+
+        for (const email of managementRecipients) {
+          const logEntry = await createNotificationLog(supabase, {
+            recipient_email: email,
+            event_type,
+            payload: {
+              leave_request_id,
+              employee_name,
+              leave_type,
+              start_date,
+              end_date,
+              days,
+              approver_name,
+              recipient_group: "management",
+            },
+            status: "pending",
+          });
+
+          const emailResult = await sendEmailWithRetry(supabase, logEntry.id, email, managementSubject, managementHtml);
+
+          results.push({
+            type: "email",
+            target: email,
+            success: emailResult.success,
+            error: emailResult.error,
+          });
+        }
+      }
+    }
+
+    // ---- REJECTED ----
+    else if (event_type === "rejected") {
+      // Employee-facing email
+      if (employeeRecipients.length > 0) {
+        const employeeSubject = `Leave Rejected: ${leave_type} (${days} days)`;
+        const employeeHtml = buildRejectedEmployeeEmail(
+          employee_name,
+          leave_type,
+          start_date,
+          end_date,
+          days,
+          approver_name || "Manager",
+          rejection_reason,
+        );
+
+        for (const email of employeeRecipients) {
+          const logEntry = await createNotificationLog(supabase, {
+            recipient_email: email,
+            event_type,
+            payload: {
+              leave_request_id,
+              employee_name,
+              leave_type,
+              start_date,
+              end_date,
+              days,
+              approver_name,
+              rejection_reason,
+              recipient_group: "employee",
+            },
+            status: "pending",
+          });
+
+          const emailResult = await sendEmailWithRetry(supabase, logEntry.id, email, employeeSubject, employeeHtml);
+
+          results.push({
+            type: "email",
+            target: email,
+            success: emailResult.success,
+            error: emailResult.error,
+          });
+        }
+      }
+
+      // Management-facing email
+      if (managementRecipients.length > 0) {
+        const managementSubject = `Leave Rejected: ${employee_name} - ${leave_type} (${days} days)`;
+        const managementHtml = buildRejectedManagementEmail(
+          employee_name,
+          leave_type,
+          start_date,
+          end_date,
+          days,
+          approver_name || "Manager",
+          rejection_reason,
+        );
+
+        for (const email of managementRecipients) {
+          const logEntry = await createNotificationLog(supabase, {
+            recipient_email: email,
+            event_type,
+            payload: {
+              leave_request_id,
+              employee_name,
+              leave_type,
+              start_date,
+              end_date,
+              days,
+              approver_name,
+              rejection_reason,
+              recipient_group: "management",
+            },
+            status: "pending",
+          });
+
+          const emailResult = await sendEmailWithRetry(supabase, logEntry.id, email, managementSubject, managementHtml);
+
+          results.push({
+            type: "email",
+            target: email,
+            success: emailResult.success,
+            error: emailResult.error,
+          });
+        }
+      }
     }
 
     return new Response(JSON.stringify({ success: true, results }), {
@@ -135,10 +348,10 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("send-leave-notification error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
 
@@ -151,7 +364,7 @@ async function createNotificationLog(
     status: string;
     notification_id?: string;
     recipient_user_id?: string;
-  }
+  },
 ) {
   const { data: log, error } = await supabase
     .from("notification_logs")
@@ -182,13 +395,17 @@ async function sendEmailWithRetry(
   to: string,
   subject: string,
   html: string,
-  attempt = 1
+  attempt = 1,
 ): Promise<{ success: boolean; error?: string }> {
   if (!RESEND_API_KEY) {
     console.warn("RESEND_API_KEY not set, skipping email");
     await supabase
       .from("notification_logs")
-      .update({ status: "skipped", error_message: "RESEND_API_KEY not configured", updated_at: new Date().toISOString() })
+      .update({
+        status: "skipped",
+        error_message: "RESEND_API_KEY not configured",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", logId);
     return { success: false, error: "RESEND_API_KEY not configured" };
   }
@@ -213,7 +430,6 @@ async function sendEmailWithRetry(
       throw new Error(`Resend API error ${res.status}: ${body}`);
     }
 
-    // Mark as sent
     await supabase
       .from("notification_logs")
       .update({
@@ -230,9 +446,7 @@ async function sendEmailWithRetry(
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error(`Email attempt ${attempt} to ${to} failed:`, errorMsg);
 
-    const nextRetry = attempt < 3
-      ? new Date(Date.now() + 2 * 60 * 1000).toISOString()
-      : null;
+    const nextRetry = attempt < 3 ? new Date(Date.now() + 2 * 60 * 1000).toISOString() : null;
 
     await supabase
       .from("notification_logs")
@@ -246,13 +460,9 @@ async function sendEmailWithRetry(
       })
       .eq("id", logId);
 
-    // If max retries reached, notify CEO/Admin
     if (attempt >= 3) {
       try {
-        const { data: admins } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .in("role", ["vp", "admin"]);
+        const { data: admins } = await supabase.from("user_roles").select("user_id").in("role", ["vp", "admin"]);
 
         for (const admin of admins || []) {
           await supabase.rpc("create_notification", {
@@ -272,9 +482,16 @@ async function sendEmailWithRetry(
   }
 }
 
-// ====== Email HTML Templates ======
+// ====== EMAIL HTML TEMPLATES ======
 
-function buildSubmittedEmail(name: string, type: string, start: string, end: string, days: number, reason?: string | null): string {
+function buildSubmittedEmail(
+  name: string,
+  type: string,
+  start: string,
+  end: string,
+  days: number,
+  reason?: string | null,
+): string {
   return `
 <!DOCTYPE html>
 <html>
@@ -297,7 +514,14 @@ function buildSubmittedEmail(name: string, type: string, start: string, end: str
 </html>`;
 }
 
-function buildApprovedEmail(name: string, type: string, start: string, end: string, days: number, approver: string): string {
+function buildApprovedEmployeeEmail(
+  name: string,
+  type: string,
+  start: string,
+  end: string,
+  days: number,
+  approver: string,
+): string {
   return `
 <!DOCTYPE html>
 <html>
@@ -318,7 +542,44 @@ function buildApprovedEmail(name: string, type: string, start: string, end: stri
 </html>`;
 }
 
-function buildRejectedEmail(name: string, type: string, start: string, end: string, days: number, approver: string, reason?: string | null): string {
+function buildApprovedManagementEmail(
+  employeeName: string,
+  type: string,
+  start: string,
+  end: string,
+  days: number,
+  approver: string,
+): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <h2 style="color:#16a34a;margin-top:0;">✅ Leave Request Approved</h2>
+    <p>A leave request has been <strong>approved</strong>.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 0;color:#666;width:160px;">Employee</td><td style="padding:8px 0;font-weight:600;">${employeeName}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Approved By</td><td style="padding:8px 0;font-weight:600;">${approver}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Leave Type</td><td style="padding:8px 0;">${type}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Period</td><td style="padding:8px 0;">${start} to ${end}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Days</td><td style="padding:8px 0;font-weight:600;">${days}</td></tr>
+    </table>
+    <a href="https://hrm-focus.lovable.app/leave" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin-top:8px;">View Details</a>
+  </div>
+</body>
+</html>`;
+}
+
+function buildRejectedEmployeeEmail(
+  name: string,
+  type: string,
+  start: string,
+  end: string,
+  days: number,
+  approver: string,
+  reason?: string | null,
+): string {
   return `
 <!DOCTYPE html>
 <html>
@@ -330,6 +591,37 @@ function buildRejectedEmail(name: string, type: string, start: string, end: stri
     <p>Your leave request has been <strong>rejected</strong> by ${approver}.</p>
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
       <tr><td style="padding:8px 0;color:#666;width:140px;">Leave Type</td><td style="padding:8px 0;font-weight:600;">${type}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Period</td><td style="padding:8px 0;">${start} to ${end}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Days</td><td style="padding:8px 0;font-weight:600;">${days}</td></tr>
+      ${reason ? `<tr><td style="padding:8px 0;color:#666;">Reason</td><td style="padding:8px 0;color:#dc2626;">${reason}</td></tr>` : ""}
+    </table>
+    <a href="https://hrm-focus.lovable.app/leave" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin-top:8px;">View Details</a>
+  </div>
+</body>
+</html>`;
+}
+
+function buildRejectedManagementEmail(
+  employeeName: string,
+  type: string,
+  start: string,
+  end: string,
+  days: number,
+  approver: string,
+  reason?: string | null,
+): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <h2 style="color:#dc2626;margin-top:0;">❌ Leave Request Rejected</h2>
+    <p>A leave request has been <strong>rejected</strong>.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 0;color:#666;width:160px;">Employee</td><td style="padding:8px 0;font-weight:600;">${employeeName}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Rejected By</td><td style="padding:8px 0;font-weight:600;">${approver}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Leave Type</td><td style="padding:8px 0;">${type}</td></tr>
       <tr><td style="padding:8px 0;color:#666;">Period</td><td style="padding:8px 0;">${start} to ${end}</td></tr>
       <tr><td style="padding:8px 0;color:#666;">Days</td><td style="padding:8px 0;font-weight:600;">${days}</td></tr>
       ${reason ? `<tr><td style="padding:8px 0;color:#666;">Reason</td><td style="padding:8px 0;color:#dc2626;">${reason}</td></tr>` : ""}
