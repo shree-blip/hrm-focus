@@ -898,7 +898,7 @@ const Reports = () => {
                     {teamAttendance.slice(0, 10).map((emp) => (
                       <div
                         key={emp.user_id}
-                        className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-slate-50 text-sm"
+                        className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-sm"
                       >
                         <span>{emp.employee_name}</span>
                         <span className="text-slate-600">{emp.email}</span>
