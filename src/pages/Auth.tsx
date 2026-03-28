@@ -66,40 +66,7 @@ export default function Auth() {
   const [emailChecking, setEmailChecking] = useState(false);
   const [emailError, setEmailError] = useState("");
 
-  // Fetch inspirational quote
-  useEffect(() => {
-    const fetchQuote = async () => {
-      setQuoteLoading(true);
-      try {
-        // Try quotable.io first (has 1000+ quotes)
-        const response = await fetch("https://api.quotable.io/random?tags=inspirational|motivational|success|wisdom");
-        if (response.ok) {
-          const data = await response.json();
-          setQuote({ text: data.content, author: data.author });
-        } else {
-          // Fallback to type.fit API
-          const fallbackResponse = await fetch("https://type.fit/api/quotes");
-          if (fallbackResponse.ok) {
-            const quotes = await fallbackResponse.json();
-            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-            setQuote({
-              text: randomQuote.text,
-              author: randomQuote.author?.replace(", type.fit", "") || "Unknown",
-            });
-          }
-        }
-      } catch (error) {
-        // Use a default quote if both APIs fail
-        setQuote({
-          text: "The only way to do great work is to love what you do.",
-          author: "Steve Jobs",
-        });
-      }
-      setQuoteLoading(false);
-    };
-
-    fetchQuote();
-  }, []);
+  // Quotes are now local — no useEffect needed
 
   // Check for auth rejection on mount
   useEffect(() => {
