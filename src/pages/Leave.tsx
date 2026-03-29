@@ -211,12 +211,14 @@ const Leave = () => {
     }
   };
 
-  const handleSubmitRequest = async (request: { type: string; startDate: Date; endDate: Date; reason: string }) => {
+  const handleSubmitRequest = async (request: { type: string; startDate: Date; endDate: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => {
     await createRequest({
       leave_type: request.type,
       start_date: request.startDate,
       end_date: request.endDate,
       reason: request.reason,
+      is_half_day: request.is_half_day,
+      half_day_period: request.half_day_period,
     });
   };
 
