@@ -273,7 +273,7 @@ export function RequestLeaveDialog({
       return;
     }
 
-    if (endDate < startDate) {
+    if (!isHalfDay && endDate && endDate < startDate) {
       toast({
         title: "Invalid Dates",
         description: "End date must be after start date.",
@@ -282,20 +282,21 @@ export function RequestLeaveDialog({
       return;
     }
 
-    const businessDays = getBusinessDaysBetween(startDate, endDate);
-    if (businessDays === 0) {
-      toast({
-        title: "Invalid Date Range",
-        description:
-          "Your selected dates fall entirely on weekends. Please select dates that include at least one working day.",
-        variant: "destructive",
-      });
-      return;
+    if (!isHalfDay && endDate) {
+      const businessDays = getBusinessDaysBetween(startDate, endDate);
+      if (businessDays === 0) {
+        toast({
+          title: "Invalid Date Range",
+          description: "Your selected dates fall entirely on weekends. Please select dates that include at least one working day.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     const adjustedStartDate = new Date(startDate);
     adjustedStartDate.setHours(12, 0, 0, 0);
-    const adjustedEndDate = new Date(endDate);
+    const adjustedEndDate = isHalfDay ? new Date(startDate) : new Date(endDate!);
     adjustedEndDate.setHours(12, 0, 0, 0);
 
     // Determine the actual leave type to submit
