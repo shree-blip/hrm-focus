@@ -20,9 +20,11 @@ import {
   Clock,
   Layers,
   FileText,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
+import { AdminLeaveDialog } from "@/components/leave/AdminLeaveDialog";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
 import { LeaveConflictDialog } from "@/components/leave/LeaveConflictDialog";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
