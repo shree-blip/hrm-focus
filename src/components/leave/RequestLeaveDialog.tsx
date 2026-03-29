@@ -312,6 +312,8 @@ export function RequestLeaveDialog({
       startDate: adjustedStartDate,
       endDate: adjustedEndDate,
       reason,
+      is_half_day: isHalfDay,
+      half_day_period: isHalfDay ? halfDayPeriod : null,
     });
 
     // Reset form
