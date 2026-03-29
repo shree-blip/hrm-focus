@@ -1085,6 +1085,15 @@ const Leave = () => {
         isOnLeave={isUserOnLeaveToday}
         currentLeave={currentUserLeave}
       />
+      {isAdmin && (
+        <AdminLeaveDialog
+          open={adminDialogOpen}
+          onOpenChange={setAdminDialogOpen}
+          onSubmit={async (params) => {
+            await adminCreateLeave(params);
+          }}
+        />
+      )}
       <RejectReasonDialog
         open={rejectDialogOpen}
         onOpenChange={handleRejectDialogOpenChange}
