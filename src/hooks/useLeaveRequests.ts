@@ -414,7 +414,9 @@ export function useLeaveRequests() {
         days,
         reason: request.reason,
         status: "pending",
-      })
+        is_half_day: request.is_half_day || false,
+        half_day_period: request.half_day_period || null,
+      } as any)
       .select()
       .single();
 
