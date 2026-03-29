@@ -318,6 +318,12 @@ const Leave = () => {
               {ownPendingRequests !== 1 ? "s" : ""}
             </Badge>
           )}
+          {isAdmin && (
+            <Button variant="outline" className="gap-2" onClick={() => setAdminDialogOpen(true)}>
+              <Shield className="h-4 w-4" />
+              Assign Leave
+            </Button>
+          )}
           <Button className="gap-2 shadow-md" onClick={() => setRequestDialogOpen(true)}>
             <Plus className="h-4 w-4" />
             Request Leave
