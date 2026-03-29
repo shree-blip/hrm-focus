@@ -20,9 +20,11 @@ import {
   Clock,
   Layers,
   FileText,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
+import { AdminLeaveDialog } from "@/components/leave/AdminLeaveDialog";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
 import { LeaveConflictDialog } from "@/components/leave/LeaveConflictDialog";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
@@ -63,8 +65,8 @@ const isLeaveOnLeaveType = (leaveType: string) => {
 };
 
 const Leave = () => {
-  const { user, isManager } = useAuth();
-  const { requests, ownRequests, teamLeaves, balances, loading, createRequest, approveRequest, rejectRequest } =
+  const { user, isManager, isAdmin } = useAuth();
+  const { requests, ownRequests, teamLeaves, balances, loading, createRequest, approveRequest, rejectRequest, adminCreateLeave } =
     useLeaveRequests();
   const { unreadCount } = useNotifications();
   const [activeTab, setActiveTab] = usePersistentState("leave:activeTab", "all");
@@ -75,6 +77,7 @@ const Leave = () => {
     name: string;
   } | null>("leave:selectedRequest", null);
   const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
   const [conflictData, setConflictData] = useState<{
     requestId: string;
@@ -208,12 +211,14 @@ const Leave = () => {
     }
   };
 
-  const handleSubmitRequest = async (request: { type: string; startDate: Date; endDate: Date; reason: string }) => {
+  const handleSubmitRequest = async (request: { type: string; startDate: Date; endDate: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => {
     await createRequest({
       leave_type: request.type,
       start_date: request.startDate,
       end_date: request.endDate,
       reason: request.reason,
+      is_half_day: request.is_half_day,
+      half_day_period: request.half_day_period,
     });
   };
 
@@ -312,6 +317,12 @@ const Leave = () => {
               {ownPendingRequests} pending request
               {ownPendingRequests !== 1 ? "s" : ""}
             </Badge>
+          )}
+          {isAdmin && (
+            <Button variant="outline" className="gap-2" onClick={() => setAdminDialogOpen(true)}>
+              <Shield className="h-4 w-4" />
+              Assign Leave
+            </Button>
           )}
           <Button className="gap-2 shadow-md" onClick={() => setRequestDialogOpen(true)}>
             <Plus className="h-4 w-4" />
@@ -1074,6 +1085,15 @@ const Leave = () => {
         isOnLeave={isUserOnLeaveToday}
         currentLeave={currentUserLeave}
       />
+      {isAdmin && (
+        <AdminLeaveDialog
+          open={adminDialogOpen}
+          onOpenChange={setAdminDialogOpen}
+          onSubmit={async (params) => {
+            await adminCreateLeave(params);
+          }}
+        />
+      )}
       <RejectReasonDialog
         open={rejectDialogOpen}
         onOpenChange={handleRejectDialogOpenChange}

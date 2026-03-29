@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -84,7 +85,7 @@ interface CurrentLeave {
 interface RequestLeaveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (request: { type: string; startDate: Date; endDate: Date; reason: string }) => void;
+  onSubmit: (request: { type: string; startDate: Date; endDate: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => void;
   isOnLeave?: boolean;
   currentLeave?: CurrentLeave | null;
 }
@@ -146,6 +147,8 @@ export function RequestLeaveDialog({
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [reason, setReason] = useState("");
+  const [isHalfDay, setIsHalfDay] = useState(false);
+  const [halfDayPeriod, setHalfDayPeriod] = useState<string>("first_half");
 
   // Leave on Lieu specific fields
   const [dateWorked, setDateWorked] = useState<Date>(); // The date they worked on a holiday/leave
@@ -179,6 +182,8 @@ export function RequestLeaveDialog({
       setReason("");
       setDateWorked(undefined);
       setLieuLeaveDate(undefined);
+      setIsHalfDay(false);
+      setHalfDayPeriod("first_half");
     }
   }, [open]);
 
@@ -232,10 +237,19 @@ export function RequestLeaveDialog({
     }
 
     // Standard validation for other leave types
-    if (!leaveType || !startDate || !endDate || !reason) {
+    if (!leaveType || !startDate || !reason) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isHalfDay && !endDate) {
+      toast({
+        title: "Missing Information",
+        description: "Please select an end date.",
         variant: "destructive",
       });
       return;
@@ -259,7 +273,7 @@ export function RequestLeaveDialog({
       return;
     }
 
-    if (endDate < startDate) {
+    if (!isHalfDay && endDate && endDate < startDate) {
       toast({
         title: "Invalid Dates",
         description: "End date must be after start date.",
@@ -268,20 +282,21 @@ export function RequestLeaveDialog({
       return;
     }
 
-    const businessDays = getBusinessDaysBetween(startDate, endDate);
-    if (businessDays === 0) {
-      toast({
-        title: "Invalid Date Range",
-        description:
-          "Your selected dates fall entirely on weekends. Please select dates that include at least one working day.",
-        variant: "destructive",
-      });
-      return;
+    if (!isHalfDay && endDate) {
+      const businessDays = getBusinessDaysBetween(startDate, endDate);
+      if (businessDays === 0) {
+        toast({
+          title: "Invalid Date Range",
+          description: "Your selected dates fall entirely on weekends. Please select dates that include at least one working day.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     const adjustedStartDate = new Date(startDate);
     adjustedStartDate.setHours(12, 0, 0, 0);
-    const adjustedEndDate = new Date(endDate);
+    const adjustedEndDate = isHalfDay ? new Date(startDate) : new Date(endDate!);
     adjustedEndDate.setHours(12, 0, 0, 0);
 
     // Determine the actual leave type to submit
@@ -297,6 +312,8 @@ export function RequestLeaveDialog({
       startDate: adjustedStartDate,
       endDate: adjustedEndDate,
       reason,
+      is_half_day: isHalfDay,
+      half_day_period: isHalfDay ? halfDayPeriod : null,
     });
 
     // Reset form
@@ -677,11 +694,47 @@ export function RequestLeaveDialog({
             </div>
           )}
 
+          {/* Half-Day Toggle - NOT shown for Leave on Lieu or Special Leave */}
+          {!isLeaveOnLieu && leaveType !== "Special Leave" && (
+            <div className="space-y-2 p-3 rounded-lg border border-border bg-accent/30">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="half-day-toggle"
+                  checked={isHalfDay}
+                  onChange={(e) => {
+                    setIsHalfDay(e.target.checked);
+                    if (e.target.checked) setEndDate(undefined);
+                  }}
+                  className="h-4 w-4 rounded border-border"
+                />
+                <Label htmlFor="half-day-toggle" className="cursor-pointer text-sm font-medium">
+                  Half-Day Leave
+                </Label>
+                {isHalfDay && (
+                  <Badge variant="secondary" className="text-xs">0.5 day</Badge>
+                )}
+              </div>
+              {isHalfDay && (
+                <RadioGroup value={halfDayPeriod} onValueChange={setHalfDayPeriod} className="flex gap-4 mt-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="first_half" id="first-half" />
+                    <Label htmlFor="first-half" className="cursor-pointer text-sm">First Half (Morning)</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="second_half" id="second-half" />
+                    <Label htmlFor="second-half" className="cursor-pointer text-sm">Second Half (Afternoon)</Label>
+                  </div>
+                </RadioGroup>
+              )}
+            </div>
+          )}
+
           {/* Date Selection - NOT shown for Leave on Lieu (has its own date pickers) */}
           {!isLeaveOnLieu && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className={cn("grid gap-4", isHalfDay ? "grid-cols-1" : "grid-cols-2")}>
               <div className="space-y-2">
-                <Label>Start Date</Label>
+                <Label>{isHalfDay ? "Date" : "Start Date"}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -705,7 +758,7 @@ export function RequestLeaveDialog({
                       className="pointer-events-auto"
                       disabled={(date) => {
                         if (date.getDay() === 0 || date.getDay() === 6) return true;
-                        if (isOtherLeave && isEmergencySubtype(otherLeaveSubtype)) return false; // allow past dates
+                        if (isOtherLeave && isEmergencySubtype(otherLeaveSubtype)) return false;
                         return date < new Date();
                       }}
                     />
@@ -713,40 +766,42 @@ export function RequestLeaveDialog({
                 </Popover>
               </div>
 
-              <div className="space-y-2">
-                <Label>End Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !endDate && "text-muted-foreground",
-                        isOtherLeave && "border-violet-500/30",
-                      )}
-                      disabled={leaveType === "Special Leave" && !!specialLeaveSubtype && !!startDate}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={endDate}
-                      onSelect={setEndDate}
-                      initialFocus
-                      className="pointer-events-auto"
-                      disabled={(date) => {
-                        if (startDate && date < startDate) return true;
-                        if (isOtherLeave && isEmergencySubtype) return false;
-                        if (date.getDay() === 0 || date.getDay() === 6) return true;
-                        return false;
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              {!isHalfDay && (
+                <div className="space-y-2">
+                  <Label>End Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !endDate && "text-muted-foreground",
+                          isOtherLeave && "border-violet-500/30",
+                        )}
+                        disabled={leaveType === "Special Leave" && !!specialLeaveSubtype && !!startDate}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                        disabled={(date) => {
+                          if (startDate && date < startDate) return true;
+                          if (isOtherLeave && isEmergencySubtype) return false;
+                          if (date.getDay() === 0 || date.getDay() === 6) return true;
+                          return false;
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
             </div>
           )}
 
@@ -759,7 +814,7 @@ export function RequestLeaveDialog({
           )}
 
           {/* Days Summary - not for Leave on Lieu */}
-          {!isLeaveOnLieu && startDate && endDate && getCalculatedDays() !== null && (
+          {!isLeaveOnLieu && startDate && (isHalfDay || (endDate && getCalculatedDays() !== null)) && (
             <div
               className={cn(
                 "p-3 rounded-lg border",
@@ -774,19 +829,24 @@ export function RequestLeaveDialog({
                   variant="secondary"
                   className={cn(isOtherLeave && "bg-violet-500/20 text-violet-600 dark:text-violet-400")}
                 >
-                  {getCalculatedDays()} working day
-                  {getCalculatedDays() !== 1 ? "s" : ""}
+                  {isHalfDay ? "0.5" : getCalculatedDays()} {isHalfDay ? "day" : `working day${getCalculatedDays() !== 1 ? "s" : ""}`}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                From {format(startDate, "MMM d, yyyy")} to {format(endDate, "MMM d, yyyy")}
-                {(() => {
-                  const totalCalendarDays =
-                    Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                  const businessDays = getCalculatedDays() || 0;
-                  const weekendDays = totalCalendarDays - businessDays;
-                  return weekendDays > 0 ? ` (${weekendDays} weekend day${weekendDays !== 1 ? "s" : ""} excluded)` : "";
-                })()}
+                {isHalfDay ? (
+                  <>{format(startDate, "MMM d, yyyy")} — {halfDayPeriod === "first_half" ? "First Half (Morning)" : "Second Half (Afternoon)"}</>
+                ) : endDate ? (
+                  <>
+                    From {format(startDate, "MMM d, yyyy")} to {format(endDate, "MMM d, yyyy")}
+                    {(() => {
+                      const totalCalendarDays =
+                        Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                      const businessDays = getCalculatedDays() || 0;
+                      const weekendDays = totalCalendarDays - businessDays;
+                      return weekendDays > 0 ? ` (${weekendDays} weekend day${weekendDays !== 1 ? "s" : ""} excluded)` : "";
+                    })()}
+                  </>
+                ) : null}
               </p>
             </div>
           )}
