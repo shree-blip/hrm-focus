@@ -77,6 +77,7 @@ const Leave = () => {
     name: string;
   } | null>("leave:selectedRequest", null);
   const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
   const [conflictData, setConflictData] = useState<{
     requestId: string;
