@@ -814,7 +814,7 @@ export function RequestLeaveDialog({
           )}
 
           {/* Days Summary - not for Leave on Lieu */}
-          {!isLeaveOnLieu && startDate && endDate && getCalculatedDays() !== null && (
+          {!isLeaveOnLieu && startDate && (isHalfDay || (endDate && getCalculatedDays() !== null)) && (
             <div
               className={cn(
                 "p-3 rounded-lg border",
