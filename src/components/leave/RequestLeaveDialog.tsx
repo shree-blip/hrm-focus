@@ -694,11 +694,47 @@ export function RequestLeaveDialog({
             </div>
           )}
 
+          {/* Half-Day Toggle - NOT shown for Leave on Lieu or Special Leave */}
+          {!isLeaveOnLieu && leaveType !== "Special Leave" && (
+            <div className="space-y-2 p-3 rounded-lg border border-border bg-accent/30">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="half-day-toggle"
+                  checked={isHalfDay}
+                  onChange={(e) => {
+                    setIsHalfDay(e.target.checked);
+                    if (e.target.checked) setEndDate(undefined);
+                  }}
+                  className="h-4 w-4 rounded border-border"
+                />
+                <Label htmlFor="half-day-toggle" className="cursor-pointer text-sm font-medium">
+                  Half-Day Leave
+                </Label>
+                {isHalfDay && (
+                  <Badge variant="secondary" className="text-xs">0.5 day</Badge>
+                )}
+              </div>
+              {isHalfDay && (
+                <RadioGroup value={halfDayPeriod} onValueChange={setHalfDayPeriod} className="flex gap-4 mt-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="first_half" id="first-half" />
+                    <Label htmlFor="first-half" className="cursor-pointer text-sm">First Half (Morning)</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="second_half" id="second-half" />
+                    <Label htmlFor="second-half" className="cursor-pointer text-sm">Second Half (Afternoon)</Label>
+                  </div>
+                </RadioGroup>
+              )}
+            </div>
+          )}
+
           {/* Date Selection - NOT shown for Leave on Lieu (has its own date pickers) */}
           {!isLeaveOnLieu && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className={cn("grid gap-4", isHalfDay ? "grid-cols-1" : "grid-cols-2")}>
               <div className="space-y-2">
-                <Label>Start Date</Label>
+                <Label>{isHalfDay ? "Date" : "Start Date"}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -722,7 +758,7 @@ export function RequestLeaveDialog({
                       className="pointer-events-auto"
                       disabled={(date) => {
                         if (date.getDay() === 0 || date.getDay() === 6) return true;
-                        if (isOtherLeave && isEmergencySubtype(otherLeaveSubtype)) return false; // allow past dates
+                        if (isOtherLeave && isEmergencySubtype(otherLeaveSubtype)) return false;
                         return date < new Date();
                       }}
                     />
@@ -730,40 +766,42 @@ export function RequestLeaveDialog({
                 </Popover>
               </div>
 
-              <div className="space-y-2">
-                <Label>End Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !endDate && "text-muted-foreground",
-                        isOtherLeave && "border-violet-500/30",
-                      )}
-                      disabled={leaveType === "Special Leave" && !!specialLeaveSubtype && !!startDate}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={endDate}
-                      onSelect={setEndDate}
-                      initialFocus
-                      className="pointer-events-auto"
-                      disabled={(date) => {
-                        if (startDate && date < startDate) return true;
-                        if (isOtherLeave && isEmergencySubtype) return false;
-                        if (date.getDay() === 0 || date.getDay() === 6) return true;
-                        return false;
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              {!isHalfDay && (
+                <div className="space-y-2">
+                  <Label>End Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !endDate && "text-muted-foreground",
+                          isOtherLeave && "border-violet-500/30",
+                        )}
+                        disabled={leaveType === "Special Leave" && !!specialLeaveSubtype && !!startDate}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                        disabled={(date) => {
+                          if (startDate && date < startDate) return true;
+                          if (isOtherLeave && isEmergencySubtype) return false;
+                          if (date.getDay() === 0 || date.getDay() === 6) return true;
+                          return false;
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
             </div>
           )}
 
