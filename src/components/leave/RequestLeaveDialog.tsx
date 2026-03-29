@@ -85,7 +85,7 @@ interface CurrentLeave {
 interface RequestLeaveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (request: { type: string; startDate: Date; endDate: Date; reason: string }) => void;
+  onSubmit: (request: { type: string; startDate: Date; endDate: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => void;
   isOnLeave?: boolean;
   currentLeave?: CurrentLeave | null;
 }
