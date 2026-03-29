@@ -181,6 +181,8 @@ export function RequestLeaveDialog({
       setReason("");
       setDateWorked(undefined);
       setLieuLeaveDate(undefined);
+      setIsHalfDay(false);
+      setHalfDayPeriod("first_half");
     }
   }, [open]);
 
