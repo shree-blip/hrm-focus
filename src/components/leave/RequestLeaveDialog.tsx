@@ -237,10 +237,19 @@ export function RequestLeaveDialog({
     }
 
     // Standard validation for other leave types
-    if (!leaveType || !startDate || !endDate || !reason) {
+    if (!leaveType || !startDate || !reason) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isHalfDay && !endDate) {
+      toast({
+        title: "Missing Information",
+        description: "Please select an end date.",
         variant: "destructive",
       });
       return;
