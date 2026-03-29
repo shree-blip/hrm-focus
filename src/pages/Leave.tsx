@@ -65,8 +65,8 @@ const isLeaveOnLeaveType = (leaveType: string) => {
 };
 
 const Leave = () => {
-  const { user, isManager } = useAuth();
-  const { requests, ownRequests, teamLeaves, balances, loading, createRequest, approveRequest, rejectRequest } =
+  const { user, isManager, isAdmin } = useAuth();
+  const { requests, ownRequests, teamLeaves, balances, loading, createRequest, approveRequest, rejectRequest, adminCreateLeave } =
     useLeaveRequests();
   const { unreadCount } = useNotifications();
   const [activeTab, setActiveTab] = usePersistentState("leave:activeTab", "all");
