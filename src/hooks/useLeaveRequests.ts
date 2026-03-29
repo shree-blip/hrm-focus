@@ -771,6 +771,57 @@ export function useLeaveRequests() {
     }
   };
 
+  // Admin: create leave on behalf of an employee (auto-approved)
+  const adminCreateLeave = async (params: {
+    user_id: string;
+    leave_type: string;
+    start_date: Date;
+    end_date: Date;
+    reason: string;
+    days: number;
+    is_half_day: boolean;
+    half_day_period: string | null;
+  }) => {
+    if (!user || !isAdmin) return;
+
+    const formatLocalDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const { error } = await supabase
+      .from("leave_requests")
+      .insert({
+        user_id: params.user_id,
+        leave_type: params.leave_type,
+        start_date: formatLocalDate(params.start_date),
+        end_date: formatLocalDate(params.end_date),
+        days: params.days,
+        reason: `[Admin assigned] ${params.reason}`,
+        status: "approved",
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+        is_half_day: params.is_half_day,
+        half_day_period: params.half_day_period,
+      } as any);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to assign leave: " + error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Leave Assigned",
+        description: `Leave has been assigned and auto-approved.`,
+      });
+      await loadAllData();
+    }
+  };
+
   // For managers, we need all requests to display pending requests from team
   const getAllRequests = () => {
     const allRequests = [...ownRequests];
@@ -791,6 +842,7 @@ export function useLeaveRequests() {
     createRequest,
     approveRequest,
     rejectRequest,
+    adminCreateLeave,
     refetch: loadAllData,
   };
 }
