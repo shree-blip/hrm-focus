@@ -336,13 +336,16 @@ export function useLeaveRequests() {
     };
   }, [loadAllData, user]);
 
-  const createRequest = async (request: { leave_type: string; start_date: Date; end_date: Date; reason: string }) => {
+  const createRequest = async (request: { leave_type: string; start_date: Date; end_date: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => {
     if (!user) return;
 
     let days: number;
 
-    // Check if it's a special leave type with fixed days
-    if (SPECIAL_LEAVE_TYPES[request.leave_type]) {
+    // Half-day leave = 0.5 days
+    if (request.is_half_day) {
+      days = 0.5;
+    } else if (SPECIAL_LEAVE_TYPES[request.leave_type]) {
+      // Check if it's a special leave type with fixed days
       days = SPECIAL_LEAVE_TYPES[request.leave_type];
     } else if (isLeaveOnLieuType(request.leave_type)) {
       // Leave on Lieu is always 1 day
