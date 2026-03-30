@@ -708,10 +708,7 @@ const Reports = () => {
             <Clock className="h-4 w-4" />
             Attendance Summary
           </TabsTrigger>
-          <TabsTrigger value="attendance" className="gap-2">
-            <Clock className="h-4 w-4" />
-            Attendance Summary
-          </TabsTrigger>
+
           <TabsTrigger value="daily" className="gap-2">
             <Users className="h-4 w-4" />
             Daily Attendance
