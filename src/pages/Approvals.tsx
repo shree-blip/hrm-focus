@@ -443,6 +443,8 @@ const Approvals = () => {
       )}
 
       {section === "promotions" && <PromotionApprovalQueue />}
+
+      {section === "leave-reports" && <LeaveReportsTab requests={requests} />}
     </DashboardLayout>
   );
 };
