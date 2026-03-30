@@ -703,10 +703,10 @@ const Reports = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 sm:w-auto lg:w-[600px] h-auto gap-1">
-          <TabsTrigger value="leave" className="gap-2">
-            <Calendar className="h-4 w-4" />
-            Leave Reports
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 sm:w-auto lg:w-[400px] h-auto gap-1">
+          <TabsTrigger value="attendance" className="gap-2">
+            <Clock className="h-4 w-4" />
+            Attendance Summary
           </TabsTrigger>
           <TabsTrigger value="attendance" className="gap-2">
             <Clock className="h-4 w-4" />
