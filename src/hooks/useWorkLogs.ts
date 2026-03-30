@@ -382,15 +382,14 @@ export function useWorkLogs() {
     try {
       const { data: currentLog } = await supabase.from("work_logs").select("*").eq("id", id).single();
 
-      // Block updates on completed tasks
-      if (currentLog?.status === "completed") {
-        toast({ title: "Locked", description: "Completed tasks cannot be modified", variant: "destructive" });
-        return;
-      }
-
       const updateData: Record<string, any> = {};
       if (fields.end_time !== undefined) updateData.end_time = fields.end_time || null;
       if (fields.status !== undefined) updateData.status = fields.status;
+
+      // Auto-mark as "completed" when end_time is manually provided
+      if (fields.end_time && updateData.status === undefined) {
+        updateData.status = "completed";
+      }
       if (fields.start_time !== undefined) updateData.start_time = fields.start_time;
       if (fields.task_description !== undefined) updateData.task_description = fields.task_description;
       if (fields.notes !== undefined) updateData.notes = fields.notes || null;
