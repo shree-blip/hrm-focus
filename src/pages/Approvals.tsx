@@ -10,6 +10,7 @@ import { usePromotions } from "@/hooks/usePromotions";
 import { useAuth } from "@/contexts/AuthContext";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
 import { PromotionApprovalQueue } from "@/components/employees/PromotionApprovalQueue";
+import { LeaveReportsTab } from "@/components/approvals/LeaveReportsTab";
 import { format } from "date-fns";
 import {
   Check,
