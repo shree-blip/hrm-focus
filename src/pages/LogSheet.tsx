@@ -542,7 +542,6 @@ export default function LogSheet() {
 
   // ── Full edit (opens dialog pre-filled) ───────────────────────────────
   const handleFullEdit = (log: any) => {
-    if (log.status === "completed") return; // Lock completed tasks
     setFormData({
       task_description: log.task_description,
       time_spent_minutes: log.time_spent_minutes,
@@ -577,7 +576,7 @@ export default function LogSheet() {
 
   const saveInlineEdit = async () => {
     if (!inlineEditId) return;
-    const finalStatus = inlineData.end_time && inlineData.status === "in_progress" ? "completed" : inlineData.status;
+    const finalStatus = inlineData.end_time && inlineData.status !== "completed" ? "completed" : inlineData.status;
     // Auto-set end time when completing
     const finalEndTime = finalStatus === "completed" && !inlineData.end_time ? getCurrentTime() : inlineData.end_time;
     await quickUpdate(inlineEditId, {
@@ -1037,18 +1036,16 @@ export default function LogSheet() {
                                     End Now
                                   </Button>
                                 )}
-                                {/* Edit button - disabled for completed */}
-                                {!isCompleted && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={() => startInlineEdit(log)}
-                                    title="Quick edit"
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
+                                {/* Edit button - always available */}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => startInlineEdit(log)}
+                                  title="Quick edit"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -1064,66 +1061,31 @@ export default function LogSheet() {
                                 >
                                   <History className="h-3.5 w-3.5" />
                                 </Button>
-                                {/* Delete - disabled for completed */}
-                                {!isCompleted && (
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete">
-                                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete this log?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          This will permanently delete the work log. This action cannot be undone.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => deleteLog(log.id)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                )}
-                                {/* Lock indicator + delete for completed tasks */}
-                                {isCompleted && (
-                                  <>
-                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-muted-foreground">
-                                      🔒 Locked
-                                    </Badge>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete">
-                                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Delete this completed log?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            This log is marked as completed. Deleting it is permanent and cannot be
-                                            undone.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction
-                                            onClick={() => deleteLog(log.id)}
-                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                          >
-                                            Delete
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </>
-                                )}
+                                {/* Delete button - always available */}
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete">
+                                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete this log?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will permanently delete the work log. This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deleteLog(log.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </div>
                             </div>
                           </div>
