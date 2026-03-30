@@ -326,12 +326,6 @@ export function useWorkLogs() {
         .single();
       if (fetchError) throw fetchError;
 
-      // Block updates on completed tasks
-      if (currentLog.status === "completed") {
-        toast({ title: "Locked", description: "Completed tasks cannot be modified", variant: "destructive" });
-        return;
-      }
-
       const updateData: Record<string, any> = {};
       if (input.task_description !== undefined) updateData.task_description = input.task_description;
       if (input.time_spent_minutes !== undefined) updateData.time_spent_minutes = input.time_spent_minutes;
@@ -341,6 +335,11 @@ export function useWorkLogs() {
       if (input.start_time !== undefined) updateData.start_time = input.start_time;
       if (input.end_time !== undefined) updateData.end_time = input.end_time || null;
       if (input.status !== undefined) updateData.status = input.status;
+
+      // Auto-mark as "completed" when end_time is manually provided
+      if (input.end_time && updateData.status === undefined) {
+        updateData.status = "completed";
+      }
 
       // Auto-set end time when marking as completed
       if (input.status === "completed" && !input.end_time && !currentLog.end_time) {
