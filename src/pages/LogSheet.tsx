@@ -576,7 +576,7 @@ export default function LogSheet() {
 
   const saveInlineEdit = async () => {
     if (!inlineEditId) return;
-    const finalStatus = inlineData.end_time && inlineData.status === "in_progress" ? "completed" : inlineData.status;
+    const finalStatus = inlineData.end_time && inlineData.status !== "completed" ? "completed" : inlineData.status;
     // Auto-set end time when completing
     const finalEndTime = finalStatus === "completed" && !inlineData.end_time ? getCurrentTime() : inlineData.end_time;
     await quickUpdate(inlineEditId, {
