@@ -542,7 +542,6 @@ export default function LogSheet() {
 
   // ── Full edit (opens dialog pre-filled) ───────────────────────────────
   const handleFullEdit = (log: any) => {
-    if (log.status === "completed") return; // Lock completed tasks
     setFormData({
       task_description: log.task_description,
       time_spent_minutes: log.time_spent_minutes,
