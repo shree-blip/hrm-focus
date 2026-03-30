@@ -32,7 +32,7 @@ const Approvals = () => {
   const { user, role, isVP } = useAuth();
   const { requests, loading, approveRequest, rejectRequest, refetch } = useLeaveRequests();
   const { pendingApprovals: pendingPromotions } = usePromotions();
-  const [section, setSection] = usePersistentState<"leave" | "promotions">("approvals:section", "leave");
+  const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports">("approvals:section", "leave");
   const [activeTab, setActiveTab] = usePersistentState("approvals:activeTab", "pending");
   const [rejectDialogOpen, setRejectDialogOpen] = usePersistentState("approvals:rejectDialogOpen", false);
   const [selectedRequest, setSelectedRequest] = usePersistentState<{ id: string; name: string } | null>(
