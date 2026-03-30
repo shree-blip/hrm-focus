@@ -265,7 +265,7 @@ const Approvals = () => {
       </div>
 
       {/* Top-level section tabs */}
-      <Tabs value={section} onValueChange={(v) => setSection(v as "leave" | "promotions")} className="mb-6">
+      <Tabs value={section} onValueChange={(v) => setSection(v as "leave" | "promotions" | "leave-reports")} className="mb-6">
         <TabsList>
           <TabsTrigger value="leave" className="gap-2">
             <Calendar className="h-4 w-4" />
@@ -274,6 +274,10 @@ const Approvals = () => {
           <TabsTrigger value="promotions" className="gap-2">
             <TrendingUp className="h-4 w-4" />
             Promotions ({pendingPromotions.length})
+          </TabsTrigger>
+          <TabsTrigger value="leave-reports" className="gap-2">
+            <FileText className="h-4 w-4" />
+            Leave Reports
           </TabsTrigger>
         </TabsList>
       </Tabs>
