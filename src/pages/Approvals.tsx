@@ -27,7 +27,7 @@ import {
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 
 const Approvals = () => {
   const { user, role, isVP } = useAuth();
