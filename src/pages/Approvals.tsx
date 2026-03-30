@@ -10,6 +10,7 @@ import { usePromotions } from "@/hooks/usePromotions";
 import { useAuth } from "@/contexts/AuthContext";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
 import { PromotionApprovalQueue } from "@/components/employees/PromotionApprovalQueue";
+import { LeaveReportsTab } from "@/components/approvals/LeaveReportsTab";
 import { format } from "date-fns";
 import {
   Check,
@@ -26,13 +27,13 @@ import {
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 
 const Approvals = () => {
   const { user, role, isVP } = useAuth();
   const { requests, loading, approveRequest, rejectRequest, refetch } = useLeaveRequests();
   const { pendingApprovals: pendingPromotions } = usePromotions();
-  const [section, setSection] = usePersistentState<"leave" | "promotions">("approvals:section", "leave");
+  const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports">("approvals:section", "leave");
   const [activeTab, setActiveTab] = usePersistentState("approvals:activeTab", "pending");
   const [rejectDialogOpen, setRejectDialogOpen] = usePersistentState("approvals:rejectDialogOpen", false);
   const [selectedRequest, setSelectedRequest] = usePersistentState<{ id: string; name: string } | null>(
@@ -264,7 +265,7 @@ const Approvals = () => {
       </div>
 
       {/* Top-level section tabs */}
-      <Tabs value={section} onValueChange={(v) => setSection(v as "leave" | "promotions")} className="mb-6">
+      <Tabs value={section} onValueChange={(v) => setSection(v as "leave" | "promotions" | "leave-reports")} className="mb-6">
         <TabsList>
           <TabsTrigger value="leave" className="gap-2">
             <Calendar className="h-4 w-4" />
@@ -273,6 +274,10 @@ const Approvals = () => {
           <TabsTrigger value="promotions" className="gap-2">
             <TrendingUp className="h-4 w-4" />
             Promotions ({pendingPromotions.length})
+          </TabsTrigger>
+          <TabsTrigger value="leave-reports" className="gap-2">
+            <FileText className="h-4 w-4" />
+            Leave Reports
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -438,6 +443,8 @@ const Approvals = () => {
       )}
 
       {section === "promotions" && <PromotionApprovalQueue />}
+
+      {section === "leave-reports" && <LeaveReportsTab requests={requests} />}
     </DashboardLayout>
   );
 };
