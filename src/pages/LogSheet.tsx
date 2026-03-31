@@ -1233,7 +1233,10 @@ export default function LogSheet() {
                   <Input
                     type="time"
                     value={formData.end_time}
-                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, end_time: val, ...(val ? { status: "completed" } : {}) });
+                    }}
                   />
                 </div>
               </div>
