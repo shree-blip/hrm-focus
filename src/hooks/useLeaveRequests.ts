@@ -104,22 +104,11 @@ export function useLeaveRequests() {
     requesting_user_id: string;
   }) => {
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/send-leave-notification`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${anonKey}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-      if (!res.ok) {
-        const body = await res.text();
-        console.error("send-leave-notification failed:", res.status, body);
+      const { error } = await supabase.functions.invoke("send-leave-notification", {
+        body: payload,
+      });
+      if (error) {
+        console.error("send-leave-notification failed:", error);
       }
     } catch (err) {
       console.error("Failed to call send-leave-notification:", err);
