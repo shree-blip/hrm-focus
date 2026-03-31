@@ -748,7 +748,7 @@ export default function LogSheet() {
                     {logs.map((log) => {
                       const isEditing = inlineEditId === log.id;
                       const isExpanded = expandedRows.has(log.id);
-                      const isActive = log.status === "in_progress" && !log.end_time;
+                      const isActive = log.status === "in_progress";
                       const isOnHold = log.status === "on_hold";
                       const isCompleted = log.status === "completed";
 
@@ -837,12 +837,14 @@ export default function LogSheet() {
                                 <Input
                                   type="time"
                                   value={inlineData.end_time}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
+                                    const val = e.target.value;
                                     setInlineData({
                                       ...inlineData,
-                                      end_time: e.target.value,
-                                    })
-                                  }
+                                      end_time: val,
+                                      ...(val ? { status: "completed" } : {}),
+                                    });
+                                  }}
                                   className="h-9 text-sm"
                                 />
                               </div>
@@ -1233,7 +1235,10 @@ export default function LogSheet() {
                   <Input
                     type="time"
                     value={formData.end_time}
-                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, end_time: val, ...(val ? { status: "completed" } : {}) });
+                    }}
                   />
                 </div>
               </div>
