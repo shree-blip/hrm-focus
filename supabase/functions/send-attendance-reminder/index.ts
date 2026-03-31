@@ -37,6 +37,7 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const now = new Date();
 
     // Fetch all active logs instead of filtering by raw clock_in window
     const { data: activeLogs, error: fetchError } = await supabase
