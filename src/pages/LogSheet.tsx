@@ -837,12 +837,14 @@ export default function LogSheet() {
                                 <Input
                                   type="time"
                                   value={inlineData.end_time}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
+                                    const val = e.target.value;
                                     setInlineData({
                                       ...inlineData,
-                                      end_time: e.target.value,
-                                    })
-                                  }
+                                      end_time: val,
+                                      ...(val ? { status: "completed" } : {}),
+                                    });
+                                  }}
                                   className="h-9 text-sm"
                                 />
                               </div>
