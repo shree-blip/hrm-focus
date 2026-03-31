@@ -287,6 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     sessionStorage.removeItem('auth_rejected');
+    clearEmployeesCache();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
