@@ -37,7 +37,8 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -47,7 +48,8 @@ Deno.serve(async (req) => {
     const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
     if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -480,7 +482,7 @@ async function sendEmailWithRetry(
 
     if (attempt >= 3) {
       try {
-        const { data: admins } = await supabase.from("user_roles").select("user_id").in("role", ["vp", "admin"]);
+        const { data: admins } = await supabase.from("user_roles").select("user_id").in("role", ["admin"]);
 
         for (const admin of admins || []) {
           await supabase.rpc("create_notification", {
