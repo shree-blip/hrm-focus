@@ -484,6 +484,7 @@ export function useWorkLogs() {
       const historyRecord = buildHistoryRecord(id, user.id, currentLog, {
         status: "in_progress",
         total_pause_minutes: newTotalPause,
+        end_time: null,
       });
       if (historyRecord) {
         await supabase.from("work_log_history").insert(historyRecord as any);
@@ -495,6 +496,7 @@ export function useWorkLogs() {
           status: "in_progress",
           pause_end: new Date().toISOString(),
           total_pause_minutes: newTotalPause,
+          end_time: null,
         })
         .eq("id", id);
       if (error) throw error;

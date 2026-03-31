@@ -748,7 +748,7 @@ export default function LogSheet() {
                     {logs.map((log) => {
                       const isEditing = inlineEditId === log.id;
                       const isExpanded = expandedRows.has(log.id);
-                      const isActive = log.status === "in_progress" && !log.end_time;
+                      const isActive = log.status === "in_progress";
                       const isOnHold = log.status === "on_hold";
                       const isCompleted = log.status === "completed";
 
