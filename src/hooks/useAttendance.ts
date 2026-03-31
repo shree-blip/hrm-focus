@@ -271,19 +271,9 @@ export function useAttendance(weekStart?: Date) {
         });
 
         try {
-          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-          const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-          fetch(
-            `https://${projectId}.supabase.co/functions/v1/send-attendance-reminder`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${anonKey}`,
-              },
-              body: JSON.stringify({ source: "client", user_id: user.id }),
-            }
-          ).catch((err) => console.error("Failed to trigger attendance reminder email:", err));
+          supabase.functions.invoke("send-attendance-reminder", {
+            body: { source: "client", user_id: user.id },
+          }).catch((err) => console.error("Failed to trigger attendance reminder email:", err));
         } catch (err) {
           console.error("Failed to call send-attendance-reminder:", err);
         }
