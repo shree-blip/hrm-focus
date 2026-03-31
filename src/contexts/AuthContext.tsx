@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, useMemo, useCallback, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { clearEmployeesCache } from "@/hooks/useEmployees";
 
 type AppRole = "admin" | "vp" | "employee" | "supervisor" | "line_manager";
 
@@ -287,7 +286,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     sessionStorage.removeItem('auth_rejected');
-    clearEmployeesCache();
+    // Dynamically import to avoid circular dependency
+    import("@/hooks/useEmployees").then(m => m.clearEmployeesCache());
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
