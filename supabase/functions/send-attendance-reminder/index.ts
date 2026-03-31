@@ -9,9 +9,10 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Reminder window based on NET worked minutes
-const REMINDER_MIN_MINUTES = 470; // 7h 50m
-const REMINDER_MAX_MINUTES = 480; // before 8h exactly
+// ✅ FIX 1: Wider reminder window (was 470-480, only 10 min — easy to miss)
+// Now triggers between 7h 30m and 8h. Deduplication via notification_logs prevents double-sends.
+const REMINDER_MIN_MINUTES = 450; // 7h 30m
+const REMINDER_MAX_MINUTES = 480; // 8h 00m
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -19,27 +20,35 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // ✅ FIX 2: Replaced user JWT auth with simple secret check.
+    // This function is called by pg_cron / scheduled trigger — there is NO user session.
+    // The old code called getClaims() on a non-user token → 401 every time → 100% failure.
+    //
+    // HOW TO SET UP:
+    // 1. Go to Supabase Dashboard → Edge Functions → Secrets
+    // 2. Add a secret called CRON_SECRET with any random string value
+    // 3. In your pg_cron or cron trigger, pass that same string as:
+    //    Authorization: Bearer <your-secret-value>
+    //
+    // If you don't set CRON_SECRET, the auth check is skipped entirely
+    // (fine if only internal/cron can reach this function).
+
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    if (cronSecret) {
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader !== `Bearer ${cronSecret}`) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
+    // Use service role client directly (no user session needed)
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const now = new Date();
 
-    // Fetch all active logs instead of filtering by raw clock_in window
+    // Fetch all active logs (clocked in, not yet clocked out)
     const { data: activeLogs, error: fetchError } = await supabase
       .from("attendance_logs")
       .select(
@@ -90,7 +99,7 @@ Deno.serve(async (req) => {
           user_id: log.user_id,
           attendance_log_id: log.id,
           email_sent: false,
-          skipped_reason: "Not in reminder window",
+          skipped_reason: `Not in reminder window (net: ${netWorkMinutes}m, window: ${REMINDER_MIN_MINUTES}-${REMINDER_MAX_MINUTES}m)`,
           net_work_minutes: netWorkMinutes,
         });
         continue;
@@ -108,7 +117,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Check if reminder already sent for THIS attendance log
+      // Check if reminder already sent for THIS attendance log (deduplication)
       const { data: existingReminder, error: reminderCheckError } = await supabase
         .from("notification_logs")
         .select("id")
@@ -159,14 +168,11 @@ Deno.serve(async (req) => {
         p_link: "/attendance",
       });
 
-      // Send email to employee only
+      // Send email to employee
       let emailSent = false;
 
       if (RESEND_API_KEY && employee?.email) {
         const clockInDate = new Date(log.clock_in);
-
-        // Expected clock-out based on NET 8-hour target:
-        // clock_in + breaks + pauses + 8 hours work target
         const expectedClockOut = new Date(clockInDate.getTime() + breakMs + pauseMs + 8 * 60 * 60 * 1000);
 
         // Log the attempt
