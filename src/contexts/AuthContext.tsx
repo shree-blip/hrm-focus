@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef, useMemo, useCallback, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { clearEmployeesCache } from "@/hooks/useEmployees";
 
 type AppRole = "admin" | "vp" | "employee" | "supervisor" | "line_manager";
 
@@ -193,7 +194,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (!error && data) {
+      // Defensive: ensure fetched profile matches the requested user
+      if (data.user_id !== userId) {
+        console.error(`Profile mismatch: requested ${userId} but got ${data.user_id}`);
+        setProfile(null);
+        return;
+      }
       setProfile(data);
+    } else if (error) {
+      // Fallback: create a minimal profile from auth session so we never show wrong user
+      const authUser = (await supabase.auth.getUser()).data.user;
+      if (authUser && authUser.id === userId) {
+        setProfile({
+          id: '',
+          user_id: userId,
+          first_name: authUser.user_metadata?.first_name || authUser.email?.split('@')[0] || 'User',
+          last_name: authUser.user_metadata?.last_name || '',
+          email: authUser.email || '',
+        });
+      }
     }
   };
 
@@ -268,6 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     sessionStorage.removeItem('auth_rejected');
+    clearEmployeesCache();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
