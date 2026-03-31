@@ -193,7 +193,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (!error && data) {
+      // Defensive: ensure fetched profile matches the requested user
+      if (data.user_id !== userId) {
+        console.error(`Profile mismatch: requested ${userId} but got ${data.user_id}`);
+        setProfile(null);
+        return;
+      }
       setProfile(data);
+    } else if (error) {
+      // Fallback: create a minimal profile from auth session so we never show wrong user
+      const authUser = (await supabase.auth.getUser()).data.user;
+      if (authUser && authUser.id === userId) {
+        setProfile({
+          id: '',
+          user_id: userId,
+          first_name: authUser.user_metadata?.first_name || authUser.email?.split('@')[0] || 'User',
+          last_name: authUser.user_metadata?.last_name || '',
+          email: authUser.email || '',
+        });
+      }
     }
   };
 

@@ -53,6 +53,11 @@ interface EmployeeDirectory {
 // Module-level cache so revisiting the page shows data instantly
 let _employeesCache: Employee[] | null = null;
 
+// Allow clearing cache on logout to prevent stale identity data
+export function clearEmployeesCache() {
+  _employeesCache = null;
+}
+
 export function useEmployees() {
   const { user, isManager } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>(_employeesCache || []);
