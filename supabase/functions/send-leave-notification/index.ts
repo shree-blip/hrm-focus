@@ -152,6 +152,21 @@ Deno.serve(async (req) => {
       managementRecipients = normalizedTargetEmails;
     }
 
+    // 🚫 Remove CEO emails from management recipients
+    const { data: ceoUsers } = await supabase.from("user_roles").select("user_id").eq("role", "vp");
+
+    const { data: ceoProfiles } = await supabase
+      .from("profiles")
+      .select("email")
+      .in(
+        "id",
+        (ceoUsers || []).map((u) => u.user_id),
+      );
+
+    const ceoEmails = (ceoProfiles || []).map((p) => p.email?.toLowerCase()).filter(Boolean);
+
+    managementRecipients = managementRecipients.filter((email) => !ceoEmails.includes(email.toLowerCase()));
+
     // CC goes only to management-side emails, not to employee-facing email
     if (!managementRecipients.includes(FIXED_CC_EMAIL)) {
       managementRecipients.push(FIXED_CC_EMAIL);
