@@ -286,7 +286,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     sessionStorage.removeItem('auth_rejected');
-    clearEmployeesCache();
+    // Dynamically import to avoid circular dependency
+    import("@/hooks/useEmployees").then(m => m.clearEmployeesCache());
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
