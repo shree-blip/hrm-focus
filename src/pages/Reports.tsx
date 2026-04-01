@@ -40,6 +40,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { toast } from "@/hooks/use-toast";
 import { EditAttendanceDialog } from "@/components/reports/EditAttendanceDialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Types for multi-break support
 interface BreakRecord {
