@@ -110,7 +110,14 @@ const ALL_MENU_ITEMS: MenuItem[] = [
   },
   { icon: Landmark, label: "Loans", href: "/loans", permissions: ["manage_loans", "view_loans"] },
   { icon: Bug, label: "Support", href: "/support", permissions: ["manage_support", "view_support"] },
-  { icon: Users, label: "Profile", href: "/profile", alwaysVisible: true },
+  {
+    icon: Users,
+    label: "Profile",
+    href: "/profile",
+    alwaysVisible: false,
+    permissions: ["view_leave", "view_own_attendance"],
+    hideIfHas: ["manage_access"],
+  },
   { icon: Shield, label: "Access Control", href: "/access-control", permissions: ["manage_access"] },
   { icon: Globe, label: "Timezones", href: "/timezone-management", permissions: ["manage_access"] },
 ];
