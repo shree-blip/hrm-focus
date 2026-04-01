@@ -771,70 +771,22 @@ const Attendance = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        {breakMinutes > 0 || log.break_start ? (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button className="text-yellow-600 font-medium text-xs hover:underline cursor-pointer">
-                                {breakMinutes > 0 ? formatDuration(breakMinutes) : "—"}
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-56 p-3" side="bottom" align="start">
-                              <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                                <Coffee className="h-3.5 w-3.5 text-yellow-600" /> Break Details
-                              </p>
-                              {log.break_start ? (
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="font-mono text-yellow-600">
-                                    {format(new Date(log.break_start), "h:mm a")} –{" "}
-                                    {log.break_end ? format(new Date(log.break_end), "h:mm a") : "ongoing"}
-                                  </span>
-                                </div>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">No detailed times recorded</p>
-                              )}
-                              {breakMinutes > 0 && (
-                                <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                                  Total: <span className="font-medium text-foreground">{formatDuration(breakMinutes)}</span>
-                                </p>
-                              )}
-                            </PopoverContent>
-                          </Popover>
-                        ) : (
-                          "-"
-                        )}
+                        <BreakPausePopover
+                          attendanceLogId={log.id}
+                          type="break"
+                          totalMinutes={breakMinutes}
+                          legacyStart={log.break_start}
+                          legacyEnd={log.break_end}
+                        />
                       </TableCell>
                       <TableCell>
-                        {pauseMinutes > 0 || (log as any).pause_start ? (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button className="text-cyan-600 font-medium text-xs hover:underline cursor-pointer">
-                                {pauseMinutes > 0 ? formatDuration(pauseMinutes) : "—"}
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-56 p-3" side="bottom" align="start">
-                              <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                                <Pause className="h-3.5 w-3.5 text-cyan-600" /> Pause Details
-                              </p>
-                              {(log as any).pause_start ? (
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="font-mono text-cyan-600">
-                                    {format(new Date((log as any).pause_start), "h:mm a")} –{" "}
-                                    {(log as any).pause_end ? format(new Date((log as any).pause_end), "h:mm a") : "ongoing"}
-                                  </span>
-                                </div>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">No detailed times recorded</p>
-                              )}
-                              {pauseMinutes > 0 && (
-                                <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                                  Total: <span className="font-medium text-foreground">{formatDuration(pauseMinutes)}</span>
-                                </p>
-                              )}
-                            </PopoverContent>
-                          </Popover>
-                        ) : (
-                          "-"
-                        )}
+                        <BreakPausePopover
+                          attendanceLogId={log.id}
+                          type="pause"
+                          totalMinutes={pauseMinutes}
+                          legacyStart={(log as any).pause_start}
+                          legacyEnd={(log as any).pause_end}
+                        />
                       </TableCell>
                       <TableCell>
                         <Badge
