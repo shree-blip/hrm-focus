@@ -166,19 +166,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(existingSession);
       setUser(existingSession?.user ?? null);
       if (existingSession?.user) {
-        const email = existingSession.user.email;
-        if (email) {
-          const isAllowed = await checkAllowlist(email);
-          if (!isAllowed) {
-            await supabase.auth.signOut();
-            setUser(null);
-            setSession(null);
-            sessionStorage.setItem("auth_rejected", "not_allowed");
-          } else {
-            allowlistValidatedRef.current = true;
-            await initUserData(existingSession.user.id);
-          }
-        }
+        // SKIP allowlist on session restore — user was already validated when
+        // they first signed in. Re-checking on every refresh causes logouts
+        // when the RPC fails (network blip, mobile wake-up, rate-limit).
+        allowlistValidatedRef.current = true;
+        await initUserData(existingSession.user.id);
       }
       setLoading(false);
     });
