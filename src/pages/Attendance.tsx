@@ -31,6 +31,7 @@ import { ManagerAdjustmentPanel } from "@/components/attendance/ManagerAdjustmen
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { BreakPausePopover } from "@/components/attendance/BreakPausePopover";
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, X } from "lucide-react";
 import {
