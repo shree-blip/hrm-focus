@@ -30,6 +30,7 @@ import { AdjustmentRequestDialog } from "@/components/attendance/AdjustmentReque
 import { ManagerAdjustmentPanel } from "@/components/attendance/ManagerAdjustmentPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, X } from "lucide-react";
 import {
@@ -770,31 +771,67 @@ const Attendance = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        {log.break_start ? (
-                          <div className="space-y-1">
-                            <span className="text-yellow-600 font-mono text-xs">
-                              {format(new Date(log.break_start), "HH:mm")} -{" "}
-                              {log.break_end ? format(new Date(log.break_end), "HH:mm") : "-"}
-                            </span>
-                            {breakMinutes > 0 && (
-                              <p className="text-xs text-muted-foreground">{formatDuration(breakMinutes)}</p>
-                            )}
-                          </div>
+                        {breakMinutes > 0 || log.break_start ? (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="text-yellow-600 font-medium text-xs hover:underline cursor-pointer">
+                                {breakMinutes > 0 ? formatDuration(breakMinutes) : "—"}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56 p-3" side="bottom" align="start">
+                              <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                                <Coffee className="h-3.5 w-3.5 text-yellow-600" /> Break Details
+                              </p>
+                              {log.break_start ? (
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-mono text-yellow-600">
+                                    {format(new Date(log.break_start), "h:mm a")} –{" "}
+                                    {log.break_end ? format(new Date(log.break_end), "h:mm a") : "ongoing"}
+                                  </span>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">No detailed times recorded</p>
+                              )}
+                              {breakMinutes > 0 && (
+                                <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                                  Total: <span className="font-medium text-foreground">{formatDuration(breakMinutes)}</span>
+                                </p>
+                              )}
+                            </PopoverContent>
+                          </Popover>
                         ) : (
                           "-"
                         )}
                       </TableCell>
                       <TableCell>
-                        {(log as any).pause_start ? (
-                          <div className="space-y-1">
-                            <span className="text-cyan-600 font-mono text-xs">
-                              {format(new Date((log as any).pause_start), "HH:mm")} -{" "}
-                              {(log as any).pause_end ? format(new Date((log as any).pause_end), "HH:mm") : "-"}
-                            </span>
-                            {pauseMinutes > 0 && (
-                              <p className="text-xs text-muted-foreground">{formatDuration(pauseMinutes)}</p>
-                            )}
-                          </div>
+                        {pauseMinutes > 0 || (log as any).pause_start ? (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="text-cyan-600 font-medium text-xs hover:underline cursor-pointer">
+                                {pauseMinutes > 0 ? formatDuration(pauseMinutes) : "—"}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56 p-3" side="bottom" align="start">
+                              <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                                <Pause className="h-3.5 w-3.5 text-cyan-600" /> Pause Details
+                              </p>
+                              {(log as any).pause_start ? (
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-mono text-cyan-600">
+                                    {format(new Date((log as any).pause_start), "h:mm a")} –{" "}
+                                    {(log as any).pause_end ? format(new Date((log as any).pause_end), "h:mm a") : "ongoing"}
+                                  </span>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">No detailed times recorded</p>
+                              )}
+                              {pauseMinutes > 0 && (
+                                <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                                  Total: <span className="font-medium text-foreground">{formatDuration(pauseMinutes)}</span>
+                                </p>
+                              )}
+                            </PopoverContent>
+                          </Popover>
                         ) : (
                           "-"
                         )}

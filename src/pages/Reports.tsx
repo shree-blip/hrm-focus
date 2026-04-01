@@ -40,6 +40,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { toast } from "@/hooks/use-toast";
 import { EditAttendanceDialog } from "@/components/reports/EditAttendanceDialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Types for multi-break support
 interface BreakRecord {
@@ -1163,7 +1164,31 @@ const Reports = () => {
                               </td>
 
                               <td className="p-3 font-medium text-yellow-600">
-                                {totalBreakMinutes > 0 ? formatBreakDuration(totalBreakMinutes) : "-"}
+                                {totalBreakMinutes > 0 ? (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <button className="hover:underline cursor-pointer">{formatBreakDuration(totalBreakMinutes)}</button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64 p-3" side="bottom" align="start">
+                                      <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                                        <Coffee className="h-3.5 w-3.5 text-yellow-600" /> Break Breakdown
+                                      </p>
+                                      <div className="space-y-1.5">
+                                        {breaks.map((brk, i) => (
+                                          <div key={i} className="flex items-center justify-between text-sm rounded border p-1.5 bg-background">
+                                            <span className="font-mono text-yellow-600 text-xs">
+                                              {formatTimeLocal(brk.break_start)} – {formatTimeLocal(brk.break_end)}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">{brk.duration_minutes}m</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                                        Total: <span className="font-medium text-foreground">{formatBreakDuration(totalBreakMinutes)}</span>
+                                      </p>
+                                    </PopoverContent>
+                                  </Popover>
+                                ) : "-"}
                               </td>
                               <td className="p-3">
                                 {pauses.length === 0 ? (
@@ -1180,7 +1205,31 @@ const Reports = () => {
                                 )}
                               </td>
                               <td className="p-3 font-medium text-cyan-600">
-                                {totalPauseMinutes > 0 ? formatBreakDuration(totalPauseMinutes) : "-"}
+                                {totalPauseMinutes > 0 ? (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <button className="hover:underline cursor-pointer">{formatBreakDuration(totalPauseMinutes)}</button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64 p-3" side="bottom" align="start">
+                                      <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                                        <Pause className="h-3.5 w-3.5 text-cyan-600" /> Pause Breakdown
+                                      </p>
+                                      <div className="space-y-1.5">
+                                        {pauses.map((p, i) => (
+                                          <div key={i} className="flex items-center justify-between text-sm rounded border p-1.5 bg-background">
+                                            <span className="font-mono text-cyan-600 text-xs">
+                                              {formatTimeLocal(p.pause_start)} – {formatTimeLocal(p.pause_end)}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">{p.duration_minutes}m</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                                        Total: <span className="font-medium text-foreground">{formatBreakDuration(totalPauseMinutes)}</span>
+                                      </p>
+                                    </PopoverContent>
+                                  </Popover>
+                                ) : "-"}
                               </td>
                               <td className="p-3 text-red-600 font-mono">
                                 {formatTimeLocal(typedAtt.clock_out, typedAtt.employee_timezone)}
