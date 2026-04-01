@@ -57,6 +57,13 @@ interface MenuItem {
  */
 const ALL_MENU_ITEMS: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/", alwaysVisible: true },
+  { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet", permissions: ["view_log_sheet"] },
+  {
+    icon: Clock,
+    label: "Attendance",
+    href: "/attendance",
+    permissions: ["view_attendance_all", "view_attendance_reports_only", "view_own_attendance"],
+  },
   { icon: CheckSquare, label: "Approvals", href: "/approvals", permissions: ["approve_leave"] },
   {
     icon: Users,
@@ -64,15 +71,10 @@ const ALL_MENU_ITEMS: MenuItem[] = [
     href: "/employees",
     permissions: ["manage_employees", "view_employees_all", "view_employees_reports_only"],
   },
-  {
-    icon: Clock,
-    label: "Attendance",
-    href: "/attendance",
-    permissions: ["view_attendance_all", "view_attendance_reports_only", "view_own_attendance"],
-  },
+
   { icon: Calendar, label: "Leave", href: "/leave", permissions: ["view_leave", "approve_leave"] },
   { icon: CheckSquare, label: "Tasks", href: "/tasks", permissions: ["manage_tasks", "view_tasks"] },
-  { icon: ClipboardList, label: "Log Sheet", href: "/log-sheet", permissions: ["view_log_sheet"] },
+
   { icon: TrendingUp, label: "Reports", href: "/reports", permissions: ["view_reports"] },
   { icon: Award, label: "Performance", href: "/performance", permissions: ["view_performance"] },
   {
@@ -158,12 +160,15 @@ export const Sidebar = memo(function Sidebar({
     [hasPermission, isManager],
   );
 
-  const handleNavClick = useCallback((href: string) => {
-    clearBadge(href);
-    if (onNavigate) {
-      onNavigate();
-    }
-  }, [clearBadge, onNavigate]);
+  const handleNavClick = useCallback(
+    (href: string) => {
+      clearBadge(href);
+      if (onNavigate) {
+        onNavigate();
+      }
+    },
+    [clearBadge, onNavigate],
+  );
 
   /** Prefetch the route chunk on hover so navigation feels instant */
   const handlePrefetch = useCallback((href: string) => {
