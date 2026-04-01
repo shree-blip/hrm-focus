@@ -41,6 +41,7 @@ import { usePersistentState } from "@/hooks/usePersistentState";
 import { toast } from "@/hooks/use-toast";
 import { EditAttendanceDialog } from "@/components/reports/EditAttendanceDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { BreakPausePopover } from "@/components/attendance/BreakPausePopover";
 
 // Types for multi-break support
 interface BreakRecord {
