@@ -1149,18 +1149,13 @@ const Reports = () => {
                                 {formatTimeLocal(typedAtt.clock_in, typedAtt.employee_timezone)}
                               </td>
                               <td className="p-3">
-                                {breaks.length === 0 ? (
-                                  <span className="text-slate-400">-</span>
-                                ) : breaks.length === 1 ? (
-                                  <span className="text-yellow-600 font-mono">
-                                    {formatTimeLocal(breaks[0].break_start)} - {formatTimeLocal(breaks[0].break_end)}
-                                  </span>
-                                ) : (
-                                  <Badge variant="outline" className="gap-1">
-                                    <Coffee className="h-3 w-3" />
-                                    {breaks.length} breaks
-                                  </Badge>
-                                )}
+                                <BreakPausePopover
+                                  attendanceLogId={typedAtt.id || ""}
+                                  type="break"
+                                  totalMinutes={totalBreakMinutes}
+                                  legacyStart={typedAtt.break_start}
+                                  legacyEnd={typedAtt.break_end}
+                                />
                               </td>
 
                               <td className="p-3 font-medium text-yellow-600">
