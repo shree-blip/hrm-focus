@@ -466,6 +466,14 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
+        // Update pause session with end time and duration
+        await supabaseAdmin
+          .from("attendance_break_sessions")
+          .update({ end_time: serverUtc, duration_minutes: pauseMinutes })
+          .eq("attendance_log_id", log_id)
+          .eq("session_type", "pause")
+          .is("end_time", null);
+
         // Auto-resume work log
         const { data: pausedLog } = await supabaseAdmin
           .from("work_logs")
