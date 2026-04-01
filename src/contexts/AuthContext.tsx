@@ -193,15 +193,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setProfile(data);
     } else if (error) {
-      // Fallback: create a minimal profile from auth session so we never show wrong user
-      const authUser = (await supabase.auth.getUser()).data.user;
-      if (authUser && authUser.id === userId) {
+      // Fallback: use cached session data instead of calling getUser() which
+      // can fail with 403 "missing sub claim" on stale JWTs during refresh
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const sessionUser = currentSession?.user;
+      if (sessionUser && sessionUser.id === userId) {
         setProfile({
           id: '',
           user_id: userId,
-          first_name: authUser.user_metadata?.first_name || authUser.email?.split('@')[0] || 'User',
-          last_name: authUser.user_metadata?.last_name || '',
-          email: authUser.email || '',
+          first_name: sessionUser.user_metadata?.first_name || sessionUser.email?.split('@')[0] || 'User',
+          last_name: sessionUser.user_metadata?.last_name || '',
+          email: sessionUser.email || '',
         });
       }
     }
