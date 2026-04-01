@@ -272,14 +272,6 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
-        // Log break session start
-        await supabaseAdmin.from("attendance_break_sessions").insert({
-          attendance_log_id: log_id,
-          user_id: userId,
-          session_type: "break",
-          start_time: serverUtc,
-        });
-
         // Auto-pause active work log
         const { data: activeWorkLog } = await supabaseAdmin
           .from("work_logs")
@@ -338,14 +330,6 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
-        // Update break session with end time and duration
-        await supabaseAdmin
-          .from("attendance_break_sessions")
-          .update({ end_time: serverUtc, duration_minutes: breakMinutes })
-          .eq("attendance_log_id", log_id)
-          .eq("session_type", "break")
-          .is("end_time", null);
-
         // Auto-resume work log
         const { data: pausedLog } = await supabaseAdmin
           .from("work_logs")
@@ -396,14 +380,6 @@ Deno.serve(async (req) => {
           .single();
 
         if (error) throw error;
-
-        // Log pause session start
-        await supabaseAdmin.from("attendance_break_sessions").insert({
-          attendance_log_id: log_id,
-          user_id: userId,
-          session_type: "pause",
-          start_time: serverUtc,
-        });
 
         // Auto-pause active work log
         const { data: activeWorkLog } = await supabaseAdmin
@@ -465,14 +441,6 @@ Deno.serve(async (req) => {
           .single();
 
         if (error) throw error;
-
-        // Update pause session with end time and duration
-        await supabaseAdmin
-          .from("attendance_break_sessions")
-          .update({ end_time: serverUtc, duration_minutes: pauseMinutes })
-          .eq("attendance_log_id", log_id)
-          .eq("session_type", "pause")
-          .is("end_time", null);
 
         // Auto-resume work log
         const { data: pausedLog } = await supabaseAdmin

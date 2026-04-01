@@ -30,8 +30,6 @@ import { AdjustmentRequestDialog } from "@/components/attendance/AdjustmentReque
 import { ManagerAdjustmentPanel } from "@/components/attendance/ManagerAdjustmentPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { BreakPausePopover } from "@/components/attendance/BreakPausePopover";
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, X } from "lucide-react";
 import {
@@ -772,22 +770,34 @@ const Attendance = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <BreakPausePopover
-                          attendanceLogId={log.id}
-                          type="break"
-                          totalMinutes={breakMinutes}
-                          legacyStart={log.break_start}
-                          legacyEnd={log.break_end}
-                        />
+                        {log.break_start ? (
+                          <div className="space-y-1">
+                            <span className="text-yellow-600 font-mono text-xs">
+                              {format(new Date(log.break_start), "HH:mm")} -{" "}
+                              {log.break_end ? format(new Date(log.break_end), "HH:mm") : "-"}
+                            </span>
+                            {breakMinutes > 0 && (
+                              <p className="text-xs text-muted-foreground">{formatDuration(breakMinutes)}</p>
+                            )}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
                       <TableCell>
-                        <BreakPausePopover
-                          attendanceLogId={log.id}
-                          type="pause"
-                          totalMinutes={pauseMinutes}
-                          legacyStart={(log as any).pause_start}
-                          legacyEnd={(log as any).pause_end}
-                        />
+                        {(log as any).pause_start ? (
+                          <div className="space-y-1">
+                            <span className="text-cyan-600 font-mono text-xs">
+                              {format(new Date((log as any).pause_start), "HH:mm")} -{" "}
+                              {(log as any).pause_end ? format(new Date((log as any).pause_end), "HH:mm") : "-"}
+                            </span>
+                            {pauseMinutes > 0 && (
+                              <p className="text-xs text-muted-foreground">{formatDuration(pauseMinutes)}</p>
+                            )}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge

@@ -40,8 +40,6 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { toast } from "@/hooks/use-toast";
 import { EditAttendanceDialog } from "@/components/reports/EditAttendanceDialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { BreakPausePopover } from "@/components/attendance/BreakPausePopover";
 
 // Types for multi-break support
 interface BreakRecord {
@@ -1150,26 +1148,36 @@ const Reports = () => {
                                 {formatTimeLocal(typedAtt.clock_in, typedAtt.employee_timezone)}
                               </td>
                               <td className="p-3">
-                                <BreakPausePopover
-                                  attendanceLogId={typedAtt.id || ""}
-                                  type="break"
-                                  totalMinutes={totalBreakMinutes}
-                                  legacyStart={typedAtt.break_start}
-                                  legacyEnd={typedAtt.break_end}
-                                />
+                                {breaks.length === 0 ? (
+                                  <span className="text-slate-400">-</span>
+                                ) : breaks.length === 1 ? (
+                                  <span className="text-yellow-600 font-mono">
+                                    {formatTimeLocal(breaks[0].break_start)} - {formatTimeLocal(breaks[0].break_end)}
+                                  </span>
+                                ) : (
+                                  <Badge variant="outline" className="gap-1">
+                                    <Coffee className="h-3 w-3" />
+                                    {breaks.length} breaks
+                                  </Badge>
+                                )}
                               </td>
 
                               <td className="p-3 font-medium text-yellow-600">
                                 {totalBreakMinutes > 0 ? formatBreakDuration(totalBreakMinutes) : "-"}
                               </td>
                               <td className="p-3">
-                                <BreakPausePopover
-                                  attendanceLogId={typedAtt.id || ""}
-                                  type="pause"
-                                  totalMinutes={totalPauseMinutes}
-                                  legacyStart={typedAtt.pause_start}
-                                  legacyEnd={typedAtt.pause_end}
-                                />
+                                {pauses.length === 0 ? (
+                                  <span className="text-slate-400">-</span>
+                                ) : pauses.length === 1 ? (
+                                  <span className="text-cyan-600 font-mono">
+                                    {formatTimeLocal(pauses[0].pause_start)} - {formatTimeLocal(pauses[0].pause_end)}
+                                  </span>
+                                ) : (
+                                  <Badge variant="outline" className="gap-1 border-cyan-300 text-cyan-600">
+                                    <Pause className="h-3 w-3" />
+                                    {pauses.length} pauses
+                                  </Badge>
+                                )}
                               </td>
                               <td className="p-3 font-medium text-cyan-600">
                                 {totalPauseMinutes > 0 ? formatBreakDuration(totalPauseMinutes) : "-"}

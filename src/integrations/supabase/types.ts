@@ -327,54 +327,6 @@ export type Database = {
           },
         ]
       }
-      attendance_break_sessions: {
-        Row: {
-          attendance_log_id: string
-          created_at: string
-          duration_minutes: number | null
-          end_time: string | null
-          id: string
-          session_type: string
-          start_time: string
-          user_id: string
-        }
-        Insert: {
-          attendance_log_id: string
-          created_at?: string
-          duration_minutes?: number | null
-          end_time?: string | null
-          id?: string
-          session_type: string
-          start_time: string
-          user_id: string
-        }
-        Update: {
-          attendance_log_id?: string
-          created_at?: string
-          duration_minutes?: number | null
-          end_time?: string | null
-          id?: string
-          session_type?: string
-          start_time?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "attendance_break_sessions_attendance_log_id_fkey"
-            columns: ["attendance_log_id"]
-            isOneToOne: false
-            referencedRelation: "attendance_logs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_break_sessions_attendance_log_id_fkey"
-            columns: ["attendance_log_id"]
-            isOneToOne: false
-            referencedRelation: "attendance_logs_with_names"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       attendance_edit_logs: {
         Row: {
           attendance_id: string
