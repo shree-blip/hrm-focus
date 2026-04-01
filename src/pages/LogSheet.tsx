@@ -422,7 +422,7 @@ export default function LogSheet() {
   const { isManager, isVP, isLineManager, isAdmin } = useAuth();
 
   // Check if user can add clients (line_manager, manager, vp, admin only - not employees)
-  const canAddClient = isLineManager || isManager || isVP || isAdmin;
+  const canAddClient = true;
   const [activeMainTab, setActiveMainTab] = usePersistentState("logsheet:activeMainTab", "my-logs");
 
   // ── Dialog / overlay state ────────────────────────────────────────────
