@@ -810,7 +810,7 @@ export function RealTimeAttendanceWidget() {
           <Button
             variant={activeFilter === "wfh" ? "default" : "outline"}
             size="sm"
-            className="flex-1 gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+            className="flex-1 gap-2 border-blue-300 text-blue-600 "
             onClick={() => handleFilterClick("wfh")}
           >
             <Users className="h-4 w-4" />
