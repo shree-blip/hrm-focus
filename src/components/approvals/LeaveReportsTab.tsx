@@ -5,15 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
-import {
-  Download,
-  FileText,
-  Calendar,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  MessageSquare,
-} from "lucide-react";
+import { Download, FileText, Calendar, Clock, CheckCircle2, XCircle, MessageSquare } from "lucide-react";
 
 interface LeaveRequest {
   id: string;
@@ -35,12 +27,18 @@ interface LeaveReportsTabProps {
 }
 
 const MONTHS = [
-  { value: "0", label: "January" }, { value: "1", label: "February" },
-  { value: "2", label: "March" }, { value: "3", label: "April" },
-  { value: "4", label: "May" }, { value: "5", label: "June" },
-  { value: "6", label: "July" }, { value: "7", label: "August" },
-  { value: "8", label: "September" }, { value: "9", label: "October" },
-  { value: "10", label: "November" }, { value: "11", label: "December" },
+  { value: "0", label: "January" },
+  { value: "1", label: "February" },
+  { value: "2", label: "March" },
+  { value: "3", label: "April" },
+  { value: "4", label: "May" },
+  { value: "5", label: "June" },
+  { value: "6", label: "July" },
+  { value: "7", label: "August" },
+  { value: "8", label: "September" },
+  { value: "9", label: "October" },
+  { value: "10", label: "November" },
+  { value: "11", label: "December" },
 ];
 
 const getStatusBadge = (status: string) => {
@@ -50,7 +48,11 @@ const getStatusBadge = (status: string) => {
     rejected: { color: "border-destructive text-destructive bg-destructive/10", label: "Rejected" },
   };
   const c = config[status] || config.pending;
-  return <Badge variant="outline" className={c.color}>{c.label}</Badge>;
+  return (
+    <Badge variant="outline" className={c.color}>
+      {c.label}
+    </Badge>
+  );
 };
 
 export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
@@ -87,24 +89,56 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
 
   const uniqueLeaveTypes = useMemo(() => [...new Set(requests.map((r) => r.leave_type))], [requests]);
 
-  const stats = useMemo(() => ({
-    total: filtered.length,
-    approved: filtered.filter((r) => r.status === "approved").length,
-    pending: filtered.filter((r) => r.status === "pending").length,
-    rejected: filtered.filter((r) => r.status === "rejected").length,
-  }), [filtered]);
+  const stats = useMemo(
+    () => ({
+      total: filtered.length,
+      approved: filtered.filter((r) => r.status === "approved").length,
+      pending: filtered.filter((r) => r.status === "pending").length,
+      rejected: filtered.filter((r) => r.status === "rejected").length,
+    }),
+    [filtered],
+  );
 
   const exportCSV = () => {
     if (filtered.length === 0) return;
-    const header = ["Employee", "Leave Type", "Start Date", "End Date", "Days", "Half Day", "Status", "Reason", "Rejection Reason"];
+
+    const cleanText = (text: string | null): string => {
+      if (!text) return "";
+      return text
+        .replace(/[\r\n]+/g, " ") // remove line breaks
+        .replace(/\s+/g, " ") // collapse multiple spaces
+        .trim();
+    };
+
+    const header = [
+      "Employee",
+      "Leave Type",
+      "Start Date",
+      "End Date",
+      "Days",
+      "Half Day",
+      "Status",
+      "Reason",
+      "Rejection Reason",
+    ];
     const rows = filtered.map((r) => [
       r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown",
-      r.leave_type, r.start_date, r.end_date, r.days,
+      r.leave_type,
+      r.start_date,
+      r.end_date,
+      r.days,
       r.is_half_day ? `Yes (${r.half_day_period || ""})` : "No",
-      r.status || "", r.reason || "", r.rejection_reason || "",
+      r.status || "",
+      cleanText(r.reason),
+      cleanText(r.rejection_reason),
     ]);
-    const csv = [header, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    const csv = [header, ...rows]
+      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8" });
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -117,10 +151,58 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
     <div className="space-y-6 animate-fade-in">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Total</p><p className="text-3xl font-display font-bold">{stats.total}</p></div><div className="p-3 rounded-full bg-primary/10"><FileText className="h-6 w-6 text-primary" /></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Approved</p><p className="text-3xl font-display font-bold text-success">{stats.approved}</p></div><div className="p-3 rounded-full bg-success/10"><CheckCircle2 className="h-6 w-6 text-success" /></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Pending</p><p className="text-3xl font-display font-bold text-warning">{stats.pending}</p></div><div className="p-3 rounded-full bg-warning/10"><Clock className="h-6 w-6 text-warning" /></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Rejected</p><p className="text-3xl font-display font-bold text-destructive">{stats.rejected}</p></div><div className="p-3 rounded-full bg-destructive/10"><XCircle className="h-6 w-6 text-destructive" /></div></div></CardContent></Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-3xl font-display font-bold">{stats.total}</p>
+              </div>
+              <div className="p-3 rounded-full bg-primary/10">
+                <FileText className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Approved</p>
+                <p className="text-3xl font-display font-bold text-success">{stats.approved}</p>
+              </div>
+              <div className="p-3 rounded-full bg-success/10">
+                <CheckCircle2 className="h-6 w-6 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                <p className="text-3xl font-display font-bold text-warning">{stats.pending}</p>
+              </div>
+              <div className="p-3 rounded-full bg-warning/10">
+                <Clock className="h-6 w-6 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Rejected</p>
+                <p className="text-3xl font-display font-bold text-destructive">{stats.rejected}</p>
+              </div>
+              <div className="p-3 rounded-full bg-destructive/10">
+                <XCircle className="h-6 w-6 text-destructive" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -139,25 +221,47 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-3 pb-4 border-b border-border">
             <Select value={filterMonth} onValueChange={setFilterMonth}>
-              <SelectTrigger className="w-[150px]"><SelectValue placeholder="Month" /></SelectTrigger>
-              <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
             <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="All Employees" /></SelectTrigger>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Employees" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Employees</SelectItem>
-                {uniqueEmployees.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
+                {uniqueEmployees.map(([id, name]) => (
+                  <SelectItem key={id} value={id}>
+                    {name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={filterLeaveType} onValueChange={setFilterLeaveType}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All Types" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Leave Types</SelectItem>
-                {uniqueLeaveTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                {uniqueLeaveTypes.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[140px]"><SelectValue placeholder="All Status" /></SelectTrigger>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
@@ -179,7 +283,10 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
                 const name = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown";
                 const initials = r.profile ? `${r.profile.first_name[0]}${r.profile.last_name[0]}` : "??";
                 return (
-                  <div key={r.id} className="flex items-start gap-4 p-4 rounded-xl bg-accent/30 border border-border hover:border-primary/20 transition-all">
+                  <div
+                    key={r.id}
+                    className="flex items-start gap-4 p-4 rounded-xl bg-accent/30 border border-border hover:border-primary/20 transition-all"
+                  >
                     <Avatar className="h-10 w-10">
                       <AvatarFallback className="bg-primary/10 text-primary font-medium">{initials}</AvatarFallback>
                     </Avatar>
@@ -188,19 +295,28 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
                         <div>
                           <p className="font-medium">{name}</p>
                           <p className="text-sm text-muted-foreground mt-0.5">
-                            {r.leave_type}{r.is_half_day ? ` (Half Day - ${r.half_day_period === "first_half" ? "1st Half" : "2nd Half"})` : ""} • {format(new Date(r.start_date), "MMM d, yyyy")} - {format(new Date(r.end_date), "MMM d, yyyy")}
+                            {r.leave_type}
+                            {r.is_half_day
+                              ? ` (Half Day - ${r.half_day_period === "first_half" ? "1st Half" : "2nd Half"})`
+                              : ""}{" "}
+                            • {format(new Date(r.start_date), "MMM d, yyyy")} -{" "}
+                            {format(new Date(r.end_date), "MMM d, yyyy")}
                           </p>
                           {r.reason && <p className="text-sm text-muted-foreground mt-1 italic">"{r.reason}"</p>}
                           {r.rejection_reason && (
                             <div className="flex items-start gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                               <MessageSquare className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-                              <p className="text-sm text-destructive"><span className="font-medium">Reason:</span> {r.rejection_reason}</p>
+                              <p className="text-sm text-destructive">
+                                <span className="font-medium">Reason:</span> {r.rejection_reason}
+                              </p>
                             </div>
                           )}
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           {getStatusBadge(r.status || "pending")}
-                          <span className="text-sm font-medium">{r.days} {r.days === 1 ? "day" : "days"}</span>
+                          <span className="text-sm font-medium">
+                            {r.days} {r.days === 1 ? "day" : "days"}
+                          </span>
                         </div>
                       </div>
                     </div>
