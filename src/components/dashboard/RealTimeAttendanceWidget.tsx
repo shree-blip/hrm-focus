@@ -30,7 +30,7 @@ import {
 // Types
 type Status = "IN" | "OUT" | "BRS" | "BRE" | "PAUSE" | "CONT" | "—";
 type FilterType = "all" | "working" | "break" | "paused" | "out" | "wfo" | "wfh";
-type PopupDateRange = "today" | "last3" | "week";
+type PopupDateRange = "today" | "last3" | "week" | "month";
 
 interface Employee {
   id: string;
@@ -109,6 +109,22 @@ const parseRealtimeLog = (raw?: Record<string, unknown> | null): AttendanceLogRo
 const normalizeWorkMode = (mode: string | null): "wfo" | "wfh" | null => {
   if (mode === "wfo" || mode === "wfh") return mode;
   return null;
+};
+
+const getModeLabel = (mode: "wfo" | "wfh" | null) => {
+  if (mode === "wfh") return "WFH";
+  if (mode === "wfo") return "WFO";
+  return "N/A";
+};
+
+const getInitialWorkModeFromLocation = (
+  locationName: string | null,
+  fallbackMode: string | null,
+): "wfo" | "wfh" | null => {
+  const normalizedLocation = locationName?.toLowerCase() || "";
+  if (normalizedLocation.includes("home")) return "wfh";
+  if (normalizedLocation.includes("office")) return "wfo";
+  return normalizeWorkMode(fallbackMode);
 };
 
 // Status config
@@ -271,17 +287,18 @@ export function RealTimeAttendanceWidget() {
       .lte("clock_out", dayEnd)
       .order("clock_in", { ascending: false });
 
-    // Fetch logs from the current week for popup date-range filtering
+    // Fetch logs from the current month for popup date-range filtering
     const nowUtcDay = now.getUTCDay();
     const weekDiff = nowUtcDay === 0 ? -6 : 1 - nowUtcDay;
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0)).toISOString();
     const weekStart = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + weekDiff, 0, 0, 0, 0),
     ).toISOString();
 
-    const { data: weekLogs } = await supabase
+    const { data: monthLogs } = await supabase
       .from("attendance_logs")
       .select("*")
-      .gte("clock_in", weekStart)
+      .gte("clock_in", monthStart)
       .lte("clock_in", dayEnd)
       .order("clock_in", { ascending: false })
       .limit(20000);
@@ -422,7 +439,7 @@ export function RealTimeAttendanceWidget() {
     setEvents(evts.slice(0, 20));
 
     const popupLogsMap = new Map<string, AttendanceLogRow>();
-    [...(weekLogs || []), ...(activeLogs || []), ...(crossMidnightLogs || [])].forEach((log) => {
+    [...(monthLogs || []), ...(activeLogs || []), ...(crossMidnightLogs || [])].forEach((log) => {
       if (!popupLogsMap.has(log.id)) popupLogsMap.set(log.id, log);
     });
     setDailyLogs(Array.from(popupLogsMap.values()));
@@ -631,11 +648,13 @@ export function RealTimeAttendanceWidget() {
     const utcDay = now.getUTCDay();
     const weekDiff = utcDay === 0 ? -6 : 1 - utcDay;
     const weekStart = Date.UTC(y, m, d + weekDiff, 0, 0, 0, 0);
+    const monthStart = Date.UTC(y, m, 1, 0, 0, 0, 0);
 
     const isInDateRange = (isoTime: string) => {
       const ts = new Date(isoTime).getTime();
       if (activityDateRange === "today") return ts >= todayStart;
       if (activityDateRange === "last3") return ts >= last3Start;
+      if (activityDateRange === "month") return ts >= monthStart;
       return ts >= weekStart;
     };
 
@@ -716,7 +735,9 @@ export function RealTimeAttendanceWidget() {
         "Date",
         "Employee Name",
         "Department",
-        "Work Mode",
+        "Start Work Mode",
+        "End Work Mode",
+        "Mode Change Summary",
         "Clock In",
         "Clock Out",
         "Break Start",
@@ -755,7 +776,12 @@ export function RealTimeAttendanceWidget() {
         const logDate = format(dateObj, "yyyy-MM-dd");
         const name = emp ? emp.name : "Unknown";
         const dept = emp ? emp.department : "No Dept";
-        const mode = log.work_mode ? log.work_mode.toUpperCase() : "N/A";
+        const startMode = getInitialWorkModeFromLocation(log.location_name ?? null, log.work_mode ?? null);
+        const endMode = normalizeWorkMode(log.work_mode ?? null);
+        const modeChanged = startMode && endMode ? startMode !== endMode : false;
+        const modeSummary = modeChanged
+          ? `${getModeLabel(startMode)} -> ${getModeLabel(endMode)}`
+          : getModeLabel(endMode || startMode || null);
 
         // Calculate Break and Pause minutes (fallback to calculating if not saved in DB)
         const breakMinutes = log.total_break_minutes || calculateDurationMinutes(log.break_start, log.break_end);
@@ -777,7 +803,9 @@ export function RealTimeAttendanceWidget() {
           `"${logDate}"`,
           `"${name}"`,
           `"${dept}"`,
-          `"${mode}"`,
+          `"${getModeLabel(startMode)}"`,
+          `"${getModeLabel(endMode)}"`,
+          `"${modeSummary}"`,
           `"${formatTimeOnly(log.clock_in)}"`,
           `"${formatTimeOnly(log.clock_out)}"`,
           `"${formatTimeOnly(log.break_start)}"`,
@@ -1136,6 +1164,7 @@ export function RealTimeAttendanceWidget() {
               <option value="today">Today</option>
               <option value="last3">Last 3 Days</option>
               <option value="week">This Week</option>
+              <option value="month">This Month</option>
             </select>
             <select
               value={activityEmployeeFilter}
