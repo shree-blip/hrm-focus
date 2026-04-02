@@ -340,8 +340,8 @@ export function useLeaveRequests() {
       // Leave on Lieu is always 1 day
       days = 1;
     } else {
-      // For Annual Leave, Other Leave, and other types - calculate from dates
-      days = Math.ceil((request.end_date.getTime() - request.start_date.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      // For Annual Leave, Other Leave, and other types - calculate business days (excluding weekends)
+      days = getBusinessDaysBetween(request.start_date, request.end_date);
     }
 
     // Only check balance for Annual Leave (and Sick Leave which deducts from annual)
