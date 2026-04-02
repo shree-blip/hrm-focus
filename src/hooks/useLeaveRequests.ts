@@ -148,24 +148,6 @@ export function useLeaveRequests() {
     return data || [];
   }, [user]);
 
-  // Fetch all approved team leaves (for calendar visibility)
-  const fetchTeamLeaves = useCallback(async () => {
-    if (!user) return [];
-
-    const { data, error } = await supabase
-      .from("leave_requests")
-      .select("*")
-      .eq("status", "approved")
-      .order("start_date", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching team leaves:", error);
-      return [];
-    }
-
-    return data || [];
-  }, [user]);
-
   // Fetch team member user IDs for supervisors/line managers
   const fetchTeamMemberUserIds = useCallback(async (): Promise<string[]> => {
     if (!user) return [];
@@ -184,6 +166,38 @@ export function useLeaveRequests() {
 
     return [];
   }, [user, role, isSupervisor, isLineManager]);
+
+  // Fetch approved team leaves (scoped by team for non-admin/VP)
+  const fetchTeamLeaves = useCallback(async () => {
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from("leave_requests")
+      .select("*")
+      .eq("status", "approved")
+      .order("start_date", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching team leaves:", error);
+      return [];
+    }
+
+    // Admin/VP see all approved leaves
+    if (role === "admin" || role === "vp") {
+      return data || [];
+    }
+
+    // Line managers/supervisors only see their team's approved leaves
+    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
+      const teamIds = await fetchTeamMemberUserIds();
+      if (teamIds.length > 0) {
+        return (data || []).filter((r) => r.user_id === user.id || teamIds.includes(r.user_id));
+      }
+    }
+
+    // Regular employees see only their own
+    return (data || []).filter((r) => r.user_id === user.id);
+  }, [user, role, isSupervisor, isLineManager, fetchTeamMemberUserIds]);
 
   // Fetch pending requests for managers/supervisors/line_managers to approve
   const fetchPendingForManager = useCallback(async () => {
