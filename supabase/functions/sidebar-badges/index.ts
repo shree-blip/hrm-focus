@@ -25,22 +25,26 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Decode JWT to extract user ID (token is already validated by Supabase gateway)
     const token = authHeader.replace("Bearer ", "");
-    let userId: string;
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      userId = payload.sub;
-      if (!userId) throw new Error("No sub in token");
-    } catch (e) {
-      console.error("sidebar-badges: invalid token", e);
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    });
+
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+    const userId = claimsData?.claims?.sub;
+
+    if (claimsError || !userId) {
+      console.error("sidebar-badges: invalid token", claimsError);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Use service role client for data queries
     const supabase = createClient(supabaseUrl, serviceKey);
 
     // Fetch role + permissions in parallel
