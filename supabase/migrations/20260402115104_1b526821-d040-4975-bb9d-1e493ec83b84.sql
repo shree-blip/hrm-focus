@@ -1,0 +1,1 @@
+ALTER TABLE public.leave_requests ALTER COLUMN days TYPE numeric(5,1) USING days::numeric(5,1);
