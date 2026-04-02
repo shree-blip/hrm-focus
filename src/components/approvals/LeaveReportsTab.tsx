@@ -139,8 +139,8 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
   }, [employees, requests]);
 
   useEffect(() => {
-    if (employees.length > 0) fetchEmployeeBalances();
-  }, [employees.length, fetchEmployeeBalances]);
+    if (employees.length > 0 && requests.length > 0) fetchEmployeeBalances();
+  }, [employees.length, requests.length, fetchEmployeeBalances]);
 
   // ─── Filters ───
   const filtered = useMemo(() => {
