@@ -447,6 +447,23 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
 
                 <Button
                   size="sm"
+                  variant="ghost"
+                  className="gap-1.5 rounded-lg h-9 text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setFilterDateFrom(format(startOfMonth(now), "yyyy-MM-dd"));
+                    setFilterDateTo(format(endOfMonth(now), "yyyy-MM-dd"));
+                    setFilterEmployee("all");
+                    setFilterLeaveType("all");
+                    setFilterStatus("all");
+                    setSelectedBalanceEmployee(null);
+                  }}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Clear
+                </Button>
+
+                <Button
+                  size="sm"
                   variant="outline"
                   className="ml-auto gap-2 rounded-lg h-9 text-sm"
                   onClick={exportCSV}
