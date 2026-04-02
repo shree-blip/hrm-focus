@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
 
     const has = (p: string) => perms.has(p);
     const badges: Record<string, number> = {};
-    const queries: Promise<void>[] = [];
+    const queries: PromiseLike<void>[] = [];
 
     // Leave: pending
     if (has("approve_leave")) {
@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
 
     // Support: aggregate
     if (has("manage_support") || has("view_support") || has("view_bug_reports") || has("view_grievances") || has("view_asset_requests")) {
-      const supportCounts: Promise<number>[] = [];
+      const supportCounts: PromiseLike<number>[] = [];
 
       if (has("manage_support") || has("view_bug_reports")) {
         supportCounts.push(
