@@ -66,8 +66,17 @@ const isLeaveOnLeaveType = (leaveType: string) => {
 
 const Leave = () => {
   const { user, isManager, isAdmin } = useAuth();
-  const { requests, ownRequests, teamLeaves, balances, loading, createRequest, approveRequest, rejectRequest, adminCreateLeave } =
-    useLeaveRequests();
+  const {
+    requests,
+    ownRequests,
+    teamLeaves,
+    balances,
+    loading,
+    createRequest,
+    approveRequest,
+    rejectRequest,
+    adminCreateLeave,
+  } = useLeaveRequests();
   const { unreadCount } = useNotifications();
   const [activeTab, setActiveTab] = usePersistentState("leave:activeTab", "all");
   const [requestDialogOpen, setRequestDialogOpen] = usePersistentState("leave:requestDialogOpen", false);
@@ -79,6 +88,10 @@ const Leave = () => {
   const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
   const [adminDialogOpen, setAdminDialogOpen] = useState(false);
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [conflictData, setConflictData] = useState<{
     requestId: string;
     employeeName: string;
@@ -115,6 +128,11 @@ const Leave = () => {
 
   const teamMembersOnLeave = getTeamMembersOnLeave();
   const teamLeaveCount = teamMembersOnLeave.length;
+
+  const calendarYear = calendarMonth.getFullYear();
+  const calendarMonthIndex = calendarMonth.getMonth();
+  const firstDayOffset = new Date(calendarYear, calendarMonthIndex, 1).getDay();
+  const daysInMonth = new Date(calendarYear, calendarMonthIndex + 1, 0).getDate();
 
   // Get current user's active leave details
   const getCurrentUserLeave = () => {
@@ -153,17 +171,11 @@ const Leave = () => {
 
     // Find other pending requests from the same employee with overlapping dates
     const conflicting = requests.filter(
-      (r) =>
-        r.id !== id &&
-        r.user_id === request.user_id &&
-        r.status === "pending" &&
-        datesOverlap(request, r)
+      (r) => r.id !== id && r.user_id === request.user_id && r.status === "pending" && datesOverlap(request, r),
     );
 
     if (conflicting.length > 0) {
-      const employeeName = request.profile
-        ? `${request.profile.first_name} ${request.profile.last_name}`
-        : "Employee";
+      const employeeName = request.profile ? `${request.profile.first_name} ${request.profile.last_name}` : "Employee";
       setConflictData({
         requestId: id,
         employeeName,
@@ -179,12 +191,15 @@ const Leave = () => {
 
   const handleApproveWithConflictResolution = async (rejectOthers: boolean) => {
     if (!conflictData) return;
-    
+
     await approveRequest(conflictData.requestId);
 
     if (rejectOthers) {
       for (const conflict of conflictData.conflictingRequests) {
-        await rejectRequest(conflict.id, "Automatically rejected: conflicting leave request was approved for the same dates.");
+        await rejectRequest(
+          conflict.id,
+          "Automatically rejected: conflicting leave request was approved for the same dates.",
+        );
       }
     }
 
@@ -211,7 +226,14 @@ const Leave = () => {
     }
   };
 
-  const handleSubmitRequest = async (request: { type: string; startDate: Date; endDate: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => {
+  const handleSubmitRequest = async (request: {
+    type: string;
+    startDate: Date;
+    endDate: Date;
+    reason: string;
+    is_half_day?: boolean;
+    half_day_period?: string | null;
+  }) => {
     await createRequest({
       leave_type: request.type,
       start_date: request.startDate,
@@ -394,7 +416,13 @@ const Leave = () => {
                                           : "bg-success/10 text-success border-success/30",
                                   )}
                                 >
-                                  {isSick ? "Sick" : isLieu ? "Lieu" : isOther ? "Other" : leave.leave_type.replace(" Leave", "")}
+                                  {isSick
+                                    ? "Sick"
+                                    : isLieu
+                                      ? "Lieu"
+                                      : isOther
+                                        ? "Other"
+                                        : leave.leave_type.replace(" Leave", "")}
                                 </Badge>
                                 <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                                   <Clock className="h-2.5 w-2.5" />
@@ -499,7 +527,9 @@ const Leave = () => {
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-display font-bold">{getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()}</span>
+                <span className="text-3xl font-display font-bold">
+                  {getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()}
+                </span>
                 <span className="text-muted-foreground">/ {getAnnualLeaveTotalDays()} days</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -909,11 +939,21 @@ const Leave = () => {
                   Team Calendar
                 </CardTitle>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                  >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm font-medium px-2">{format(new Date(), "MMM yyyy")}</span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <span className="text-sm font-medium px-2">{format(calendarMonth, "MMM yyyy")}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                  >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -926,12 +966,17 @@ const Leave = () => {
                     {day}
                   </div>
                 ))}
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-                  const today = new Date().getDate();
-                  const currentMonth = new Date().getMonth();
-                  const currentYear = new Date().getFullYear();
-                  const currentDate = new Date(currentYear, currentMonth, day);
+                {Array.from({ length: firstDayOffset }, (_, i) => (
+                  <div key={`empty-${i}`} className="py-2" />
+                ))}
+                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
+                  const now = new Date();
+                  const currentDate = new Date(calendarYear, calendarMonthIndex, day);
                   currentDate.setHours(0, 0, 0, 0);
+                  const isToday =
+                    day === now.getDate() &&
+                    calendarMonthIndex === now.getMonth() &&
+                    calendarYear === now.getFullYear();
 
                   const todayNorm = new Date();
                   todayNorm.setHours(0, 0, 0, 0);
@@ -959,16 +1004,14 @@ const Leave = () => {
                       key={day}
                       className={cn(
                         "text-sm py-2 rounded-md cursor-pointer transition-colors relative",
-                        day === today && "bg-primary text-primary-foreground font-medium",
-                        isUserOnLeave &&
-                          day !== today &&
-                          "bg-success/30 text-success-foreground border border-success/50",
-                        othersOnLeave && !isUserOnLeave && day !== today && "bg-warning/20 text-warning-foreground",
+                        isToday && "bg-primary text-primary-foreground font-medium",
+                        isUserOnLeave && !isToday && "bg-success/30 text-success-foreground border border-success/50",
+                        othersOnLeave && !isUserOnLeave && !isToday && "bg-warning/20 text-warning-foreground",
                       )}
                       title={isUserOnLeave ? "You are on leave" : othersOnLeave ? "Team member(s) on leave" : ""}
                     >
                       {day}
-                      {(isUserOnLeave || othersOnLeave) && day !== today && (
+                      {(isUserOnLeave || othersOnLeave) && !isToday && (
                         <div
                           className={cn(
                             "absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full",
