@@ -4,6 +4,21 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { resolveTeamMemberUserIds, resolveManagerUserIds } from "@/utils/teamResolver";
 
+/** Count business days (Mon–Fri) between two dates, inclusive. */
+function getBusinessDaysBetween(start: Date, end: Date): number {
+  let count = 0;
+  const current = new Date(start);
+  current.setHours(0, 0, 0, 0);
+  const endDate = new Date(end);
+  endDate.setHours(0, 0, 0, 0);
+  while (current <= endDate) {
+    const day = current.getDay();
+    if (day !== 0 && day !== 6) count++;
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}
+
 interface LeaveRequest {
   id: string;
   user_id: string;
