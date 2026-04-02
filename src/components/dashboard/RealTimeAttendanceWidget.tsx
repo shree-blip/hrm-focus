@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, type MouseEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 // Add Download to your lucide-react import
@@ -27,6 +30,7 @@ import {
 // Types
 type Status = "IN" | "OUT" | "BRS" | "BRE" | "PAUSE" | "CONT" | "—";
 type FilterType = "all" | "working" | "break" | "paused" | "out" | "wfo" | "wfh";
+type PopupDateRange = "today" | "last3" | "week";
 
 interface Employee {
   id: string;
@@ -44,6 +48,68 @@ interface Event {
   type: Status;
   time: string;
 }
+
+interface EmployeeRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  department: string | null;
+  profile_id: string | null;
+  profiles: {
+    user_id: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+
+interface AttendanceLogRow {
+  id: string;
+  employee_id: string | null;
+  user_id: string | null;
+  clock_in: string;
+  clock_out: string | null;
+  break_start: string | null;
+  break_end: string | null;
+  pause_start: string | null;
+  pause_end: string | null;
+  work_mode: string | null;
+  total_break_minutes: number | null;
+  total_pause_minutes: number | null;
+}
+
+interface FullActivity {
+  id: string;
+  name: string;
+  type: Status;
+  time: string;
+  department: string | null;
+}
+
+const parseRealtimeLog = (raw?: Record<string, unknown> | null): AttendanceLogRow | null => {
+  if (!raw || typeof raw.id !== "string" || typeof raw.clock_in !== "string") return null;
+
+  const asStringOrNull = (value: unknown) => (typeof value === "string" ? value : null);
+  const asNumberOrNull = (value: unknown) => (typeof value === "number" ? value : null);
+
+  return {
+    id: raw.id,
+    employee_id: asStringOrNull(raw.employee_id),
+    user_id: asStringOrNull(raw.user_id),
+    clock_in: raw.clock_in,
+    clock_out: asStringOrNull(raw.clock_out),
+    break_start: asStringOrNull(raw.break_start),
+    break_end: asStringOrNull(raw.break_end),
+    pause_start: asStringOrNull(raw.pause_start),
+    pause_end: asStringOrNull(raw.pause_end),
+    work_mode: asStringOrNull(raw.work_mode),
+    total_break_minutes: asNumberOrNull(raw.total_break_minutes),
+    total_pause_minutes: asNumberOrNull(raw.total_pause_minutes),
+  };
+};
+
+const normalizeWorkMode = (mode: string | null): "wfo" | "wfh" | null => {
+  if (mode === "wfo" || mode === "wfh") return mode;
+  return null;
+};
 
 // Status config
 const STATUS: Record<Status, { color: string; bg: string; icon: React.ElementType }> = {
@@ -128,8 +194,13 @@ export function RealTimeAttendanceWidget() {
   const [activeFilter, setActiveFilter] = useState<FilterType | null>(null);
   const [nptTime, setNptTime] = useState("");
   const [pstTime, setPstTime] = useState("");
-  const [dailyLogs, setDailyLogs] = useState<any[]>([]);
+  const [dailyLogs, setDailyLogs] = useState<AttendanceLogRow[]>([]);
   const [isExporting, setIsExporting] = useState(false); // Add this new state
+  const [openFullActivityView, setOpenFullActivityView] = useState(false);
+  const [activitySearch, setActivitySearch] = useState("");
+  const [activityTypeFilter, setActivityTypeFilter] = useState<"all" | Status>("all");
+  const [activityEmployeeFilter, setActivityEmployeeFilter] = useState("all");
+  const [activityDateRange, setActivityDateRange] = useState<PopupDateRange>("today");
 
   // Live clock for NPT and PST
   useEffect(() => {
@@ -200,8 +271,23 @@ export function RealTimeAttendanceWidget() {
       .lte("clock_out", dayEnd)
       .order("clock_in", { ascending: false });
 
+    // Fetch logs from the current week for popup date-range filtering
+    const nowUtcDay = now.getUTCDay();
+    const weekDiff = nowUtcDay === 0 ? -6 : 1 - nowUtcDay;
+    const weekStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + weekDiff, 0, 0, 0, 0),
+    ).toISOString();
+
+    const { data: weekLogs } = await supabase
+      .from("attendance_logs")
+      .select("*")
+      .gte("clock_in", weekStart)
+      .lte("clock_in", dayEnd)
+      .order("clock_in", { ascending: false })
+      .limit(20000);
+
     // Merge and deduplicate by id
-    const allLogsMap = new Map<string, any>();
+    const allLogsMap = new Map<string, AttendanceLogRow>();
     [...(todayLogs || []), ...(activeLogs || []), ...(crossMidnightLogs || [])].forEach((log) => {
       if (!allLogsMap.has(log.id)) allLogsMap.set(log.id, log);
     });
@@ -209,22 +295,22 @@ export function RealTimeAttendanceWidget() {
 
     // Build user_id → employee_id map
     const uToE = new Map<string, string>();
-    (emps || []).forEach((e: any) => {
+    (emps as EmployeeRow[] | null)?.forEach((e) => {
       const userId = e.profiles?.user_id;
       if (userId) uToE.set(userId, e.id);
     });
     setUserToEmpMap(uToE);
 
     // Map logs by employee/user
-    const logMap = new Map<string, any>();
-    const userLogMap = new Map<string, any>();
+    const logMap = new Map<string, AttendanceLogRow>();
+    const userLogMap = new Map<string, AttendanceLogRow>();
     logs?.forEach((log) => {
       if (log.employee_id && !logMap.has(log.employee_id)) logMap.set(log.employee_id, log);
       if (log.user_id && !userLogMap.has(log.user_id)) userLogMap.set(log.user_id, log);
     });
 
     // Build employee states
-    const empList: Employee[] = (emps || []).map((e: any) => {
+    const empList: Employee[] = ((emps as EmployeeRow[] | null) || []).map((e) => {
       const userId = e.profiles?.user_id;
       const log = logMap.get(e.id) || userLogMap.get(userId);
 
@@ -248,7 +334,7 @@ export function RealTimeAttendanceWidget() {
         status,
         lastAction,
         avatar: e.profiles?.avatar_url || null,
-        workMode: log?.work_mode || null,
+        workMode: normalizeWorkMode(log?.work_mode || null),
       };
     });
 
@@ -270,8 +356,12 @@ export function RealTimeAttendanceWidget() {
     setSummary({ total: empList.length, working, break: onBreak, paused, out });
 
     // Build events - create maps for both employee_id and user_id lookup
-    const empMap = new Map((emps || []).map((e: any) => [e.id, e]));
-    const userEmpMap = new Map((emps || []).map((e: any) => [e.profiles?.user_id, e]));
+    const empMap = new Map<string, EmployeeRow>(((emps as EmployeeRow[] | null) || []).map((e) => [e.id, e]));
+    const userEmpMap = new Map<string, EmployeeRow>();
+    ((emps as EmployeeRow[] | null) || []).forEach((e) => {
+      const userId = e.profiles?.user_id;
+      if (userId) userEmpMap.set(userId, e);
+    });
 
     // Also create a reverse lookup: user_id -> employee for logs that only have user_id
     const evts: Event[] = [];
@@ -286,7 +376,9 @@ export function RealTimeAttendanceWidget() {
       if (!emp && log.user_id && uToE.has(log.user_id)) {
         emp = empMap.get(uToE.get(log.user_id));
       }
-      const name = emp ? `${emp.first_name} ${emp.last_name}`.trim() : "Unknown";
+      const name = emp ? `${emp.first_name} ${emp.last_name}`.trim() : "";
+
+      if (!name) return;
 
       if (log.clock_in) evts.push({ id: `${log.id}-in`, name, type: "IN", time: log.clock_in });
       if (log.break_start)
@@ -328,14 +420,19 @@ export function RealTimeAttendanceWidget() {
 
     evts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
     setEvents(evts.slice(0, 20));
-    setDailyLogs(logs || []); // Add this line to store the raw logs
+
+    const popupLogsMap = new Map<string, AttendanceLogRow>();
+    [...(weekLogs || []), ...(activeLogs || []), ...(crossMidnightLogs || [])].forEach((log) => {
+      if (!popupLogsMap.has(log.id)) popupLogsMap.set(log.id, log);
+    });
+    setDailyLogs(Array.from(popupLogsMap.values()));
     setLoading(false);
   }, []);
 
   // Process realtime payload locally for instant updates
   const handleRealtimeChange = useCallback(
-    (payload: any) => {
-      const log = payload.new || payload.old;
+    (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+      const log = parseRealtimeLog(payload.new || payload.old);
       if (!log) {
         fetchData();
         return;
@@ -405,10 +502,11 @@ export function RealTimeAttendanceWidget() {
         });
 
         // Update events
-        const evtName = updated.find((e) => e.id === resolvedEmpId)?.name || "Unknown";
+        const evtName = updated.find((e) => e.id === resolvedEmpId)?.name || "";
         setEvents((prevEvts) => {
           const newEvts = [...prevEvts];
           const addEvt = (type: Status, time: string) => {
+            if (!evtName) return;
             const id = `${log.id}-${type.toLowerCase()}`;
             if (!newEvts.find((e) => e.id === id)) {
               newEvts.unshift({ id, name: evtName, type, time });
@@ -456,6 +554,119 @@ export function RealTimeAttendanceWidget() {
       return ["IN", "BRE", "CONT", "PAUSE", "BRS"].includes(emp.status) && emp.workMode === "wfh";
     return true;
   });
+
+  const recentActivities = useMemo(() => {
+    return events.filter((evt) => evt.name && evt.name.trim().length > 0 && evt.name !== "Unknown");
+  }, [events]);
+
+  const fullActivities = useMemo<FullActivity[]>(() => {
+    const employeeById = new Map(employees.map((emp) => [emp.id, emp]));
+
+    const rows: FullActivity[] = [];
+    dailyLogs.forEach((log) => {
+      const resolvedEmpId = log.employee_id || userToEmpMap.get(log.user_id);
+      const emp = resolvedEmpId ? employeeById.get(resolvedEmpId) : null;
+      const name = emp?.name || "Unknown";
+      const department = emp?.department || null;
+
+      if (log.clock_in) rows.push({ id: `${log.id}-in`, name, type: "IN", time: log.clock_in, department });
+      if (log.break_start)
+        rows.push({
+          id: `${log.id}-brs`,
+          name,
+          type: "BRS",
+          time: log.break_start,
+          department,
+        });
+      if (log.break_end)
+        rows.push({
+          id: `${log.id}-bre`,
+          name,
+          type: "BRE",
+          time: log.break_end,
+          department,
+        });
+      if (log.pause_start)
+        rows.push({
+          id: `${log.id}-pause`,
+          name,
+          type: "PAUSE",
+          time: log.pause_start,
+          department,
+        });
+      if (log.pause_end)
+        rows.push({
+          id: `${log.id}-cont`,
+          name,
+          type: "CONT",
+          time: log.pause_end,
+          department,
+        });
+      if (log.clock_out)
+        rows.push({
+          id: `${log.id}-out`,
+          name,
+          type: "OUT",
+          time: log.clock_out,
+          department,
+        });
+    });
+
+    rows.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+    return rows;
+  }, [dailyLogs, employees, userToEmpMap]);
+
+  const fullActivityEmployees = useMemo(() => {
+    return Array.from(new Set(fullActivities.map((evt) => evt.name))).sort((a, b) => a.localeCompare(b));
+  }, [fullActivities]);
+
+  const filteredFullActivities = useMemo(() => {
+    const now = new Date();
+    const y = now.getUTCFullYear();
+    const m = now.getUTCMonth();
+    const d = now.getUTCDate();
+
+    const todayStart = Date.UTC(y, m, d, 0, 0, 0, 0);
+    const last3Start = Date.UTC(y, m, d - 2, 0, 0, 0, 0);
+    const utcDay = now.getUTCDay();
+    const weekDiff = utcDay === 0 ? -6 : 1 - utcDay;
+    const weekStart = Date.UTC(y, m, d + weekDiff, 0, 0, 0, 0);
+
+    const isInDateRange = (isoTime: string) => {
+      const ts = new Date(isoTime).getTime();
+      if (activityDateRange === "today") return ts >= todayStart;
+      if (activityDateRange === "last3") return ts >= last3Start;
+      return ts >= weekStart;
+    };
+
+    const q = activitySearch.trim().toLowerCase();
+    return fullActivities.filter((evt) => {
+      const byDate = isInDateRange(evt.time);
+      const byType = activityTypeFilter === "all" || evt.type === activityTypeFilter;
+      const byEmployee = activityEmployeeFilter === "all" || evt.name === activityEmployeeFilter;
+      const bySearch =
+        !q ||
+        evt.name.toLowerCase().includes(q) ||
+        (evt.department || "").toLowerCase().includes(q) ||
+        EVENT_LABELS[evt.type].toLowerCase().includes(q);
+      return byDate && byType && byEmployee && bySearch;
+    });
+  }, [activitySearch, activityTypeFilter, activityEmployeeFilter, activityDateRange, fullActivities]);
+
+  const handleCardOpen = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, select, textarea, [role='button'], [data-no-card-open='true']")) {
+      return;
+    }
+    setOpenFullActivityView(true);
+  };
+
+  const clearAllActivityFilters = () => {
+    setActivitySearch("");
+    setActivityDateRange("today");
+    setActivityEmployeeFilter("all");
+    setActivityTypeFilter("all");
+  };
 
   // Handle card click
   const handleFilterClick = (filter: FilterType) => {
@@ -629,246 +840,381 @@ export function RealTimeAttendanceWidget() {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" />
-            Live Attendance
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 ml-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute h-full w-full rounded-full bg-emerald-500 opacity-75" />
-                <span className="relative rounded-full h-2 w-2 bg-emerald-600" />
-              </span>
-              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Live</span>
+    <>
+      <Card onClick={handleCardOpen} className="cursor-pointer">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="text-left rounded-md p-1 -m-1">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                Live Attendance
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 ml-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                    <span className="relative rounded-full h-2 w-2 bg-emerald-600" />
+                  </span>
+                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Live</span>
+                </div>
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Click anywhere on this card to open full activity timeline
+              </p>
             </div>
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            {/* Native Dropdown visually styled like a Shadcn element */}
-            <div className="relative hidden sm:block">
-              <select
-                disabled={isExporting}
-                defaultValue=""
-                onChange={(e) => {
-                  if (e.target.value) {
-                    exportHistoricalCSV(e.target.value as "today" | "week" | "month");
-                    e.target.value = "";
-                  }
-                }}
-                className="appearance-none bg-transparent border rounded-md h-8 pl-8 pr-8 text-xs font-medium cursor-pointer hover:bg-muted/50 disabled:opacity-50"
-              >
-                <option value="" disabled>
-                  Export CSV
-                </option>
-                <option value="today">Today's Data</option>
-                <option value="week">This Week's Data</option>
-                <option value="month">This Month's Data</option>
-              </select>
+            <div className="flex items-center gap-2">
+              {/* Native Dropdown visually styled like a Shadcn element */}
+              <div className="relative hidden sm:block">
+                <select
+                  disabled={isExporting}
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      exportHistoricalCSV(e.target.value as "today" | "week" | "month");
+                      e.target.value = "";
+                    }
+                  }}
+                  className="appearance-none bg-transparent border rounded-md h-8 pl-8 pr-8 text-xs font-medium cursor-pointer hover:bg-muted/50 disabled:opacity-50"
+                >
+                  <option value="" disabled>
+                    Export CSV
+                  </option>
+                  <option value="today">Today's Data</option>
+                  <option value="week">This Week's Data</option>
+                  <option value="month">This Month's Data</option>
+                </select>
 
-              {/* Icon positioning inside the select */}
-              <div className="absolute left-2.5 top-2 pointer-events-none">
-                {isExporting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                ) : (
-                  <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
+                {/* Icon positioning inside the select */}
+                <div className="absolute left-2.5 top-2 pointer-events-none">
+                  {isExporting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </div>
               </div>
-            </div>
 
-            <Button variant="ghost" size="icon" onClick={fetchData} className="h-8 w-8" title="Refresh data">
-              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/* Clickable Summary Stats */}
-        <div className="grid grid-cols-5 gap-2">
-          {[
-            {
-              key: "all" as FilterType,
-              label: "Total",
-              value: summary.total,
-              icon: Users,
-              color: "text-slate-600",
-              bg: "bg-slate-100 dark:bg-slate-800",
-              activeBg: "bg-slate-200 dark:bg-slate-700 ring-2 ring-slate-400",
-            },
-            {
-              key: "working" as FilterType,
-              label: "Working",
-              value: summary.working,
-              icon: Briefcase,
-              color: "text-emerald-600",
-              bg: "bg-emerald-100 dark:bg-emerald-900/40",
-              activeBg: "bg-emerald-200 dark:bg-emerald-800 ring-2 ring-emerald-500",
-              pulse: true,
-            },
-            {
-              key: "break" as FilterType,
-              label: "Break",
-              value: summary.break,
-              icon: Coffee,
-              color: "text-amber-600",
-              bg: "bg-amber-100 dark:bg-amber-900/40",
-              activeBg: "bg-amber-200 dark:bg-amber-800 ring-2 ring-amber-500",
-            },
-            {
-              key: "paused" as FilterType,
-              label: "Paused",
-              value: summary.paused,
-              icon: Pause,
-              color: "text-blue-600",
-              bg: "bg-blue-100 dark:bg-blue-900/40",
-              activeBg: "bg-blue-200 dark:bg-blue-800 ring-2 ring-blue-500",
-            },
-            {
-              key: "out" as FilterType,
-              label: "Out",
-              value: summary.out,
-              icon: LogOut,
-              color: "text-slate-500",
-              bg: "bg-slate-100 dark:bg-slate-800",
-              activeBg: "bg-slate-200 dark:bg-slate-700 ring-2 ring-slate-400",
-            },
-          ].map(({ key, label, value, icon: Icon, color, bg, activeBg, pulse }) => (
-            <button
-              key={key}
-              onClick={() => handleFilterClick(key)}
-              className={cn(
-                "rounded-lg p-2 text-center transition-all cursor-pointer hover:scale-105",
-                activeFilter === key ? activeBg : bg,
-              )}
-            >
-              <Icon className={cn("h-4 w-4 mx-auto mb-1", color, pulse && !activeFilter && "animate-pulse")} />
-              <p className={cn("text-lg font-bold", color)}>{value}</p>
-              <p className="text-[10px] text-muted-foreground">{label}</p>
-            </button>
-          ))}
-        </div>
-
-        {/* Filtered Employee List */}
-        {activeFilter && (
-          <div className="border rounded-lg">
-            <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b">
-              <span className="text-sm font-medium">{FILTER_LABELS[activeFilter]}</span>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveFilter(null)}>
-                <X className="h-4 w-4" />
+              <Button variant="ghost" size="icon" onClick={fetchData} className="h-8 w-8" title="Refresh data">
+                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
               </Button>
             </div>
-            <ScrollArea className="h-[180px]">
-              {filteredEmployees.length === 0 ? (
-                <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">No employees</div>
-              ) : (
-                <div className="divide-y">
-                  {filteredEmployees.map((emp) => {
-                    const cfg = STATUS[emp.status];
-                    const Icon = cfg.icon;
-                    return (
-                      <div key={emp.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={emp.avatar || undefined} />
-                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {getInitials(emp.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{emp.name}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {emp.department || "No Dept"} •{" "}
-                            {emp.lastAction
-                              ? formatDistanceToNow(new Date(emp.lastAction), {
-                                  addSuffix: true,
-                                })
-                              : "—"}
-                          </p>
-                        </div>
-                        <Badge variant="outline" className={cn("text-[10px] gap-1", cfg.bg, cfg.color)}>
-                          <Icon className="h-3 w-3" />
-                          {emp.status}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </ScrollArea>
           </div>
-        )}
-        {/* WFO / WFH Quick Filters */}
-        <div className="flex gap-2">
-          <Button
-            variant={activeFilter === "wfo" ? "default" : "outline"}
-            size="sm"
-            className="flex-1 gap-2"
-            onClick={() => handleFilterClick("wfo")}
-          >
-            <Briefcase className="h-4 w-4" />
-            WFO ({employees.filter((e) => ["IN", "BRE", "CONT"].includes(e.status) && e.workMode !== "wfh").length})
-          </Button>
-          <Button
-            variant={activeFilter === "wfh" ? "default" : "outline"}
-            size="sm"
-            className="flex-1 gap-2 border-blue-300 text-white-600 "
-            onClick={() => handleFilterClick("wfh")}
-          >
-            <Users className="h-4 w-4" />
-            WFH (
-            {
-              employees.filter((e) => ["IN", "BRE", "CONT", "PAUSE", "BRS"].includes(e.status) && e.workMode === "wfh")
-                .length
-            }
-            )
-          </Button>
-        </div>
-        {/* Activity Feed - Show when no filter active */}
-        {!activeFilter && (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Recent Activity</span>
-            </div>
-            <ScrollArea className="h-[180px]">
-              <div className="space-y-1">
-                {events.length === 0 ? (
-                  <div className="flex flex-col items-center py-8 text-muted-foreground">
-                    <Clock className="h-8 w-8 mb-2 opacity-40" />
-                    <p className="text-sm">No activity today</p>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {/* Clickable Summary Stats */}
+          <div className="grid grid-cols-5 gap-2">
+            {[
+              {
+                key: "all" as FilterType,
+                label: "Total",
+                value: summary.total,
+                icon: Users,
+                color: "text-slate-600",
+                bg: "bg-slate-100 dark:bg-slate-800",
+                activeBg: "bg-slate-200 dark:bg-slate-700 ring-2 ring-slate-400",
+              },
+              {
+                key: "working" as FilterType,
+                label: "Working",
+                value: summary.working,
+                icon: Briefcase,
+                color: "text-emerald-600",
+                bg: "bg-emerald-100 dark:bg-emerald-900/40",
+                activeBg: "bg-emerald-200 dark:bg-emerald-800 ring-2 ring-emerald-500",
+                pulse: true,
+              },
+              {
+                key: "break" as FilterType,
+                label: "Break",
+                value: summary.break,
+                icon: Coffee,
+                color: "text-amber-600",
+                bg: "bg-amber-100 dark:bg-amber-900/40",
+                activeBg: "bg-amber-200 dark:bg-amber-800 ring-2 ring-amber-500",
+              },
+              {
+                key: "paused" as FilterType,
+                label: "Paused",
+                value: summary.paused,
+                icon: Pause,
+                color: "text-blue-600",
+                bg: "bg-blue-100 dark:bg-blue-900/40",
+                activeBg: "bg-blue-200 dark:bg-blue-800 ring-2 ring-blue-500",
+              },
+              {
+                key: "out" as FilterType,
+                label: "Out",
+                value: summary.out,
+                icon: LogOut,
+                color: "text-slate-500",
+                bg: "bg-slate-100 dark:bg-slate-800",
+                activeBg: "bg-slate-200 dark:bg-slate-700 ring-2 ring-slate-400",
+              },
+            ].map(({ key, label, value, icon: Icon, color, bg, activeBg, pulse }) => (
+              <button
+                key={key}
+                onClick={() => handleFilterClick(key)}
+                className={cn(
+                  "rounded-lg p-2 text-center transition-all cursor-pointer hover:scale-105",
+                  activeFilter === key ? activeBg : bg,
+                )}
+              >
+                <Icon className={cn("h-4 w-4 mx-auto mb-1", color, pulse && !activeFilter && "animate-pulse")} />
+                <p className={cn("text-lg font-bold", color)}>{value}</p>
+                <p className="text-[10px] text-muted-foreground">{label}</p>
+              </button>
+            ))}
+          </div>
+
+          {/* Filtered Employee List */}
+          {activeFilter && (
+            <div className="border rounded-lg">
+              <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b">
+                <span className="text-sm font-medium">{FILTER_LABELS[activeFilter]}</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveFilter(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <ScrollArea className="h-[180px]">
+                {filteredEmployees.length === 0 ? (
+                  <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+                    No employees
                   </div>
                 ) : (
-                  events.map((evt) => {
-                    const cfg = STATUS[evt.type];
-                    const Icon = cfg.icon;
-                    return (
-                      <div key={evt.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
-                        <div className={cn("p-1.5 rounded", cfg.bg)}>
-                          <Icon className={cn("h-3 w-3", cfg.color)} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium truncate">{evt.name}</span>
-                            <span className="text-xs text-muted-foreground">{EVENT_LABELS[evt.type]}</span>
+                  <div className="divide-y">
+                    {filteredEmployees.map((emp) => {
+                      const cfg = STATUS[emp.status];
+                      const Icon = cfg.icon;
+                      return (
+                        <div key={emp.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={emp.avatar || undefined} />
+                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                              {getInitials(emp.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{emp.name}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {emp.department || "No Dept"} •{" "}
+                              {emp.lastAction
+                                ? formatDistanceToNow(new Date(emp.lastAction), {
+                                    addSuffix: true,
+                                  })
+                                : "—"}
+                            </p>
                           </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            {format(new Date(evt.time), "hh:mm a")} •{" "}
-                            {formatDistanceToNow(new Date(evt.time), {
-                              addSuffix: true,
-                            })}
-                          </p>
+                          <Badge variant="outline" className={cn("text-[10px] gap-1", cfg.bg, cfg.color)}>
+                            <Icon className="h-3 w-3" />
+                            {emp.status}
+                          </Badge>
                         </div>
-                        <Badge variant="outline" className={cn("text-[10px] px-1.5", cfg.bg, cfg.color)}>
-                          {evt.type}
-                        </Badge>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                  </div>
                 )}
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </div>
+          )}
+          {/* WFO / WFH Quick Filters */}
+          <div className="flex gap-2">
+            <Button
+              variant={activeFilter === "wfo" ? "default" : "outline"}
+              size="sm"
+              className="flex-1 gap-2"
+              onClick={() => handleFilterClick("wfo")}
+            >
+              <Briefcase className="h-4 w-4" />
+              WFO ({employees.filter((e) => ["IN", "BRE", "CONT"].includes(e.status) && e.workMode !== "wfh").length})
+            </Button>
+            <Button
+              variant={activeFilter === "wfh" ? "default" : "outline"}
+              size="sm"
+              className="flex-1 gap-2 border-blue-300 text-white-600 "
+              onClick={() => handleFilterClick("wfh")}
+            >
+              <Users className="h-4 w-4" />
+              WFH (
+              {
+                employees.filter(
+                  (e) => ["IN", "BRE", "CONT", "PAUSE", "BRS"].includes(e.status) && e.workMode === "wfh",
+                ).length
+              }
+              )
+            </Button>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          {/* Activity Feed - Show when no filter active */}
+          {!activeFilter && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Recent Activity</span>
+              </div>
+              <ScrollArea className="h-[180px]">
+                <div className="space-y-1">
+                  {recentActivities.length === 0 ? (
+                    <div className="flex flex-col items-center py-8 text-muted-foreground">
+                      <Clock className="h-8 w-8 mb-2 opacity-40" />
+                      <p className="text-sm">No activity today</p>
+                    </div>
+                  ) : (
+                    recentActivities.map((evt) => {
+                      const cfg = STATUS[evt.type];
+                      const Icon = cfg.icon;
+                      return (
+                        <div key={evt.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
+                          <div className={cn("p-1.5 rounded", cfg.bg)}>
+                            <Icon className={cn("h-3 w-3", cfg.color)} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium truncate">{evt.name}</span>
+                              <span className="text-xs text-muted-foreground">{EVENT_LABELS[evt.type]}</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                              {format(new Date(evt.time), "MMM d, yyyy • hh:mm:ss a")} •{" "}
+                              {formatDistanceToNow(new Date(evt.time), {
+                                addSuffix: true,
+                              })}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5", cfg.bg, cfg.color)}>
+                            {evt.type}
+                          </Badge>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={openFullActivityView} onOpenChange={setOpenFullActivityView}>
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              Live Attendance - Full Recent Activity
+            </DialogTitle>
+            <DialogDescription>
+              Complete attendance timeline with all IN, OUT, BREAK, PAUSE, and CONTINUE events with exact time.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+            <div className="rounded-md bg-muted/50 p-2">
+              <p className="text-[11px] text-muted-foreground">Total Events</p>
+              <p className="text-lg font-semibold">{fullActivities.length}</p>
+            </div>
+            <div className="rounded-md bg-muted/50 p-2">
+              <p className="text-[11px] text-muted-foreground">Nepal Time</p>
+              <p className="text-sm font-semibold">{nptTime}</p>
+            </div>
+            <div className="rounded-md bg-muted/50 p-2">
+              <p className="text-[11px] text-muted-foreground">Pacific Time</p>
+              <p className="text-sm font-semibold">{pstTime}</p>
+            </div>
+            <div className="rounded-md bg-muted/50 p-2">
+              <p className="text-[11px] text-muted-foreground">Employees Tracked</p>
+              <p className="text-lg font-semibold">{summary.total}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2">
+            <Input
+              placeholder="Search employee, department, activity..."
+              value={activitySearch}
+              onChange={(e) => setActivitySearch(e.target.value)}
+            />
+            <select
+              value={activityDateRange}
+              onChange={(e) => setActivityDateRange(e.target.value as PopupDateRange)}
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="today">Today</option>
+              <option value="last3">Last 3 Days</option>
+              <option value="week">This Week</option>
+            </select>
+            <select
+              value={activityEmployeeFilter}
+              onChange={(e) => setActivityEmployeeFilter(e.target.value)}
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="all">All Employees</option>
+              {fullActivityEmployees.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={activityTypeFilter}
+              onChange={(e) => setActivityTypeFilter(e.target.value as "all" | Status)}
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="all">All Activity Types</option>
+              <option value="IN">Clocked In</option>
+              <option value="OUT">Clocked Out</option>
+              <option value="BRS">Break Start</option>
+              <option value="BRE">Break End</option>
+              <option value="PAUSE">Pause Start</option>
+              <option value="CONT">Continue</option>
+            </select>
+            <Button variant="outline" className="h-10" onClick={clearAllActivityFilters}>
+              Clear all filters
+            </Button>
+          </div>
+
+          <div className="mb-2 text-xs text-muted-foreground">
+            Showing {filteredFullActivities.length} of {fullActivities.length} activities
+          </div>
+
+          <ScrollArea className="h-[58vh] pr-2">
+            {filteredFullActivities.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Clock className="h-10 w-10 mb-2 opacity-40" />
+                <p className="text-sm">No activity matches current filters</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {filteredFullActivities.map((evt) => {
+                  const cfg = STATUS[evt.type];
+                  const Icon = cfg.icon;
+                  return (
+                    <div
+                      key={evt.id}
+                      className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30"
+                    >
+                      <div className={cn("p-2 rounded-md", cfg.bg)}>
+                        <Icon className={cn("h-4 w-4", cfg.color)} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold truncate">{evt.name}</span>
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5", cfg.bg, cfg.color)}>
+                            {EVENT_LABELS[evt.type]}
+                          </Badge>
+                          <Badge variant="secondary" className="text-[10px] px-1.5">
+                            {evt.type}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {evt.department || "No Dept"} • {format(new Date(evt.time), "EEEE, MMM d, yyyy • hh:mm:ss a")}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {formatDistanceToNow(new Date(evt.time), { addSuffix: true })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
