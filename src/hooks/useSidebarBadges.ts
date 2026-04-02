@@ -28,6 +28,9 @@ export function useSidebarBadges() {
     try {
       const { data, error } = await supabase.functions.invoke("sidebar-badges", {
         method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
       if (!error && data) {
         setBadges((prev) => {
