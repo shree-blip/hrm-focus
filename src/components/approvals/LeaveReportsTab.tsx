@@ -72,24 +72,15 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
   // Collapsible rejection reasons
   const [expandedRejections, setExpandedRejections] = useState<Set<string>>(new Set());
 
-  // ─── Fetch employee leave balances (scoped to visible team via requests prop) ───
+  // ─── Fetch employee leave balances ───
   const fetchEmployeeBalances = useCallback(async () => {
     setLoadingBalances(true);
     try {
-      // Derive visible user IDs from the already role-scoped requests
-      const visibleUserIds = [...new Set(requests.map((r) => r.user_id))];
-      if (visibleUserIds.length === 0) {
-        setEmployeeBalances([]);
-        setLoadingBalances(false);
-        return;
-      }
-
       const currentYear = new Date().getFullYear();
       const { data: allBalances } = await supabase
         .from("leave_balances")
         .select("user_id, leave_type, total_days, used_days")
-        .eq("year", currentYear)
-        .in("user_id", visibleUserIds);
+        .eq("year", currentYear);
 
       if (!allBalances || allBalances.length === 0) {
         setEmployeeBalances([]);
@@ -136,11 +127,11 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
       console.error("Failed to fetch employee balances:", err);
     }
     setLoadingBalances(false);
-  }, [employees, requests]);
+  }, [employees]);
 
   useEffect(() => {
-    if (employees.length > 0 && requests.length > 0) fetchEmployeeBalances();
-  }, [employees.length, requests.length, fetchEmployeeBalances]);
+    if (employees.length > 0) fetchEmployeeBalances();
+  }, [employees.length, fetchEmployeeBalances]);
 
   // ─── Filters ───
   const filtered = useMemo(() => {
