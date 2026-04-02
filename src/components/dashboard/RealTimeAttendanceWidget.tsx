@@ -84,6 +84,9 @@ interface FullActivity {
   department: string | null;
 }
 
+const buildEventId = (logId: string, type: Status, time: string) =>
+  `${logId}-${type.toLowerCase()}-${new Date(time).getTime()}`;
+
 const parseRealtimeLog = (raw?: Record<string, unknown> | null): AttendanceLogRow | null => {
   if (!raw || typeof raw.id !== "string" || typeof raw.clock_in !== "string") return null;
 
@@ -187,6 +190,16 @@ const FILTER_LABELS: Record<FilterType, string> = {
   wfo: "Work From Office",
   wfh: "Work From Home",
 };
+
+const ACTIVITY_TYPE_CARD_CONFIG: Array<{ key: "all" | Status; label: string; icon: React.ElementType }> = [
+  { key: "all", label: "All", icon: Activity },
+  { key: "IN", label: "Clocked In", icon: Briefcase },
+  { key: "BRS", label: "Break", icon: Coffee },
+  { key: "BRE", label: "Resumed", icon: Briefcase },
+  { key: "PAUSE", label: "Paused", icon: Pause },
+  { key: "CONT", label: "Continued", icon: Briefcase },
+  { key: "OUT", label: "Out", icon: LogOut },
+];
 
 const getInitials = (name: string) =>
   name
@@ -397,38 +410,39 @@ export function RealTimeAttendanceWidget() {
 
       if (!name) return;
 
-      if (log.clock_in) evts.push({ id: `${log.id}-in`, name, type: "IN", time: log.clock_in });
+      if (log.clock_in)
+        evts.push({ id: buildEventId(log.id, "IN", log.clock_in), name, type: "IN", time: log.clock_in });
       if (log.break_start)
         evts.push({
-          id: `${log.id}-brs`,
+          id: buildEventId(log.id, "BRS", log.break_start),
           name,
           type: "BRS",
           time: log.break_start,
         });
       if (log.break_end)
         evts.push({
-          id: `${log.id}-bre`,
+          id: buildEventId(log.id, "BRE", log.break_end),
           name,
           type: "BRE",
           time: log.break_end,
         });
       if (log.pause_start)
         evts.push({
-          id: `${log.id}-pause`,
+          id: buildEventId(log.id, "PAUSE", log.pause_start),
           name,
           type: "PAUSE",
           time: log.pause_start,
         });
       if (log.pause_end)
         evts.push({
-          id: `${log.id}-cont`,
+          id: buildEventId(log.id, "CONT", log.pause_end),
           name,
           type: "CONT",
           time: log.pause_end,
         });
       if (log.clock_out)
         evts.push({
-          id: `${log.id}-out`,
+          id: buildEventId(log.id, "OUT", log.clock_out),
           name,
           type: "OUT",
           time: log.clock_out,
@@ -436,7 +450,12 @@ export function RealTimeAttendanceWidget() {
     });
 
     evts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-    setEvents(evts.slice(0, 20));
+    setEvents((prev) => {
+      const merged = [...prev, ...evts];
+      const unique = Array.from(new Map(merged.map((evt) => [evt.id, evt])).values());
+      unique.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+      return unique.slice(0, 100);
+    });
 
     const popupLogsMap = new Map<string, AttendanceLogRow>();
     [...(monthLogs || []), ...(activeLogs || []), ...(crossMidnightLogs || [])].forEach((log) => {
@@ -524,7 +543,7 @@ export function RealTimeAttendanceWidget() {
           const newEvts = [...prevEvts];
           const addEvt = (type: Status, time: string) => {
             if (!evtName) return;
-            const id = `${log.id}-${type.toLowerCase()}`;
+            const id = buildEventId(log.id, type, time);
             if (!newEvts.find((e) => e.id === id)) {
               newEvts.unshift({ id, name: evtName, type, time });
             }
@@ -536,7 +555,7 @@ export function RealTimeAttendanceWidget() {
           if (log.pause_end) addEvt("CONT", log.pause_end);
           if (log.clock_out) addEvt("OUT", log.clock_out);
           newEvts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-          return newEvts.slice(0, 20);
+          return newEvts.slice(0, 100);
         });
 
         return updated;
@@ -578,6 +597,7 @@ export function RealTimeAttendanceWidget() {
 
   const fullActivities = useMemo<FullActivity[]>(() => {
     const employeeById = new Map(employees.map((emp) => [emp.id, emp]));
+    const employeeByName = new Map(employees.map((emp) => [emp.name, emp]));
 
     const rows: FullActivity[] = [];
     dailyLogs.forEach((log) => {
@@ -629,15 +649,30 @@ export function RealTimeAttendanceWidget() {
         });
     });
 
-    rows.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-    return rows;
-  }, [dailyLogs, employees, userToEmpMap]);
+    // Merge realtime timeline events so repeated break/pause cycles appear in popup details too.
+    events.forEach((evt) => {
+      const emp = employeeByName.get(evt.name);
+      rows.push({
+        id: `rt-${evt.id}`,
+        name: evt.name,
+        type: evt.type,
+        time: evt.time,
+        department: emp?.department || null,
+      });
+    });
+
+    const deduped = Array.from(
+      new Map(rows.map((row) => [`${row.name}-${row.type}-${new Date(row.time).getTime()}`, row])).values(),
+    );
+    deduped.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+    return deduped;
+  }, [dailyLogs, employees, userToEmpMap, events]);
 
   const fullActivityEmployees = useMemo(() => {
     return Array.from(new Set(fullActivities.map((evt) => evt.name))).sort((a, b) => a.localeCompare(b));
   }, [fullActivities]);
 
-  const filteredFullActivities = useMemo(() => {
+  const popupBaseActivities = useMemo(() => {
     const now = new Date();
     const y = now.getUTCFullYear();
     const m = now.getUTCMonth();
@@ -661,16 +696,39 @@ export function RealTimeAttendanceWidget() {
     const q = activitySearch.trim().toLowerCase();
     return fullActivities.filter((evt) => {
       const byDate = isInDateRange(evt.time);
-      const byType = activityTypeFilter === "all" || evt.type === activityTypeFilter;
       const byEmployee = activityEmployeeFilter === "all" || evt.name === activityEmployeeFilter;
       const bySearch =
         !q ||
         evt.name.toLowerCase().includes(q) ||
         (evt.department || "").toLowerCase().includes(q) ||
         EVENT_LABELS[evt.type].toLowerCase().includes(q);
-      return byDate && byType && byEmployee && bySearch;
+      return byDate && byEmployee && bySearch;
     });
-  }, [activitySearch, activityTypeFilter, activityEmployeeFilter, activityDateRange, fullActivities]);
+  }, [activitySearch, activityEmployeeFilter, activityDateRange, fullActivities]);
+
+  const popupTypeCounts = useMemo(() => {
+    const counts: Record<"all" | Status, number> = {
+      all: popupBaseActivities.length,
+      IN: 0,
+      OUT: 0,
+      BRS: 0,
+      BRE: 0,
+      PAUSE: 0,
+      CONT: 0,
+      "—": 0,
+    };
+    popupBaseActivities.forEach((evt) => {
+      counts[evt.type] += 1;
+    });
+    return counts;
+  }, [popupBaseActivities]);
+
+  const filteredFullActivities = useMemo(() => {
+    return popupBaseActivities.filter((evt) => {
+      const byType = activityTypeFilter === "all" || evt.type === activityTypeFilter;
+      return byType;
+    });
+  }, [activityTypeFilter, popupBaseActivities]);
 
   const handleCardOpen = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
@@ -1094,9 +1152,14 @@ export function RealTimeAttendanceWidget() {
                             <Icon className={cn("h-3 w-3", cfg.color)} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-medium truncate">{evt.name}</span>
-                              <span className="text-xs text-muted-foreground">{EVENT_LABELS[evt.type]}</span>
+                              <Badge variant="outline" className={cn("text-[10px] px-1.5", cfg.bg, cfg.color)}>
+                                {EVENT_LABELS[evt.type]}
+                              </Badge>
+                              <Badge variant="secondary" className="text-[10px] px-1.5">
+                                {evt.type}
+                              </Badge>
                             </div>
                             <p className="text-[10px] text-muted-foreground">
                               {format(new Date(evt.time), "MMM d, yyyy • hh:mm:ss a")} •{" "}
@@ -1105,9 +1168,6 @@ export function RealTimeAttendanceWidget() {
                               })}
                             </p>
                           </div>
-                          <Badge variant="outline" className={cn("text-[10px] px-1.5", cfg.bg, cfg.color)}>
-                            {evt.type}
-                          </Badge>
                         </div>
                       );
                     })
@@ -1150,7 +1210,7 @@ export function RealTimeAttendanceWidget() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
             <Input
               placeholder="Search employee, department, activity..."
               value={activitySearch}
@@ -1178,22 +1238,36 @@ export function RealTimeAttendanceWidget() {
                 </option>
               ))}
             </select>
-            <select
-              value={activityTypeFilter}
-              onChange={(e) => setActivityTypeFilter(e.target.value as "all" | Status)}
-              className="h-10 rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="all">All Activity Types</option>
-              <option value="IN">Clocked In</option>
-              <option value="OUT">Clocked Out</option>
-              <option value="BRS">Break Start</option>
-              <option value="BRE">Break End</option>
-              <option value="PAUSE">Pause Start</option>
-              <option value="CONT">Continue</option>
-            </select>
             <Button variant="outline" className="h-10" onClick={clearAllActivityFilters}>
               Clear all filters
             </Button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-2">
+            {ACTIVITY_TYPE_CARD_CONFIG.map(({ key, label, icon: Icon }) => {
+              const isActive = activityTypeFilter === key;
+              const statusCfg = key === "all" ? null : STATUS[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActivityTypeFilter(key)}
+                  className={cn(
+                    "rounded-lg p-2 text-center transition-all hover:scale-[1.02] border",
+                    isActive ? "ring-2 ring-primary/40 border-primary/40" : "border-border",
+                    statusCfg ? statusCfg.bg : "bg-muted/40",
+                  )}
+                >
+                  <Icon className={cn("h-3.5 w-3.5 mx-auto mb-1", statusCfg ? statusCfg.color : "text-primary")} />
+                  <p
+                    className={cn("text-base font-semibold leading-none", statusCfg ? statusCfg.color : "text-primary")}
+                  >
+                    {popupTypeCounts[key]}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1 truncate">{label}</p>
+                </button>
+              );
+            })}
           </div>
 
           <div className="mb-2 text-xs text-muted-foreground">
@@ -1212,16 +1286,13 @@ export function RealTimeAttendanceWidget() {
                   const cfg = STATUS[evt.type];
                   const Icon = cfg.icon;
                   return (
-                    <div
-                      key={evt.id}
-                      className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30"
-                    >
-                      <div className={cn("p-2 rounded-md", cfg.bg)}>
-                        <Icon className={cn("h-4 w-4", cfg.color)} />
+                    <div key={evt.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
+                      <div className={cn("p-1.5 rounded", cfg.bg)}>
+                        <Icon className={cn("h-3 w-3", cfg.color)} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold truncate">{evt.name}</span>
+                          <span className="text-sm font-medium truncate">{evt.name}</span>
                           <Badge variant="outline" className={cn("text-[10px] px-1.5", cfg.bg, cfg.color)}>
                             {EVENT_LABELS[evt.type]}
                           </Badge>
@@ -1229,10 +1300,8 @@ export function RealTimeAttendanceWidget() {
                             {evt.type}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {evt.department || "No Dept"} • {format(new Date(evt.time), "EEEE, MMM d, yyyy • hh:mm:ss a")}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                        <p className="text-[10px] text-muted-foreground">
+                          {evt.department || "No Dept"} • {format(new Date(evt.time), "MMM d, yyyy • hh:mm:ss a")} •{" "}
                           {formatDistanceToNow(new Date(evt.time), { addSuffix: true })}
                         </p>
                       </div>
