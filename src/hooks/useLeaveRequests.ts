@@ -148,6 +148,25 @@ export function useLeaveRequests() {
     return data || [];
   }, [user]);
 
+  // Fetch team member user IDs for supervisors/line managers
+  const fetchTeamMemberUserIds = useCallback(async (): Promise<string[]> => {
+    if (!user) return [];
+
+    if (role === "admin" || role === "vp") return [];
+
+    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
+      const ids = await resolveTeamMemberUserIds(user.id);
+      console.debug("[hierarchy][leave] team user ids", {
+        managerUserId: user.id,
+        teamUserIdsCount: ids.length,
+        teamUserIds: ids,
+      });
+      return ids;
+    }
+
+    return [];
+  }, [user, role, isSupervisor, isLineManager]);
+
   // Fetch approved team leaves (scoped by team for non-admin/VP)
   const fetchTeamLeaves = useCallback(async () => {
     if (!user) return [];
@@ -179,25 +198,6 @@ export function useLeaveRequests() {
     // Regular employees see only their own
     return (data || []).filter((r) => r.user_id === user.id);
   }, [user, role, isSupervisor, isLineManager, fetchTeamMemberUserIds]);
-
-  // Fetch team member user IDs for supervisors/line managers
-  const fetchTeamMemberUserIds = useCallback(async (): Promise<string[]> => {
-    if (!user) return [];
-
-    if (role === "admin" || role === "vp") return [];
-
-    if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
-      const ids = await resolveTeamMemberUserIds(user.id);
-      console.debug("[hierarchy][leave] team user ids", {
-        managerUserId: user.id,
-        teamUserIdsCount: ids.length,
-        teamUserIds: ids,
-      });
-      return ids;
-    }
-
-    return [];
-  }, [user, role, isSupervisor, isLineManager]);
 
   // Fetch pending requests for managers/supervisors/line_managers to approve
   const fetchPendingForManager = useCallback(async () => {
