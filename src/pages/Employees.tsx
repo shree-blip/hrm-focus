@@ -26,6 +26,7 @@ import {
   TrendingUp,
   ChevronRight,
   ArrowLeft,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
@@ -167,6 +168,17 @@ const Employees = () => {
   const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
   const [managingEmployeeId, setManagingEmployeeId] = useState<string | null>(null);
 
+  // Leave summary for clicked employee
+  interface LeaveBalanceSummary {
+    leave_type: string;
+    total_days: number;
+    used_days: number;
+    remaining_days: number;
+  }
+  const [clickedLeaveBalances, setClickedLeaveBalances] = useState<LeaveBalanceSummary[]>([]);
+  const [loadingLeave, setLoadingLeave] = useState(false);
+  const [leaveSummaryOpen, setLeaveSummaryOpen] = useState(false);
+
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
@@ -260,14 +272,105 @@ const Employees = () => {
 
   const currentSubTeamName = subTeamStack.length > 0 ? subTeamStack[subTeamStack.length - 1].employeeName : "";
 
-  // When clicked employee changes, fetch their team
+  // Fetch leave balances and approved requests for an employee (fiscal year ends June 30)
+  const fetchClickedEmployeeLeave = async (employeeUserId: string | null) => {
+    if (!employeeUserId) {
+      setClickedLeaveBalances([]);
+      return;
+    }
+
+    setLoadingLeave(true);
+    try {
+      const now = new Date();
+      // Fiscal year: Jul 1 – Jun 30. Determine current fiscal year start.
+      const fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+      const fyStart = `${fyStartYear}-07-01`;
+      const fyEnd = `${fyStartYear + 1}-06-30`;
+
+      // Fetch leave balances for the fiscal year
+      const { data: balances } = await supabase
+        .from("leave_balances")
+        .select("leave_type, total_days, used_days")
+        .eq("user_id", employeeUserId)
+        .eq("year", fyStartYear + 1);
+
+      // Also fetch actual approved leave requests within the fiscal year period
+      const { data: approvedRequests } = await supabase
+        .from("leave_requests")
+        .select("leave_type, days, is_half_day")
+        .eq("user_id", employeeUserId)
+        .eq("status", "approved")
+        .gte("start_date", fyStart)
+        .lte("start_date", fyEnd);
+
+      // Build a map of used days from approved requests
+      const usedMap = new Map<string, number>();
+      (approvedRequests || []).forEach((r: { leave_type: string; days: number; is_half_day: boolean | null }) => {
+        // Normalize type: "Other Leave - Sick Leave" → "Sick Leave", "Other Leave - X" → "Other Leave"
+        let type = r.leave_type;
+        if (type === "Other Leave - Sick Leave") type = "Sick Leave";
+        else if (type.startsWith("Other Leave -")) type = "Other Leave";
+        else if (type.startsWith("Leave on Lieu")) type = "Leave on Lieu";
+
+        const dayCount = r.is_half_day ? 0.5 : r.days;
+        usedMap.set(type, (usedMap.get(type) || 0) + dayCount);
+      });
+
+      // Build summary from balances table + request-based used days
+      const balanceMap = new Map<string, { total: number; used: number }>();
+
+      // Seed from leave_balances rows
+      (balances || []).forEach((b: { leave_type: string; total_days: number; used_days: number }) => {
+        balanceMap.set(b.leave_type, {
+          total: Number(b.total_days),
+          used: Number(b.used_days),
+        });
+      });
+
+      // For types that appear in requests but NOT in balances, add them
+      usedMap.forEach((used, type) => {
+        if (!balanceMap.has(type)) {
+          balanceMap.set(type, { total: 0, used });
+        }
+      });
+
+      const summaries: LeaveBalanceSummary[] = [];
+      balanceMap.forEach((val, type) => {
+        summaries.push({
+          leave_type: type,
+          total_days: val.total,
+          used_days: val.used,
+          remaining_days: Math.max(0, val.total - val.used),
+        });
+      });
+
+      // Sort: main types first
+      const order = ["Annual Leave", "Sick Leave", "Personal Leave"];
+      summaries.sort((a, b) => {
+        const ai = order.indexOf(a.leave_type);
+        const bi = order.indexOf(b.leave_type);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
+
+      setClickedLeaveBalances(summaries);
+    } catch (err) {
+      console.error("Failed to fetch leave:", err);
+      setClickedLeaveBalances([]);
+    }
+    setLoadingLeave(false);
+  };
+
+  // When clicked employee changes, fetch their team and leave
   useEffect(() => {
     if (clickedEmployee?.id) {
       fetchClickedEmployeeTeam(String(clickedEmployee.id));
+      fetchClickedEmployeeLeave(clickedEmployee.user_id || null);
     } else {
       setClickedEmployeeTeam([]);
       setClickedTeamManagerIds(new Set());
+      setClickedLeaveBalances([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clickedEmployee?.id]);
 
   const handleRemoveFromClickedTeam = async (member: ClickedEmployeeTeamMember) => {
@@ -756,7 +859,7 @@ const Employees = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className={cn("grid gap-3", isManager ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-1")}>
+              <div className={cn("grid gap-3", isManager ? "grid-cols-2 lg:grid-cols-5" : "grid-cols-1")}>
                 <Button
                   variant="outline"
                   className="flex-col h-24 gap-2"
@@ -793,6 +896,11 @@ const Employees = () => {
                     >
                       <Clock className="h-6 w-6" />
                       <span className="text-sm font-medium">View Timesheet</span>
+                    </Button>
+
+                    <Button variant="outline" className="flex-col h-24 gap-2" onClick={() => setLeaveSummaryOpen(true)}>
+                      <CalendarDays className="h-6 w-6" />
+                      <span className="text-sm font-medium">Leave Summary</span>
                     </Button>
 
                     <Button
@@ -1065,6 +1173,61 @@ const Employees = () => {
       </Dialog>
 
       {/* Dialogs */}
+
+      {/* Leave Summary Dialog */}
+      <Dialog open={leaveSummaryOpen} onOpenChange={setLeaveSummaryOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              Leave Summary — {clickedEmployee?.first_name} {clickedEmployee?.last_name}
+              <span className="text-xs font-normal text-muted-foreground ml-1">
+                (up to Jun 30, {new Date().getMonth() >= 6 ? new Date().getFullYear() + 1 : new Date().getFullYear()})
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {loadingLeave ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : clickedLeaveBalances.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">No leave data available</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 py-2">
+              {clickedLeaveBalances.map((lb) => (
+                <div key={lb.leave_type} className="border rounded-lg p-3 space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground truncate">{lb.leave_type}</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-bold text-foreground">{lb.remaining_days}</span>
+                    <span className="text-xs text-muted-foreground">/ {lb.total_days} remaining</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-1.5">
+                    <div
+                      className={cn(
+                        "h-1.5 rounded-full transition-all",
+                        lb.total_days > 0 && lb.used_days / lb.total_days > 0.8
+                          ? "bg-destructive"
+                          : lb.total_days > 0 && lb.used_days / lb.total_days > 0.5
+                            ? "bg-yellow-500"
+                            : "bg-primary",
+                      )}
+                      style={{
+                        width: lb.total_days > 0 ? `${Math.min(100, (lb.used_days / lb.total_days) * 100)}%` : "0%",
+                      }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{lb.used_days} used</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <AddEmployeeDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} onAdd={handleAddEmployee} />
 
       <EmployeeProfileDialog employee={selectedEmployee} open={profileOpen} onOpenChange={setProfileOpen} />
