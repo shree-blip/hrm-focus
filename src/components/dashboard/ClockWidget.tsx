@@ -437,7 +437,17 @@ export const ClockWidget = memo(function ClockWidget() {
             <p className="text-xs text-muted-foreground">Today</p>
           </div>
           <div className="text-center p-3 rounded-lg bg-accent/50">
-            <p className="text-lg font-semibold text-foreground">{weeklyHours}</p>
+            <p className="text-lg font-semibold text-foreground">
+              {(() => {
+                const match = weeklyHours.match(/(\d+)h\s*(\d+)m/);
+                if (match) {
+                  const hrs = parseInt(match[1]);
+                  const mins = parseInt(match[2]);
+                  return `${(hrs + mins / 60).toFixed(1)}h`;
+                }
+                return weeklyHours;
+              })()}
+            </p>
             <p className="text-xs text-muted-foreground">This Week</p>
           </div>
           <div className="text-center p-3 rounded-lg bg-accent/50">
