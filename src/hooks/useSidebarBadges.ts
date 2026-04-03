@@ -50,9 +50,15 @@ export function useSidebarBadges() {
 
   useEffect(() => {
     if (!session) return;
-    fetchBadges();
+    // Delay initial fetch to let auth fully settle and reduce startup load
+    const timeout = setTimeout(() => {
+      fetchBadges();
+    }, INITIAL_DELAY);
     const id = setInterval(fetchBadges, POLL_INTERVAL);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(id);
+    };
   }, [fetchBadges, session]);
 
   const clearBadge = useCallback((href: string) => {
