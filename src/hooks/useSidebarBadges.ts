@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-const POLL_INTERVAL = 30_000;
+const POLL_INTERVAL = 60_000; // Reduced polling frequency to ease backend load
+const INITIAL_DELAY = 5_000; // Delay first fetch to let auth settle
 
 export type BadgeCounts = Record<string, number>;
 
@@ -49,9 +50,15 @@ export function useSidebarBadges() {
 
   useEffect(() => {
     if (!session) return;
-    fetchBadges();
+    // Delay initial fetch to let auth fully settle and reduce startup load
+    const timeout = setTimeout(() => {
+      fetchBadges();
+    }, INITIAL_DELAY);
     const id = setInterval(fetchBadges, POLL_INTERVAL);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(id);
+    };
   }, [fetchBadges, session]);
 
   const clearBadge = useCallback((href: string) => {
