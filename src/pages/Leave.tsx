@@ -65,7 +65,7 @@ const isLeaveOnLeaveType = (leaveType: string) => {
 };
 
 const Leave = () => {
-  const { user, isManager, isAdmin } = useAuth();
+  const { user, isManager, isAdmin, isVP } = useAuth();
   const {
     requests,
     ownRequests,

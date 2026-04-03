@@ -800,7 +800,7 @@ export function useLeaveRequests() {
     is_half_day: boolean;
     half_day_period: string | null;
   }) => {
-    if (!user || !isAdmin) return;
+    if (!user || (!isAdmin && !isVP)) return;
 
     const formatLocalDate = (date: Date) => {
       const year = date.getFullYear();
