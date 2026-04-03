@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-const POLL_INTERVAL = 30_000;
+const POLL_INTERVAL = 60_000; // Reduced polling frequency to ease backend load
+const INITIAL_DELAY = 5_000; // Delay first fetch to let auth settle
 
 export type BadgeCounts = Record<string, number>;
 
