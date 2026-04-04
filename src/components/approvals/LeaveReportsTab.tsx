@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +58,7 @@ interface EmployeeLeaveBalance {
 
 export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
   const now = new Date();
+  const { user, isAdmin, isVP } = useAuth();
   const { employees } = useEmployees();
   const [filterDateFrom, setFilterDateFrom] = useState<string>(format(startOfMonth(now), "yyyy-MM-dd"));
   const [filterDateTo, setFilterDateTo] = useState<string>(format(endOfMonth(now), "yyyy-MM-dd"));
@@ -69,8 +72,21 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
   const [employeeBalances, setEmployeeBalances] = useState<EmployeeLeaveBalance[]>([]);
   const [loadingBalances, setLoadingBalances] = useState(false);
 
+  // Team member user IDs for non-admin/VP users
+  const [teamUserIds, setTeamUserIds] = useState<string[] | null>(null);
+
   // Collapsible rejection reasons
   const [expandedRejections, setExpandedRejections] = useState<Set<string>>(new Set());
+
+  // Resolve team members for line managers / supervisors
+  useEffect(() => {
+    if (!user) return;
+    if (isAdmin || isVP) {
+      setTeamUserIds(null); // null = show all
+      return;
+    }
+    resolveTeamMemberUserIds(user.id).then((ids) => setTeamUserIds(ids));
+  }, [user, isAdmin, isVP]);
 
   // ─── Fetch employee leave balances ───
   const fetchEmployeeBalances = useCallback(async () => {
@@ -88,9 +104,14 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
         return;
       }
 
+      // Filter balances to team members only for non-admin/VP
+      const relevantBalances = teamUserIds
+        ? allBalances.filter((b) => teamUserIds.includes(b.user_id))
+        : allBalances;
+
       // Sum all leave types per user
       const userMap = new Map<string, { totalDays: number; usedDays: number }>();
-      allBalances.forEach((b) => {
+      relevantBalances.forEach((b) => {
         if (!userMap.has(b.user_id)) {
           userMap.set(b.user_id, { totalDays: 0, usedDays: 0 });
         }
@@ -127,7 +148,7 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
       console.error("Failed to fetch employee balances:", err);
     }
     setLoadingBalances(false);
-  }, [employees]);
+  }, [employees, teamUserIds]);
 
   useEffect(() => {
     if (employees.length > 0) fetchEmployeeBalances();
