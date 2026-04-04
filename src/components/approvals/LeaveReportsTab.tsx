@@ -109,6 +109,12 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
         ? allBalances.filter((b) => teamUserIds.includes(b.user_id))
         : allBalances;
 
+      if (relevantBalances.length === 0) {
+        setEmployeeBalances([]);
+        setLoadingBalances(false);
+        return;
+      }
+
       // Sum all leave types per user
       const userMap = new Map<string, { totalDays: number; usedDays: number }>();
       relevantBalances.forEach((b) => {
@@ -120,6 +126,7 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
         entry.usedDays += Number(b.used_days);
       });
 
+      // Build name map: first try from employees list, then fall back to profiles table
       const userIdToEmp = new Map<string, { name: string; dept: string }>();
       employees.forEach((emp) => {
         if (emp.user_id) {
@@ -129,6 +136,25 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
           });
         }
       });
+
+      // Find any user_ids missing from the employees list and resolve via profiles + employees table
+      const missingUserIds = Array.from(userMap.keys()).filter((uid) => !userIdToEmp.has(uid));
+      if (missingUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, user_id, first_name, last_name, department")
+          .in("user_id", missingUserIds);
+        if (profiles) {
+          for (const p of profiles) {
+            if (p.user_id && !userIdToEmp.has(p.user_id)) {
+              userIdToEmp.set(p.user_id, {
+                name: `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Unknown",
+                dept: p.department || "—",
+              });
+            }
+          }
+        }
+      }
 
       const result: EmployeeLeaveBalance[] = [];
       userMap.forEach((val, userId) => {
