@@ -93,21 +93,26 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
     setLoadingBalances(true);
     try {
       const currentYear = new Date().getFullYear();
-      const { data: allBalances } = await supabase
-        .from("leave_balances")
-        .select("user_id, leave_type, total_days, used_days")
-        .eq("year", currentYear);
 
-      if (!allBalances || allBalances.length === 0) {
-        setEmployeeBalances([]);
-        setLoadingBalances(false);
-        return;
+      // For managers with teamUserIds, query balances only for those users directly
+      let relevantBalances: { user_id: string; leave_type: string; total_days: number; used_days: number }[] = [];
+
+      if (teamUserIds && teamUserIds.length > 0) {
+        // Batch query only team member balances
+        const { data } = await supabase
+          .from("leave_balances")
+          .select("user_id, leave_type, total_days, used_days")
+          .eq("year", currentYear)
+          .in("user_id", teamUserIds);
+        relevantBalances = data || [];
+      } else if (teamUserIds === null) {
+        // Admin/VP: fetch all
+        const { data } = await supabase
+          .from("leave_balances")
+          .select("user_id, leave_type, total_days, used_days")
+          .eq("year", currentYear);
+        relevantBalances = data || [];
       }
-
-      // Filter balances to team members only for non-admin/VP
-      const relevantBalances = teamUserIds
-        ? allBalances.filter((b) => teamUserIds.includes(b.user_id))
-        : allBalances;
 
       if (relevantBalances.length === 0) {
         setEmployeeBalances([]);
@@ -126,44 +131,34 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
         entry.usedDays += Number(b.used_days);
       });
 
-      // Build name map: first try from employees list, then fall back to profiles table
-      const userIdToEmp = new Map<string, { name: string; dept: string }>();
-      employees.forEach((emp) => {
-        if (emp.user_id) {
-          userIdToEmp.set(emp.user_id, {
-            name: `${emp.first_name} ${emp.last_name}`,
-            dept: emp.department || "—",
-          });
-        }
-      });
+      // Resolve names: always query profiles for the exact user_ids we have balances for
+      const balanceUserIds = Array.from(userMap.keys());
+      const userIdToInfo = new Map<string, { name: string; dept: string }>();
 
-      // Find any user_ids missing from the employees list and resolve via profiles + employees table
-      const missingUserIds = Array.from(userMap.keys()).filter((uid) => !userIdToEmp.has(uid));
-      if (missingUserIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, user_id, first_name, last_name, department")
-          .in("user_id", missingUserIds);
-        if (profiles) {
-          for (const p of profiles) {
-            if (p.user_id && !userIdToEmp.has(p.user_id)) {
-              userIdToEmp.set(p.user_id, {
-                name: `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Unknown",
-                dept: p.department || "—",
-              });
-            }
+      // Query profiles directly for these user_ids
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, department")
+        .in("user_id", balanceUserIds);
+
+      if (profiles) {
+        for (const p of profiles) {
+          if (p.user_id) {
+            userIdToInfo.set(p.user_id, {
+              name: `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Unknown",
+              dept: p.department || "—",
+            });
           }
         }
       }
 
       const result: EmployeeLeaveBalance[] = [];
       userMap.forEach((val, userId) => {
-        const emp = userIdToEmp.get(userId);
-        if (!emp) return;
+        const info = userIdToInfo.get(userId);
         result.push({
           userId,
-          employeeName: emp.name,
-          department: emp.dept,
+          employeeName: info?.name || "Unknown",
+          department: info?.dept || "—",
           totalDays: val.totalDays,
           usedDays: val.usedDays,
         });
@@ -174,7 +169,7 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
       console.error("Failed to fetch employee balances:", err);
     }
     setLoadingBalances(false);
-  }, [employees, teamUserIds]);
+  }, [teamUserIds]);
 
   useEffect(() => {
     // For admin/VP teamUserIds is null (show all); for managers wait until resolved
