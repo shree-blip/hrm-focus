@@ -177,8 +177,13 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
   }, [employees, teamUserIds]);
 
   useEffect(() => {
-    if (employees.length > 0) fetchEmployeeBalances();
-  }, [employees.length, fetchEmployeeBalances]);
+    // For admin/VP teamUserIds is null (show all); for managers wait until resolved
+    if (isAdmin || isVP) {
+      if (employees.length > 0) fetchEmployeeBalances();
+    } else if (teamUserIds !== null && teamUserIds.length > 0) {
+      fetchEmployeeBalances();
+    }
+  }, [employees.length, fetchEmployeeBalances, teamUserIds, isAdmin, isVP]);
 
   // ─── Filters ───
   const filtered = useMemo(() => {
