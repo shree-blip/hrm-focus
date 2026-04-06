@@ -91,6 +91,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Approvals: pending leave requests (for approvers)
+    if (has("approve_leave")) {
+      queries.push(
+        supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+          .then(({ count }) => { badges.approvals = count || 0; })
+      );
+    }
+
     // Tasks: open tasks assigned to user
     if (has("manage_tasks") || has("view_tasks")) {
       queries.push(
