@@ -635,43 +635,6 @@ const Leave = () => {
           </CardContent>
         </Card>
 
-        {/* Other Leave Card - NEW */}
-        <Card
-          className="animate-slide-up opacity-0 hover:shadow-md transition-shadow border-violet-500/20"
-          style={{ animationDelay: "250ms", animationFillMode: "forwards" }}
-        >
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                <FileText className="h-4 w-4 text-violet-500" />
-                Other
-              </p>
-              <Badge variant="secondary" className="bg-violet-500/10 text-violet-600 dark:text-violet-400">
-                Reason based
-              </Badge>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-display font-bold text-violet-600 dark:text-violet-400">
-                  {getOtherLeaveUsed()}
-                </span>
-                <span className="text-muted-foreground">days used</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">For emergency or miscellaneous leave requests</p>
-              <div className="flex flex-wrap gap-1 mt-2">
-                {["Extension", "Medical", "Family", "Travel", "Other"].map((type) => (
-                  <Badge
-                    key={type}
-                    variant="outline"
-                    className="text-xs border-violet-500/30 text-violet-600 dark:text-violet-400"
-                  >
-                    {type}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Main Content */}
