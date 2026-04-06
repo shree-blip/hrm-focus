@@ -233,7 +233,8 @@ export function RealTimeAttendanceWidget() {
   const [nptTime, setNptTime] = useState("");
   const [pstTime, setPstTime] = useState("");
   const [dailyLogs, setDailyLogs] = useState<AttendanceLogRow[]>([]);
-  const [isExporting, setIsExporting] = useState(false); // Add this new state
+  const [breakSessionsByLogId, setBreakSessionsByLogId] = useState<Map<string, BreakSessionRow[]>>(new Map());
+  const [isExporting, setIsExporting] = useState(false);
   const [openFullActivityView, setOpenFullActivityView] = useState(false);
   const [activitySearch, setActivitySearch] = useState("");
   const [activityTypeFilter, setActivityTypeFilter] = useState<"all" | Status>("all");
