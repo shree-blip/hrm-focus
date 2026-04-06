@@ -13,6 +13,14 @@ interface EmployeeAttendance {
   user_id: string;
 }
 
+interface BreakSessionRecord {
+  id: string;
+  session_type: string;
+  start_time: string;
+  end_time: string | null;
+  duration_minutes: number | null;
+}
+
 interface DailyAttendanceRecord {
   id: string;
   user_id: string;
@@ -31,6 +39,8 @@ interface DailyAttendanceRecord {
   hours_worked: number;
   date: string;
   is_edited: boolean;
+  breaks: { break_start: string | null; break_end: string | null; duration_minutes: number }[];
+  pauses: { pause_start: string | null; pause_end: string | null; duration_minutes: number }[];
 }
 
 export type DateRangeType = "this-month" | "last-month" | "this-quarter" | "this-year";
