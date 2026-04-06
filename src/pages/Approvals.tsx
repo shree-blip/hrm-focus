@@ -70,8 +70,8 @@ const getLeaveTypeBadge = (type: string) => {
 };
 
 const Approvals = () => {
-  const { user, role, isVP } = useAuth();
-  const { requests, loading, approveRequest, rejectRequest, refetch } = useLeaveRequests();
+  const { user, role, isVP, isAdmin, isLineManager, isSupervisor } = useAuth();
+  const { requests, loading, approveRequest, rejectRequest, cancelRequest, refetch } = useLeaveRequests();
   const { pendingApprovals: pendingPromotions } = usePromotions();
   const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports">(
     "approvals:section",
