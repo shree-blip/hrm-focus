@@ -19,7 +19,8 @@ import { useTasks } from "@/hooks/useTasks";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
-import { useMemo, lazy, Suspense } from "react";
+import { useMemo, useEffect, lazy, Suspense } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
 // Lazy load heavy below-fold components
@@ -33,10 +34,19 @@ const CompanyCalendar = lazy(() =>
 const Index = () => {
   const { profile, role, isManager } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { employees } = useEmployees();
   const { tasks } = useTasks();
   const { requests, ownRequests, teamLeaves } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
+
+  // Auto-refresh dashboard every 15 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries();
+    }, 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [queryClient]);
 
   const firstName = profile?.first_name || "User";
   const pendingTasks = tasks.filter((t) => t.status !== "done").length;
