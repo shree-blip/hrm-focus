@@ -329,11 +329,19 @@ const Attendance = () => {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
   const handleExport = async () => {
-    const fmt = (ts: string) => formatAttendanceTime(ts, tz);
+    const formatDateLocal = (ts: string | null) => {
+      if (!ts) return "-";
+      return getWorkDateDisplay(ts, tz);
+    };
+    const formatTimeLocal = (ts: string | null) => {
+      if (!ts) return "-";
+      const f = formatAttendanceTime(ts, tz);
+      return f.localTime;
+    };
 
     // Fetch all break/pause sessions for the weekly logs
     const logIds = weeklyLogs.map((l: any) => l.id).filter(Boolean);
-    let sessionsMap = new Map<string, any[]>();
+    const sessionsMap = new Map<string, any[]>();
     if (logIds.length > 0) {
       const { data: sessions } = await supabase
         .from("attendance_break_sessions")
@@ -350,125 +358,90 @@ const Attendance = () => {
     }
 
     // Determine max break/pause counts for dynamic columns
-    let maxBreaks = 0;
-    let maxPauses = 0;
-    weeklyLogs.forEach((log: any) => {
-      const sessions = sessionsMap.get(log.id) || [];
-      const breakCount = sessions.filter((s: any) => s.session_type === "break").length;
-      const pauseCount = sessions.filter((s: any) => s.session_type === "pause").length;
-      if (breakCount > maxBreaks) maxBreaks = breakCount;
-      if (pauseCount > maxPauses) maxPauses = pauseCount;
-    });
+    const maxBreaks = Math.max(1, weeklyLogs.reduce((max: number, log: any) => {
+      const s = sessionsMap.get(log.id) || [];
+      return Math.max(max, s.filter((x: any) => x.session_type === "break").length);
+    }, 0));
+    const maxPauses = Math.max(1, weeklyLogs.reduce((max: number, log: any) => {
+      const s = sessionsMap.get(log.id) || [];
+      return Math.max(max, s.filter((x: any) => x.session_type === "pause").length);
+    }, 0));
 
-    const headers = [
-      "Work Date",
-      "Clock In",
-      "Clock In TZ",
-      "Clock Out",
-      "Clock Out TZ",
-      "Total Break (min)",
-      "Total Pause (min)",
-      "Net Hours Worked",
-      "Type",
-      "Work Mode",
-      "Location",
-      "Night Shift",
-      "Status",
-      "Edited",
-      "Notes",
-      "Clock In UTC",
-      "Clock Out UTC",
-    ];
-    // Add dynamic break columns
+    // Build dynamic header matching Reports page format
+    let header = "Date,Clock In";
     for (let i = 1; i <= maxBreaks; i++) {
-      headers.push(`Break ${i} Start`, `Break ${i} End`, `Break ${i} Duration (min)`);
+      header += `,Break ${i} Start,Break ${i} End,Break ${i} Duration (min)`;
     }
-    // Add dynamic pause columns
+    header += ",Total Breaks Count,Total Break Time (min)";
     for (let i = 1; i <= maxPauses; i++) {
-      headers.push(`Pause ${i} Start`, `Pause ${i} End`, `Pause ${i} Duration (min)`);
+      header += `,Pause ${i} Start,Pause ${i} End,Pause ${i} Duration (min)`;
     }
+    header += ",Total Pauses Count,Total Pause Time (min)";
+    header += ",Clock Out,Total Hours (excl. breaks & pauses),Status\n";
 
-    const escCsv = (val: string) => {
-      if (val.includes(",") || val.includes('"') || val.includes("\n")) {
-        return `"${val.replace(/"/g, '""')}"`;
+    let csvContent = header;
+
+    weeklyLogs.forEach((log: any) => {
+      const clockInTime = new Date(log.clock_in);
+      const clockOutTime = log.clock_out ? new Date(log.clock_out) : null;
+      const allSessions = sessionsMap.get(log.id) || [];
+      const breaks = allSessions.filter((s: any) => s.session_type === "break");
+      const pauses = allSessions.filter((s: any) => s.session_type === "pause");
+
+      const totalBreakMinutes = log.total_break_minutes || breaks.reduce((sum: number, b: any) => sum + (b.duration_minutes || 0), 0);
+      const totalPauseMinutes = log.total_pause_minutes || pauses.reduce((sum: number, p: any) => sum + (p.duration_minutes || 0), 0);
+
+      let totalHoursStr = "In Progress";
+      if (clockOutTime) {
+        const diffMs = clockOutTime.getTime() - clockInTime.getTime();
+        const netMs = diffMs - (totalBreakMinutes + totalPauseMinutes) * 60 * 1000;
+        totalHoursStr = (Math.max(0, netMs) / (1000 * 60 * 60)).toFixed(2);
       }
-      return val;
-    };
 
-    const rows = weeklyLogs.map((log: any) => {
-      const clockIn = new Date(log.clock_in);
-      const clockOut = log.clock_out ? new Date(log.clock_out) : null;
-      const breakMinutes = log.total_break_minutes || 0;
-      const pauseMinutes = log.total_pause_minutes || 0;
-      let hours = "-";
-      if (clockOut) {
-        const diffMs = clockOut.getTime() - clockIn.getTime();
-        const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
-        hours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}`;
-      }
-      const inFmt = fmt(log.clock_in);
-      const outFmt = log.clock_out ? fmt(log.clock_out) : null;
-      const nightShift = log.clock_out ? isNightShift(log.clock_in, log.clock_out, tz) : false;
+      const status = clockOutTime ? (parseFloat(totalHoursStr) >= 8 ? "Full Day" : "Short Day") : "In Progress";
 
-      const sessions = sessionsMap.get(log.id) || [];
-      const breakSessions = sessions.filter((s: any) => s.session_type === "break");
-      const pauseSessions = sessions.filter((s: any) => s.session_type === "pause");
+      let row = `"${formatDateLocal(log.clock_in)}","${formatTimeLocal(log.clock_in)}"`;
 
-      const fmtSession = (ts: string | null) => {
-        if (!ts) return "-";
-        const f = formatAttendanceTime(ts, tz);
-        return f.localTime;
-      };
-
-      const cols = [
-        getWorkDateDisplay(log.clock_in, tz),
-        inFmt.localTime,
-        inFmt.tzAbbr,
-        outFmt ? outFmt.localTime : "-",
-        outFmt ? outFmt.tzAbbr : "-",
-        String(breakMinutes),
-        String(pauseMinutes),
-        hours,
-        log.clock_type || "payroll",
-        log.work_mode || "-",
-        log.location_name || "-",
-        nightShift ? "Yes" : "No",
-        log.status || "-",
-        log.is_edited ? "Yes" : "No",
-        escCsv(log.notes || "-"),
-        log.clock_in,
-        log.clock_out || "-",
-      ];
-
-      // Add break session details
+      // Break details
       for (let i = 0; i < maxBreaks; i++) {
-        const b = breakSessions[i];
-        if (b) {
-          cols.push(fmtSession(b.start_time), fmtSession(b.end_time), String(b.duration_minutes || 0));
+        if (breaks[i]) {
+          const brk = breaks[i];
+          let dur = brk.duration_minutes || 0;
+          if (!dur && brk.start_time && brk.end_time) {
+            dur = Math.round((new Date(brk.end_time).getTime() - new Date(brk.start_time).getTime()) / (1000 * 60));
+          }
+          row += `,"${formatTimeLocal(brk.start_time)}","${formatTimeLocal(brk.end_time)}",${dur}`;
         } else {
-          cols.push("-", "-", "-");
+          row += `,"-","-",0`;
         }
       }
-      // Add pause session details
-      for (let i = 0; i < maxPauses; i++) {
-        const p = pauseSessions[i];
-        if (p) {
-          cols.push(fmtSession(p.start_time), fmtSession(p.end_time), String(p.duration_minutes || 0));
-        } else {
-          cols.push("-", "-", "-");
-        }
-      }
+      row += `,${breaks.length},${totalBreakMinutes}`;
 
-      return cols.join(",");
+      // Pause details
+      for (let i = 0; i < maxPauses; i++) {
+        if (pauses[i]) {
+          const p = pauses[i];
+          let dur = p.duration_minutes || 0;
+          if (!dur && p.start_time && p.end_time) {
+            dur = Math.round((new Date(p.end_time).getTime() - new Date(p.start_time).getTime()) / (1000 * 60));
+          }
+          row += `,"${formatTimeLocal(p.start_time)}","${formatTimeLocal(p.end_time)}",${dur}`;
+        } else {
+          row += `,"-","-",0`;
+        }
+      }
+      row += `,${pauses.length},${totalPauseMinutes}`;
+
+      row += `,"${formatTimeLocal(log.clock_out)}",${totalHoursStr},"${status}"\n`;
+      csvContent += row;
     });
 
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance-${format(currentWeekStart, "yyyy-MM-dd")}.csv`;
-    a.click();
+    link.href = url;
+    link.download = `attendance-${format(currentWeekStart, "yyyy-MM-dd")}.csv`;
+    link.click();
 
     toast({
       title: "Export Complete",
