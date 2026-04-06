@@ -334,6 +334,22 @@ const Approvals = () => {
               )}
             </div>
           )}
+
+          {/* Cancel approved leave — Admin/VP/LM/Supervisor */}
+          {request.status === "approved" && (isAdmin || isVP || isSupervisor || isLineManager) && (
+            <div className="flex gap-2 mt-3">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1 text-destructive hover:bg-destructive/10"
+                onClick={() => cancelRequest(request.id, "Cancelled by management")}
+                disabled={isProcessing}
+              >
+                <X className="h-3 w-3" />
+                Cancel Leave
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );
