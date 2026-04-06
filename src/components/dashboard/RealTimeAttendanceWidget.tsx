@@ -619,46 +619,27 @@ export function RealTimeAttendanceWidget() {
       const department = emp?.department || null;
 
       if (log.clock_in) rows.push({ id: `${log.id}-in`, name, type: "IN", time: log.clock_in, department });
-      if (log.break_start)
-        rows.push({
-          id: `${log.id}-brs`,
-          name,
-          type: "BRS",
-          time: log.break_start,
-          department,
+
+      // Use individual sessions for detailed break/pause events
+      const sessions = breakSessionsByLogId.get(log.id) || [];
+      if (sessions.length > 0) {
+        sessions.forEach((s, idx) => {
+          if (s.session_type === "break") {
+            rows.push({ id: `${log.id}-brs-${idx}`, name, type: "BRS", time: s.start_time, department });
+            if (s.end_time) rows.push({ id: `${log.id}-bre-${idx}`, name, type: "BRE", time: s.end_time, department });
+          } else if (s.session_type === "pause") {
+            rows.push({ id: `${log.id}-pause-${idx}`, name, type: "PAUSE", time: s.start_time, department });
+            if (s.end_time) rows.push({ id: `${log.id}-cont-${idx}`, name, type: "CONT", time: s.end_time, department });
+          }
         });
-      if (log.break_end)
-        rows.push({
-          id: `${log.id}-bre`,
-          name,
-          type: "BRE",
-          time: log.break_end,
-          department,
-        });
-      if (log.pause_start)
-        rows.push({
-          id: `${log.id}-pause`,
-          name,
-          type: "PAUSE",
-          time: log.pause_start,
-          department,
-        });
-      if (log.pause_end)
-        rows.push({
-          id: `${log.id}-cont`,
-          name,
-          type: "CONT",
-          time: log.pause_end,
-          department,
-        });
-      if (log.clock_out)
-        rows.push({
-          id: `${log.id}-out`,
-          name,
-          type: "OUT",
-          time: log.clock_out,
-          department,
-        });
+      } else {
+        if (log.break_start) rows.push({ id: `${log.id}-brs`, name, type: "BRS", time: log.break_start, department });
+        if (log.break_end) rows.push({ id: `${log.id}-bre`, name, type: "BRE", time: log.break_end, department });
+        if (log.pause_start) rows.push({ id: `${log.id}-pause`, name, type: "PAUSE", time: log.pause_start, department });
+        if (log.pause_end) rows.push({ id: `${log.id}-cont`, name, type: "CONT", time: log.pause_end, department });
+      }
+
+      if (log.clock_out) rows.push({ id: `${log.id}-out`, name, type: "OUT", time: log.clock_out, department });
     });
 
     // Merge realtime timeline events so repeated break/pause cycles appear in popup details too.
