@@ -153,7 +153,7 @@ const Attendance = () => {
     const leaveHoursMap = new Map<string, number>();
 
     leaveRequests.forEach((request) => {
-      if (request.status !== "approved" || !request.start_date || !request.end_date) {
+      if (request.status !== "approved" || !request.start_date || !request.end_date || request.user_id !== user?.id) {
         return;
       }
 
