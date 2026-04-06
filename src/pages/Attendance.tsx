@@ -1010,6 +1010,14 @@ const Attendance = () => {
                               sessions={getSessions(log.id)}
                               loading={isSessionLoading(log.id)}
                               timezone={tz}
+                              legacyData={{
+                                break_start: log.break_start,
+                                break_end: log.break_end,
+                                total_break_minutes: log.total_break_minutes,
+                                pause_start: log.pause_start,
+                                pause_end: log.pause_end,
+                                total_pause_minutes: log.total_pause_minutes,
+                              }}
                             />
                           </TableCell>
                         </TableRow>

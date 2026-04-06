@@ -5,10 +5,20 @@ import { Coffee, Pause, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BreakSession } from "@/hooks/useBreakSessions";
 
+interface LegacyBreakPauseData {
+  break_start?: string | null;
+  break_end?: string | null;
+  total_break_minutes?: number | null;
+  pause_start?: string | null;
+  pause_end?: string | null;
+  total_pause_minutes?: number | null;
+}
+
 interface BreakPauseDetailProps {
   sessions: BreakSession[] | null;
   loading: boolean;
   timezone?: string;
+  legacyData?: LegacyBreakPauseData;
 }
 
 function formatSessionTime(isoString: string | null, tz?: string): string {
@@ -38,7 +48,7 @@ function formatDur(minutes: number | null): string {
   return `${h}h ${m}m`;
 }
 
-export function BreakPauseDetailPanel({ sessions, loading, timezone }: BreakPauseDetailProps) {
+export function BreakPauseDetailPanel({ sessions, loading, timezone, legacyData }: BreakPauseDetailProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-4">
@@ -47,14 +57,66 @@ export function BreakPauseDetailPanel({ sessions, loading, timezone }: BreakPaus
     );
   }
 
-  if (!sessions || sessions.length === 0) {
+  // If no individual sessions, build synthetic entries from legacy data
+  const displaySessions: BreakSession[] = (() => {
+    if (sessions && sessions.length > 0) return sessions;
+    if (!legacyData) return [];
+
+    const synthetic: BreakSession[] = [];
+    if (legacyData.break_start && (legacyData.total_break_minutes || 0) > 0) {
+      synthetic.push({
+        id: "legacy-break",
+        attendance_log_id: "",
+        session_type: "break",
+        start_time: legacyData.break_start,
+        end_time: legacyData.break_end || null,
+        duration_minutes: legacyData.total_break_minutes || null,
+      });
+    }
+    if (legacyData.pause_start && (legacyData.total_pause_minutes || 0) > 0) {
+      synthetic.push({
+        id: "legacy-pause",
+        attendance_log_id: "",
+        session_type: "pause",
+        start_time: legacyData.pause_start,
+        end_time: legacyData.pause_end || null,
+        duration_minutes: legacyData.total_pause_minutes || null,
+      });
+    }
+    return synthetic;
+  })();
+
+  if (displaySessions.length === 0) {
+    // Still show totals from legacy if available
+    const hasLegacyTotals = legacyData && ((legacyData.total_break_minutes || 0) > 0 || (legacyData.total_pause_minutes || 0) > 0);
+    if (hasLegacyTotals) {
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground py-1">No individual session timestamps recorded. Aggregate totals:</p>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            {(legacyData!.total_break_minutes || 0) > 0 && (
+              <span className="flex items-center gap-1">
+                <Coffee className="h-3 w-3 text-warning" />
+                Total Break: {formatDur(legacyData!.total_break_minutes || 0)}
+              </span>
+            )}
+            {(legacyData!.total_pause_minutes || 0) > 0 && (
+              <span className="flex items-center gap-1">
+                <Pause className="h-3 w-3 text-info" />
+                Total Pause: {formatDur(legacyData!.total_pause_minutes || 0)}
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    }
     return (
       <p className="text-xs text-muted-foreground py-2">No individual session records found.</p>
     );
   }
 
-  const breaks = sessions.filter((s) => s.session_type === "break");
-  const pauses = sessions.filter((s) => s.session_type === "pause");
+  const breaks = displaySessions.filter((s) => s.session_type === "break");
+  const pauses = displaySessions.filter((s) => s.session_type === "pause");
 
   const totalBreakMin = breaks.reduce((s, b) => s + (b.duration_minutes || 0), 0);
   const totalPauseMin = pauses.reduce((s, p) => s + (p.duration_minutes || 0), 0);
@@ -74,7 +136,7 @@ export function BreakPauseDetailPanel({ sessions, loading, timezone }: BreakPaus
             </tr>
           </thead>
           <tbody>
-            {sessions.map((session, idx) => (
+            {displaySessions.map((session, idx) => (
               <tr key={session.id} className="border-b last:border-0">
                 <td className="px-3 py-1.5 text-muted-foreground">{idx + 1}</td>
                 <td className="px-3 py-1.5">

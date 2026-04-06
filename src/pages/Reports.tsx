@@ -1219,6 +1219,14 @@ const Reports = () => {
                                     sessions={getSessions(logId)}
                                     loading={isSessionLoading(logId)}
                                     timezone={typedAtt.employee_timezone}
+                                    legacyData={{
+                                      break_start: typedAtt.break_start,
+                                      break_end: typedAtt.break_end,
+                                      total_break_minutes: (att as any).total_break_minutes,
+                                      pause_start: typedAtt.pause_start,
+                                      pause_end: typedAtt.pause_end,
+                                      total_pause_minutes: (att as any).total_pause_minutes,
+                                    }}
                                   />
                                 </td>
                               </tr>
