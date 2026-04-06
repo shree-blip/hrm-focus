@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,8 @@ import {
   PenLine,
   Home,
 } from "lucide-react";
+import { useBreakSessions } from "@/hooks/useBreakSessions";
+import { BreakPauseCell, BreakPauseDetailPanel } from "@/components/attendance/BreakPauseDetail";
 import { cn } from "@/lib/utils";
 import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
