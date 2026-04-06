@@ -56,14 +56,10 @@ const Index = () => {
   }, []);
 
   // Filter: only approved leaves that are currently active or upcoming (end_date >= today)
-  const activeAndUpcomingLeaves = useMemo(() => {
+  const pendingLeaves = useMemo(() => {
     const allLeaves = isManager ? requests : ownRequests;
-    return allLeaves.filter((r) => {
-      if (r.status === "approved" && r.end_date >= todayStr) return true;
-      if (r.status === "pending") return true;
-      return false;
-    });
-  }, [requests, ownRequests, isManager, todayStr]);
+    return allLeaves.filter((r) => r.status === "pending");
+  }, [requests, ownRequests, isManager]);
 
   // Pending leave requests count (for manager approval badge)
   const pendingLeaveRequests = useMemo(() => {
@@ -191,10 +187,10 @@ const Index = () => {
         />
         <StatCard
           title={isManager ? "Leave Requests" : "My Leave"}
-          value={activeAndUpcomingLeaves.length.toString()}
+          value={pendingLeaves.length.toString()}
           change={leaveChangeText}
           changeType={
-            isManager && pendingLeaveRequests > 0 ? "negative" : onLeaveToday.length > 0 ? "neutral" : "positive"
+            isManager && pendingLeaves.length > 0 ? "negative" : onLeaveToday.length > 0 ? "neutral" : "positive"
           }
           icon={Calendar}
           iconColor="bg-info/10 text-info"
