@@ -195,6 +195,24 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
+        // Close any open break/pause sessions for this log
+        const { data: openSessions } = await supabaseAdmin
+          .from("attendance_break_sessions")
+          .select("id, session_type, start_time")
+          .eq("attendance_log_id", log_id)
+          .is("end_time", null);
+
+        if (openSessions && openSessions.length > 0) {
+          for (const session of openSessions) {
+            const sessionStart = new Date(session.start_time);
+            const dur = Math.round((serverNow.getTime() - sessionStart.getTime()) / 60000);
+            await supabaseAdmin
+              .from("attendance_break_sessions")
+              .update({ end_time: serverUtc, duration_minutes: dur })
+              .eq("id", session.id);
+          }
+        }
+
         // Auto-close active work logs
         const { data: activeLogs } = await supabaseAdmin
           .from("work_logs")
