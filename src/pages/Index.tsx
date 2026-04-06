@@ -1,17 +1,6 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { StatCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ClockWidget } from "@/components/dashboard/ClockWidget";
-import { TasksWidget } from "@/components/dashboard/TasksWidget";
-import { LeaveWidget } from "@/components/dashboard/LeaveWidget";
-import { TeamWidget } from "@/components/dashboard/TeamWidget";
-import { AnnouncementsWidget } from "@/components/dashboard/AnnouncementsWidget";
-import { DailyTimelineWidget } from "@/components/dashboard/DailyTimelineWidget";
-import { RealTimeAttendanceWidget } from "@/components/dashboard/RealTimeAttendanceWidget";
-import { GlobalTimeZoneWidget } from "@/components/dashboard/GlobalTimeZoneWidget";
-
-import { PersonalReportsWidget } from "@/components/dashboard/PersonalReportsWidget";
-import { TeamReportsWidget } from "@/components/dashboard/TeamReportsWidget";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -23,12 +12,36 @@ import { useMemo, useEffect, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
-// Lazy load heavy below-fold components
+// Lazy load ALL heavy below-fold widgets
 const PerformanceChart = lazy(() =>
   import("@/components/dashboard/PerformanceChart").then((m) => ({ default: m.PerformanceChart })),
 );
 const CompanyCalendar = lazy(() =>
   import("@/components/dashboard/CompanyCalendar").then((m) => ({ default: m.CompanyCalendar })),
+);
+const RealTimeAttendanceWidget = lazy(() =>
+  import("@/components/dashboard/RealTimeAttendanceWidget").then((m) => ({ default: m.RealTimeAttendanceWidget })),
+);
+const TasksWidget = lazy(() =>
+  import("@/components/dashboard/TasksWidget").then((m) => ({ default: m.TasksWidget })),
+);
+const LeaveWidget = lazy(() =>
+  import("@/components/dashboard/LeaveWidget").then((m) => ({ default: m.LeaveWidget })),
+);
+const AnnouncementsWidget = lazy(() =>
+  import("@/components/dashboard/AnnouncementsWidget").then((m) => ({ default: m.AnnouncementsWidget })),
+);
+const DailyTimelineWidget = lazy(() =>
+  import("@/components/dashboard/DailyTimelineWidget").then((m) => ({ default: m.DailyTimelineWidget })),
+);
+const GlobalTimeZoneWidget = lazy(() =>
+  import("@/components/dashboard/GlobalTimeZoneWidget").then((m) => ({ default: m.GlobalTimeZoneWidget })),
+);
+const PersonalReportsWidget = lazy(() =>
+  import("@/components/dashboard/PersonalReportsWidget").then((m) => ({ default: m.PersonalReportsWidget })),
+);
+const TeamReportsWidget = lazy(() =>
+  import("@/components/dashboard/TeamReportsWidget").then((m) => ({ default: m.TeamReportsWidget })),
 );
 
 const Index = () => {
@@ -56,7 +69,6 @@ const Index = () => {
     return t.due_date === today && t.status !== "done";
   }).length;
 
-  // Get today's date string for comparisons
   const todayStr = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -65,19 +77,16 @@ const Index = () => {
     return `${year}-${month}-${day}`;
   }, []);
 
-  // Filter: only approved leaves that are currently active or upcoming (end_date >= today)
   const pendingLeaves = useMemo(() => {
     const allLeaves = isManager ? requests : ownRequests;
     return allLeaves.filter((r) => r.status === "pending");
   }, [requests, ownRequests, isManager]);
 
-  // Pending leave requests count (for manager approval badge)
   const pendingLeaveRequests = useMemo(() => {
     const allLeaves = isManager ? requests : ownRequests;
     return allLeaves.filter((r) => r.status === "pending").length;
   }, [requests, ownRequests, isManager]);
 
-  // People on leave TODAY (approved leaves where today falls between start and end date)
   const onLeaveToday = useMemo(() => {
     const source = teamLeaves.length > 0 ? teamLeaves : requests;
     return source.filter((r) => {
@@ -85,7 +94,6 @@ const Index = () => {
     });
   }, [teamLeaves, requests, todayStr]);
 
-  // Build the leave stat card subtitle
   const leaveChangeText = useMemo(() => {
     if (isManager) {
       if (pendingLeaveRequests > 0) {
@@ -144,10 +152,15 @@ const Index = () => {
       {/* Mobile-Only: Clock & Timeline at Top */}
       <div className="lg:hidden space-y-6 mb-6">
         <ClockWidget />
-        <RealTimeAttendanceWidget />
-        <DailyTimelineWidget onViewAll={handleViewCalendar} />
-        {/* Mobile: Time Zone Widget */}
-        <GlobalTimeZoneWidget />
+        <Suspense fallback={<WidgetCardSkeleton delay={100} />}>
+          <RealTimeAttendanceWidget />
+        </Suspense>
+        <Suspense fallback={<WidgetCardSkeleton delay={150} />}>
+          <DailyTimelineWidget onViewAll={handleViewCalendar} />
+        </Suspense>
+        <Suspense fallback={<WidgetCardSkeleton delay={200} />}>
+          <GlobalTimeZoneWidget />
+        </Suspense>
       </div>
 
       {/* Stats Grid */}
@@ -213,16 +226,22 @@ const Index = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - 2/3 width */}
         <div className="lg:col-span-2 space-y-6">
-          {isManager ? <TeamReportsWidget /> : <PersonalReportsWidget />}
+          <Suspense fallback={<WidgetCardSkeleton delay={300} />}>
+            {isManager ? <TeamReportsWidget /> : <PersonalReportsWidget />}
+          </Suspense>
           <Suspense fallback={<ChartSkeleton delay={350} />}>
             <PerformanceChart />
           </Suspense>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <TasksWidget />
-            <LeaveWidget />
+            <Suspense fallback={<WidgetCardSkeleton delay={400} />}>
+              <TasksWidget />
+            </Suspense>
+            <Suspense fallback={<WidgetCardSkeleton delay={400} />}>
+              <LeaveWidget />
+            </Suspense>
           </div>
           <div id="company-calendar">
-            <Suspense fallback={<WidgetCardSkeleton delay={400} />}>
+            <Suspense fallback={<WidgetCardSkeleton delay={450} />}>
               <CompanyCalendar />
             </Suspense>
           </div>
@@ -234,18 +253,23 @@ const Index = () => {
             <ClockWidget />
           </div>
           <div className="hidden lg:block">
-            <RealTimeAttendanceWidget />
+            <Suspense fallback={<WidgetCardSkeleton delay={100} />}>
+              <RealTimeAttendanceWidget />
+            </Suspense>
           </div>
           <div className="hidden lg:block">
-            <DailyTimelineWidget onViewAll={handleViewCalendar} />
+            <Suspense fallback={<WidgetCardSkeleton delay={150} />}>
+              <DailyTimelineWidget onViewAll={handleViewCalendar} />
+            </Suspense>
           </div>
-
-          {/* ★ Global Time Zone Widget — NEW ★ */}
           <div className="hidden lg:block">
-            <GlobalTimeZoneWidget />
+            <Suspense fallback={<WidgetCardSkeleton delay={200} />}>
+              <GlobalTimeZoneWidget />
+            </Suspense>
           </div>
-
-          <AnnouncementsWidget />
+          <Suspense fallback={<WidgetCardSkeleton delay={250} />}>
+            <AnnouncementsWidget />
+          </Suspense>
         </div>
       </div>
     </DashboardLayout>
