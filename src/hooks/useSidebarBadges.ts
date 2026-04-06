@@ -11,6 +11,7 @@ export type BadgeCounts = Record<string, number>;
 const HREF_TO_BADGE_KEY: Record<string, string> = {
   "/attendance": "attendance",
   "/leave": "leave",
+  "/approvals": "approvals",
   "/tasks": "tasks",
   "/announcements": "announcements",
   "/documents": "documents",
