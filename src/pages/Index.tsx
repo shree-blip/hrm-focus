@@ -7,12 +7,12 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { useTasks } from "@/hooks/useTasks";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useTimeTracker } from "@/contexts/TimeTrackerContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
 import { useMemo, useEffect, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
-// Lazy load ALL heavy below-fold widgets
 const PerformanceChart = lazy(() =>
   import("@/components/dashboard/PerformanceChart").then((m) => ({ default: m.PerformanceChart })),
 );
@@ -48,12 +48,12 @@ const Index = () => {
   const { profile, role, isManager } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const { employees } = useEmployees();
   const { tasks } = useTasks();
   const { requests, ownRequests, teamLeaves } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
 
-  // Auto-refresh dashboard every 15 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       queryClient.invalidateQueries();
@@ -89,33 +89,27 @@ const Index = () => {
 
   const onLeaveToday = useMemo(() => {
     const source = teamLeaves.length > 0 ? teamLeaves : requests;
-    return source.filter((r) => {
-      return r.status === "approved" && r.start_date <= todayStr && r.end_date >= todayStr;
-    });
+    return source.filter((r) => r.status === "approved" && r.start_date <= todayStr && r.end_date >= todayStr);
   }, [teamLeaves, requests, todayStr]);
 
   const leaveChangeText = useMemo(() => {
     if (isManager) {
-      if (pendingLeaveRequests > 0) {
-        return `${pendingLeaveRequests} pending approval`;
-      }
+      if (pendingLeaveRequests > 0) return `${pendingLeaveRequests} pending approval`;
       if (onLeaveToday.length > 0) {
         const names = onLeaveToday.map((r) => (r.profile ? `${r.profile.first_name}` : "Someone")).slice(0, 3);
         const extra = onLeaveToday.length > 3 ? ` +${onLeaveToday.length - 3} more` : "";
         return `On leave: ${names.join(", ")}${extra}`;
       }
       return "No one on leave today";
-    } else {
-      if (onLeaveToday.some((r) => r.user_id === profile?.user_id)) {
-        return "You're on leave today";
-      }
-      if (onLeaveToday.length > 0) {
-        const names = onLeaveToday.map((r) => (r.profile ? `${r.profile.first_name}` : "Someone")).slice(0, 3);
-        const extra = onLeaveToday.length > 3 ? ` +${onLeaveToday.length - 3} more` : "";
-        return `On leave: ${names.join(", ")}${extra}`;
-      }
-      return "View leave balance";
     }
+
+    if (onLeaveToday.some((r) => r.user_id === profile?.user_id)) return "You're on leave today";
+    if (onLeaveToday.length > 0) {
+      const names = onLeaveToday.map((r) => (r.profile ? `${r.profile.first_name}` : "Someone")).slice(0, 3);
+      const extra = onLeaveToday.length > 3 ? ` +${onLeaveToday.length - 3} more` : "";
+      return `On leave: ${names.join(", ")}${extra}`;
+    }
+    return "View leave balance";
   }, [isManager, pendingLeaveRequests, onLeaveToday, profile]);
 
   const getRoleLabel = () => {
@@ -127,14 +121,11 @@ const Index = () => {
 
   const handleViewCalendar = () => {
     const calendarElement = document.getElementById("company-calendar");
-    if (calendarElement) {
-      calendarElement.scrollIntoView({ behavior: "smooth" });
-    }
+    if (calendarElement) calendarElement.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
     <DashboardLayout>
-      {/* Page Header */}
       <div className="mb-8 animate-fade-in">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">Welcome back, {firstName}</h1>
@@ -149,21 +140,21 @@ const Index = () => {
         </p>
       </div>
 
-      {/* Mobile-Only: Clock & Timeline at Top */}
-      <div className="lg:hidden space-y-6 mb-6">
-        <ClockWidget />
-        <Suspense fallback={<WidgetCardSkeleton delay={100} />}>
-          <RealTimeAttendanceWidget />
-        </Suspense>
-        <Suspense fallback={<WidgetCardSkeleton delay={150} />}>
-          <DailyTimelineWidget onViewAll={handleViewCalendar} />
-        </Suspense>
-        <Suspense fallback={<WidgetCardSkeleton delay={200} />}>
-          <GlobalTimeZoneWidget />
-        </Suspense>
-      </div>
+      {isMobile && (
+        <div className="space-y-6 mb-6">
+          <ClockWidget />
+          <Suspense fallback={<WidgetCardSkeleton delay={100} />}>
+            <RealTimeAttendanceWidget />
+          </Suspense>
+          <Suspense fallback={<WidgetCardSkeleton delay={150} />}>
+            <DailyTimelineWidget onViewAll={handleViewCalendar} />
+          </Suspense>
+          <Suspense fallback={<WidgetCardSkeleton delay={200} />}>
+            <GlobalTimeZoneWidget />
+          </Suspense>
+        </div>
+      )}
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {isManager ? (
           <StatCard
@@ -212,9 +203,7 @@ const Index = () => {
           title={isManager ? "Leave Requests" : "My Leave"}
           value={pendingLeaves.length.toString()}
           change={leaveChangeText}
-          changeType={
-            isManager && pendingLeaves.length > 0 ? "negative" : onLeaveToday.length > 0 ? "neutral" : "positive"
-          }
+          changeType={isManager && pendingLeaves.length > 0 ? "negative" : onLeaveToday.length > 0 ? "neutral" : "positive"}
           icon={Calendar}
           iconColor="bg-info/10 text-info"
           delay={250}
@@ -222,9 +211,7 @@ const Index = () => {
         />
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - 2/3 width */}
         <div className="lg:col-span-2 space-y-6">
           <Suspense fallback={<WidgetCardSkeleton delay={300} />}>
             {isManager ? <TeamReportsWidget /> : <PersonalReportsWidget />}
@@ -247,30 +234,31 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Right Column - 1/3 width */}
-        <div className="space-y-6">
-          <div className="hidden lg:block">
+        {!isMobile && (
+          <div className="space-y-6">
             <ClockWidget />
-          </div>
-          <div className="hidden lg:block">
             <Suspense fallback={<WidgetCardSkeleton delay={100} />}>
               <RealTimeAttendanceWidget />
             </Suspense>
-          </div>
-          <div className="hidden lg:block">
             <Suspense fallback={<WidgetCardSkeleton delay={150} />}>
               <DailyTimelineWidget onViewAll={handleViewCalendar} />
             </Suspense>
-          </div>
-          <div className="hidden lg:block">
             <Suspense fallback={<WidgetCardSkeleton delay={200} />}>
               <GlobalTimeZoneWidget />
             </Suspense>
+            <Suspense fallback={<WidgetCardSkeleton delay={250} />}>
+              <AnnouncementsWidget />
+            </Suspense>
           </div>
-          <Suspense fallback={<WidgetCardSkeleton delay={250} />}>
-            <AnnouncementsWidget />
-          </Suspense>
-        </div>
+        )}
+
+        {isMobile && (
+          <div className="space-y-6">
+            <Suspense fallback={<WidgetCardSkeleton delay={250} />}>
+              <AnnouncementsWidget />
+            </Suspense>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
