@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
+import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { AdjustmentRequestDialog } from "@/components/attendance/AdjustmentRequestDialog";
 import { ManagerAdjustmentPanel } from "@/components/attendance/ManagerAdjustmentPanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,6 +50,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+const STANDARD_HOURS_PER_DAY = 8;
+
+const parseDateOnly = (dateStr: string) => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
 
 const Attendance = () => {
   const { user, isManager, isLineManager, isAdmin, isVP } = useAuth();
@@ -105,9 +113,7 @@ const Attendance = () => {
     const diff = dow === 0 ? -6 : 1 - dow;
     const mondayDate = new Date(y, m - 1, d + diff);
 
-    if (mondayDate.getTime() !== currentWeekStart.getTime()) {
-      setCurrentWeekStart(mondayDate);
-    }
+    setCurrentWeekStart((prev) => (mondayDate.getTime() !== prev.getTime() ? mondayDate : prev));
   }, [employeeTimezone]);
 
   // Week-specific logs for navigation (defaults to shared context's current week)
@@ -134,9 +140,35 @@ const Attendance = () => {
 
   const { myRequests, teamRequests, submitRequest, reviewRequest, overrideRequest, getAdjustmentStatus } =
     useAttendanceAdjustments();
+  const { ownRequests: leaveRequests } = useLeaveRequests();
 
   // Use shared status from context
   const clockStatus = sharedStatus;
+
+  const approvedLeaveHoursByDate = useMemo(() => {
+    const leaveHoursMap = new Map<string, number>();
+
+    leaveRequests.forEach((request) => {
+      if (request.status !== "approved" || !request.start_date || !request.end_date) {
+        return;
+      }
+
+      const leaveHoursPerDay = request.is_half_day ? STANDARD_HOURS_PER_DAY / 2 : STANDARD_HOURS_PER_DAY;
+      const start = parseDateOnly(request.start_date);
+      const end = parseDateOnly(request.end_date);
+
+      for (let current = new Date(start); current <= end; current.setDate(current.getDate() + 1)) {
+        const dayOfWeek = current.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+
+        const key = format(current, "yyyy-MM-dd");
+        const existingHours = leaveHoursMap.get(key) || 0;
+        leaveHoursMap.set(key, Math.min(STANDARD_HOURS_PER_DAY, existingHours + leaveHoursPerDay));
+      }
+    });
+
+    return leaveHoursMap;
+  }, [leaveRequests]);
 
   // Elapsed time timer (like ClockWidget)
   useEffect(() => {
@@ -215,7 +247,7 @@ const Attendance = () => {
   // Get the employee's timezone from context
   const tz = employeeTimezone || DEFAULT_TIMEZONE;
 
-  const getHoursForDay = (date: Date) => {
+  const getWorkedHoursForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     const dayLogs = weeklyLogs.filter((log) => {
       const logDate = getWorkDate(log.clock_in, tz);
@@ -236,6 +268,15 @@ const Attendance = () => {
     });
 
     return Math.round((totalMinutes / 60) * 10) / 10;
+  };
+
+  const getLeaveHoursForDay = (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    return approvedLeaveHoursByDate.get(dateStr) || 0;
+  };
+
+  const getHoursForDay = (date: Date) => {
+    return getWorkedHoursForDay(date);
   };
 
   const handleClockIn = async () => {
@@ -342,12 +383,17 @@ const Attendance = () => {
     });
   };
 
-  // Net weekly total = sum of (elapsed - breaks - pauses) per day
+  // Weekly totals use actual worked hours, while approved leave reduces the target for the week.
   const weeklyTotal = weekDays.reduce((acc, day) => acc + getHoursForDay(day), 0);
-
-  // Set the target hours for comparison (e.g., 40 hours for the week)
-  const targetHours = 40;
-  const targetMet = Math.round((weeklyTotal / targetHours) * 100);
+  const baseTargetHours =
+    weekDays.filter((day) => day.getDay() !== 0 && day.getDay() !== 6).length * STANDARD_HOURS_PER_DAY;
+  const weeklyLeaveHours = weekDays.reduce((acc, day) => {
+    if (day.getDay() === 0 || day.getDay() === 6) return acc;
+    return acc + Math.min(STANDARD_HOURS_PER_DAY, getLeaveHoursForDay(day));
+  }, 0);
+  const adjustedTargetHours = Math.max(0, baseTargetHours - weeklyLeaveHours);
+  const leaveDaysTaken = weeklyLeaveHours / STANDARD_HOURS_PER_DAY;
+  const targetMet = adjustedTargetHours === 0 ? 100 : Math.round((weeklyTotal / adjustedTargetHours) * 100);
 
   if (loading) {
     return (
@@ -633,7 +679,9 @@ const Attendance = () => {
             <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {weekDays.map((day, index) => {
                 const hours = getHoursForDay(day);
-                const dayName = format(day, "EEE");
+                const leaveHours = getLeaveHoursForDay(day);
+                const isLeaveDay = leaveHours > 0;
+                const isHalfLeave = leaveHours > 0 && leaveHours < STANDARD_HOURS_PER_DAY;
                 const isWeekend = index >= 5;
 
                 return (
@@ -648,11 +696,22 @@ const Attendance = () => {
                     </p>
                     <div
                       className={cn(
-                        "relative h-16 sm:h-24 rounded-lg bg-secondary/50 flex items-end justify-center pb-1 sm:pb-2 overflow-hidden",
-                        !isWeekend && hours === 0 && !isToday(day) && "border-2 border-dashed border-destructive/30",
+                        "relative h-16 sm:h-24 rounded-lg bg-secondary/50 flex items-end justify-center pb-1 sm:pb-2 overflow-hidden border",
+                        !isWeekend &&
+                          hours === 0 &&
+                          !isToday(day) &&
+                          !isLeaveDay &&
+                          "border-dashed border-destructive/30",
+                        isLeaveDay && "border-emerald-200 bg-emerald-50/80",
                         isToday(day) && "ring-2 ring-primary",
                       )}
                     >
+                      {isLeaveDay && (
+                        <span className="absolute top-1 right-1 z-10 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                          {isHalfLeave ? "Half Leave" : "Leave"}
+                        </span>
+                      )}
+
                       {hours > 0 && (
                         <div
                           className="absolute bottom-0 left-0 right-0 bg-primary/80 transition-all duration-500"
@@ -661,13 +720,18 @@ const Attendance = () => {
                           }}
                         />
                       )}
+
                       <span
                         className={cn(
                           "relative z-10 text-sm font-semibold",
-                          hours > 0 ? "text-primary-foreground" : "text-muted-foreground",
+                          hours > 0
+                            ? "text-primary-foreground"
+                            : isLeaveDay
+                              ? "text-emerald-700"
+                              : "text-muted-foreground",
                         )}
                       >
-                        {hours > 0 ? `${hours}h` : "-"}
+                        {hours > 0 ? `${hours}h` : isLeaveDay ? (isHalfLeave ? "½ Leave" : "Leave") : "-"}
                       </span>
                     </div>
                   </div>
@@ -677,7 +741,7 @@ const Attendance = () => {
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
               <div className="text-center">
                 <p className="text-2xl font-display font-bold">{weeklyTotal.toFixed(1)}h</p>
-                <p className="text-sm text-muted-foreground">Total Hours</p>
+                <p className="text-sm text-muted-foreground">Worked Hours</p>
               </div>
               <div className="text-center">
                 <p
@@ -691,10 +755,19 @@ const Attendance = () => {
                 <p className="text-sm text-muted-foreground">Performance Metrics</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-display font-bold">{Math.max(0, targetHours - weeklyTotal).toFixed(1)}h</p>
+                <p className="text-2xl font-display font-bold">
+                  {Math.max(0, adjustedTargetHours - weeklyTotal).toFixed(1)}h
+                </p>
                 <p className="text-sm text-muted-foreground">Remaining</p>
               </div>
             </div>
+            {weeklyLeaveHours > 0 && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Approved leave this week:{" "}
+                {leaveDaysTaken % 1 === 0 ? leaveDaysTaken.toFixed(0) : leaveDaysTaken.toFixed(1)} day
+                {leaveDaysTaken === 1 ? "" : "s"} • target adjusted from {baseTargetHours}h to {adjustedTargetHours}h.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
