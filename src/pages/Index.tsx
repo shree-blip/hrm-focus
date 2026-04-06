@@ -47,7 +47,7 @@ const TeamReportsWidget = lazy(() =>
 const Index = () => {
   const { profile, role, isManager } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  
   const isMobile = useIsMobile();
   const { employees } = useEmployees();
   const { tasks } = useTasks();
