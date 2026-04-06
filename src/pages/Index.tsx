@@ -54,12 +54,6 @@ const Index = () => {
   const { requests, ownRequests, teamLeaves } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries();
-    }, 15 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [queryClient]);
 
   const firstName = profile?.first_name || "User";
   const pendingTasks = tasks.filter((t) => t.status !== "done").length;
