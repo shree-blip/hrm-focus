@@ -781,7 +781,24 @@ export function RealTimeAttendanceWidget() {
         return;
       }
 
-      // 1. Updated Headers to include Durations and Net Hours
+      // Fetch all break/pause sessions for these logs
+      const logIds = historicalLogs.map((l) => l.id);
+      const exportSessionsMap = new Map<string, BreakSessionRow[]>();
+      const batchSize = 200;
+      for (let i = 0; i < logIds.length; i += batchSize) {
+        const batch = logIds.slice(i, i + batchSize);
+        const { data: sessions } = await supabase
+          .from("attendance_break_sessions")
+          .select("id, attendance_log_id, session_type, start_time, end_time, duration_minutes")
+          .in("attendance_log_id", batch)
+          .order("start_time", { ascending: true });
+        sessions?.forEach((s: any) => {
+          const arr = exportSessionsMap.get(s.attendance_log_id) || [];
+          arr.push(s as BreakSessionRow);
+          exportSessionsMap.set(s.attendance_log_id, arr);
+        });
+      }
+
       const headers = [
         "Date",
         "Employee Name",
@@ -791,25 +808,17 @@ export function RealTimeAttendanceWidget() {
         "Mode Change Summary",
         "Clock In",
         "Clock Out",
-        "Break Start",
-        "Break End",
-        "Break Dur",
-        "Pause Start",
-        "Pause End",
-        "Pause Dur",
+        "Break Sessions",
+        "Break Details",
+        "Total Break Duration",
+        "Pause Sessions",
+        "Pause Details",
+        "Total Pause Duration",
         "Net Hours",
       ];
 
-      // Helper 1: Format time exactly like your second screenshot (e.g. 09:34 AM)
       const formatTimeOnly = (isoString?: string | null) => (isoString ? format(new Date(isoString), "hh:mm a") : "-");
 
-      // Helper 2: Calculate duration in minutes between two timestamps
-      const calculateDurationMinutes = (startTime?: string | null, endTime?: string | null) => {
-        if (!startTime || !endTime) return 0;
-        return Math.max(0, (new Date(endTime).getTime() - new Date(startTime).getTime()) / (1000 * 60));
-      };
-
-      // Helper 3: Format minutes into "1h 15m" or just "16m"
       const formatDurationText = (minutes: number): string => {
         if (minutes <= 0) return "-";
         if (minutes < 60) return `${Math.round(minutes)}m`;
@@ -818,7 +827,6 @@ export function RealTimeAttendanceWidget() {
         return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
       };
 
-      // 2. Map raw logs to CSV format with the new logic
       const csvRows = historicalLogs.map((log) => {
         const empId = log.employee_id || userToEmpMap.get(log.user_id);
         const emp = employees.find((e) => e.id === empId);
@@ -834,21 +842,35 @@ export function RealTimeAttendanceWidget() {
           ? `${getModeLabel(startMode)} -> ${getModeLabel(endMode)}`
           : getModeLabel(endMode || startMode || null);
 
-        // Calculate Break and Pause minutes (fallback to calculating if not saved in DB)
-        const breakMinutes = log.total_break_minutes || calculateDurationMinutes(log.break_start, log.break_end);
-        const pauseMinutes = log.total_pause_minutes || calculateDurationMinutes(log.pause_start, log.pause_end);
+        // Get individual sessions
+        const sessions = exportSessionsMap.get(log.id) || [];
+        const breakSessions = sessions.filter((s) => s.session_type === "break");
+        const pauseSessions = sessions.filter((s) => s.session_type === "pause");
 
-        // Calculate Net Hours Worked
+        // Build detailed break info
+        const breakCount = breakSessions.length;
+        const breakDetails = breakSessions.length > 0
+          ? breakSessions.map((s, i) => `#${i + 1}: ${formatTimeOnly(s.start_time)} - ${formatTimeOnly(s.end_time)} (${formatDurationText(s.duration_minutes || 0)})`).join(" | ")
+          : (log.break_start ? `${formatTimeOnly(log.break_start)} - ${formatTimeOnly(log.break_end)}` : "-");
+        const totalBreakMinutes = breakSessions.length > 0
+          ? breakSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0)
+          : (log.total_break_minutes || 0);
+
+        // Build detailed pause info
+        const pauseCount = pauseSessions.length;
+        const pauseDetails = pauseSessions.length > 0
+          ? pauseSessions.map((s, i) => `#${i + 1}: ${formatTimeOnly(s.start_time)} - ${formatTimeOnly(s.end_time)} (${formatDurationText(s.duration_minutes || 0)})`).join(" | ")
+          : (log.pause_start ? `${formatTimeOnly(log.pause_start)} - ${formatTimeOnly(log.pause_end)}` : "-");
+        const totalPauseMinutes = pauseSessions.length > 0
+          ? pauseSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0)
+          : (log.total_pause_minutes || 0);
+
+        // Calculate Net Hours
         const clockOutDate = log.clock_out ? new Date(log.clock_out) : null;
-        let netHours = "-";
-
-        // If they haven't clocked out, it uses current time to show "Live" hours worked
-        const endTime = clockOutDate || new Date();
-        const diffMs = endTime.getTime() - dateObj.getTime();
-        const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
-
-        // Format as decimal hours (e.g. 5.90h)
-        netHours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
+        const endTimeCalc = clockOutDate || new Date();
+        const diffMs = endTimeCalc.getTime() - dateObj.getTime();
+        const netWorkMs = diffMs - (totalBreakMinutes + totalPauseMinutes) * 60 * 1000;
+        const netHours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
 
         return [
           `"${logDate}"`,
@@ -859,12 +881,12 @@ export function RealTimeAttendanceWidget() {
           `"${modeSummary}"`,
           `"${formatTimeOnly(log.clock_in)}"`,
           `"${formatTimeOnly(log.clock_out)}"`,
-          `"${formatTimeOnly(log.break_start)}"`,
-          `"${formatTimeOnly(log.break_end)}"`,
-          `"${formatDurationText(breakMinutes)}"`,
-          `"${formatTimeOnly(log.pause_start)}"`,
-          `"${formatTimeOnly(log.pause_end)}"`,
-          `"${formatDurationText(pauseMinutes)}"`,
+          `"${breakCount || (log.break_start ? 1 : 0)}"`,
+          `"${breakDetails}"`,
+          `"${formatDurationText(totalBreakMinutes)}"`,
+          `"${pauseCount || (log.pause_start ? 1 : 0)}"`,
+          `"${pauseDetails}"`,
+          `"${formatDurationText(totalPauseMinutes)}"`,
           `"${netHours}"`,
         ].join(",");
       });
