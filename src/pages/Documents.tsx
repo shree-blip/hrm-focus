@@ -20,7 +20,7 @@ import {
   File,
   FileImage,
   FileSpreadsheet,
-  ExternalLink
+  ExternalLink,
   MoreHorizontal,
   Clock,
   Loader2,
