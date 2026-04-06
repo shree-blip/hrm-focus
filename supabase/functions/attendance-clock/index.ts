@@ -272,6 +272,14 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
+        // Record individual break session
+        await supabaseAdmin.from("attendance_break_sessions").insert({
+          attendance_log_id: log_id,
+          user_id: userId,
+          session_type: "break",
+          start_time: serverUtc,
+        });
+
         // Auto-pause active work log
         const { data: activeWorkLog } = await supabaseAdmin
           .from("work_logs")
