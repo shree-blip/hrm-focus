@@ -10,7 +10,7 @@ import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
 import { useMemo, useEffect, lazy, Suspense } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+
 import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
 const PerformanceChart = lazy(() =>
@@ -47,19 +47,13 @@ const TeamReportsWidget = lazy(() =>
 const Index = () => {
   const { profile, role, isManager } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  
   const isMobile = useIsMobile();
   const { employees } = useEmployees();
   const { tasks } = useTasks();
   const { requests, ownRequests, teamLeaves } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries();
-    }, 15 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [queryClient]);
 
   const firstName = profile?.first_name || "User";
   const pendingTasks = tasks.filter((t) => t.status !== "done").length;
