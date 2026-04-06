@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,8 @@ import {
   PenLine,
   Home,
 } from "lucide-react";
+import { useBreakSessions } from "@/hooks/useBreakSessions";
+import { BreakPauseCell, BreakPauseDetailPanel } from "@/components/attendance/BreakPauseDetail";
 import { cn } from "@/lib/utils";
 import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
@@ -74,6 +76,8 @@ const Attendance = () => {
   const currentDate = new Date();
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
+  const [expandedBreakRows, setExpandedBreakRows] = useState<Set<string>>(new Set());
+  const { fetchSessions, getSessions, isLoading: isSessionLoading } = useBreakSessions();
   const [showResumeLocationDialog, setShowResumeLocationDialog] = useState(false);
   const [adjustmentLog, setAdjustmentLog] = useState<{
     id: string;
@@ -815,121 +819,140 @@ const Attendance = () => {
                   const inFmt = formatAttendanceTime(log.clock_in, tz);
                   const outFmt = log.clock_out ? formatAttendanceTime(log.clock_out, tz) : null;
                   const nightShift = log.clock_out ? isNightShift(log.clock_in, log.clock_out, tz) : false;
+                  const rowKey = `break-${log.id}`;
+                  const isBreakExpanded = expandedBreakRows.has(rowKey);
+                  const hasBreakOrPause = breakMinutes > 0 || pauseMinutes > 0;
+
+                  const handleToggleBreakDetail = async () => {
+                    if (isBreakExpanded) {
+                      setExpandedBreakRows((prev) => {
+                        const next = new Set(prev);
+                        next.delete(rowKey);
+                        return next;
+                      });
+                    } else {
+                      await fetchSessions(log.id);
+                      setExpandedBreakRows((prev) => new Set(prev).add(rowKey));
+                    }
+                  };
 
                   return (
-                    <TableRow
-                      key={log.id}
-                      className="animate-fade-in"
-                      style={{ animationDelay: `${400 + index * 50}ms` }}
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-1.5">
-                          {getWorkDateDisplay(log.clock_in, tz)}
-                          {nightShift && <span title="Night shift">🌙</span>}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs">
-                          {inFmt.localTime} {inFmt.tzAbbr}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {outFmt ? (
+                    <Fragment key={log.id}>
+                      <TableRow
+                        className="animate-fade-in"
+                        style={{ animationDelay: `${400 + index * 50}ms` }}
+                      >
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-1.5">
+                            {getWorkDateDisplay(log.clock_in, tz)}
+                            {nightShift && <span title="Night shift">🌙</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <span className="text-xs">
-                            {outFmt.localTime} {outFmt.tzAbbr}
+                            {inFmt.localTime} {inFmt.tzAbbr}
                           </span>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {log.break_start ? (
-                          <div className="space-y-1">
-                            <span className="text-yellow-600 font-mono text-xs">
-                              {format(new Date(log.break_start), "HH:mm")} -{" "}
-                              {log.break_end ? format(new Date(log.break_end), "HH:mm") : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {outFmt ? (
+                            <span className="text-xs">
+                              {outFmt.localTime} {outFmt.tzAbbr}
                             </span>
-                            {breakMinutes > 0 && (
-                              <p className="text-xs text-muted-foreground">{formatDuration(breakMinutes)}</p>
-                            )}
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {(log as any).pause_start ? (
-                          <div className="space-y-1">
-                            <span className="text-cyan-600 font-mono text-xs">
-                              {format(new Date((log as any).pause_start), "HH:mm")} -{" "}
-                              {(log as any).pause_end ? format(new Date((log as any).pause_end), "HH:mm") : "-"}
-                            </span>
-                            {pauseMinutes > 0 && (
-                              <p className="text-xs text-muted-foreground">{formatDuration(pauseMinutes)}</p>
-                            )}
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            log.clock_type === "billable" && "border-info text-info bg-info/10",
-                            log.clock_type === "payroll" && "border-primary text-primary bg-primary/10",
+                          ) : (
+                            "-"
                           )}
-                        >
-                          {log.clock_type || "payroll"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">{hours}</TableCell>
-                      <TableCell className="text-right">
-                        {(() => {
-                          const adj = getAdjustmentStatus(log.id);
-                          if (adj) {
-                            const reviewerName = adj.reviewer_profile
-                              ? `${adj.reviewer_profile.first_name} ${adj.reviewer_profile.last_name}`
-                              : null;
-                            return (
-                              <div className="flex flex-col items-end gap-1">
-                                <Badge
-                                  variant={
-                                    adj.status === "approved"
-                                      ? "default"
-                                      : adj.status === "rejected"
-                                        ? "destructive"
-                                        : "secondary"
-                                  }
-                                  className="capitalize"
-                                >
-                                  {adj.status}
-                                </Badge>
-                                {reviewerName && (
-                                  <span className="text-xs text-muted-foreground">by {reviewerName}</span>
-                                )}
-                                {adj.override_status && (
-                                  <Badge variant="outline" className="text-xs border-amber-500 text-amber-600">
-                                    Overridden
+                        </TableCell>
+                        <TableCell>
+                          <BreakPauseCell
+                            totalMinutes={breakMinutes}
+                            type="break"
+                            isExpanded={isBreakExpanded}
+                            onToggle={handleToggleBreakDetail}
+                            hasLegacyTime={!!log.break_start}
+                            timezone={tz}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <BreakPauseCell
+                            totalMinutes={pauseMinutes}
+                            type="pause"
+                            isExpanded={isBreakExpanded}
+                            onToggle={handleToggleBreakDetail}
+                            hasLegacyTime={!!(log as any).pause_start}
+                            timezone={tz}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              log.clock_type === "billable" && "border-info text-info bg-info/10",
+                              log.clock_type === "payroll" && "border-primary text-primary bg-primary/10",
+                            )}
+                          >
+                            {log.clock_type || "payroll"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium">{hours}</TableCell>
+                        <TableCell className="text-right">
+                          {(() => {
+                            const adj = getAdjustmentStatus(log.id);
+                            if (adj) {
+                              const reviewerName = adj.reviewer_profile
+                                ? `${adj.reviewer_profile.first_name} ${adj.reviewer_profile.last_name}`
+                                : null;
+                              return (
+                                <div className="flex flex-col items-end gap-1">
+                                  <Badge
+                                    variant={
+                                      adj.status === "approved"
+                                        ? "default"
+                                        : adj.status === "rejected"
+                                          ? "destructive"
+                                          : "secondary"
+                                    }
+                                    className="capitalize"
+                                  >
+                                    {adj.status}
                                   </Badge>
-                                )}
-                              </div>
+                                  {reviewerName && (
+                                    <span className="text-xs text-muted-foreground">by {reviewerName}</span>
+                                  )}
+                                  {adj.override_status && (
+                                    <Badge variant="outline" className="text-xs border-amber-500 text-amber-600">
+                                      Overridden
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            }
+                            return (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs gap-1"
+                                onClick={() => setAdjustmentLog(log)}
+                              >
+                                <PenLine className="h-3 w-3" />
+                                Adjust
+                              </Button>
                             );
-                          }
-                          return (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 text-xs gap-1"
-                              onClick={() => setAdjustmentLog(log)}
-                            >
-                              <PenLine className="h-3 w-3" />
-                              Adjust
-                            </Button>
-                          );
-                        })()}
-                      </TableCell>
-                    </TableRow>
+                          })()}
+                        </TableCell>
+                      </TableRow>
+                      {/* Expanded break/pause session detail */}
+                      {isBreakExpanded && (
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell colSpan={8} className="px-8 py-3">
+                            <BreakPauseDetailPanel
+                              sessions={getSessions(log.id)}
+                              loading={isSessionLoading(log.id)}
+                              timezone={tz}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
                   );
                 })
               )}
