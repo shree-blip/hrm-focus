@@ -85,6 +85,10 @@ const NotFound = lazyRetry(() => import("./pages/NotFound"));
 //      <Link to="/employees" onMouseEnter={() => prefetchRoute("employees")}>
 // ─────────────────────────────────────────────────────────
 const prefetchMap: Record<string, () => Promise<any>> = {
+  "/": () => import("./pages/Index"),
+  profile: () => import("./pages/Profile"),
+  settings: () => import("./pages/Settings"),
+  notifications: () => import("./pages/Notifications"),
   employees: () => import("./pages/Employees"),
   attendance: () => import("./pages/Attendance"),
   leave: () => import("./pages/Leave"),
