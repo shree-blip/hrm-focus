@@ -16,12 +16,8 @@ import { ThemeProvider } from "./components/dashboard/ThemeContext";
 // 1. EAGER IMPORTS — Core pages users hit on every session.
 //    No lazy loading = instant navigation, zero spinner.
 // ─────────────────────────────────────────────────────────
-import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
-import Profile from "./pages/Profile";
-import Notifications from "./pages/Notifications";
-import Settings from "./pages/Settings";
 
 // ─────────────────────────────────────────────────────────
 // 2. LAZY IMPORTS — Heavier / less-visited pages.
