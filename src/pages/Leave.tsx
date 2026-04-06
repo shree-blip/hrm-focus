@@ -916,8 +916,34 @@ const Leave = () => {
                           </Button>
                         </div>
                       )}
+                      {/* Employee can cancel own pending leave */}
                       {request.status === "pending" && isOwnRequest && (
-                        <p className="text-xs text-muted-foreground mt-2">Awaiting manager approval</p>
+                        <div className="flex items-center gap-2 mt-3">
+                          <p className="text-xs text-muted-foreground">Awaiting manager approval</p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 text-destructive hover:bg-destructive/10 ml-auto"
+                            onClick={() => cancelRequest(request.id, "Cancelled by employee")}
+                          >
+                            <X className="h-3 w-3" />
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                      {/* Admin/VP/LM/Supervisor can cancel approved leave */}
+                      {request.status === "approved" && (isAdmin || isVP || isSupervisor || isLineManager) && (
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 text-destructive hover:bg-destructive/10"
+                            onClick={() => cancelRequest(request.id, "Cancelled by management")}
+                          >
+                            <X className="h-3 w-3" />
+                            Cancel Leave
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
