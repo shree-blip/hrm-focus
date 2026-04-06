@@ -1096,36 +1096,29 @@ const Reports = () => {
                     <tbody>
                       {filteredDailyAttendance.map((att, index) => {
                         const typedAtt = att as DailyAttendanceRecord;
-                        const breaks = getBreaks(typedAtt);
-                        const pauses = getPauses(typedAtt);
                         const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
                         const totalPauseMinutes = calculateTotalPauseMinutes(typedAtt);
                         const totalHours = calculateTotalHours(typedAtt);
                         const status = getWorkStatus(totalHours, typedAtt.clock_out);
                         const rowKey = `${typedAtt.user_id}-${typedAtt.clock_in}-${index}`;
+                        const logId = (att as any).id as string | undefined;
                         const isExpanded = expandedRows.has(rowKey);
-                        const hasMultipleBreaks = breaks.length > 1;
-                        const hasMultiplePauses = pauses.length > 1;
-                        const hasExpandableContent = hasMultipleBreaks || hasMultiplePauses;
+                        const hasBreakOrPause = totalBreakMinutes > 0 || totalPauseMinutes > 0;
+
+                        const handleToggleDetail = async () => {
+                          if (isExpanded) {
+                            toggleRowExpanded(rowKey);
+                          } else {
+                            if (logId) await fetchSessions(logId);
+                            toggleRowExpanded(rowKey);
+                          }
+                        };
 
                         return (
                           <Fragment key={rowKey}>
-                            <tr className="border-b hover:bg-slate-50 dark:hover:bg-slate-800">
+                            <tr className="border-b hover:bg-muted/50">
                               <td className="p-3">
-                                {hasExpandableContent && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={() => toggleRowExpanded(rowKey)}
-                                  >
-                                    {isExpanded ? (
-                                      <ChevronUp className="h-4 w-4" />
-                                    ) : (
-                                      <ChevronDown className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                )}
+                                {/* removed old chevron — cells themselves are clickable now */}
                               </td>
                               <td className="p-3 font-medium">
                                 <div className="flex items-center gap-1.5">
@@ -1144,48 +1137,35 @@ const Reports = () => {
                               <td className="p-3">
                                 <div>
                                   <p className="font-medium">{typedAtt.employee_name}</p>
-                                  <p className="text-xs text-slate-600">{typedAtt.email}</p>
+                                  <p className="text-xs text-muted-foreground">{typedAtt.email}</p>
                                 </div>
                               </td>
-                              <td className="p-3 text-green-600 font-mono">
+                              <td className="p-3 text-success font-mono">
                                 {formatTimeLocal(typedAtt.clock_in, typedAtt.employee_timezone)}
                               </td>
-                              <td className="p-3">
-                                {breaks.length === 0 ? (
-                                  <span className="text-slate-400">-</span>
-                                ) : breaks.length === 1 ? (
-                                  <span className="text-yellow-600 font-mono">
-                                    {formatTimeLocal(breaks[0].break_start)} - {formatTimeLocal(breaks[0].break_end)}
-                                  </span>
-                                ) : (
-                                  <Badge variant="outline" className="gap-1">
-                                    <Coffee className="h-3 w-3" />
-                                    {breaks.length} breaks
-                                  </Badge>
-                                )}
+                              {/* Merged Break column: count + duration, clickable */}
+                              <td className="p-3" colSpan={2}>
+                                <BreakPauseCell
+                                  totalMinutes={totalBreakMinutes}
+                                  type="break"
+                                  isExpanded={isExpanded}
+                                  onToggle={handleToggleDetail}
+                                  hasLegacyTime={!!typedAtt.break_start}
+                                  timezone={typedAtt.employee_timezone}
+                                />
                               </td>
-
-                              <td className="p-3 font-medium text-yellow-600">
-                                {totalBreakMinutes > 0 ? formatBreakDuration(totalBreakMinutes) : "-"}
+                              {/* Merged Pause column: count + duration, clickable */}
+                              <td className="p-3" colSpan={2}>
+                                <BreakPauseCell
+                                  totalMinutes={totalPauseMinutes}
+                                  type="pause"
+                                  isExpanded={isExpanded}
+                                  onToggle={handleToggleDetail}
+                                  hasLegacyTime={!!typedAtt.pause_start}
+                                  timezone={typedAtt.employee_timezone}
+                                />
                               </td>
-                              <td className="p-3">
-                                {pauses.length === 0 ? (
-                                  <span className="text-slate-400">-</span>
-                                ) : pauses.length === 1 ? (
-                                  <span className="text-cyan-600 font-mono">
-                                    {formatTimeLocal(pauses[0].pause_start)} - {formatTimeLocal(pauses[0].pause_end)}
-                                  </span>
-                                ) : (
-                                  <Badge variant="outline" className="gap-1 border-cyan-300 text-cyan-600">
-                                    <Pause className="h-3 w-3" />
-                                    {pauses.length} pauses
-                                  </Badge>
-                                )}
-                              </td>
-                              <td className="p-3 font-medium text-cyan-600">
-                                {totalPauseMinutes > 0 ? formatBreakDuration(totalPauseMinutes) : "-"}
-                              </td>
-                              <td className="p-3 text-red-600 font-mono">
+                              <td className="p-3 text-destructive font-mono">
                                 {formatTimeLocal(typedAtt.clock_out, typedAtt.employee_timezone)}
                               </td>
                               <td className="p-3 font-bold">
@@ -1231,65 +1211,15 @@ const Reports = () => {
                                 </td>
                               )}
                             </tr>
-                            {/* Expanded breaks and pauses detail row */}
-                            {hasExpandableContent && isExpanded && (
-                              <tr className="bg-slate-50">
-                                <td colSpan={canEditAttendance ? 12 : 11} className="p-0">
-                                  <div className="px-12 py-3 border-b space-y-4">
-                                    {/* Breaks detail */}
-                                    {hasMultipleBreaks && (
-                                      <div>
-                                        <p className="text-sm font-medium text-slate-600 mb-2 flex items-center gap-2">
-                                          <Coffee className="h-4 w-4 text-yellow-600" />
-                                          Break Details:
-                                        </p>
-                                        <div className="space-y-1">
-                                          {breaks.map((brk, brkIndex) => (
-                                            <div
-                                              key={brkIndex}
-                                              className="flex items-center gap-4 text-sm bg-white p-2 rounded border"
-                                            >
-                                              <Badge variant="secondary" className="text-xs">
-                                                Break {brkIndex + 1}
-                                              </Badge>
-                                              <span className="text-yellow-600 font-mono">
-                                                {formatTimeLocal(brk.break_start)} - {formatTimeLocal(brk.break_end)}
-                                              </span>
-                                              <span className="text-slate-600">({brk.duration_minutes || 0} min)</span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                    {/* Pauses detail */}
-                                    {hasMultiplePauses && (
-                                      <div>
-                                        <p className="text-sm font-medium text-slate-600 mb-2 flex items-center gap-2">
-                                          <Pause className="h-4 w-4 text-cyan-600" />
-                                          Pause Details:
-                                        </p>
-                                        <div className="space-y-1">
-                                          {pauses.map((pause, pauseIndex) => (
-                                            <div
-                                              key={pauseIndex}
-                                              className="flex items-center gap-4 text-sm bg-white p-2 rounded border"
-                                            >
-                                              <Badge variant="secondary" className="text-xs bg-cyan-100 text-cyan-700">
-                                                Pause {pauseIndex + 1}
-                                              </Badge>
-                                              <span className="text-cyan-600 font-mono">
-                                                {formatTimeLocal(pause.pause_start)} -{" "}
-                                                {formatTimeLocal(pause.pause_end)}
-                                              </span>
-                                              <span className="text-slate-600">
-                                                ({pause.duration_minutes || 0} min)
-                                              </span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
+                            {/* Expanded break/pause session detail */}
+                            {isExpanded && logId && (
+                              <tr className="bg-muted/30">
+                                <td colSpan={canEditAttendance ? 12 : 11} className="px-12 py-3">
+                                  <BreakPauseDetailPanel
+                                    sessions={getSessions(logId)}
+                                    loading={isSessionLoading(logId)}
+                                    timezone={typedAtt.employee_timezone}
+                                  />
                                 </td>
                               </tr>
                             )}
