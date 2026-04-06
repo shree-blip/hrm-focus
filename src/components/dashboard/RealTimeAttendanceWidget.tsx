@@ -659,7 +659,7 @@ export function RealTimeAttendanceWidget() {
     );
     deduped.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
     return deduped;
-  }, [dailyLogs, employees, userToEmpMap, events]);
+  }, [dailyLogs, employees, userToEmpMap, events, breakSessionsByLogId]);
 
   const fullActivityEmployees = useMemo(() => {
     return Array.from(new Set(fullActivities.map((evt) => evt.name))).sort((a, b) => a.localeCompare(b));
