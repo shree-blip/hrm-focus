@@ -5,10 +5,20 @@ import { Coffee, Pause, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BreakSession } from "@/hooks/useBreakSessions";
 
+interface LegacyBreakPauseData {
+  break_start?: string | null;
+  break_end?: string | null;
+  total_break_minutes?: number | null;
+  pause_start?: string | null;
+  pause_end?: string | null;
+  total_pause_minutes?: number | null;
+}
+
 interface BreakPauseDetailProps {
   sessions: BreakSession[] | null;
   loading: boolean;
   timezone?: string;
+  legacyData?: LegacyBreakPauseData;
 }
 
 function formatSessionTime(isoString: string | null, tz?: string): string {
