@@ -1619,6 +1619,41 @@ export type Database = {
           },
         ]
       }
+      leave_cancellation_logs: {
+        Row: {
+          cancelled_by: string
+          created_at: string
+          id: string
+          leave_request_id: string
+          original_status: string
+          reason: string | null
+        }
+        Insert: {
+          cancelled_by: string
+          created_at?: string
+          id?: string
+          leave_request_id: string
+          original_status: string
+          reason?: string | null
+        }
+        Update: {
+          cancelled_by?: string
+          created_at?: string
+          id?: string
+          leave_request_id?: string
+          original_status?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_cancellation_logs_leave_request_id_fkey"
+            columns: ["leave_request_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
           approved_at: string | null
