@@ -19,7 +19,8 @@ import { useTasks } from "@/hooks/useTasks";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
-import { useMemo, lazy, Suspense } from "react";
+import { useMemo, useEffect, lazy, Suspense } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
 // Lazy load heavy below-fold components
