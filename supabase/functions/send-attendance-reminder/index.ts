@@ -20,29 +20,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // ✅ FIX 2: Replaced user JWT auth with simple secret check.
-    // This function is called by pg_cron / scheduled trigger — there is NO user session.
-    // The old code called getClaims() on a non-user token → 401 every time → 100% failure.
-    //
-    // HOW TO SET UP:
-    // 1. Go to Supabase Dashboard → Edge Functions → Secrets
-    // 2. Add a secret called CRON_SECRET with any random string value
-    // 3. In your pg_cron or cron trigger, pass that same string as:
-    //    Authorization: Bearer <your-secret-value>
-    //
-    // If you don't set CRON_SECRET, the auth check is skipped entirely
-    // (fine if only internal/cron can reach this function).
-
-    const cronSecret = Deno.env.get("CRON_SECRET");
-    if (cronSecret) {
-      const authHeader = req.headers.get("Authorization");
-      if (authHeader !== `Bearer ${cronSecret}`) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
+    // This function is called by pg_cron — no user session needed.
+    // Auth is handled by verify_jwt=false in config.toml (internal only).
 
     // Use service role client directly (no user session needed)
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
