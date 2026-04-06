@@ -195,6 +195,24 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
+        // Close any open break/pause sessions for this log
+        const { data: openSessions } = await supabaseAdmin
+          .from("attendance_break_sessions")
+          .select("id, session_type, start_time")
+          .eq("attendance_log_id", log_id)
+          .is("end_time", null);
+
+        if (openSessions && openSessions.length > 0) {
+          for (const session of openSessions) {
+            const sessionStart = new Date(session.start_time);
+            const dur = Math.round((serverNow.getTime() - sessionStart.getTime()) / 60000);
+            await supabaseAdmin
+              .from("attendance_break_sessions")
+              .update({ end_time: serverUtc, duration_minutes: dur })
+              .eq("id", session.id);
+          }
+        }
+
         // Auto-close active work logs
         const { data: activeLogs } = await supabaseAdmin
           .from("work_logs")
@@ -272,6 +290,14 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
+        // Record individual break session
+        await supabaseAdmin.from("attendance_break_sessions").insert({
+          attendance_log_id: log_id,
+          user_id: userId,
+          session_type: "break",
+          start_time: serverUtc,
+        });
+
         // Auto-pause active work log
         const { data: activeWorkLog } = await supabaseAdmin
           .from("work_logs")
@@ -330,6 +356,24 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
+        // Close the open break session
+        const { data: openSession } = await supabaseAdmin
+          .from("attendance_break_sessions")
+          .select("id")
+          .eq("attendance_log_id", log_id)
+          .eq("session_type", "break")
+          .is("end_time", null)
+          .order("start_time", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (openSession) {
+          await supabaseAdmin
+            .from("attendance_break_sessions")
+            .update({ end_time: serverUtc, duration_minutes: breakMinutes })
+            .eq("id", openSession.id);
+        }
+
         // Auto-resume work log
         const { data: pausedLog } = await supabaseAdmin
           .from("work_logs")
@@ -380,6 +424,14 @@ Deno.serve(async (req) => {
           .single();
 
         if (error) throw error;
+
+        // Record individual pause session
+        await supabaseAdmin.from("attendance_break_sessions").insert({
+          attendance_log_id: log_id,
+          user_id: userId,
+          session_type: "pause",
+          start_time: serverUtc,
+        });
 
         // Auto-pause active work log
         const { data: activeWorkLog } = await supabaseAdmin
@@ -441,6 +493,24 @@ Deno.serve(async (req) => {
           .single();
 
         if (error) throw error;
+
+        // Close the open pause session
+        const { data: openPauseSession } = await supabaseAdmin
+          .from("attendance_break_sessions")
+          .select("id")
+          .eq("attendance_log_id", log_id)
+          .eq("session_type", "pause")
+          .is("end_time", null)
+          .order("start_time", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (openPauseSession) {
+          await supabaseAdmin
+            .from("attendance_break_sessions")
+            .update({ end_time: serverUtc, duration_minutes: pauseMinutes })
+            .eq("id", openPauseSession.id);
+        }
 
         // Auto-resume work log
         const { data: pausedLog } = await supabaseAdmin
