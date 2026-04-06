@@ -31,6 +31,8 @@ interface LeaveRequest {
   approved_by: string | null;
   approved_at: string | null;
   rejection_reason: string | null;
+  is_half_day: boolean;
+  half_day_period: string | null;
   created_at: string;
   profile?: {
     first_name: string;
