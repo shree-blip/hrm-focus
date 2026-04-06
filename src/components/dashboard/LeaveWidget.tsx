@@ -26,12 +26,12 @@ export function LeaveWidget() {
         .slice(0, 3)
     : requests
         .filter((r) => {
-          // Show who is on leave today or upcoming
-          if (r.status === "approved" && r.start_date <= todayStr && r.end_date >= todayStr) return true;
+          // Only show the current user's own leave requests
+          if (r.user_id !== user?.id) return false;
           // Show own pending requests
-          if (r.status === "pending" && r.user_id === user?.id) return true;
-          // Show own upcoming approved leaves
-          if (r.status === "approved" && r.user_id === user?.id && r.start_date > todayStr) return true;
+          if (r.status === "pending") return true;
+          // Show own approved leaves (current or upcoming)
+          if (r.status === "approved" && r.end_date >= todayStr) return true;
           return false;
         })
         .slice(0, 3);
