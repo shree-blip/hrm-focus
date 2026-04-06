@@ -61,6 +61,15 @@ interface EmployeeRow {
   } | null;
 }
 
+interface BreakSessionRow {
+  id: string;
+  attendance_log_id: string;
+  session_type: string;
+  start_time: string;
+  end_time: string | null;
+  duration_minutes: number | null;
+}
+
 interface AttendanceLogRow {
   id: string;
   employee_id: string | null;
