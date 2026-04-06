@@ -117,6 +117,7 @@ const Reports = () => {
   // VP edit state
   const [editRecord, setEditRecord] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const { fetchSessions, getSessions, isLoading: isSessionLoading } = useBreakSessions();
 
   const loading = leaveLoading || attendanceLoading;
 
