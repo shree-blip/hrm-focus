@@ -494,6 +494,24 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
+        // Close the open pause session
+        const { data: openPauseSession } = await supabaseAdmin
+          .from("attendance_break_sessions")
+          .select("id")
+          .eq("attendance_log_id", log_id)
+          .eq("session_type", "pause")
+          .is("end_time", null)
+          .order("start_time", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (openPauseSession) {
+          await supabaseAdmin
+            .from("attendance_break_sessions")
+            .update({ end_time: serverUtc, duration_minutes: pauseMinutes })
+            .eq("id", openPauseSession.id);
+        }
+
         // Auto-resume work log
         const { data: pausedLog } = await supabaseAdmin
           .from("work_logs")
