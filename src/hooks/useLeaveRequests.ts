@@ -851,6 +851,119 @@ export function useLeaveRequests() {
     return allRequests;
   };
 
+  /**
+   * Cancel a leave request.
+   * - Pending: employee can cancel their own.
+   * - Approved: only admin, VP, line manager, or supervisor of the employee can cancel.
+   * Logs cancellation to leave_cancellation_logs for auditing.
+   */
+  const cancelRequest = async (requestId: string, reason?: string) => {
+    if (!user) return;
+
+    const { data: requestData } = await supabase
+      .from("leave_requests")
+      .select("*")
+      .eq("id", requestId)
+      .single();
+
+    if (!requestData) {
+      toast({ title: "Error", description: "Leave request not found", variant: "destructive" });
+      return;
+    }
+
+    const isOwnRequest = requestData.user_id === user.id;
+    const originalStatus = requestData.status;
+
+    // Authorization check
+    if (originalStatus === "pending") {
+      if (!isOwnRequest) {
+        toast({ title: "Unauthorized", description: "You can only cancel your own pending leave.", variant: "destructive" });
+        return;
+      }
+    } else if (originalStatus === "approved") {
+      // Only admin, VP, line manager, or supervisor can cancel approved leave
+      const canCancel = isAdmin || isVP || isSupervisor || isLineManager;
+      if (!canCancel && !isOwnRequest) {
+        toast({ title: "Unauthorized", description: "Only Admin, CEO, Line Manager, or Supervisor can cancel approved leave.", variant: "destructive" });
+        return;
+      }
+      // Even own approved leave needs manager+ role
+      if (isOwnRequest && !isAdmin && !isVP && !isSupervisor && !isLineManager) {
+        toast({ title: "Unauthorized", description: "Approved leave can only be cancelled by Admin, CEO, Line Manager, or Supervisor.", variant: "destructive" });
+        return;
+      }
+    } else {
+      toast({ title: "Cannot Cancel", description: `Leave with status "${originalStatus}" cannot be cancelled.`, variant: "destructive" });
+      return;
+    }
+
+    // Update leave request status to cancelled
+    const { error } = await supabase
+      .from("leave_requests")
+      .update({ status: "cancelled" })
+      .eq("id", requestId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to cancel leave request", variant: "destructive" });
+      return;
+    }
+
+    // Insert audit log
+    await supabase.from("leave_cancellation_logs").insert({
+      leave_request_id: requestId,
+      cancelled_by: user.id,
+      original_status: originalStatus,
+      reason: reason || "No reason provided",
+    });
+
+    // Fetch names for notifications
+    const { data: cancellerProfile } = await supabase
+      .from("profiles")
+      .select("first_name, last_name")
+      .eq("user_id", user.id)
+      .single();
+    const cancellerName = cancellerProfile ? `${cancellerProfile.first_name} ${cancellerProfile.last_name}` : "Someone";
+
+    const { data: requestProfile } = await supabase
+      .from("profiles")
+      .select("first_name, last_name")
+      .eq("user_id", requestData.user_id)
+      .single();
+    const employeeName = requestProfile ? `${requestProfile.first_name} ${requestProfile.last_name}` : "Employee";
+
+    // Notify the employee if cancelled by someone else
+    if (!isOwnRequest) {
+      await createNotification(
+        requestData.user_id,
+        "🚫 Leave Cancelled",
+        `Your ${requestData.leave_type} request for ${requestData.days} day(s) has been cancelled by ${cancellerName}.${reason ? ` Reason: ${reason}` : ""}`,
+        "leave",
+        "/leave",
+      );
+    }
+
+    // Notify admins/VP
+    const { data: vpAdminCancel } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .in("role", ["vp", "admin"]);
+
+    for (const va of vpAdminCancel || []) {
+      if (va.user_id !== user.id) {
+        await createNotification(
+          va.user_id,
+          "🚫 Leave Cancelled",
+          `${isOwnRequest ? employeeName + "'s" : employeeName + "'s"} ${requestData.leave_type} (${requestData.days} day(s)) was cancelled by ${cancellerName}.`,
+          "leave",
+          "/leave",
+        );
+      }
+    }
+
+    toast({ title: "Leave Cancelled", description: `The ${originalStatus} leave request has been cancelled.` });
+    await loadAllData();
+  };
+
   return {
     requests: getAllRequests(),
     ownRequests,
@@ -860,6 +973,7 @@ export function useLeaveRequests() {
     createRequest,
     approveRequest,
     rejectRequest,
+    cancelRequest,
     adminCreateLeave,
     refetch: loadAllData,
   };

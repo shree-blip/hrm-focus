@@ -75,6 +75,7 @@ const Leave = () => {
     createRequest,
     approveRequest,
     rejectRequest,
+    cancelRequest,
     adminCreateLeave,
   } = useLeaveRequests();
   const { unreadCount } = useNotifications();
