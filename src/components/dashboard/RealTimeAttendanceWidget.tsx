@@ -403,60 +403,62 @@ export function RealTimeAttendanceWidget() {
       if (userId) userEmpMap.set(userId, e);
     });
 
-    // Also create a reverse lookup: user_id -> employee for logs that only have user_id
+    // Fetch all individual break/pause sessions for today's logs
+    const allLogIds = logs?.map((l) => l.id) || [];
+    const sessionsMap = new Map<string, BreakSessionRow[]>();
+    if (allLogIds.length > 0) {
+      const batchSize = 200;
+      for (let i = 0; i < allLogIds.length; i += batchSize) {
+        const batch = allLogIds.slice(i, i + batchSize);
+        const { data: sessions } = await supabase
+          .from("attendance_break_sessions")
+          .select("id, attendance_log_id, session_type, start_time, end_time, duration_minutes")
+          .in("attendance_log_id", batch)
+          .order("start_time", { ascending: true });
+        sessions?.forEach((s: any) => {
+          const arr = sessionsMap.get(s.attendance_log_id) || [];
+          arr.push(s as BreakSessionRow);
+          sessionsMap.set(s.attendance_log_id, arr);
+        });
+      }
+    }
+    setBreakSessionsByLogId(sessionsMap);
+
+    // Build events using individual sessions instead of legacy single fields
     const evts: Event[] = [];
 
     logs?.forEach((log) => {
-      // Try to find employee by employee_id first, then by user_id
       let emp = empMap.get(log.employee_id);
-      if (!emp && log.user_id) {
-        emp = userEmpMap.get(log.user_id);
-      }
-      // If still not found, try to find by matching user_id in the uToE map
-      if (!emp && log.user_id && uToE.has(log.user_id)) {
-        emp = empMap.get(uToE.get(log.user_id));
-      }
+      if (!emp && log.user_id) emp = userEmpMap.get(log.user_id);
+      if (!emp && log.user_id && uToE.has(log.user_id)) emp = empMap.get(uToE.get(log.user_id));
       const name = emp ? `${emp.first_name} ${emp.last_name}`.trim() : "";
-
       if (!name) return;
 
       if (log.clock_in)
         evts.push({ id: buildEventId(log.id, "IN", log.clock_in), name, type: "IN", time: log.clock_in });
-      if (log.break_start)
-        evts.push({
-          id: buildEventId(log.id, "BRS", log.break_start),
-          name,
-          type: "BRS",
-          time: log.break_start,
+
+      // Use individual break/pause sessions for detailed events
+      const sessions = sessionsMap.get(log.id) || [];
+      if (sessions.length > 0) {
+        sessions.forEach((s, idx) => {
+          if (s.session_type === "break") {
+            evts.push({ id: `${log.id}-brs-${idx}-${new Date(s.start_time).getTime()}`, name, type: "BRS", time: s.start_time });
+            if (s.end_time) evts.push({ id: `${log.id}-bre-${idx}-${new Date(s.end_time).getTime()}`, name, type: "BRE", time: s.end_time });
+          } else if (s.session_type === "pause") {
+            evts.push({ id: `${log.id}-pause-${idx}-${new Date(s.start_time).getTime()}`, name, type: "PAUSE", time: s.start_time });
+            if (s.end_time) evts.push({ id: `${log.id}-cont-${idx}-${new Date(s.end_time).getTime()}`, name, type: "CONT", time: s.end_time });
+          }
         });
-      if (log.break_end)
-        evts.push({
-          id: buildEventId(log.id, "BRE", log.break_end),
-          name,
-          type: "BRE",
-          time: log.break_end,
-        });
-      if (log.pause_start)
-        evts.push({
-          id: buildEventId(log.id, "PAUSE", log.pause_start),
-          name,
-          type: "PAUSE",
-          time: log.pause_start,
-        });
-      if (log.pause_end)
-        evts.push({
-          id: buildEventId(log.id, "CONT", log.pause_end),
-          name,
-          type: "CONT",
-          time: log.pause_end,
-        });
+      } else {
+        // Fallback to legacy single fields
+        if (log.break_start) evts.push({ id: buildEventId(log.id, "BRS", log.break_start), name, type: "BRS", time: log.break_start });
+        if (log.break_end) evts.push({ id: buildEventId(log.id, "BRE", log.break_end), name, type: "BRE", time: log.break_end });
+        if (log.pause_start) evts.push({ id: buildEventId(log.id, "PAUSE", log.pause_start), name, type: "PAUSE", time: log.pause_start });
+        if (log.pause_end) evts.push({ id: buildEventId(log.id, "CONT", log.pause_end), name, type: "CONT", time: log.pause_end });
+      }
+
       if (log.clock_out)
-        evts.push({
-          id: buildEventId(log.id, "OUT", log.clock_out),
-          name,
-          type: "OUT",
-          time: log.clock_out,
-        });
+        evts.push({ id: buildEventId(log.id, "OUT", log.clock_out), name, type: "OUT", time: log.clock_out });
     });
 
     evts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -464,7 +466,7 @@ export function RealTimeAttendanceWidget() {
       const merged = [...prev, ...evts];
       const unique = Array.from(new Map(merged.map((evt) => [evt.id, evt])).values());
       unique.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-      return unique.slice(0, 100);
+      return unique.slice(0, 200);
     });
 
     const popupLogsMap = new Map<string, AttendanceLogRow>();
