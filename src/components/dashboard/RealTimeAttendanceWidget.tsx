@@ -61,6 +61,15 @@ interface EmployeeRow {
   } | null;
 }
 
+interface BreakSessionRow {
+  id: string;
+  attendance_log_id: string;
+  session_type: string;
+  start_time: string;
+  end_time: string | null;
+  duration_minutes: number | null;
+}
+
 interface AttendanceLogRow {
   id: string;
   employee_id: string | null;
@@ -224,7 +233,8 @@ export function RealTimeAttendanceWidget() {
   const [nptTime, setNptTime] = useState("");
   const [pstTime, setPstTime] = useState("");
   const [dailyLogs, setDailyLogs] = useState<AttendanceLogRow[]>([]);
-  const [isExporting, setIsExporting] = useState(false); // Add this new state
+  const [breakSessionsByLogId, setBreakSessionsByLogId] = useState<Map<string, BreakSessionRow[]>>(new Map());
+  const [isExporting, setIsExporting] = useState(false);
   const [openFullActivityView, setOpenFullActivityView] = useState(false);
   const [activitySearch, setActivitySearch] = useState("");
   const [activityTypeFilter, setActivityTypeFilter] = useState<"all" | Status>("all");
@@ -393,60 +403,62 @@ export function RealTimeAttendanceWidget() {
       if (userId) userEmpMap.set(userId, e);
     });
 
-    // Also create a reverse lookup: user_id -> employee for logs that only have user_id
+    // Fetch all individual break/pause sessions for today's logs
+    const allLogIds = logs?.map((l) => l.id) || [];
+    const sessionsMap = new Map<string, BreakSessionRow[]>();
+    if (allLogIds.length > 0) {
+      const batchSize = 200;
+      for (let i = 0; i < allLogIds.length; i += batchSize) {
+        const batch = allLogIds.slice(i, i + batchSize);
+        const { data: sessions } = await supabase
+          .from("attendance_break_sessions")
+          .select("id, attendance_log_id, session_type, start_time, end_time, duration_minutes")
+          .in("attendance_log_id", batch)
+          .order("start_time", { ascending: true });
+        sessions?.forEach((s: any) => {
+          const arr = sessionsMap.get(s.attendance_log_id) || [];
+          arr.push(s as BreakSessionRow);
+          sessionsMap.set(s.attendance_log_id, arr);
+        });
+      }
+    }
+    setBreakSessionsByLogId(sessionsMap);
+
+    // Build events using individual sessions instead of legacy single fields
     const evts: Event[] = [];
 
     logs?.forEach((log) => {
-      // Try to find employee by employee_id first, then by user_id
       let emp = empMap.get(log.employee_id);
-      if (!emp && log.user_id) {
-        emp = userEmpMap.get(log.user_id);
-      }
-      // If still not found, try to find by matching user_id in the uToE map
-      if (!emp && log.user_id && uToE.has(log.user_id)) {
-        emp = empMap.get(uToE.get(log.user_id));
-      }
+      if (!emp && log.user_id) emp = userEmpMap.get(log.user_id);
+      if (!emp && log.user_id && uToE.has(log.user_id)) emp = empMap.get(uToE.get(log.user_id));
       const name = emp ? `${emp.first_name} ${emp.last_name}`.trim() : "";
-
       if (!name) return;
 
       if (log.clock_in)
         evts.push({ id: buildEventId(log.id, "IN", log.clock_in), name, type: "IN", time: log.clock_in });
-      if (log.break_start)
-        evts.push({
-          id: buildEventId(log.id, "BRS", log.break_start),
-          name,
-          type: "BRS",
-          time: log.break_start,
+
+      // Use individual break/pause sessions for detailed events
+      const sessions = sessionsMap.get(log.id) || [];
+      if (sessions.length > 0) {
+        sessions.forEach((s, idx) => {
+          if (s.session_type === "break") {
+            evts.push({ id: `${log.id}-brs-${idx}-${new Date(s.start_time).getTime()}`, name, type: "BRS", time: s.start_time });
+            if (s.end_time) evts.push({ id: `${log.id}-bre-${idx}-${new Date(s.end_time).getTime()}`, name, type: "BRE", time: s.end_time });
+          } else if (s.session_type === "pause") {
+            evts.push({ id: `${log.id}-pause-${idx}-${new Date(s.start_time).getTime()}`, name, type: "PAUSE", time: s.start_time });
+            if (s.end_time) evts.push({ id: `${log.id}-cont-${idx}-${new Date(s.end_time).getTime()}`, name, type: "CONT", time: s.end_time });
+          }
         });
-      if (log.break_end)
-        evts.push({
-          id: buildEventId(log.id, "BRE", log.break_end),
-          name,
-          type: "BRE",
-          time: log.break_end,
-        });
-      if (log.pause_start)
-        evts.push({
-          id: buildEventId(log.id, "PAUSE", log.pause_start),
-          name,
-          type: "PAUSE",
-          time: log.pause_start,
-        });
-      if (log.pause_end)
-        evts.push({
-          id: buildEventId(log.id, "CONT", log.pause_end),
-          name,
-          type: "CONT",
-          time: log.pause_end,
-        });
+      } else {
+        // Fallback to legacy single fields
+        if (log.break_start) evts.push({ id: buildEventId(log.id, "BRS", log.break_start), name, type: "BRS", time: log.break_start });
+        if (log.break_end) evts.push({ id: buildEventId(log.id, "BRE", log.break_end), name, type: "BRE", time: log.break_end });
+        if (log.pause_start) evts.push({ id: buildEventId(log.id, "PAUSE", log.pause_start), name, type: "PAUSE", time: log.pause_start });
+        if (log.pause_end) evts.push({ id: buildEventId(log.id, "CONT", log.pause_end), name, type: "CONT", time: log.pause_end });
+      }
+
       if (log.clock_out)
-        evts.push({
-          id: buildEventId(log.id, "OUT", log.clock_out),
-          name,
-          type: "OUT",
-          time: log.clock_out,
-        });
+        evts.push({ id: buildEventId(log.id, "OUT", log.clock_out), name, type: "OUT", time: log.clock_out });
     });
 
     evts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -454,7 +466,7 @@ export function RealTimeAttendanceWidget() {
       const merged = [...prev, ...evts];
       const unique = Array.from(new Map(merged.map((evt) => [evt.id, evt])).values());
       unique.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-      return unique.slice(0, 100);
+      return unique.slice(0, 200);
     });
 
     const popupLogsMap = new Map<string, AttendanceLogRow>();
@@ -607,46 +619,27 @@ export function RealTimeAttendanceWidget() {
       const department = emp?.department || null;
 
       if (log.clock_in) rows.push({ id: `${log.id}-in`, name, type: "IN", time: log.clock_in, department });
-      if (log.break_start)
-        rows.push({
-          id: `${log.id}-brs`,
-          name,
-          type: "BRS",
-          time: log.break_start,
-          department,
+
+      // Use individual sessions for detailed break/pause events
+      const sessions = breakSessionsByLogId.get(log.id) || [];
+      if (sessions.length > 0) {
+        sessions.forEach((s, idx) => {
+          if (s.session_type === "break") {
+            rows.push({ id: `${log.id}-brs-${idx}`, name, type: "BRS", time: s.start_time, department });
+            if (s.end_time) rows.push({ id: `${log.id}-bre-${idx}`, name, type: "BRE", time: s.end_time, department });
+          } else if (s.session_type === "pause") {
+            rows.push({ id: `${log.id}-pause-${idx}`, name, type: "PAUSE", time: s.start_time, department });
+            if (s.end_time) rows.push({ id: `${log.id}-cont-${idx}`, name, type: "CONT", time: s.end_time, department });
+          }
         });
-      if (log.break_end)
-        rows.push({
-          id: `${log.id}-bre`,
-          name,
-          type: "BRE",
-          time: log.break_end,
-          department,
-        });
-      if (log.pause_start)
-        rows.push({
-          id: `${log.id}-pause`,
-          name,
-          type: "PAUSE",
-          time: log.pause_start,
-          department,
-        });
-      if (log.pause_end)
-        rows.push({
-          id: `${log.id}-cont`,
-          name,
-          type: "CONT",
-          time: log.pause_end,
-          department,
-        });
-      if (log.clock_out)
-        rows.push({
-          id: `${log.id}-out`,
-          name,
-          type: "OUT",
-          time: log.clock_out,
-          department,
-        });
+      } else {
+        if (log.break_start) rows.push({ id: `${log.id}-brs`, name, type: "BRS", time: log.break_start, department });
+        if (log.break_end) rows.push({ id: `${log.id}-bre`, name, type: "BRE", time: log.break_end, department });
+        if (log.pause_start) rows.push({ id: `${log.id}-pause`, name, type: "PAUSE", time: log.pause_start, department });
+        if (log.pause_end) rows.push({ id: `${log.id}-cont`, name, type: "CONT", time: log.pause_end, department });
+      }
+
+      if (log.clock_out) rows.push({ id: `${log.id}-out`, name, type: "OUT", time: log.clock_out, department });
     });
 
     // Merge realtime timeline events so repeated break/pause cycles appear in popup details too.
@@ -666,7 +659,7 @@ export function RealTimeAttendanceWidget() {
     );
     deduped.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
     return deduped;
-  }, [dailyLogs, employees, userToEmpMap, events]);
+  }, [dailyLogs, employees, userToEmpMap, events, breakSessionsByLogId]);
 
   const fullActivityEmployees = useMemo(() => {
     return Array.from(new Set(fullActivities.map((evt) => evt.name))).sort((a, b) => a.localeCompare(b));
@@ -788,7 +781,24 @@ export function RealTimeAttendanceWidget() {
         return;
       }
 
-      // 1. Updated Headers to include Durations and Net Hours
+      // Fetch all break/pause sessions for these logs
+      const logIds = historicalLogs.map((l) => l.id);
+      const exportSessionsMap = new Map<string, BreakSessionRow[]>();
+      const batchSize = 200;
+      for (let i = 0; i < logIds.length; i += batchSize) {
+        const batch = logIds.slice(i, i + batchSize);
+        const { data: sessions } = await supabase
+          .from("attendance_break_sessions")
+          .select("id, attendance_log_id, session_type, start_time, end_time, duration_minutes")
+          .in("attendance_log_id", batch)
+          .order("start_time", { ascending: true });
+        sessions?.forEach((s: any) => {
+          const arr = exportSessionsMap.get(s.attendance_log_id) || [];
+          arr.push(s as BreakSessionRow);
+          exportSessionsMap.set(s.attendance_log_id, arr);
+        });
+      }
+
       const headers = [
         "Date",
         "Employee Name",
@@ -798,25 +808,17 @@ export function RealTimeAttendanceWidget() {
         "Mode Change Summary",
         "Clock In",
         "Clock Out",
-        "Break Start",
-        "Break End",
-        "Break Dur",
-        "Pause Start",
-        "Pause End",
-        "Pause Dur",
+        "Break Sessions",
+        "Break Details",
+        "Total Break Duration",
+        "Pause Sessions",
+        "Pause Details",
+        "Total Pause Duration",
         "Net Hours",
       ];
 
-      // Helper 1: Format time exactly like your second screenshot (e.g. 09:34 AM)
       const formatTimeOnly = (isoString?: string | null) => (isoString ? format(new Date(isoString), "hh:mm a") : "-");
 
-      // Helper 2: Calculate duration in minutes between two timestamps
-      const calculateDurationMinutes = (startTime?: string | null, endTime?: string | null) => {
-        if (!startTime || !endTime) return 0;
-        return Math.max(0, (new Date(endTime).getTime() - new Date(startTime).getTime()) / (1000 * 60));
-      };
-
-      // Helper 3: Format minutes into "1h 15m" or just "16m"
       const formatDurationText = (minutes: number): string => {
         if (minutes <= 0) return "-";
         if (minutes < 60) return `${Math.round(minutes)}m`;
@@ -825,7 +827,6 @@ export function RealTimeAttendanceWidget() {
         return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
       };
 
-      // 2. Map raw logs to CSV format with the new logic
       const csvRows = historicalLogs.map((log) => {
         const empId = log.employee_id || userToEmpMap.get(log.user_id);
         const emp = employees.find((e) => e.id === empId);
@@ -841,21 +842,35 @@ export function RealTimeAttendanceWidget() {
           ? `${getModeLabel(startMode)} -> ${getModeLabel(endMode)}`
           : getModeLabel(endMode || startMode || null);
 
-        // Calculate Break and Pause minutes (fallback to calculating if not saved in DB)
-        const breakMinutes = log.total_break_minutes || calculateDurationMinutes(log.break_start, log.break_end);
-        const pauseMinutes = log.total_pause_minutes || calculateDurationMinutes(log.pause_start, log.pause_end);
+        // Get individual sessions
+        const sessions = exportSessionsMap.get(log.id) || [];
+        const breakSessions = sessions.filter((s) => s.session_type === "break");
+        const pauseSessions = sessions.filter((s) => s.session_type === "pause");
 
-        // Calculate Net Hours Worked
+        // Build detailed break info
+        const breakCount = breakSessions.length;
+        const breakDetails = breakSessions.length > 0
+          ? breakSessions.map((s, i) => `#${i + 1}: ${formatTimeOnly(s.start_time)} - ${formatTimeOnly(s.end_time)} (${formatDurationText(s.duration_minutes || 0)})`).join(" | ")
+          : (log.break_start ? `${formatTimeOnly(log.break_start)} - ${formatTimeOnly(log.break_end)}` : "-");
+        const totalBreakMinutes = breakSessions.length > 0
+          ? breakSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0)
+          : (log.total_break_minutes || 0);
+
+        // Build detailed pause info
+        const pauseCount = pauseSessions.length;
+        const pauseDetails = pauseSessions.length > 0
+          ? pauseSessions.map((s, i) => `#${i + 1}: ${formatTimeOnly(s.start_time)} - ${formatTimeOnly(s.end_time)} (${formatDurationText(s.duration_minutes || 0)})`).join(" | ")
+          : (log.pause_start ? `${formatTimeOnly(log.pause_start)} - ${formatTimeOnly(log.pause_end)}` : "-");
+        const totalPauseMinutes = pauseSessions.length > 0
+          ? pauseSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0)
+          : (log.total_pause_minutes || 0);
+
+        // Calculate Net Hours
         const clockOutDate = log.clock_out ? new Date(log.clock_out) : null;
-        let netHours = "-";
-
-        // If they haven't clocked out, it uses current time to show "Live" hours worked
-        const endTime = clockOutDate || new Date();
-        const diffMs = endTime.getTime() - dateObj.getTime();
-        const netWorkMs = diffMs - (breakMinutes + pauseMinutes) * 60 * 1000;
-
-        // Format as decimal hours (e.g. 5.90h)
-        netHours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
+        const endTimeCalc = clockOutDate || new Date();
+        const diffMs = endTimeCalc.getTime() - dateObj.getTime();
+        const netWorkMs = diffMs - (totalBreakMinutes + totalPauseMinutes) * 60 * 1000;
+        const netHours = `${(Math.max(0, netWorkMs) / (1000 * 60 * 60)).toFixed(2)}h`;
 
         return [
           `"${logDate}"`,
@@ -866,12 +881,12 @@ export function RealTimeAttendanceWidget() {
           `"${modeSummary}"`,
           `"${formatTimeOnly(log.clock_in)}"`,
           `"${formatTimeOnly(log.clock_out)}"`,
-          `"${formatTimeOnly(log.break_start)}"`,
-          `"${formatTimeOnly(log.break_end)}"`,
-          `"${formatDurationText(breakMinutes)}"`,
-          `"${formatTimeOnly(log.pause_start)}"`,
-          `"${formatTimeOnly(log.pause_end)}"`,
-          `"${formatDurationText(pauseMinutes)}"`,
+          `"${breakCount || (log.break_start ? 1 : 0)}"`,
+          `"${breakDetails}"`,
+          `"${formatDurationText(totalBreakMinutes)}"`,
+          `"${pauseCount || (log.pause_start ? 1 : 0)}"`,
+          `"${pauseDetails}"`,
+          `"${formatDurationText(totalPauseMinutes)}"`,
           `"${netHours}"`,
         ].join(",");
       });
