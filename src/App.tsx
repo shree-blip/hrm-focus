@@ -49,6 +49,10 @@ function lazyRetry(factory: () => Promise<{ default: React.ComponentType<any> }>
   );
 }
 
+const Index = lazyRetry(() => import("./pages/Index"));
+const Profile = lazyRetry(() => import("./pages/Profile"));
+const Settings = lazyRetry(() => import("./pages/Settings"));
+const Notifications = lazyRetry(() => import("./pages/Notifications"));
 const Employees = lazyRetry(() => import("./pages/Employees"));
 const Attendance = lazyRetry(() => import("./pages/Attendance"));
 const Leave = lazyRetry(() => import("./pages/Leave"));
