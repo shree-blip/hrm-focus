@@ -158,26 +158,45 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
       return;
     }
 
+    // Fetch break/pause sessions for all logs
+    const logIds = logs?.map((l) => l.id) || [];
+    let sessionsMap = new Map<string, BreakSessionRecord[]>();
+    if (logIds.length > 0) {
+      // Fetch in batches of 200 to avoid query limits
+      const batchSize = 200;
+      const allSessions: (BreakSessionRecord & { attendance_log_id: string })[] = [];
+      for (let i = 0; i < logIds.length; i += batchSize) {
+        const batch = logIds.slice(i, i + batchSize);
+        const { data: sessions } = await supabase
+          .from("attendance_break_sessions")
+          .select("id, attendance_log_id, session_type, start_time, end_time, duration_minutes")
+          .in("attendance_log_id", batch)
+          .order("start_time", { ascending: true });
+        if (sessions) allSessions.push(...(sessions as any));
+      }
+      allSessions.forEach((s) => {
+        const arr = sessionsMap.get(s.attendance_log_id) || [];
+        arr.push(s);
+        sessionsMap.set(s.attendance_log_id, arr);
+      });
+    }
+
     // Fetch profiles and employees for name resolution + timezone
     const { data: profiles } = await supabase.from("profiles").select("user_id, first_name, last_name, email");
     const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id, timezone");
 
     const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
     const employeeMap = new Map(employees?.map((e) => [e.id, e]) || []);
-    // Build a map from profile_id → timezone
     const profileIdToTimezone = new Map(
       employees?.filter(e => e.profile_id).map(e => [e.profile_id, e.timezone || "Asia/Kathmandu"]) || []
     );
-    // Build userId → timezone using profiles
     const userTimezoneMap = new Map<string, string>();
     profiles?.forEach(p => {
       const tz = profileIdToTimezone.get(p.user_id) || "Asia/Kathmandu";
       userTimezoneMap.set(p.user_id, tz);
     });
-    // Also map via employee.profile_id
     employees?.forEach(e => {
       if (e.profile_id) {
-        // profile_id in employees table is profiles.id (which equals profiles.user_id in this schema)
         userTimezoneMap.set(e.profile_id, e.timezone || "Asia/Kathmandu");
       }
     });
@@ -238,6 +257,23 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
 
       const empTz = userTimezoneMap.get(userId) || "Asia/Kathmandu";
 
+      // Build breaks and pauses arrays from sessions
+      const sessions = sessionsMap.get(log.id) || [];
+      const breaks = sessions
+        .filter((s) => s.session_type === "break")
+        .map((s) => ({
+          break_start: s.start_time,
+          break_end: s.end_time,
+          duration_minutes: s.duration_minutes || 0,
+        }));
+      const pauses = sessions
+        .filter((s) => s.session_type === "pause")
+        .map((s) => ({
+          pause_start: s.start_time,
+          pause_end: s.end_time,
+          duration_minutes: s.duration_minutes || 0,
+        }));
+
       dailyRecords.push({
         id: log.id,
         user_id: userId,
@@ -256,6 +292,8 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
         hours_worked: hoursWorked,
         date: getUTCDateKey(log.clock_in),
         is_edited: !!(log as any).is_edited,
+        breaks,
+        pauses,
       });
     });
 
