@@ -16,12 +16,8 @@ import { ThemeProvider } from "./components/dashboard/ThemeContext";
 // 1. EAGER IMPORTS — Core pages users hit on every session.
 //    No lazy loading = instant navigation, zero spinner.
 // ─────────────────────────────────────────────────────────
-import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
-import Profile from "./pages/Profile";
-import Notifications from "./pages/Notifications";
-import Settings from "./pages/Settings";
 
 // ─────────────────────────────────────────────────────────
 // 2. LAZY IMPORTS — Heavier / less-visited pages.
@@ -53,6 +49,10 @@ function lazyRetry(factory: () => Promise<{ default: React.ComponentType<any> }>
   );
 }
 
+const Index = lazyRetry(() => import("./pages/Index"));
+const Profile = lazyRetry(() => import("./pages/Profile"));
+const Settings = lazyRetry(() => import("./pages/Settings"));
+const Notifications = lazyRetry(() => import("./pages/Notifications"));
 const Employees = lazyRetry(() => import("./pages/Employees"));
 const Attendance = lazyRetry(() => import("./pages/Attendance"));
 const Leave = lazyRetry(() => import("./pages/Leave"));
@@ -85,6 +85,10 @@ const NotFound = lazyRetry(() => import("./pages/NotFound"));
 //      <Link to="/employees" onMouseEnter={() => prefetchRoute("employees")}>
 // ─────────────────────────────────────────────────────────
 const prefetchMap: Record<string, () => Promise<any>> = {
+  "/": () => import("./pages/Index"),
+  profile: () => import("./pages/Profile"),
+  settings: () => import("./pages/Settings"),
+  notifications: () => import("./pages/Notifications"),
   employees: () => import("./pages/Employees"),
   attendance: () => import("./pages/Attendance"),
   leave: () => import("./pages/Leave"),
