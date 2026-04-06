@@ -136,7 +136,7 @@ export function BreakPauseDetailPanel({ sessions, loading, timezone, legacyData 
             </tr>
           </thead>
           <tbody>
-            {sessions.map((session, idx) => (
+            {displaySessions.map((session, idx) => (
               <tr key={session.id} className="border-b last:border-0">
                 <td className="px-3 py-1.5 text-muted-foreground">{idx + 1}</td>
                 <td className="px-3 py-1.5">
