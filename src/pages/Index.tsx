@@ -9,7 +9,7 @@ import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
-import { useMemo, useEffect, lazy, Suspense } from "react";
+import { useMemo, lazy, Suspense } from "react";
 
 import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
