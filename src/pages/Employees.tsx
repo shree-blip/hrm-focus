@@ -623,16 +623,16 @@ const Employees = () => {
   return (
     <DashboardLayout>
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 animate-fade-in">
+        <div className="min-w-0">
+          <h1 className="heading-page font-display font-bold text-foreground">
             {showMyTeamSection && !showFullDirectory
               ? "My Team"
               : showFullDirectory
                 ? "Employees"
                 : "Employee Directory"}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             {showMyTeamSection && !showFullDirectory
               ? "Manage your direct reports"
               : showFullDirectory
@@ -640,17 +640,19 @@ const Employees = () => {
                 : "View your colleagues"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {isManager && (
-            <Button variant="outline" className="gap-2" onClick={handleOpenPromotionPicker}>
+            <Button variant="outline" className="gap-2 text-sm" onClick={handleOpenPromotionPicker}>
               <TrendingUp className="h-4 w-4" />
-              Request Promotion
+              <span className="hidden sm:inline">Request Promotion</span>
+              <span className="sm:hidden">Promote</span>
             </Button>
           )}
           {canCreateEmployee && (
-            <Button className="gap-2 shadow-md" onClick={() => setAddDialogOpen(true)}>
+            <Button className="gap-2 shadow-md text-sm" onClick={() => setAddDialogOpen(true)}>
               <Plus className="h-4 w-4" />
-              Add Employee
+              <span className="hidden sm:inline">Add Employee</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           )}
         </div>
