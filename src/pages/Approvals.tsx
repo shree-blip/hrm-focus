@@ -684,7 +684,7 @@ const Approvals = () => {
             currentRequest={conflictData?.currentRequest || null}
             conflictingRequests={conflictData?.conflictingRequests || []}
             onApproveAnyway={() => handleApproveWithConflictResolution(false)}
-            onApproveAndReject={() => handleApproveWithConflictResolution(true)}
+            onRejectOthers={() => handleApproveWithConflictResolution(true)}
           />
         </>
       )}
