@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useGrievances, GRIEVANCE_CATEGORIES, GRIEVANCE_PRIORITIES } from "@/hooks/useGrievances";
+import { ImagePlus, X } from "lucide-react";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void; // Added callback for successful submission
+  onSuccess?: () => void;
 }
 
 export function SubmitGrievanceDialog({ open, onOpenChange, onSuccess }: Props) {
@@ -24,6 +25,8 @@ export function SubmitGrievanceDialog({ open, onOpenChange, onSuccess }: Props) 
   const [anonVisibility, setAnonVisibility] = useState("nobody");
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false); // <-- NEW
+  const fileInputRef = useRef<HTMLInputElement>(null); // <-- NEW
 
   const handleSubmit = async () => {
     if (!title || !category || !details) return;
@@ -47,7 +50,6 @@ export function SubmitGrievanceDialog({ open, onOpenChange, onSuccess }: Props) 
     setSubmitting(false);
     if (result) {
       resetForm();
-      // Call onSuccess callback if provided, otherwise just close the dialog
       if (onSuccess) {
         onSuccess();
       } else {
@@ -65,6 +67,39 @@ export function SubmitGrievanceDialog({ open, onOpenChange, onSuccess }: Props) 
     setAnonVisibility("nobody");
     setFiles([]);
   };
+
+  // -- NEW: Drag, drop, paste, and remove handlers --
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      setFiles((prev) => [...prev, ...droppedFiles]);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const pastedFiles = Array.from(e.clipboardData.files);
+    if (pastedFiles.length > 0) {
+      e.preventDefault();
+      setFiles((prev) => [...prev, ...pastedFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+  // -- END NEW --
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,17 +164,61 @@ export function SubmitGrievanceDialog({ open, onOpenChange, onSuccess }: Props) 
             />
           </div>
 
-          <div>
-            <Label htmlFor="grievance-files">Attachments (optional)</Label>
-            <Input
-              id="grievance-files"
+          {/* -- UPDATED: Attachments section with drag & drop + paste -- */}
+          <div onPaste={handlePaste}>
+            <Label>Attachments (optional)</Label>
+            <input
+              ref={fileInputRef}
               type="file"
               multiple
-              onChange={(e) => setFiles(Array.from(e.target.files || []))}
-              className="mt-1"
+              onChange={(e) => {
+                const selected = Array.from(e.target.files || []);
+                setFiles((prev) => [...prev, ...selected]);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+              className="hidden"
             />
-            {files.length > 0 && <p className="text-xs text-muted-foreground mt-1">{files.length} file(s) selected</p>}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`mt-1 w-full h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                isDragging
+                  ? "border-primary bg-primary/5"
+                  : "border-muted-foreground/25 hover:border-muted-foreground/50"
+              }`}
+            >
+              <ImagePlus className={`h-8 w-8 mb-2 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+              <span className="text-sm text-muted-foreground">
+                {isDragging ? "Drop files here" : "Drag & drop, click to upload, or paste (Ctrl+V)"}
+              </span>
+            </div>
+
+            {files.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {files.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between text-sm bg-muted/50 rounded px-3 py-1.5"
+                  >
+                    <span className="truncate mr-2">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFile(index);
+                      }}
+                      className="text-muted-foreground hover:text-destructive shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+          {/* -- END UPDATED -- */}
 
           <div className="border rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
