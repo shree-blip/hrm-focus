@@ -804,27 +804,27 @@ const Attendance = () => {
                 );
               })}
             </div>
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-              <div className="text-center">
-                <p className="text-2xl font-display font-bold">{weeklyTotal.toFixed(1)}h</p>
-                <p className="text-sm text-muted-foreground">Worked Hours</p>
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border gap-2">
+              <div className="text-center min-w-0">
+                <p className="text-lg sm:text-2xl font-display font-bold">{weeklyTotal.toFixed(1)}h</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Worked</p>
               </div>
-              <div className="text-center">
+              <div className="text-center min-w-0">
                 <p
                   className={cn(
-                    "text-2xl font-display font-bold",
+                    "text-lg sm:text-2xl font-display font-bold",
                     targetMet >= 100 ? "text-success" : targetMet >= 80 ? "text-warning" : "text-destructive",
                   )}
                 >
                   {targetMet}%
                 </p>
-                <p className="text-sm text-muted-foreground">Performance Metrics</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Target</p>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-display font-bold">
+              <div className="text-center min-w-0">
+                <p className="text-lg sm:text-2xl font-display font-bold">
                   {Math.max(0, adjustedTargetHours - weeklyTotal).toFixed(1)}h
                 </p>
-                <p className="text-sm text-muted-foreground">Remaining</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Remaining</p>
               </div>
             </div>
             {weeklyLeaveHours > 0 && (
