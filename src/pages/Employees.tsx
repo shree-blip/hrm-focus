@@ -845,7 +845,7 @@ const Employees = () => {
           onClick={() => setClickedEmployee(null)}
         >
           <Card
-            className="w-full max-w-3xl mx-4 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto"
+            className="w-full max-w-3xl mx-3 sm:mx-4 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <CardContent className="p-6">
