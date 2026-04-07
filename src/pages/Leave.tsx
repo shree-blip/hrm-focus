@@ -750,7 +750,7 @@ const Leave = () => {
                   <div
                     key={request.id}
                     className={cn(
-                      "flex items-start gap-4 p-4 rounded-xl border transition-all animate-fade-in",
+                      "flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border transition-all animate-fade-in",
                       request.status === "pending" &&
                         !isLeaveOnLieu &&
                         !isOtherLeave &&
