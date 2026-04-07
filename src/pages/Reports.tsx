@@ -721,7 +721,7 @@ const Reports = () => {
         {/* LEAVE REPORTS TAB - Moved to Approvals page */}
 
         <TabsContent value="attendance" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
