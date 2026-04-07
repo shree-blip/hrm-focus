@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useGrievances, GrievanceComment, GRIEVANCE_STATUSES, STATUS_LABELS } from "@/hooks/useGrievances";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
-import { Send, Lock, User } from "lucide-react";
+import { Send, Lock, User, Paperclip, Download, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -20,13 +20,14 @@ interface Props {
 }
 
 export function GrievanceDetailDialog({ grievanceId, open, onOpenChange }: Props) {
-  const { grievances, updateGrievanceStatus, fetchComments, addComment, getSubmitterDisplayName, markAsViewed } =
+  const { grievances, updateGrievanceStatus, fetchComments, addComment, getSubmitterDisplayName, markAsViewed, fetchAttachments, getAttachmentUrl } =
     useGrievances();
   const { user, isManager, isAdmin, isVP } = useAuth();
   const canManage = isManager || isAdmin || isVP;
 
   const grievance = grievances.find((g) => g.id === grievanceId);
   const [comments, setComments] = useState<GrievanceComment[]>([]);
+  const [attachments, setAttachments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -35,7 +36,7 @@ export function GrievanceDetailDialog({ grievanceId, open, onOpenChange }: Props
   useEffect(() => {
     if (open && grievanceId) {
       loadComments();
-      // Mark as viewed when dialog opens
+      loadAttachments();
       markAsViewed(grievanceId);
     }
   }, [open, grievanceId]);
@@ -45,6 +46,18 @@ export function GrievanceDetailDialog({ grievanceId, open, onOpenChange }: Props
     const data = await fetchComments(grievanceId);
     setComments(data);
     setLoadingComments(false);
+  };
+
+  const loadAttachments = async () => {
+    const data = await fetchAttachments(grievanceId);
+    setAttachments(data);
+  };
+
+  const handleDownloadAttachment = async (filePath: string, fileName: string) => {
+    const url = await getAttachmentUrl(filePath);
+    if (url) {
+      window.open(url, "_blank");
+    }
   };
 
   const handleAddComment = async () => {
@@ -128,6 +141,36 @@ export function GrievanceDetailDialog({ grievanceId, open, onOpenChange }: Props
             <Label className="text-sm font-medium">Details</Label>
             <p className="mt-1 text-sm whitespace-pre-wrap bg-muted/50 rounded-md p-3">{grievance.details}</p>
           </div>
+
+          {/* Attachments */}
+          {attachments.length > 0 && (
+            <div>
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Paperclip className="h-4 w-4" />
+                Attachments ({attachments.length})
+              </Label>
+              <div className="mt-2 space-y-2">
+                {attachments.map((att: any) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center justify-between p-2 rounded-md bg-muted/50 text-sm cursor-pointer hover:bg-muted transition-colors"
+                    onClick={() => handleDownloadAttachment(att.file_path, att.file_name)}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate">{att.file_name}</span>
+                      {att.file_size && (
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          ({(att.file_size / 1024).toFixed(1)} KB)
+                        </span>
+                      )}
+                    </div>
+                    <Download className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <Separator />
 
