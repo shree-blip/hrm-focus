@@ -861,7 +861,7 @@ const Employees = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className={cn("grid gap-3", isManager ? "grid-cols-2 lg:grid-cols-5" : "grid-cols-1")}>
+              <div className={cn("grid gap-2 sm:gap-3", isManager ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" : "grid-cols-1")}>
                 <Button
                   variant="outline"
                   className="flex-col h-24 gap-2"
