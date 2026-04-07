@@ -75,6 +75,7 @@ export function useLeaveRequests() {
   const { user, isManager, isLineManager, isSupervisor, isVP, isAdmin, role } = useAuth();
   const [ownRequests, setOwnRequests] = useState<LeaveRequest[]>([]);
   const [teamLeaves, setTeamLeaves] = useState<LeaveRequest[]>([]);
+  const [allApprovedLeaves, setAllApprovedLeaves] = useState<LeaveRequest[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamMemberUserIds, setTeamMemberUserIds] = useState<string[]>([]);
@@ -262,12 +263,36 @@ export function useLeaveRequests() {
     return [];
   }, [user, isManager, isSupervisor, isLineManager, role, fetchTeamMemberUserIds]);
 
+  // Fetch ALL org-wide approved leaves for calendar view (visible to everyone)
+  const fetchAllApprovedLeaves = useCallback(async () => {
+    if (!user) return [];
+
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    const { data, error } = await supabase
+      .from("leave_requests")
+      .select("*")
+      .eq("status", "approved")
+      .gte("end_date", todayStr)
+      .order("start_date", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching all approved leaves:", error);
+      return [];
+    }
+
+    return data || [];
+  }, [user]);
+
   const fetchRequests = useCallback(async () => {
     if (!user) return;
 
-    const ownRequestsData = await fetchOwnRequests();
-    const approvedTeamLeaves = await fetchTeamLeaves();
-    const allTeamRequests = isManager ? await fetchAllTeamRequests() : [];
+    const [ownRequestsData, approvedTeamLeaves, allTeamRequests, orgApprovedLeaves] = await Promise.all([
+      fetchOwnRequests(),
+      fetchTeamLeaves(),
+      isManager ? fetchAllTeamRequests() : Promise.resolve([]),
+      fetchAllApprovedLeaves(),
+    ]);
 
     const allManageableRequests = [...ownRequestsData];
 
@@ -280,6 +305,7 @@ export function useLeaveRequests() {
     const allUserIds = new Set([
       ...allManageableRequests.map((r) => r.user_id),
       ...approvedTeamLeaves.map((r) => r.user_id),
+      ...orgApprovedLeaves.map((r) => r.user_id),
     ]);
 
     const { data: profilesData } = await supabase
@@ -299,9 +325,15 @@ export function useLeaveRequests() {
       profile: profilesMap.get(request.user_id) || undefined,
     })) as LeaveRequest[];
 
+    const allApprovedWithProfiles = orgApprovedLeaves.map((request) => ({
+      ...request,
+      profile: profilesMap.get(request.user_id) || undefined,
+    })) as LeaveRequest[];
+
     setOwnRequests(ownRequestsWithProfiles);
     setTeamLeaves(teamLeavesWithProfiles);
-  }, [user, isManager, fetchOwnRequests, fetchTeamLeaves, fetchAllTeamRequests]);
+    setAllApprovedLeaves(allApprovedWithProfiles);
+  }, [user, isManager, fetchOwnRequests, fetchTeamLeaves, fetchAllTeamRequests, fetchAllApprovedLeaves]);
 
   const fetchBalances = useCallback(async () => {
     if (!user) return;
@@ -970,6 +1002,7 @@ export function useLeaveRequests() {
     requests: getAllRequests(),
     ownRequests,
     teamLeaves,
+    allApprovedLeaves,
     balances,
     loading,
     createRequest,

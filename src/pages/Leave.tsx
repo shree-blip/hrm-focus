@@ -70,6 +70,7 @@ const Leave = () => {
     requests,
     ownRequests,
     teamLeaves,
+    allApprovedLeaves,
     balances,
     loading,
     createRequest,
@@ -990,8 +991,8 @@ const Leave = () => {
                     return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
                   });
 
-                  const othersOnLeave = teamLeaves.some((r) => {
-                    if (r.status !== "approved" || r.user_id === user?.id) return false;
+                  const othersOnLeave = allApprovedLeaves.some((r) => {
+                    if (r.user_id === user?.id) return false;
                     const startDate = new Date(r.start_date);
                     startDate.setHours(0, 0, 0, 0);
                     const endDate = new Date(r.end_date);
@@ -1031,7 +1032,7 @@ const Leave = () => {
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="h-3 w-3 rounded bg-warning/20" />
-                  <span>Team on leave</span>
+                  <span>Others on leave</span>
                 </div>
               </div>
 
@@ -1039,8 +1040,7 @@ const Leave = () => {
                 <p className="text-sm font-medium mb-2">Currently On Leave</p>
                 <div className="space-y-2">
                   {(() => {
-                    const currentlyOnLeave = teamLeaves.filter((r) => {
-                      if (r.status !== "approved") return false;
+                    const currentlyOnLeave = allApprovedLeaves.filter((r) => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
                       const startDate = new Date(r.start_date);
@@ -1083,8 +1083,8 @@ const Leave = () => {
                 <p className="text-sm font-medium mb-2">Upcoming Time Off</p>
                 <div className="space-y-2">
                   {(() => {
-                    const upcoming = teamLeaves
-                      .filter((r) => r.status === "approved" && new Date(r.start_date) > new Date())
+                    const upcoming = allApprovedLeaves
+                      .filter((r) => new Date(r.start_date) > new Date())
                       .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
                       .slice(0, 5);
 
