@@ -75,6 +75,7 @@ export function useLeaveRequests() {
   const { user, isManager, isLineManager, isSupervisor, isVP, isAdmin, role } = useAuth();
   const [ownRequests, setOwnRequests] = useState<LeaveRequest[]>([]);
   const [teamLeaves, setTeamLeaves] = useState<LeaveRequest[]>([]);
+  const [allApprovedLeaves, setAllApprovedLeaves] = useState<LeaveRequest[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamMemberUserIds, setTeamMemberUserIds] = useState<string[]>([]);
