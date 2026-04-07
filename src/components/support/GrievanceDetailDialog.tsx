@@ -142,6 +142,36 @@ export function GrievanceDetailDialog({ grievanceId, open, onOpenChange }: Props
             <p className="mt-1 text-sm whitespace-pre-wrap bg-muted/50 rounded-md p-3">{grievance.details}</p>
           </div>
 
+          {/* Attachments */}
+          {attachments.length > 0 && (
+            <div>
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Paperclip className="h-4 w-4" />
+                Attachments ({attachments.length})
+              </Label>
+              <div className="mt-2 space-y-2">
+                {attachments.map((att: any) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center justify-between p-2 rounded-md bg-muted/50 text-sm cursor-pointer hover:bg-muted transition-colors"
+                    onClick={() => handleDownloadAttachment(att.file_path, att.file_name)}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate">{att.file_name}</span>
+                      {att.file_size && (
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          ({(att.file_size / 1024).toFixed(1)} KB)
+                        </span>
+                      )}
+                    </div>
+                    <Download className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Separator />
 
           {/* Comments */}
