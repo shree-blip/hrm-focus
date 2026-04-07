@@ -523,8 +523,8 @@ const Attendance = () => {
               </div>
             )}
 
-            <div className="text-center py-8 rounded-xl bg-secondary/50 border border-border">
-              <p className="text-5xl font-display font-bold tracking-wider text-foreground">{elapsedTime}</p>
+            <div className="text-center py-6 sm:py-8 rounded-xl bg-secondary/50 border border-border">
+              <p className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold tracking-wider text-foreground">{elapsedTime}</p>
 
               {currentLog && !currentLog.clock_out && (
                 <p className="text-sm text-muted-foreground mt-2">
