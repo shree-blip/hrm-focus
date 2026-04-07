@@ -474,12 +474,12 @@ const Attendance = () => {
   return (
     <DashboardLayout>
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Attendance</h1>
-          <p className="text-muted-foreground mt-1">Track time and manage attendance records</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 animate-fade-in">
+        <div className="min-w-0">
+          <h1 className="heading-page font-display font-bold text-foreground">Attendance</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Track time and manage attendance records</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={handleExport}>
+        <Button variant="outline" className="gap-2 shrink-0 w-full sm:w-auto" onClick={handleExport}>
           <Download className="h-4 w-4" />
           Export Report
         </Button>
