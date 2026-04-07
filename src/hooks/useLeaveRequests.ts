@@ -1002,6 +1002,7 @@ export function useLeaveRequests() {
     requests: getAllRequests(),
     ownRequests,
     teamLeaves,
+    allApprovedLeaves,
     balances,
     loading,
     createRequest,
