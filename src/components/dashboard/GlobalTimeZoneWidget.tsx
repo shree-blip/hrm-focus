@@ -392,7 +392,7 @@ export function GlobalTimeZoneWidget() {
 
   return (
     <>
-      <div
+      {/* <div
         onClick={() => setOpen(true)}
         className="group cursor-pointer rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md hover:border-primary/30"
       >
@@ -411,7 +411,7 @@ export function GlobalTimeZoneWidget() {
         </p>
       </div>
 
-      {open && <TimeZoneModal onClose={() => setOpen(false)} />}
+      {open && <TimeZoneModal onClose={() => setOpen(false)} />} */}
     </>
   );
 }
