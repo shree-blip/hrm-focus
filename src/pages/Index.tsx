@@ -22,12 +22,8 @@ const CompanyCalendar = lazy(() =>
 const RealTimeAttendanceWidget = lazy(() =>
   import("@/components/dashboard/RealTimeAttendanceWidget").then((m) => ({ default: m.RealTimeAttendanceWidget })),
 );
-const TasksWidget = lazy(() =>
-  import("@/components/dashboard/TasksWidget").then((m) => ({ default: m.TasksWidget })),
-);
-const LeaveWidget = lazy(() =>
-  import("@/components/dashboard/LeaveWidget").then((m) => ({ default: m.LeaveWidget })),
-);
+const TasksWidget = lazy(() => import("@/components/dashboard/TasksWidget").then((m) => ({ default: m.TasksWidget })));
+const LeaveWidget = lazy(() => import("@/components/dashboard/LeaveWidget").then((m) => ({ default: m.LeaveWidget })));
 const AnnouncementsWidget = lazy(() =>
   import("@/components/dashboard/AnnouncementsWidget").then((m) => ({ default: m.AnnouncementsWidget })),
 );
@@ -47,13 +43,12 @@ const TeamReportsWidget = lazy(() =>
 const Index = () => {
   const { profile, role, isManager } = useAuth();
   const navigate = useNavigate();
-  
+
   const isMobile = useIsMobile();
   const { employees } = useEmployees();
   const { tasks } = useTasks();
   const { requests, ownRequests, teamLeaves } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
-
 
   const firstName = profile?.first_name || "User";
   const pendingTasks = tasks.filter((t) => t.status !== "done").length;
@@ -197,11 +192,13 @@ const Index = () => {
           title={isManager ? "Leave Requests" : "My Leave"}
           value={pendingLeaves.length.toString()}
           change={leaveChangeText}
-          changeType={isManager && pendingLeaves.length > 0 ? "negative" : onLeaveToday.length > 0 ? "neutral" : "positive"}
+          changeType={
+            isManager && pendingLeaves.length > 0 ? "negative" : onLeaveToday.length > 0 ? "neutral" : "positive"
+          }
           icon={Calendar}
           iconColor="bg-info/10 text-info"
           delay={250}
-          onClick={() => navigate("/leave")}
+          onClick={() => navigate("/approvals")}
         />
       </div>
 
