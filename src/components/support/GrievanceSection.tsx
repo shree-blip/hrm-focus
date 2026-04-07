@@ -72,6 +72,21 @@ export function GrievanceSection() {
 
   return (
     <div className="space-y-4">
+      {/* Embedded Google Form */}
+      <Card>
+        <CardContent className="p-0 overflow-hidden">
+          <iframe
+            src="https://docs.google.com/forms/d/e/1FAIpQLSfERST8abuzNCQUbqNuhVIARAqRhnjqIp3P300pMTXfwDRKEQ/viewform?embedded=true"
+            className="w-full border-0"
+            style={{ minHeight: "800px" }}
+            title="Grievance Submission Form"
+          >
+            Loading…
+          </iframe>
+        </CardContent>
+      </Card>
+
+      {/* Submit Grievance button - commented out for now
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {grievances.length} grievance{grievances.length !== 1 ? "s" : ""}
@@ -80,15 +95,13 @@ export function GrievanceSection() {
           <Plus className="h-4 w-4 mr-1" /> Submit Grievance
         </Button>
       </div>
+      */}
 
-      {grievances.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            No grievances found. Submit one if you have a concern.
-          </CardContent>
-        </Card>
-      ) : (
+      {grievances.length > 0 && (
         <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {grievances.length} grievance{grievances.length !== 1 ? "s" : ""}
+          </p>
           {grievances.map((g) => {
             const submitterName = getSubmitterDisplayName(g);
 
@@ -104,7 +117,6 @@ export function GrievanceSection() {
                 <CardHeader className="pb-2">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <CardTitle className="text-base font-medium flex items-center gap-2">
-                      {/* New comment indicator dot */}
                       {g.has_new_comments && (
                         <span className="relative flex h-2.5 w-2.5">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
@@ -119,7 +131,6 @@ export function GrievanceSection() {
                       )}
                     </CardTitle>
                     <div className="flex items-center gap-2 flex-wrap">
-                      {/* Comment count badge */}
                       {g.comment_count > 0 && (
                         <Badge
                           variant="outline"
@@ -148,7 +159,6 @@ export function GrievanceSection() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-sm text-muted-foreground">
                     <div className="flex items-center gap-3">
                       <span>Category: {g.category}</span>
-                      {/* Show submitter name for managers/admins/VPs */}
                       {canSeeSubmitter && submitterName && (
                         <span className="flex items-center gap-1">
                           <User className="h-3 w-3" />
@@ -166,7 +176,7 @@ export function GrievanceSection() {
         </div>
       )}
 
-      <SubmitGrievanceDialog open={submitOpen} onOpenChange={setSubmitOpen} onSuccess={handleGrievanceSubmitted} />
+      {/* <SubmitGrievanceDialog open={submitOpen} onOpenChange={setSubmitOpen} onSuccess={handleGrievanceSubmitted} /> */}
 
       {selectedGrievance && (
         <GrievanceDetailDialog
