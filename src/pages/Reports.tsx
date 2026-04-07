@@ -678,16 +678,16 @@ const Reports = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Reports & Analytics</h1>
-          <p className="text-slate-600 mt-1">View and export HR reports</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="min-w-0">
+          <h1 className="heading-page font-bold text-foreground">Reports & Analytics</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">View and export HR reports</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <CalendarRange className="h-4 w-4 text-muted-foreground" />
+            <CalendarRange className="h-4 w-4 text-muted-foreground hidden sm:block" />
             <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRangeType)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[150px] sm:w-[180px]">
                 <SelectValue placeholder="Select period" />
               </SelectTrigger>
               <SelectContent>
@@ -698,8 +698,7 @@ const Reports = () => {
               </SelectContent>
             </Select>
           </div>
-          {/* Show current date range */}
-          <Badge variant="outline" className="text-xs whitespace-nowrap">
+          <Badge variant="outline" className="text-xs whitespace-nowrap hidden sm:inline-flex">
             {getDateRangeLabel(dateRange)}
           </Badge>
         </div>
