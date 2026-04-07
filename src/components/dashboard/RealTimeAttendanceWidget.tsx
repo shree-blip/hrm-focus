@@ -1195,46 +1195,47 @@ export function RealTimeAttendanceWidget() {
       </Card>
 
       <Dialog open={openFullActivityView} onOpenChange={setOpenFullActivityView}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
-              Live Attendance - Full Recent Activity
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden p-3 sm:p-6">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+              <span className="truncate">Live Attendance - Full Recent Activity</span>
             </DialogTitle>
-            <DialogDescription>
-              Complete attendance timeline with all IN, OUT, BREAK, PAUSE, and CONTINUE events with exact time.
+            <DialogDescription className="text-xs sm:text-sm">
+              Complete attendance timeline with all IN, OUT, BREAK, PAUSE, and CONTINUE events.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-            <div className="rounded-md bg-muted/50 p-2">
-              <p className="text-[11px] text-muted-foreground">Total Events</p>
-              <p className="text-lg font-semibold">{fullActivities.length}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mb-2">
+            <div className="rounded-md bg-muted/50 p-1.5 sm:p-2">
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground">Total Events</p>
+              <p className="text-sm sm:text-lg font-semibold">{fullActivities.length}</p>
             </div>
-            <div className="rounded-md bg-muted/50 p-2">
-              <p className="text-[11px] text-muted-foreground">Nepal Time</p>
-              <p className="text-sm font-semibold">{nptTime}</p>
+            <div className="rounded-md bg-muted/50 p-1.5 sm:p-2">
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground">Nepal Time</p>
+              <p className="text-xs sm:text-sm font-semibold">{nptTime}</p>
             </div>
-            <div className="rounded-md bg-muted/50 p-2">
-              <p className="text-[11px] text-muted-foreground">Pacific Time</p>
-              <p className="text-sm font-semibold">{pstTime}</p>
+            <div className="rounded-md bg-muted/50 p-1.5 sm:p-2">
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground">Pacific Time</p>
+              <p className="text-xs sm:text-sm font-semibold">{pstTime}</p>
             </div>
-            <div className="rounded-md bg-muted/50 p-2">
-              <p className="text-[11px] text-muted-foreground">Employees Tracked</p>
-              <p className="text-lg font-semibold">{summary.total}</p>
+            <div className="rounded-md bg-muted/50 p-1.5 sm:p-2">
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground">Employees Tracked</p>
+              <p className="text-sm sm:text-lg font-semibold">{summary.total}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1.5 sm:gap-2 mb-2">
             <Input
-              placeholder="Search employee, department, activity..."
+              placeholder="Search employee, dept..."
               value={activitySearch}
               onChange={(e) => setActivitySearch(e.target.value)}
+              className="h-8 sm:h-10 text-xs sm:text-sm"
             />
             <select
               value={activityDateRange}
               onChange={(e) => setActivityDateRange(e.target.value as PopupDateRange)}
-              className="h-10 rounded-md border bg-background px-3 text-sm"
+              className="h-8 sm:h-10 rounded-md border bg-background px-2 sm:px-3 text-xs sm:text-sm"
             >
               <option value="today">Today</option>
               <option value="last3">Last 3 Days</option>
@@ -1244,7 +1245,7 @@ export function RealTimeAttendanceWidget() {
             <select
               value={activityEmployeeFilter}
               onChange={(e) => setActivityEmployeeFilter(e.target.value)}
-              className="h-10 rounded-md border bg-background px-3 text-sm"
+              className="h-8 sm:h-10 rounded-md border bg-background px-2 sm:px-3 text-xs sm:text-sm truncate"
             >
               <option value="all">All Employees</option>
               {fullActivityEmployees.map((name) => (
@@ -1253,12 +1254,12 @@ export function RealTimeAttendanceWidget() {
                 </option>
               ))}
             </select>
-            <Button variant="outline" className="h-10" onClick={clearAllActivityFilters}>
-              Clear all filters
+            <Button variant="outline" className="h-8 sm:h-10 text-xs sm:text-sm" onClick={clearAllActivityFilters}>
+              Clear filters
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-2">
+          <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-7 gap-1 sm:gap-2 mb-2">
             {ACTIVITY_TYPE_CARD_CONFIG.map(({ key, label, icon: Icon }) => {
               const isActive = activityTypeFilter === key;
               const statusCfg = key === "all" ? null : STATUS[key];
@@ -1268,56 +1269,55 @@ export function RealTimeAttendanceWidget() {
                   type="button"
                   onClick={() => setActivityTypeFilter(key)}
                   className={cn(
-                    "rounded-lg p-2 text-center transition-all hover:scale-[1.02] border",
+                    "rounded-lg p-1.5 sm:p-2 text-center transition-all hover:scale-[1.02] border",
                     isActive ? "ring-2 ring-primary/40 border-primary/40" : "border-border",
                     statusCfg ? statusCfg.bg : "bg-muted/40",
                   )}
                 >
-                  <Icon className={cn("h-3.5 w-3.5 mx-auto mb-1", statusCfg ? statusCfg.color : "text-primary")} />
-                  <p
-                    className={cn("text-base font-semibold leading-none", statusCfg ? statusCfg.color : "text-primary")}
-                  >
+                  <Icon className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5 mx-auto mb-0.5 sm:mb-1", statusCfg ? statusCfg.color : "text-primary")} />
+                  <p className={cn("text-sm sm:text-base font-semibold leading-none", statusCfg ? statusCfg.color : "text-primary")}>
                     {popupTypeCounts[key]}
                   </p>
-                  <p className="text-[10px] text-muted-foreground mt-1 truncate">{label}</p>
+                  <p className="text-[8px] sm:text-[10px] text-muted-foreground mt-0.5 sm:mt-1 truncate">{label}</p>
                 </button>
               );
             })}
           </div>
 
-          <div className="mb-2 text-xs text-muted-foreground">
+          <div className="mb-1 sm:mb-2 text-[10px] sm:text-xs text-muted-foreground">
             Showing {filteredFullActivities.length} of {fullActivities.length} activities
           </div>
 
-          <ScrollArea className="h-[58vh] pr-2">
+          <ScrollArea className="h-[40vh] sm:h-[50vh] md:h-[58vh] pr-1 sm:pr-2">
             {filteredFullActivities.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <Clock className="h-10 w-10 mb-2 opacity-40" />
-                <p className="text-sm">No activity matches current filters</p>
+              <div className="flex flex-col items-center justify-center py-10 sm:py-16 text-muted-foreground">
+                <Clock className="h-8 w-8 sm:h-10 sm:w-10 mb-2 opacity-40" />
+                <p className="text-xs sm:text-sm">No activity matches current filters</p>
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-0.5 sm:space-y-1">
                 {filteredFullActivities.map((evt) => {
                   const cfg = STATUS[evt.type];
                   const Icon = cfg.icon;
                   return (
-                    <div key={evt.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
-                      <div className={cn("p-1.5 rounded", cfg.bg)}>
+                    <div key={evt.id} className="flex items-start sm:items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded hover:bg-muted/50">
+                      <div className={cn("p-1 sm:p-1.5 rounded shrink-0", cfg.bg)}>
                         <Icon className={cn("h-3 w-3", cfg.color)} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium truncate">{evt.name}</span>
-                          <Badge variant="outline" className={cn("text-[10px] px-1.5", cfg.bg, cfg.color)}>
+                        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                          <span className="text-xs sm:text-sm font-medium truncate max-w-[120px] sm:max-w-none">{evt.name}</span>
+                          <Badge variant="outline" className={cn("text-[8px] sm:text-[10px] px-1 sm:px-1.5", cfg.bg, cfg.color)}>
                             {EVENT_LABELS[evt.type]}
                           </Badge>
-                          <Badge variant="secondary" className="text-[10px] px-1.5">
+                          <Badge variant="secondary" className="text-[8px] sm:text-[10px] px-1 sm:px-1.5 hidden xs:inline-flex">
                             {evt.type}
                           </Badge>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                          {evt.department || "No Dept"} • {format(new Date(evt.time), "MMM d, yyyy • hh:mm:ss a")} •{" "}
-                          {formatDistanceToNow(new Date(evt.time), { addSuffix: true })}
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-tight mt-0.5">
+                          <span className="hidden sm:inline">{evt.department || "No Dept"} • </span>
+                          {format(new Date(evt.time), "MMM d • hh:mm:ss a")}
+                          <span className="hidden sm:inline"> • {formatDistanceToNow(new Date(evt.time), { addSuffix: true })}</span>
                         </p>
                       </div>
                     </div>
