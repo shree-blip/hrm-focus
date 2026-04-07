@@ -412,7 +412,7 @@ const Settings = () => {
 
               <Separator />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
                   <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
@@ -652,7 +652,7 @@ const Settings = () => {
               <CardDescription>Manage company-wide configurations</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="companyName">Company Name</Label>
                   <Input

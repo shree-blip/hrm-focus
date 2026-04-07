@@ -370,7 +370,7 @@ const Approvals = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 animate-fade-in">
         <div>
           <h1 className="heading-page font-display font-bold text-foreground">Approvals</h1>
           <p className="text-muted-foreground mt-1">
@@ -412,7 +412,7 @@ const Approvals = () => {
       {section === "leave" && (
         <>
           {/* Stats — monthly */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
             <Card className="animate-slide-up">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">

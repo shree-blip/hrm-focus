@@ -619,7 +619,7 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <Card className="animate-slide-up" style={{ animationDelay: "100ms" }}>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">

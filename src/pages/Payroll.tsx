@@ -949,7 +949,7 @@ const Payroll = () => {
   return (
     <DashboardLayout>
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 animate-fade-in">
         <div>
           <h1 className="heading-page font-display font-bold text-foreground">{isVP ? "Payroll" : "My Payslips"}</h1>
           <p className="text-muted-foreground mt-1">
@@ -999,7 +999,7 @@ const Payroll = () => {
       {activeTab === "overview" ? (
         <>
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
             {isVP ? (
               <Card className="animate-slide-up opacity-0" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
                 <CardContent className="pt-6">
