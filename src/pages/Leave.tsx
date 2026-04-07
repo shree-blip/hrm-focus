@@ -70,6 +70,7 @@ const Leave = () => {
     requests,
     ownRequests,
     teamLeaves,
+    allApprovedLeaves,
     balances,
     loading,
     createRequest,
