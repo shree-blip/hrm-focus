@@ -1040,8 +1040,7 @@ const Leave = () => {
                 <p className="text-sm font-medium mb-2">Currently On Leave</p>
                 <div className="space-y-2">
                   {(() => {
-                    const currentlyOnLeave = teamLeaves.filter((r) => {
-                      if (r.status !== "approved") return false;
+                    const currentlyOnLeave = allApprovedLeaves.filter((r) => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
                       const startDate = new Date(r.start_date);
