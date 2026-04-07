@@ -5,20 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBugReports } from "@/hooks/useBugReports";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -36,9 +24,9 @@ export function BugReportsSection() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [viewingScreenshot, setViewingScreenshot] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false); // <-- NEW
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Permission-based: can this user view/manage all bug reports?
   const canViewAll = hasPermission("view_bug_reports") || hasPermission("manage_support");
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +37,29 @@ export function BugReportsSection() {
       setPreviewUrl(url);
     }
   };
+
+  // -- NEW: Drag and drop handlers --
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      setScreenshot(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+  // -- END NEW --
 
   const removeScreenshot = () => {
     setScreenshot(null);
@@ -63,7 +74,7 @@ export function BugReportsSection() {
 
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) return;
-    
+
     setSubmitting(true);
     const result = await submitBugReport(title, description, screenshot || undefined);
     setSubmitting(false);
@@ -138,6 +149,8 @@ export function BugReportsSection() {
                     onChange={(e) => setDescription(e.target.value)}
                   />
                 </div>
+
+                {/* -- UPDATED: Screenshot section with drag & drop -- */}
                 <div className="space-y-2">
                   <Label>Screenshot (optional)</Label>
                   <input
@@ -152,7 +165,7 @@ export function BugReportsSection() {
                       <img
                         src={previewUrl}
                         alt="Screenshot preview"
-                        className="w-full h-40 object-cover rounded-lg border"
+                        className="w-full h-52 object-cover rounded-lg border"
                       />
                       <Button
                         variant="destructive"
@@ -164,16 +177,26 @@ export function BugReportsSection() {
                       </Button>
                     </div>
                   ) : (
-                    <Button
-                      variant="outline"
-                      className="w-full h-20 border-dashed"
+                    <div
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
                       onClick={() => fileInputRef.current?.click()}
+                      className={`w-full h-44 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                        isDragging
+                          ? "border-primary bg-primary/5"
+                          : "border-muted-foreground/25 hover:border-muted-foreground/50"
+                      }`}
                     >
-                      <ImagePlus className="h-6 w-6 mr-2 text-muted-foreground" />
-                      <span className="text-muted-foreground">Add Screenshot</span>
-                    </Button>
+                      <ImagePlus className={`h-8 w-8 mb-2 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className="text-sm text-muted-foreground">
+                        {isDragging ? "Drop image here" : "Drag & drop or click to upload"}
+                      </span>
+                    </div>
                   )}
                 </div>
+                {/* -- END UPDATED -- */}
+
                 <Button
                   className="w-full"
                   onClick={handleSubmit}
@@ -202,9 +225,7 @@ export function BugReportsSection() {
       {/* Bug Reports List */}
       <Card>
         <CardHeader>
-          <CardTitle>
-            {canViewAll ? "All Bug Reports" : "My Bug Reports"}
-          </CardTitle>
+          <CardTitle>{canViewAll ? "All Bug Reports" : "My Bug Reports"}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -212,16 +233,11 @@ export function BugReportsSection() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : bugReports.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No bug reports found
-            </p>
+            <p className="text-center text-muted-foreground py-8">No bug reports found</p>
           ) : (
             <div className="space-y-4">
               {bugReports.map((report) => (
-                <div
-                  key={report.id}
-                  className="border rounded-lg p-4 space-y-3"
-                >
+                <div key={report.id} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <h4 className="font-medium">{report.title}</h4>
@@ -234,27 +250,18 @@ export function BugReportsSection() {
                         {format(new Date(report.created_at), "MMM d, yyyy 'at' h:mm a")}
                       </p>
                     </div>
-                    <Badge className={getStatusColor(report.status)}>
-                      {report.status.replace("_", " ")}
-                    </Badge>
+                    <Badge className={getStatusColor(report.status)}>{report.status.replace("_", " ")}</Badge>
                   </div>
                   <p className="text-sm">{report.description}</p>
                   <div className="flex items-center gap-2">
                     {report.screenshot_url && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewScreenshot(report.screenshot_url!)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => handleViewScreenshot(report.screenshot_url!)}>
                         <Eye className="h-4 w-4 mr-1" />
                         View Screenshot
                       </Button>
                     )}
                     {canViewAll && (
-                      <Select
-                        value={report.status}
-                        onValueChange={(value) => updateBugStatus(report.id, value)}
-                      >
+                      <Select value={report.status} onValueChange={(value) => updateBugStatus(report.id, value)}>
                         <SelectTrigger className="w-[140px] h-8">
                           <SelectValue />
                         </SelectTrigger>
@@ -280,13 +287,7 @@ export function BugReportsSection() {
           <DialogHeader>
             <DialogTitle>Screenshot</DialogTitle>
           </DialogHeader>
-          {viewingScreenshot && (
-            <img
-              src={viewingScreenshot}
-              alt="Bug screenshot"
-              className="w-full rounded-lg"
-            />
-          )}
+          {viewingScreenshot && <img src={viewingScreenshot} alt="Bug screenshot" className="w-full rounded-lg" />}
         </DialogContent>
       </Dialog>
     </div>
