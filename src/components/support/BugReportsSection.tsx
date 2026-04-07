@@ -59,6 +59,24 @@ export function BugReportsSection() {
       setPreviewUrl(url);
     }
   };
+
+  // -- NEW: Paste handler --
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          setScreenshot(file);
+          const url = URL.createObjectURL(file);
+          setPreviewUrl(url);
+        }
+        break;
+      }
+    }
+  };
   // -- END NEW --
 
   const removeScreenshot = () => {
@@ -181,8 +199,10 @@ export function BugReportsSection() {
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
+                      onPaste={handlePaste} // <-- NEW
+                      tabIndex={0} // <-- NEW: makes div focusable for paste
                       onClick={() => fileInputRef.current?.click()}
-                      className={`w-full h-44 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                      className={`w-full h-44 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors outline-none focus:ring-2 focus:ring-primary/30 ${
                         isDragging
                           ? "border-primary bg-primary/5"
                           : "border-muted-foreground/25 hover:border-muted-foreground/50"
@@ -190,7 +210,8 @@ export function BugReportsSection() {
                     >
                       <ImagePlus className={`h-8 w-8 mb-2 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
                       <span className="text-sm text-muted-foreground">
-                        {isDragging ? "Drop image here" : "Drag & drop or click to upload"}
+                        {isDragging ? "Drop image here" : "Drag & drop, paste, or click to upload"}{" "}
+                        {/* <-- UPDATED text */}
                       </span>
                     </div>
                   )}
