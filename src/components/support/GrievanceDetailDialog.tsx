@@ -36,7 +36,7 @@ export function GrievanceDetailDialog({ grievanceId, open, onOpenChange }: Props
   useEffect(() => {
     if (open && grievanceId) {
       loadComments();
-      // Mark as viewed when dialog opens
+      loadAttachments();
       markAsViewed(grievanceId);
     }
   }, [open, grievanceId]);
