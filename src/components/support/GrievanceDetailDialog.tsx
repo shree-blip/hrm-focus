@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useGrievances, GrievanceComment, GRIEVANCE_STATUSES, STATUS_LABELS } from "@/hooks/useGrievances";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
-import { Send, Lock, User } from "lucide-react";
+import { Send, Lock, User, Paperclip, Download, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {

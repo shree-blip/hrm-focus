@@ -459,6 +459,27 @@ export function useGrievances() {
     return "Anonymous";
   };
 
+  const fetchAttachments = async (grievanceId: string) => {
+    const { data, error } = await supabase
+      .from("grievance_attachments" as any)
+      .select("*")
+      .eq("grievance_id", grievanceId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching attachments:", error);
+      return [];
+    }
+    return (data || []) as any[];
+  };
+
+  const getAttachmentUrl = async (filePath: string) => {
+    const { data } = await supabase.storage
+      .from("grievance-attachments")
+      .createSignedUrl(filePath, 3600);
+    return data?.signedUrl || null;
+  };
+
   return {
     grievances,
     loading,
@@ -467,6 +488,8 @@ export function useGrievances() {
     fetchComments,
     addComment,
     uploadAttachment,
+    fetchAttachments,
+    getAttachmentUrl,
     getSubmitterDisplayName,
     markAsViewed,
     refetch: fetchGrievances,
