@@ -991,8 +991,8 @@ const Leave = () => {
                     return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
                   });
 
-                  const othersOnLeave = teamLeaves.some((r) => {
-                    if (r.status !== "approved" || r.user_id === user?.id) return false;
+                  const othersOnLeave = allApprovedLeaves.some((r) => {
+                    if (r.user_id === user?.id) return false;
                     const startDate = new Date(r.start_date);
                     startDate.setHours(0, 0, 0, 0);
                     const endDate = new Date(r.end_date);
