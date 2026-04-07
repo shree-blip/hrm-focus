@@ -314,7 +314,7 @@ const Settings = () => {
       />
 
       <div className="mb-8 animate-fade-in">
-        <h1 className="text-3xl font-display font-bold text-foreground">Settings</h1>
+        <h1 className="heading-page font-display font-bold text-foreground">Settings</h1>
         <p className="text-muted-foreground mt-1">Manage your account and system preferences</p>
       </div>
 

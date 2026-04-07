@@ -56,7 +56,7 @@ const Support = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Support & Requests</h1>
+          <h1 className="heading-page font-display font-bold text-foreground">Support & Requests</h1>
           <p className="text-muted-foreground mt-1">Report bugs or request assets and IT support</p>
         </div>
 

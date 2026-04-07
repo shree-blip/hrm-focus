@@ -908,7 +908,7 @@ const PerformanceMetrics = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-display font-bold">
+          <h1 className="heading-page font-display font-bold">
             {isEmployeeView ? "My Performance" : "Performance Command Center"}
           </h1>
           <p className="text-muted-foreground mt-1 flex items-center gap-2">

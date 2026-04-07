@@ -483,7 +483,7 @@ const Profile = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between animate-fade-in">
           <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">My Profile</h1>
+            <h1 className="heading-page font-display font-bold text-foreground">My Profile</h1>
             <p className="text-muted-foreground mt-1">View and manage your personal information</p>
           </div>
           {!isEditing ? (
