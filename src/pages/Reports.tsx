@@ -909,7 +909,7 @@ const Reports = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 overflow-x-auto pb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4 overflow-x-auto pb-2">
                   <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700">
                     <p className="text-sm text-slate-600">Days Worked</p>
                     <p className="text-2xl font-bold text-blue-600">{selectedEmployeeSummary.totalDaysWorked}</p>
