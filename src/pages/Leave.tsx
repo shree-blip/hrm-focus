@@ -1083,8 +1083,8 @@ const Leave = () => {
                 <p className="text-sm font-medium mb-2">Upcoming Time Off</p>
                 <div className="space-y-2">
                   {(() => {
-                    const upcoming = teamLeaves
-                      .filter((r) => r.status === "approved" && new Date(r.start_date) > new Date())
+                    const upcoming = allApprovedLeaves
+                      .filter((r) => new Date(r.start_date) > new Date())
                       .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
                       .slice(0, 5);
 
