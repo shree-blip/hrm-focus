@@ -48,6 +48,18 @@ export function GrievanceDetailDialog({ grievanceId, open, onOpenChange }: Props
     setLoadingComments(false);
   };
 
+  const loadAttachments = async () => {
+    const data = await fetchAttachments(grievanceId);
+    setAttachments(data);
+  };
+
+  const handleDownloadAttachment = async (filePath: string, fileName: string) => {
+    const url = await getAttachmentUrl(filePath);
+    if (url) {
+      window.open(url, "_blank");
+    }
+  };
+
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
     setSending(true);
