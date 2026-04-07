@@ -1074,8 +1074,8 @@ const Reports = () => {
                     : `No daily attendance records available for ${getDateRangeLabel(dateRange)}`}
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="overflow-x-auto -mx-3 sm:-mx-6 px-3 sm:px-6">
+                  <table className="w-full min-w-[900px]">
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-3 font-medium w-8"></th>
