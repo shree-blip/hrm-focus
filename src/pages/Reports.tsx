@@ -678,16 +678,16 @@ const Reports = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Reports & Analytics</h1>
-          <p className="text-slate-600 mt-1">View and export HR reports</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="min-w-0">
+          <h1 className="heading-page font-bold text-foreground">Reports & Analytics</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">View and export HR reports</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <CalendarRange className="h-4 w-4 text-muted-foreground" />
+            <CalendarRange className="h-4 w-4 text-muted-foreground hidden sm:block" />
             <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRangeType)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[150px] sm:w-[180px]">
                 <SelectValue placeholder="Select period" />
               </SelectTrigger>
               <SelectContent>
@@ -698,15 +698,14 @@ const Reports = () => {
               </SelectContent>
             </Select>
           </div>
-          {/* Show current date range */}
-          <Badge variant="outline" className="text-xs whitespace-nowrap">
+          <Badge variant="outline" className="text-xs whitespace-nowrap hidden sm:inline-flex">
             {getDateRangeLabel(dateRange)}
           </Badge>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 sm:w-auto lg:w-[400px] h-auto gap-1">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto lg:w-[400px] h-auto gap-1">
           <TabsTrigger value="attendance" className="gap-2">
             <Clock className="h-4 w-4" />
             Attendance Summary
@@ -721,7 +720,7 @@ const Reports = () => {
         {/* LEAVE REPORTS TAB - Moved to Approvals page */}
 
         <TabsContent value="attendance" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -909,7 +908,7 @@ const Reports = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 overflow-x-auto pb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4 overflow-x-auto pb-2">
                   <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700">
                     <p className="text-sm text-slate-600">Days Worked</p>
                     <p className="text-2xl font-bold text-blue-600">{selectedEmployeeSummary.totalDaysWorked}</p>
@@ -960,7 +959,7 @@ const Reports = () => {
           )}
 
           {/* Stats Cards - Updated with pause stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -1075,8 +1074,8 @@ const Reports = () => {
                     : `No daily attendance records available for ${getDateRangeLabel(dateRange)}`}
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="overflow-x-auto -mx-3 sm:-mx-6 px-3 sm:px-6">
+                  <table className="w-full min-w-[900px]">
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-3 font-medium w-8"></th>

@@ -195,13 +195,13 @@ const Tasks = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Task Management</h1>
-          <p className="text-muted-foreground mt-1">Organize and track team tasks efficiently</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 animate-fade-in">
+        <div className="min-w-0">
+          <h1 className="heading-page font-display font-bold text-foreground">Task Management</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Organize and track team tasks efficiently</p>
         </div>
         <Button
-          className="gap-2 shadow-md"
+          className="gap-2 shadow-md w-full sm:w-auto shrink-0"
           onClick={() => {
             setNewTaskDefaultStatus("todo");
             setNewTaskDialogOpen(true);

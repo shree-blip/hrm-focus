@@ -483,7 +483,7 @@ const Profile = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between animate-fade-in">
           <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">My Profile</h1>
+            <h1 className="heading-page font-display font-bold text-foreground">My Profile</h1>
             <p className="text-muted-foreground mt-1">View and manage your personal information</p>
           </div>
           {!isEditing ? (
@@ -619,7 +619,7 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <Card className="animate-slide-up" style={{ animationDelay: "100ms" }}>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">

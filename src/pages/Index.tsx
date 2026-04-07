@@ -120,16 +120,16 @@ const Index = () => {
 
   return (
     <DashboardLayout>
-      <div className="mb-8 animate-fade-in">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">Welcome back, {firstName}</h1>
+      <div className="mb-6 sm:mb-8 animate-fade-in">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <h1 className="heading-page font-display font-bold text-foreground">Welcome back, {firstName}</h1>
           {role && role !== "employee" && (
             <span className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary">
               {getRoleLabel()}
             </span>
           )}
         </div>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-muted-foreground mt-1 text-sm sm:text-base">
           {isManager ? "Here's what's happening with your team today." : "Here's your personal dashboard overview."}
         </p>
       </div>
@@ -149,7 +149,7 @@ const Index = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
         {isManager ? (
           <StatCard
             title="Total Employees"

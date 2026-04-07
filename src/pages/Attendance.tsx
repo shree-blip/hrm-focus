@@ -474,12 +474,12 @@ const Attendance = () => {
   return (
     <DashboardLayout>
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Attendance</h1>
-          <p className="text-muted-foreground mt-1">Track time and manage attendance records</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 animate-fade-in">
+        <div className="min-w-0">
+          <h1 className="heading-page font-display font-bold text-foreground">Attendance</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Track time and manage attendance records</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={handleExport}>
+        <Button variant="outline" className="gap-2 shrink-0 w-full sm:w-auto" onClick={handleExport}>
           <Download className="h-4 w-4" />
           Export Report
         </Button>
@@ -523,8 +523,8 @@ const Attendance = () => {
               </div>
             )}
 
-            <div className="text-center py-8 rounded-xl bg-secondary/50 border border-border">
-              <p className="text-5xl font-display font-bold tracking-wider text-foreground">{elapsedTime}</p>
+            <div className="text-center py-6 sm:py-8 rounded-xl bg-secondary/50 border border-border">
+              <p className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold tracking-wider text-foreground">{elapsedTime}</p>
 
               {currentLog && !currentLog.clock_out && (
                 <p className="text-sm text-muted-foreground mt-2">
@@ -804,27 +804,27 @@ const Attendance = () => {
                 );
               })}
             </div>
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-              <div className="text-center">
-                <p className="text-2xl font-display font-bold">{weeklyTotal.toFixed(1)}h</p>
-                <p className="text-sm text-muted-foreground">Worked Hours</p>
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border gap-2">
+              <div className="text-center min-w-0">
+                <p className="text-lg sm:text-2xl font-display font-bold">{weeklyTotal.toFixed(1)}h</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Worked</p>
               </div>
-              <div className="text-center">
+              <div className="text-center min-w-0">
                 <p
                   className={cn(
-                    "text-2xl font-display font-bold",
+                    "text-lg sm:text-2xl font-display font-bold",
                     targetMet >= 100 ? "text-success" : targetMet >= 80 ? "text-warning" : "text-destructive",
                   )}
                 >
                   {targetMet}%
                 </p>
-                <p className="text-sm text-muted-foreground">Performance Metrics</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Target</p>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-display font-bold">
+              <div className="text-center min-w-0">
+                <p className="text-lg sm:text-2xl font-display font-bold">
                   {Math.max(0, adjustedTargetHours - weeklyTotal).toFixed(1)}h
                 </p>
-                <p className="text-sm text-muted-foreground">Remaining</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Remaining</p>
               </div>
             </div>
             {weeklyLeaveHours > 0 && (

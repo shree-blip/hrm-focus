@@ -1,9 +1,4 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
+/* App-level resets — keep minimal to avoid conflicts with Tailwind layout */
 
 .logo {
   height: 6em;

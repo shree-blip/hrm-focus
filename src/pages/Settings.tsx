@@ -314,7 +314,7 @@ const Settings = () => {
       />
 
       <div className="mb-8 animate-fade-in">
-        <h1 className="text-3xl font-display font-bold text-foreground">Settings</h1>
+        <h1 className="heading-page font-display font-bold text-foreground">Settings</h1>
         <p className="text-muted-foreground mt-1">Manage your account and system preferences</p>
       </div>
 
@@ -412,7 +412,7 @@ const Settings = () => {
 
               <Separator />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
                   <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
@@ -652,7 +652,7 @@ const Settings = () => {
               <CardDescription>Manage company-wide configurations</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="companyName">Company Name</Label>
                   <Input

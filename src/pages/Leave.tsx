@@ -314,15 +314,15 @@ const Leave = () => {
   return (
     <DashboardLayout>
       {/* Header with Notifications Badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 animate-fade-in">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-display font-bold text-foreground">Leave Management</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 animate-fade-in">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="heading-page font-display font-bold text-foreground">Leave Management</h1>
             {unreadCount > 0 && (
               <Button
                 variant="outline"
                 size="sm"
-                className="relative gap-2"
+                className="relative gap-2 shrink-0"
                 onClick={() => (window.location.href = "/notifications")}
               >
                 <Bell className="h-4 w-4" />
@@ -332,24 +332,26 @@ const Leave = () => {
               </Button>
             )}
           </div>
-          <p className="text-muted-foreground mt-1">Manage leave requests and track balances</p>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Manage leave requests and track balances</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {ownPendingRequests > 0 && (
-            <Badge variant="outline" className="text-warning border-warning">
+            <Badge variant="outline" className="text-warning border-warning shrink-0">
               {ownPendingRequests} pending request
               {ownPendingRequests !== 1 ? "s" : ""}
             </Badge>
           )}
           {(isAdmin || isVP) && (
-            <Button variant="outline" className="gap-2" onClick={() => setAdminDialogOpen(true)}>
+            <Button variant="outline" className="gap-2 text-sm" onClick={() => setAdminDialogOpen(true)}>
               <Shield className="h-4 w-4" />
-              Assign Leave
+              <span className="hidden sm:inline">Assign Leave</span>
+              <span className="sm:hidden">Assign</span>
             </Button>
           )}
-          <Button className="gap-2 shadow-md" onClick={() => setRequestDialogOpen(true)}>
+          <Button className="gap-2 shadow-md text-sm" onClick={() => setRequestDialogOpen(true)}>
             <Plus className="h-4 w-4" />
-            Request Leave
+            <span className="hidden sm:inline">Request Leave</span>
+            <span className="sm:hidden">Request</span>
           </Button>
         </div>
       </div>
@@ -748,7 +750,7 @@ const Leave = () => {
                   <div
                     key={request.id}
                     className={cn(
-                      "flex items-start gap-4 p-4 rounded-xl border transition-all animate-fade-in",
+                      "flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border transition-all animate-fade-in",
                       request.status === "pending" &&
                         !isLeaveOnLieu &&
                         !isOtherLeave &&

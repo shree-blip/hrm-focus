@@ -29,25 +29,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className={cn("flex-1 flex flex-col transition-all duration-300 ease-in-out", sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-64")}>
+      <div className={cn("flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out", sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-64")}>
         {/* Announcement Banner - Above header, inside content area */}
         <div className="sticky top-0 z-40">
           <AnnouncementBanner />
         </div>
 
         {/* Mobile Header with Hamburger */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center h-14 px-4 border-b border-border bg-card/95 backdrop-blur-md">
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center h-14 px-3 sm:px-4 border-b border-border bg-card/95 backdrop-blur-md">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="mr-2">
+              <Button variant="ghost" size="icon" className="mr-2 shrink-0">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-64">
+            <SheetContent side="left" className="p-0 w-[280px] sm:w-64">
               <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
             </SheetContent>
           </Sheet>
-          <span className="font-display font-bold text-sm">Focus HRMS</span>
+          <span className="font-display font-bold text-sm truncate">Focus HRMS</span>
         </div>
 
         {/* Desktop Header */}
@@ -63,7 +63,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <Header isMobile />
         </div>
         
-        <main className="flex-1 p-4 lg:p-6">{children}</main>
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 min-w-0 overflow-x-hidden">{children}</main>
       </div>
 
       {/* Chat Widget (lazy-loaded) */}
