@@ -20,13 +20,14 @@ interface Props {
 }
 
 export function GrievanceDetailDialog({ grievanceId, open, onOpenChange }: Props) {
-  const { grievances, updateGrievanceStatus, fetchComments, addComment, getSubmitterDisplayName, markAsViewed } =
+  const { grievances, updateGrievanceStatus, fetchComments, addComment, getSubmitterDisplayName, markAsViewed, fetchAttachments, getAttachmentUrl } =
     useGrievances();
   const { user, isManager, isAdmin, isVP } = useAuth();
   const canManage = isManager || isAdmin || isVP;
 
   const grievance = grievances.find((g) => g.id === grievanceId);
   const [comments, setComments] = useState<GrievanceComment[]>([]);
+  const [attachments, setAttachments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
