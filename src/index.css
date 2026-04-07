@@ -162,6 +162,30 @@
     text-wrap: balance;
   }
 
+  /* Responsive table wrapper — apply to parent of any <Table> */
+  .table-responsive {
+    @apply overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
+  }
+
+  /* Page container with consistent mobile padding */
+  .page-container {
+    @apply px-2 sm:px-4 lg:px-6;
+  }
+
+  /* Responsive heading sizes */
+  .heading-page {
+    @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   .gradient-primary {
     background: var(--gradient-primary);
   }
