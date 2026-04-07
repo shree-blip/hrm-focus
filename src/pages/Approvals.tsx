@@ -10,6 +10,9 @@ import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { usePromotions } from "@/hooks/usePromotions";
 import { useAuth } from "@/contexts/AuthContext";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
+import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
+import { AdminLeaveDialog } from "@/components/leave/AdminLeaveDialog";
+import { LeaveConflictDialog } from "@/components/leave/LeaveConflictDialog";
 import { PromotionApprovalQueue } from "@/components/employees/PromotionApprovalQueue";
 import { LeaveReportsTab } from "@/components/approvals/LeaveReportsTab";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
@@ -28,9 +31,12 @@ import {
   FilterX,
   Download,
   FileText,
+  Plus,
+  Shield,
 } from "lucide-react";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
 
 const MONTH_OPTIONS = [
   { value: "all", label: "All Months" },
@@ -56,10 +62,7 @@ const getLeaveTypeBadge = (type: string) => {
   if (type.includes("Lieu"))
     return { bg: "bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400", label: "Leave on Lieu" };
   if (type.includes("Other") && type.includes("Medical"))
-    return {
-      bg: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
-      label: "Other Leave - Medical Emergency",
-    };
+    return { bg: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400", label: "Other Leave - Medical Emergency" };
   if (type.includes("Other"))
     return { bg: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300", label: type };
   if (type.includes("Wedding") || type.includes("Maternity") || type.includes("Paternity"))
@@ -71,7 +74,7 @@ const getLeaveTypeBadge = (type: string) => {
 
 const Approvals = () => {
   const { user, role, isVP, isAdmin, isLineManager, isSupervisor } = useAuth();
-  const { requests, loading, approveRequest, rejectRequest, cancelRequest, refetch } = useLeaveRequests();
+  const { requests, ownRequests, loading, approveRequest, rejectRequest, cancelRequest, createRequest, adminCreateLeave, refetch } = useLeaveRequests();
   const { pendingApprovals: pendingPromotions } = usePromotions();
   const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports">(
     "approvals:section",
@@ -88,8 +91,33 @@ const Approvals = () => {
   const [filterEmployee, setFilterEmployee] = useState<string>("all");
   const [filterLeaveType, setFilterLeaveType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const [conflictData, setConflictData] = useState<{
+    requestId: string;
+    employeeName: string;
+    currentRequest: any;
+    conflictingRequests: any[];
+  } | null>(null);
 
   const currentYear = new Date().getFullYear();
+
+  // Check if user is currently on leave
+  const getCurrentUserLeave = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return ownRequests.find((r) => {
+      if (r.status !== "approved" || r.user_id !== user?.id) return false;
+      const startDate = new Date(r.start_date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(r.end_date);
+      endDate.setHours(0, 0, 0, 0);
+      return today >= startDate && today <= endDate;
+    });
+  };
+  const currentUserLeave = getCurrentUserLeave();
+  const isUserOnLeaveToday = !!currentUserLeave;
 
   // All requests by status (no month filter — raw counts for pending)
   const pendingRequests = useMemo(
@@ -111,7 +139,7 @@ const Approvals = () => {
     };
   }, [filterMonth, currentYear]);
 
-  // Monthly stats (always based on selected month, not filters)
+  // Monthly stats
   const monthlyStats = useMemo(() => {
     const monthFiltered = filterByMonth(requests);
     return {
@@ -124,7 +152,6 @@ const Approvals = () => {
   const approvedRequests = useMemo(() => requests.filter((r) => r.status === "approved"), [requests]);
   const rejectedRequests = useMemo(() => requests.filter((r) => r.status === "rejected"), [requests]);
 
-  // Unique employees and leave types from all requests
   const uniqueEmployees = useMemo(() => {
     const map = new Map<string, string>();
     requests.forEach((r) => {
@@ -135,7 +162,6 @@ const Approvals = () => {
 
   const uniqueLeaveTypes = useMemo(() => [...new Set(requests.map((r) => r.leave_type))], [requests]);
 
-  // Apply all filters: month + employee + leave type + search
   const applyAllFilters = (list: typeof requests) => {
     let filtered = filterByMonth(list);
     if (filterEmployee !== "all") filtered = filtered.filter((r) => r.user_id === filterEmployee);
@@ -185,17 +211,7 @@ const Approvals = () => {
   // CSV export
   const exportCSV = (data: typeof requests, filename: string) => {
     if (data.length === 0) return;
-    const header = [
-      "Employee",
-      "Email",
-      "Leave Type",
-      "Start Date",
-      "End Date",
-      "Days",
-      "Status",
-      "Reason",
-      "Rejection Reason",
-    ];
+    const header = ["Employee", "Email", "Leave Type", "Start Date", "End Date", "Days", "Status", "Reason", "Rejection Reason"];
     const rows = data.map((r) => [
       r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown",
       r.profile?.email || "",
@@ -207,9 +223,7 @@ const Approvals = () => {
       r.reason || "",
       r.rejection_reason || "",
     ]);
-    const csv = [header, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
+    const csv = [header, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -219,10 +233,50 @@ const Approvals = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Check for overlapping dates
+  const datesOverlap = (a: { start_date: string; end_date: string }, b: { start_date: string; end_date: string }) => {
+    return a.start_date <= b.end_date && b.start_date <= a.end_date;
+  };
+
   const handleApprove = async (requestId: string) => {
+    const request = requests.find((r) => r.id === requestId);
+    if (!request) return;
+
+    if (request.user_id === user?.id) {
+      toast({ title: "Cannot Approve", description: "You cannot approve your own leave request.", variant: "destructive" });
+      return;
+    }
+
+    // Check for conflicting requests
+    const conflicting = requests.filter(
+      (r) => r.id !== requestId && r.user_id === request.user_id && r.status === "pending" && datesOverlap(request, r),
+    );
+
+    if (conflicting.length > 0) {
+      const employeeName = request.profile ? `${request.profile.first_name} ${request.profile.last_name}` : "Employee";
+      setConflictData({ requestId, employeeName, currentRequest: request, conflictingRequests: conflicting });
+      setConflictDialogOpen(true);
+      return;
+    }
+
     setProcessingId(requestId);
     await approveRequest(requestId);
     setProcessingId(null);
+    refetch();
+  };
+
+  const handleApproveWithConflictResolution = async (rejectOthers: boolean) => {
+    if (!conflictData) return;
+    setProcessingId(conflictData.requestId);
+    await approveRequest(conflictData.requestId);
+    if (rejectOthers) {
+      for (const conflict of conflictData.conflictingRequests) {
+        await rejectRequest(conflict.id, "Automatically rejected: conflicting leave request was approved for the same dates.");
+      }
+    }
+    setProcessingId(null);
+    setConflictDialogOpen(false);
+    setConflictData(null);
     refetch();
   };
 
@@ -244,6 +298,24 @@ const Approvals = () => {
   const handleRejectDialogOpenChange = (open: boolean) => {
     setRejectDialogOpen(open);
     if (!open) setSelectedRequest(null);
+  };
+
+  const handleSubmitRequest = async (request: {
+    type: string;
+    startDate: Date;
+    endDate: Date;
+    reason: string;
+    is_half_day?: boolean;
+    half_day_period?: string | null;
+  }) => {
+    await createRequest({
+      leave_type: request.type,
+      start_date: request.startDate,
+      end_date: request.endDate,
+      reason: request.reason,
+      is_half_day: request.is_half_day,
+      half_day_period: request.half_day_period,
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -377,13 +449,25 @@ const Approvals = () => {
             {isVP ? "Review and finalize approval requests" : "Review pending approval requests"}
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-warning/10 border border-warning/20">
             <Clock className="h-4 w-4 text-warning" />
             <span className="text-sm font-medium text-warning">
               {pendingRequests.length + pendingPromotions.length} Pending
             </span>
           </div>
+          {(isAdmin || isVP) && (
+            <Button variant="outline" className="gap-2 text-sm" onClick={() => setAdminDialogOpen(true)}>
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Assign Leave</span>
+              <span className="sm:hidden">Assign</span>
+            </Button>
+          )}
+          <Button className="gap-2 shadow-md text-sm" onClick={() => setRequestDialogOpen(true)}>
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Request Leave</span>
+            <span className="sm:hidden">Request</span>
+          </Button>
         </div>
       </div>
 
@@ -482,7 +566,7 @@ const Approvals = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Filter bar — always visible */}
+              {/* Filter bar */}
               <div className="flex flex-wrap items-center gap-3 pb-4 border-b border-border mb-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -500,9 +584,7 @@ const Approvals = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {MONTH_OPTIONS.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        {m.label}
-                      </SelectItem>
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -514,9 +596,7 @@ const Approvals = () => {
                   <SelectContent>
                     <SelectItem value="all">All Employees</SelectItem>
                     {uniqueEmployees.map(([id, name]) => (
-                      <SelectItem key={id} value={id}>
-                        {name}
-                      </SelectItem>
+                      <SelectItem key={id} value={id}>{name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -528,20 +608,13 @@ const Approvals = () => {
                   <SelectContent>
                     <SelectItem value="all">All Leave Types</SelectItem>
                     {uniqueLeaveTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
 
                 {hasActiveFilters && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="gap-1.5 text-muted-foreground h-9"
-                    onClick={clearFilters}
-                  >
+                  <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground h-9" onClick={clearFilters}>
                     <FilterX className="h-4 w-4" />
                     Clear Filters
                   </Button>
@@ -565,9 +638,7 @@ const Approvals = () => {
                   <div className="text-center py-12 text-muted-foreground">
                     <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p className="font-medium">All caught up!</p>
-                    <p className="text-sm">
-                      No pending approvals{filterMonth !== "all" ? ` for ${selectedMonthLabel}` : ""}
-                    </p>
+                    <p className="text-sm">No pending approvals{filterMonth !== "all" ? ` for ${selectedMonthLabel}` : ""}</p>
                   </div>
                 ) : (
                   filteredPending.map((request) => renderRequestCard(request, true))
@@ -603,12 +674,44 @@ const Approvals = () => {
             onConfirm={handleReject}
             employeeName={selectedRequest?.name || ""}
           />
+          <LeaveConflictDialog
+            open={conflictDialogOpen}
+            onOpenChange={(open) => {
+              setConflictDialogOpen(open);
+              if (!open) setConflictData(null);
+            }}
+            employeeName={conflictData?.employeeName || ""}
+            currentRequest={conflictData?.currentRequest || null}
+            conflictingRequests={conflictData?.conflictingRequests || []}
+            onApproveAnyway={() => handleApproveWithConflictResolution(false)}
+            onRejectOthers={() => handleApproveWithConflictResolution(true)}
+          />
         </>
       )}
 
       {section === "promotions" && <PromotionApprovalQueue />}
 
       {section === "leave-reports" && <LeaveReportsTab requests={requests} />}
+
+      {/* Request Leave Dialog — available to all users */}
+      <RequestLeaveDialog
+        open={requestDialogOpen}
+        onOpenChange={setRequestDialogOpen}
+        onSubmit={handleSubmitRequest}
+        isOnLeave={isUserOnLeaveToday}
+        currentLeave={currentUserLeave}
+      />
+
+      {/* Admin Assign Leave Dialog */}
+      {(isAdmin || isVP) && (
+        <AdminLeaveDialog
+          open={adminDialogOpen}
+          onOpenChange={setAdminDialogOpen}
+          onSubmit={async (params) => {
+            await adminCreateLeave(params);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 };
