@@ -27,8 +27,32 @@ interface DailyPoint {
 
 const POLICY_HOURS = 8;
 
+/**
+ * Parse a YYYY-MM-DD string into a Date at LOCAL midnight without timezone
+ * shifting. Using `new Date("2026-04-02")` parses as UTC midnight, which
+ * causes the day to shift backwards in US timezones. By splitting and
+ * constructing manually we avoid that entirely.
+ */
+function parseDateOnly(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/**
+ * Get "today" as a YYYY-MM-DD string in the employee's timezone.
+ * This ensures the chart's date boundary matches the Attendance page
+ * regardless of the browser's local timezone.
+ */
+function getTodayInTimezone(tz: string): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: tz }); // en-CA → YYYY-MM-DD
+}
+
+/**
+ * Format a YYYY-MM-DD key into a short axis label.
+ * Uses parseDateOnly so that the displayed day is always correct.
+ */
 function formatShortDate(dateStr: string, totalDays: number) {
-  const date = new Date(dateStr);
+  const date = parseDateOnly(dateStr);
   if (totalDays <= 14) {
     return date.toLocaleDateString("en-US", { weekday: "short" });
   }
@@ -39,7 +63,7 @@ function formatShortDate(dateStr: string, totalDays: number) {
 }
 
 function formatFullDate(dateStr: string) {
-  const date = new Date(dateStr);
+  const date = parseDateOnly(dateStr);
   return date.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
@@ -69,11 +93,15 @@ function buildDailyHoursMap(logs: AttendanceLog[], tz: string): Record<string, n
   return map;
 }
 
-function getDateRangeFromFirstRecord(firstDate: string, range: RangeKey) {
-  const today = new Date();
-  const first = new Date(firstDate);
+/**
+ * Compute the start/end date range for the chart.
+ * `todayStr` is already in the employee's timezone (YYYY-MM-DD).
+ */
+function getDateRange(firstDate: string, range: RangeKey, todayStr: string) {
+  const today = parseDateOnly(todayStr);
+  const first = parseDateOnly(firstDate);
 
-  let start = new Date(first);
+  let start: Date;
 
   if (range === "7d") {
     start = new Date(today);
@@ -84,13 +112,14 @@ function getDateRangeFromFirstRecord(firstDate: string, range: RangeKey) {
   } else if (range === "90d") {
     start = new Date(today);
     start.setDate(today.getDate() - 89);
+  } else {
+    start = new Date(first);
   }
 
-  if (start < first) start = first;
+  // Don't go before the first record
+  if (start < first) start = new Date(first);
 
   const end = new Date(today);
-  start.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
 
   return { start, end };
 }
@@ -211,12 +240,23 @@ export function PerformanceChart() {
     return keys.length > 0 ? keys[0] : null;
   }, [dailyMap]);
 
+  /**
+   * Compute "today" in the employee's DB timezone so that the chart date
+   * boundaries align with how attendance logs are bucketed by getWorkDate().
+   * Previously this used `new Date()` which uses the browser's local
+   * timezone — causing off-by-one date issues for US-based users viewing
+   * data anchored to Asia/Kathmandu (or any differing timezone).
+   */
+  const todayStr = useMemo(() => {
+    return getTodayInTimezone(employeeTimezone);
+  }, [employeeTimezone]);
+
   const chartData = useMemo(() => {
     if (!firstRecordDate) return [];
 
-    const { start, end } = getDateRangeFromFirstRecord(firstRecordDate, range);
+    const { start, end } = getDateRange(firstRecordDate, range, todayStr);
     return buildSeries(dailyMap, start, end);
-  }, [dailyMap, firstRecordDate, range]);
+  }, [dailyMap, firstRecordDate, range, todayStr]);
 
   const stats = useMemo(() => calculateStats(chartData), [chartData]);
 
