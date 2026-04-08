@@ -25,7 +25,6 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
-import { LeaveConflictDialog } from "@/components/leave/LeaveConflictDialog";
 import { toast } from "@/hooks/use-toast";
 
 // Special leave subtypes configuration
