@@ -676,6 +676,37 @@ const Leave = () => {
         </div>
       </div>
     </DashboardLayout>
+
+    <RequestLeaveDialog
+      open={requestDialogOpen}
+      onOpenChange={setRequestDialogOpen}
+      onSubmit={async (request) => {
+        await createRequest({
+          leave_type: request.type,
+          start_date: request.startDate,
+          end_date: request.endDate,
+          reason: request.reason,
+          is_half_day: request.is_half_day,
+          half_day_period: request.half_day_period,
+        });
+        refetch();
+      }}
+    />
+
+    <LeaveConflictDialog
+      open={conflictDialogOpen}
+      onOpenChange={setConflictDialogOpen}
+      conflicts={conflictingLeaves}
+      onConfirm={async () => {
+        if (pendingLeaveData) {
+          await createRequest(pendingLeaveData);
+          setPendingLeaveData(null);
+          setConflictingLeaves([]);
+          refetch();
+        }
+      }}
+    />
+    </>
   );
 };
 
