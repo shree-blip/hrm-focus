@@ -48,6 +48,8 @@ interface LeaveBalance {
   used_days: number;
 }
 
+type NotificationType = "info" | "warning" | "success" | "error";
+
 // Special leave types configuration
 const SPECIAL_LEAVE_TYPES: Record<string, number> = {
   "Wedding Leave": 15,
@@ -84,15 +86,19 @@ export function useLeaveRequests() {
     userId: string,
     title: string,
     message: string,
-    type: string = "leave",
+    type: NotificationType = "info",
     link: string | null = "/leave",
   ) => {
     try {
+      const normalizedType: NotificationType = ["info", "warning", "success", "error"].includes(type)
+        ? type
+        : "info";
+
       const { error } = await supabase.rpc("create_notification", {
         p_user_id: userId,
         p_title: title,
         p_message: message,
-        p_type: type,
+        p_type: normalizedType,
         p_link: link,
       });
 
@@ -503,7 +509,7 @@ export function useLeaveRequests() {
           : isOther
             ? `Your Other Leave (${request.leave_type.replace("Other Leave - ", "")}) request for ${days} day(s) has been submitted.`
             : `Your ${request.leave_type} request for ${days} day(s) has been submitted and is pending approval.`,
-        "leave",
+        "info",
         `/leave`,
       );
 
@@ -546,7 +552,7 @@ export function useLeaveRequests() {
             ? `${userName} submitted an Other Leave request (${request.leave_type.replace("Other Leave - ", "")}) for ${days} day(s).`
             : `${userName} submitted a ${request.leave_type} request for ${days} day(s) (${formatLocalDate(request.start_date)} to ${formatLocalDate(request.end_date)}).`;
 
-        await createNotification(managerId, notifTitle, notifMsg, "leave", `/approvals`);
+        await createNotification(managerId, notifTitle, notifMsg, "info", `/approvals`);
       }
 
       // Send email notifications via edge function
@@ -644,7 +650,7 @@ export function useLeaveRequests() {
         requestData.user_id,
         approveTitle,
         `Your ${requestData.leave_type} request for ${requestData.days} day(s) has been approved by ${managerName}.`,
-        "leave",
+        "success",
         `/leave`,
       );
 
@@ -652,7 +658,7 @@ export function useLeaveRequests() {
         user.id,
         approveTitle,
         `You approved ${userName}'s ${requestData.leave_type} request for ${requestData.days} day(s).`,
-        "leave",
+        "success",
         `/leave`,
       );
 
@@ -672,7 +678,7 @@ export function useLeaveRequests() {
             va.user_id,
             approveTitle,
             `${userName}'s ${requestData.leave_type} request for ${requestData.days} day(s) has been approved by ${managerName}.`,
-            "leave",
+            "success",
             `/leave`,
           );
         }
@@ -769,7 +775,7 @@ export function useLeaveRequests() {
         requestData.user_id,
         rejectTitle,
         `Your ${requestData.leave_type} request for ${requestData.days} day(s) has been rejected by ${managerName}. Reason: ${rejectionReason}`,
-        "leave",
+        "error",
         `/leave`,
       );
 
@@ -777,7 +783,7 @@ export function useLeaveRequests() {
         user.id,
         rejectTitle,
         `You rejected ${userName}'s ${requestData.leave_type} request. Reason: ${rejectionReason}`,
-        "leave",
+        "error",
         `/leave`,
       );
 
@@ -797,7 +803,7 @@ export function useLeaveRequests() {
             va.user_id,
             rejectTitle,
             `${userName}'s ${requestData.leave_type} request for ${requestData.days} day(s) has been rejected by ${managerName}. Reason: ${rejectionReason}`,
-            "leave",
+            "error",
             `/leave`,
           );
         }
@@ -976,7 +982,7 @@ export function useLeaveRequests() {
         requestData.user_id,
         "🚫 Leave Cancelled",
         `Your ${requestData.leave_type} request for ${requestData.days} day(s) has been cancelled by ${cancellerName}.${reason ? ` Reason: ${reason}` : ""}`,
-        "leave",
+        "warning",
         "/leave",
       );
     }
@@ -993,7 +999,7 @@ export function useLeaveRequests() {
           va.user_id,
           "🚫 Leave Cancelled",
           `${isOwnRequest ? employeeName + "'s" : employeeName + "'s"} ${requestData.leave_type} (${requestData.days} day(s)) was cancelled by ${cancellerName}.`,
-          "leave",
+          "warning",
           "/leave",
         );
       }
