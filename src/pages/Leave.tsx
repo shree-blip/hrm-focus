@@ -59,9 +59,15 @@ const Leave = () => {
     allApprovedLeaves,
     balances,
     loading,
+    createRequest,
+    refetch,
   } = useLeaveRequests();
   const { unreadCount } = useNotifications();
   const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const [pendingLeaveData, setPendingLeaveData] = useState<any>(null);
+  const [conflictingLeaves, setConflictingLeaves] = useState<any[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
