@@ -85,7 +85,7 @@ interface CurrentLeave {
 interface RequestLeaveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (request: { type: string; startDate: Date; endDate: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => void;
+  onSubmit: (request: { type: string; startDate: Date; endDate: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => Promise<boolean>;
   isOnLeave?: boolean;
   currentLeave?: CurrentLeave | null;
 }
@@ -149,6 +149,7 @@ export function RequestLeaveDialog({
   const [reason, setReason] = useState("");
   const [isHalfDay, setIsHalfDay] = useState(false);
   const [halfDayPeriod, setHalfDayPeriod] = useState<string>("first_half");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Leave on Lieu specific fields
   const [dateWorked, setDateWorked] = useState<Date>(); // The date they worked on a holiday/leave
@@ -187,8 +188,23 @@ export function RequestLeaveDialog({
     }
   }, [open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setLeaveType("Other Leave");
+    setSpecialLeaveSubtype("");
+    setOtherLeaveSubtype("");
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setReason("");
+    setDateWorked(undefined);
+    setLieuLeaveDate(undefined);
+    setIsHalfDay(false);
+    setHalfDayPeriod("first_half");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSubmitting) return;
 
     // Validation for Leave on Lieu
     if (leaveType === "Leave on Lieu") {
@@ -215,24 +231,24 @@ export function RequestLeaveDialog({
       const adjustedLieuDate = new Date(lieuLeaveDate);
       adjustedLieuDate.setHours(12, 0, 0, 0);
 
-      onSubmit({
-        type: `Leave on Lieu - ${format(dateWorked, "yyyy-MM-dd")}`,
-        startDate: adjustedLieuDate,
-        endDate: adjustedLieuDate,
-        reason: `Worked on: ${format(dateWorked, "MMM d, yyyy")}. ${reason}`,
-      });
+      setIsSubmitting(true);
 
-      // Reset form
-      setLeaveType("Other Leave");
-      setDateWorked(undefined);
-      setLieuLeaveDate(undefined);
-      setReason("");
-      onOpenChange(false);
+      try {
+        const submitted = await onSubmit({
+          type: `Leave on Lieu - ${format(dateWorked, "yyyy-MM-dd")}`,
+          startDate: adjustedLieuDate,
+          endDate: adjustedLieuDate,
+          reason: `Worked on: ${format(dateWorked, "MMM d, yyyy")}. ${reason}`,
+        });
 
-      toast({
-        title: "Leave on Lieu Request Submitted",
-        description: "Your lieu day request has been submitted for approval.",
-      });
+        if (submitted) {
+          resetForm();
+          onOpenChange(false);
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+
       return;
     }
 
@@ -307,28 +323,25 @@ export function RequestLeaveDialog({
       actualLeaveType = `Other Leave - ${otherLeaveSubtype}`;
     }
 
-    onSubmit({
-      type: actualLeaveType,
-      startDate: adjustedStartDate,
-      endDate: adjustedEndDate,
-      reason,
-      is_half_day: isHalfDay,
-      half_day_period: isHalfDay ? halfDayPeriod : null,
-    });
+    setIsSubmitting(true);
 
-    // Reset form
-    setLeaveType("Other Leave");
-    setSpecialLeaveSubtype("");
-    setOtherLeaveSubtype("");
-    setStartDate(undefined);
-    setEndDate(undefined);
-    setReason("");
-    onOpenChange(false);
+    try {
+      const submitted = await onSubmit({
+        type: actualLeaveType,
+        startDate: adjustedStartDate,
+        endDate: adjustedEndDate,
+        reason,
+        is_half_day: isHalfDay,
+        half_day_period: isHalfDay ? halfDayPeriod : null,
+      });
 
-    toast({
-      title: "Leave Request Submitted",
-      description: "Your leave request has been submitted for approval.",
-    });
+      if (submitted) {
+        resetForm();
+        onOpenChange(false);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Calculate business days between dates
@@ -896,6 +909,7 @@ export function RequestLeaveDialog({
             </Button>
             <Button
               type="submit"
+              disabled={isSubmitting}
               className={cn(
                 isLeaveOnLieu &&
                   "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white",
@@ -903,7 +917,7 @@ export function RequestLeaveDialog({
                   "bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white",
               )}
             >
-              {isLeaveOnLieu ? "Submit Lieu Request" : isOtherLeave ? "Submit Other Leave" : "Submit Request"}
+              {isSubmitting ? "Submitting..." : isLeaveOnLieu ? "Submit Lieu Request" : isOtherLeave ? "Submit Other Leave" : "Submit Request"}
             </Button>
           </div>
         </form>

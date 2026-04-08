@@ -678,7 +678,7 @@ const Leave = () => {
       open={requestDialogOpen}
       onOpenChange={setRequestDialogOpen}
       onSubmit={async (request) => {
-        await createRequest({
+        const submitted = await createRequest({
           leave_type: request.type,
           start_date: request.startDate,
           end_date: request.endDate,
@@ -686,7 +686,10 @@ const Leave = () => {
           is_half_day: request.is_half_day,
           half_day_period: request.half_day_period,
         });
-        refetch();
+        if (submitted) {
+          refetch();
+        }
+        return submitted;
       }}
     />
 
