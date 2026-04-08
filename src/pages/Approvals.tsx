@@ -308,7 +308,7 @@ const Approvals = () => {
     is_half_day?: boolean;
     half_day_period?: string | null;
   }) => {
-    await createRequest({
+    return await createRequest({
       leave_type: request.type,
       start_date: request.startDate,
       end_date: request.endDate,

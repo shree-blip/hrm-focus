@@ -389,7 +389,7 @@ export function useLeaveRequests() {
   }, [loadAllData, user]);
 
   const createRequest = async (request: { leave_type: string; start_date: Date; end_date: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => {
-    if (!user) return;
+    if (!user) return false;
 
     let days: number;
 
@@ -419,7 +419,7 @@ export function useLeaveRequests() {
             description: `You only have ${availableDays} annual leave days available.${isSickLeave ? " Sick leave deducts from annual leave." : ""}`,
             variant: "destructive",
           });
-          return;
+          return false;
         }
       } else {
         const usedAnnualLeave = ownRequests
@@ -432,7 +432,7 @@ export function useLeaveRequests() {
             description: `You only have ${12 - usedAnnualLeave} annual leave days available.${isSickLeave ? " Sick leave deducts from annual leave." : ""}`,
             variant: "destructive",
           });
-          return;
+          return false;
         }
       }
     }
@@ -473,11 +473,13 @@ export function useLeaveRequests() {
       .single();
 
     if (error) {
+      console.error("Failed to submit leave request:", error);
       toast({
         title: "Error",
-        description: "Failed to submit leave request",
+        description: error.message || "Failed to submit leave request",
         variant: "destructive",
       });
+      return false;
     } else {
       const toastTitle = isLieu
         ? "Leave on Lieu Request Submitted"
@@ -574,7 +576,10 @@ export function useLeaveRequests() {
       });
 
       await loadAllData();
+      return true;
     }
+
+    return false;
   };
 
   const approveRequest = async (requestId: string) => {
