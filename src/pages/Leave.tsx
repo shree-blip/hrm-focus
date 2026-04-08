@@ -693,19 +693,6 @@ const Leave = () => {
       }}
     />
 
-    <LeaveConflictDialog
-      open={conflictDialogOpen}
-      onOpenChange={setConflictDialogOpen}
-      conflicts={conflictingLeaves}
-      onConfirm={async () => {
-        if (pendingLeaveData) {
-          await createRequest(pendingLeaveData);
-          setPendingLeaveData(null);
-          setConflictingLeaves([]);
-          refetch();
-        }
-      }}
-    />
     </>
   );
 };
