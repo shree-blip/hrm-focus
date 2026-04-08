@@ -16,6 +16,7 @@ import {
   Clock,
   Layers,
   FileText,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
@@ -23,6 +24,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
+import { LeaveConflictDialog } from "@/components/leave/LeaveConflictDialog";
+import { toast } from "@/hooks/use-toast";
 
 // Special leave subtypes configuration
 const SPECIAL_LEAVE_TYPES = {
