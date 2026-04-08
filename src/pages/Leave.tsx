@@ -16,6 +16,7 @@ import {
   Clock,
   Layers,
   FileText,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
@@ -23,6 +24,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
+import { toast } from "@/hooks/use-toast";
 
 // Special leave subtypes configuration
 const SPECIAL_LEAVE_TYPES = {
@@ -55,9 +58,12 @@ const Leave = () => {
     allApprovedLeaves,
     balances,
     loading,
+    createRequest,
+    refetch,
   } = useLeaveRequests();
   const { unreadCount } = useNotifications();
   const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -157,6 +163,7 @@ const Leave = () => {
   }
 
   return (
+    <>
     <DashboardLayout>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 animate-fade-in">
@@ -179,6 +186,10 @@ const Leave = () => {
           </div>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">View your leave balances and history</p>
         </div>
+        <Button onClick={() => setRequestDialogOpen(true)} className="gap-2 shrink-0">
+          <Plus className="h-4 w-4" />
+          Request Leave
+        </Button>
       </div>
 
       {/* Team On Leave Banner */}
@@ -662,6 +673,24 @@ const Leave = () => {
         </div>
       </div>
     </DashboardLayout>
+
+    <RequestLeaveDialog
+      open={requestDialogOpen}
+      onOpenChange={setRequestDialogOpen}
+      onSubmit={async (request) => {
+        await createRequest({
+          leave_type: request.type,
+          start_date: request.startDate,
+          end_date: request.endDate,
+          reason: request.reason,
+          is_half_day: request.is_half_day,
+          half_day_period: request.half_day_period,
+        });
+        refetch();
+      }}
+    />
+
+    </>
   );
 };
 
