@@ -189,6 +189,10 @@ const Leave = () => {
           </div>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">View your leave balances and history</p>
         </div>
+        <Button onClick={() => setRequestDialogOpen(true)} className="gap-2 shrink-0">
+          <Plus className="h-4 w-4" />
+          Request Leave
+        </Button>
       </div>
 
       {/* Team On Leave Banner */}
