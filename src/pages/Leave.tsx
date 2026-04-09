@@ -660,7 +660,7 @@ const Leave = () => {
                     <span>Your leave</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="h-3 w-3 rounded bg-warning/20" />
+                    <div className="h-3 w-3 rounded bg-warning/50 border border-warning/70" />
                     <span>Others on leave</span>
                   </div>
                 </div>
