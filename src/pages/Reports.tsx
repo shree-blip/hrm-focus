@@ -544,9 +544,50 @@ const Reports = () => {
 
       filename = `leave-report-${dateStr}.csv`;
     } else if (type === "attendance") {
-      csvContent = "Employee,Email,Days Worked,Total Hours\n";
+      const { start: rangeStart, end: rangeEnd } = getDateRangeFromType(dateRange);
+      let totalWorkingDays = 0;
+      const d = new Date(rangeStart);
+      while (d <= rangeEnd) {
+        const day = d.getDay();
+        if (day !== 0 && day !== 6) {
+          totalWorkingDays++;
+        }
+        d.setDate(d.getDate() + 1);
+      }
+
+      // Build a map of approved leave days + dates per employee
+      const leaveDaysMap: Record<string, number> = {};
+      const leaveDatesMap: Record<string, string[]> = {};
+      requests.forEach((r) => {
+        if (r.status !== "approved") return;
+        const leaveStart = new Date(r.start_date);
+        const leaveEnd = new Date(r.end_date);
+        if (leaveEnd < rangeStart || leaveStart > rangeEnd) return;
+
+        const empKey = r.user_id;
+        leaveDaysMap[empKey] = (leaveDaysMap[empKey] || 0) + r.days;
+
+        // Collect individual leave dates (only weekdays within the range)
+        if (!leaveDatesMap[empKey]) leaveDatesMap[empKey] = [];
+        const current = new Date(Math.max(leaveStart.getTime(), rangeStart.getTime()));
+        const end = new Date(Math.min(leaveEnd.getTime(), rangeEnd.getTime()));
+        while (current <= end) {
+          const dow = current.getDay();
+          if (dow !== 0 && dow !== 6) {
+            const yyyy = current.getFullYear();
+            const mm = String(current.getMonth() + 1).padStart(2, "0");
+            const dd = String(current.getDate()).padStart(2, "0");
+            leaveDatesMap[empKey].push(`${yyyy}-${mm}-${dd}`);
+          }
+          current.setDate(current.getDate() + 1);
+        }
+      });
+
+      csvContent = "Employee,Email,Days Worked,Total Hours,Total Working Days,Leave Days,Leave Dates\n";
       teamAttendance.forEach((emp) => {
-        csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours}\n`;
+        const leaveDays = leaveDaysMap[emp.user_id] || 0;
+        const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
+        csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours},${totalWorkingDays},${leaveDays},"${leaveDates}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
@@ -1116,9 +1157,7 @@ const Reports = () => {
                         return (
                           <Fragment key={rowKey}>
                             <tr className="border-b hover:bg-muted/50">
-                              <td className="p-3">
-                                {/* removed old chevron — cells themselves are clickable now */}
-                              </td>
+                              <td className="p-3">{/* removed old chevron — cells themselves are clickable now */}</td>
                               <td className="p-3 font-medium">
                                 <div className="flex items-center gap-1.5">
                                   {getWorkDateDisplay(
