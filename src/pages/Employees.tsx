@@ -308,8 +308,7 @@ const Employees = () => {
       (approvedRequests || []).forEach((r: { leave_type: string; days: number; is_half_day: boolean | null }) => {
         // Normalize type: "Other Leave - Sick Leave" → "Sick Leave", "Other Leave - X" → "Other Leave"
         let type = r.leave_type;
-        if (type === "Other Leave - Sick Leave") type = "Sick Leave";
-        else if (type.startsWith("Other Leave -")) type = "Other Leave";
+        if (type.startsWith("Other Leave -")) type = "Other Leave";
         else if (type.startsWith("Leave on Lieu")) type = "Leave on Lieu";
 
         const dayCount = r.is_half_day ? 0.5 : r.days;
@@ -328,8 +327,11 @@ const Employees = () => {
       });
 
       // For types that appear in requests but NOT in balances, add them
+      // Types that deduct from Annual Leave — don't show as separate rows
+      const typesSubsumedByAnnual = ["Sick Leave", "Other Leave - Sick Leave"];
+
       usedMap.forEach((used, type) => {
-        if (!balanceMap.has(type)) {
+        if (!balanceMap.has(type) && !typesSubsumedByAnnual.includes(type)) {
           balanceMap.set(type, { total: 0, used });
         }
       });
@@ -861,7 +863,12 @@ const Employees = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className={cn("grid gap-2 sm:gap-3", isManager ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" : "grid-cols-1")}>
+              <div
+                className={cn(
+                  "grid gap-2 sm:gap-3",
+                  isManager ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" : "grid-cols-1",
+                )}
+              >
                 <Button
                   variant="outline"
                   className="flex-col h-24 gap-2"
