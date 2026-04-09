@@ -65,8 +65,8 @@ const Leave = () => {
   const getTeamMembersOnLeave = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return teamLeaves.filter((r) => {
-      if (r.status !== "approved" || r.user_id === user?.id) return false;
+    return allApprovedLeaves.filter((r) => {
+      if (r.user_id === user?.id) return false;
       const startDate = new Date(r.start_date);
       startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(r.end_date);
