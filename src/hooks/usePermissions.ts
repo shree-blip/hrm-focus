@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 export type Permission = 
   | 'manage_access'
   | 'manage_employees'
-  | 'manage_line_managers'
   | 'view_employees_all'
   | 'view_employees_reports_only'
   | 'view_attendance_all'
@@ -48,13 +47,12 @@ export type Permission =
 export const PERMISSION_LABELS: Record<Permission, string> = {
   manage_access: 'Manage Access Control',
   manage_employees: 'Manage Employees',
-  manage_line_managers: 'Manage Line Managers',
   view_employees_all: 'View All Employees',
-  view_employees_reports_only: 'View Reports Only',
+  view_employees_reports_only: 'View Direct Reports Only',
   view_attendance_all: 'View All Attendance',
   view_attendance_reports_only: 'View Reports Attendance',
   view_own_attendance: 'View Own Attendance',
-  edit_attendance: 'Edit Attendance',
+  edit_attendance: 'Edit Attendance Records',
   manage_salaries_all: 'Manage Salaries',
   add_announcement: 'Add Announcement',
   edit_announcement: 'Edit Announcement',
@@ -62,8 +60,8 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_announcements: 'View Announcements',
   manage_documents: 'Manage Documents',
   view_documents: 'View Documents',
-  approve_leave: 'Approve Leave',
-  view_leave: 'View Leave',
+  approve_leave: 'Approve / Reject Leave',
+  view_leave: 'View Leave & Balances',
   view_reports: 'View Reports',
   manage_payroll: 'Manage Payroll',
   view_payroll: 'View Payroll',
@@ -74,8 +72,8 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_tasks: 'View Tasks',
   manage_loans: 'Manage Loans',
   view_loans: 'View Loans',
-  manage_calendar: 'Manage Calendar',
-  manage_support: 'Manage Support',
+  manage_calendar: 'Manage Calendar Events',
+  manage_support: 'Manage Support (Full)',
   view_support: 'View Support',
   view_bug_reports: 'View Bug Reports',
   submit_bug_reports: 'Submit Bug Reports',
@@ -89,17 +87,27 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_performance: 'View Performance',
 };
 
+/**
+ * Permission categories grouped by real system modules.
+ * Each category maps to an actual page or feature in the HRM.
+ */
 export const PERMISSION_CATEGORIES: Record<string, Permission[]> = {
-  'Access & Users': ['manage_access', 'manage_employees', 'manage_line_managers', 'view_employees_all', 'view_employees_reports_only'],
+  'Access Control': ['manage_access'],
+  'Team / Employees': ['manage_employees', 'view_employees_all', 'view_employees_reports_only', 'manage_salaries_all'],
   'Attendance': ['view_attendance_all', 'view_attendance_reports_only', 'view_own_attendance', 'edit_attendance'],
+  'Leave & Approvals': ['view_leave', 'approve_leave'],
   'Announcements': ['add_announcement', 'edit_announcement', 'delete_announcement', 'view_announcements'],
-  'Documents & Reports': ['manage_documents', 'view_documents', 'view_reports'],
-  'Leave & Payroll': ['approve_leave', 'view_leave', 'manage_payroll', 'view_payroll', 'view_payslips', 'manage_salaries_all'],
-  'Tasks & Operations': ['manage_tasks', 'view_tasks', 'manage_calendar', 'manage_onboarding', 'view_onboarding'],
+  'Documents': ['manage_documents', 'view_documents'],
+  'Reports': ['view_reports'],
+  'Payroll & Payslips': ['manage_payroll', 'view_payroll', 'view_payslips'],
+  'Tasks': ['manage_tasks', 'view_tasks'],
+  'Calendar': ['manage_calendar'],
+  'Onboarding': ['manage_onboarding', 'view_onboarding'],
   'Loans': ['manage_loans', 'view_loans'],
   'Invoices': ['view_invoices', 'manage_invoices'],
   'Support': ['manage_support', 'view_support', 'view_bug_reports', 'submit_bug_reports', 'view_grievances', 'submit_grievances', 'view_asset_requests', 'submit_asset_requests'],
-  'Other Modules': ['view_log_sheet', 'view_performance'],
+  'Log Sheet': ['view_log_sheet'],
+  'Performance': ['view_performance'],
 };
 
 export const ALL_PERMISSIONS: Permission[] = Object.values(PERMISSION_CATEGORIES).flat();
