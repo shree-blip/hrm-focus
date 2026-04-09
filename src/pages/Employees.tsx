@@ -328,7 +328,7 @@ const Employees = () => {
 
       // For types that appear in requests but NOT in balances, add them
       // Types that deduct from Annual Leave — don't show as separate rows
-      const typesSubsumedByAnnual = ["Sick Leave", "Other Leave - Sick Leave"];
+      const typesSubsumedByAnnual = ["Sick Leave", "Other Leave - Sick Leave", "Other Leave"];
 
       usedMap.forEach((used, type) => {
         if (!balanceMap.has(type) && !typesSubsumedByAnnual.includes(type)) {
