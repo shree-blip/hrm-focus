@@ -632,8 +632,11 @@ const Leave = () => {
                         className={cn(
                           "text-sm py-2 rounded-md cursor-pointer transition-colors relative",
                           isToday && "bg-primary text-primary-foreground font-medium",
-                          isUserOnLeave && !isToday && "bg-success/30 text-success-foreground border border-success/50",
-                          othersOnLeave && !isUserOnLeave && !isToday && "bg-warning/20 text-warning-foreground",
+                          isUserOnLeave && !isToday && "bg-success/60 text-black font-medium border border-success",
+                          othersOnLeave &&
+                            !isUserOnLeave &&
+                            !isToday &&
+                            "bg-warning/50 text-black font-medium border border-warning/70",
                         )}
                         title={isUserOnLeave ? "You are on leave" : othersOnLeave ? "Team member(s) on leave" : ""}
                       >
