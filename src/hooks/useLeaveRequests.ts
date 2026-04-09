@@ -90,9 +90,7 @@ export function useLeaveRequests() {
     link: string | null = "/leave",
   ) => {
     try {
-      const normalizedType: NotificationType = ["info", "warning", "success", "error"].includes(type)
-        ? type
-        : "info";
+      const normalizedType: NotificationType = ["info", "warning", "success", "error"].includes(type) ? type : "info";
 
       const { error } = await supabase.rpc("create_notification", {
         p_user_id: userId,
@@ -224,9 +222,17 @@ export function useLeaveRequests() {
       return [];
     }
 
-    if ((isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") && role !== "admin" && role !== "vp") {
+    if (
+      (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") &&
+      role !== "admin" &&
+      role !== "vp"
+    ) {
       const teamIds = await fetchTeamMemberUserIds();
-      console.debug("[hierarchy][leave] pending filter", { managerUserId: user.id, teamIdsCount: teamIds.length, teamIds });
+      console.debug("[hierarchy][leave] pending filter", {
+        managerUserId: user.id,
+        teamIdsCount: teamIds.length,
+        teamIds,
+      });
       if (teamIds.length > 0) {
         return (data || []).filter((r) => teamIds.includes(r.user_id));
       }
@@ -259,7 +265,11 @@ export function useLeaveRequests() {
       if (error) return [];
 
       const teamIds = await fetchTeamMemberUserIds();
-      console.debug("[hierarchy][leave] all-team filter", { managerUserId: user.id, teamIdsCount: teamIds.length, teamIds });
+      console.debug("[hierarchy][leave] all-team filter", {
+        managerUserId: user.id,
+        teamIdsCount: teamIds.length,
+        teamIds,
+      });
       if (teamIds.length > 0) {
         return (data || []).filter((r) => teamIds.includes(r.user_id));
       }
@@ -394,7 +404,14 @@ export function useLeaveRequests() {
     };
   }, [loadAllData, user]);
 
-  const createRequest = async (request: { leave_type: string; start_date: Date; end_date: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => {
+  const createRequest = async (request: {
+    leave_type: string;
+    start_date: Date;
+    end_date: Date;
+    reason: string;
+    is_half_day?: boolean;
+    half_day_period?: string | null;
+  }) => {
     if (!user) return false;
 
     let days: number;
@@ -429,7 +446,12 @@ export function useLeaveRequests() {
         }
       } else {
         const usedAnnualLeave = ownRequests
-          .filter((r) => r.status === "approved" && (r.leave_type === "Annual Leave" || r.leave_type === "Other Leave - Sick Leave") && r.user_id === user.id)
+          .filter(
+            (r) =>
+              r.status === "approved" &&
+              (r.leave_type === "Annual Leave" || r.leave_type === "Other Leave - Sick Leave") &&
+              r.user_id === user.id,
+          )
           .reduce((sum, r) => sum + r.days, 0);
 
         if (days > 12 - usedAnnualLeave) {
@@ -523,11 +545,8 @@ export function useLeaveRequests() {
       }
 
       // ALWAYS include VP/Admin in notifications for every leave request
-      const { data: vpAdminUsers } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["vp", "admin"]);
-      
+      const { data: vpAdminUsers } = await supabase.from("user_roles").select("user_id").in("role", ["vp", "admin"]);
+
       if (vpAdminUsers) {
         for (const va of vpAdminUsers) {
           if (!targetNotifyIds.includes(va.user_id)) {
@@ -558,11 +577,7 @@ export function useLeaveRequests() {
       // Send email notifications via edge function
       const managerEmails: string[] = [];
       for (const managerId of notifySet) {
-        const { data: mgrProfile } = await supabase
-          .from("profiles")
-          .select("email")
-          .eq("user_id", managerId)
-          .single();
+        const { data: mgrProfile } = await supabase.from("profiles").select("email").eq("user_id", managerId).single();
         if (mgrProfile?.email) managerEmails.push(mgrProfile.email);
       }
 
@@ -663,10 +678,7 @@ export function useLeaveRequests() {
       );
 
       // Also notify VP/Admin about the approval
-      const { data: vpAdminApprove } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["vp", "admin"]);
+      const { data: vpAdminApprove } = await supabase.from("user_roles").select("user_id").in("role", ["vp", "admin"]);
 
       const approveNotifyIds = [requestData.user_id];
       const approveEmails: string[] = requestProfile?.email ? [requestProfile.email] : [];
@@ -788,10 +800,7 @@ export function useLeaveRequests() {
       );
 
       // Also notify VP/Admin about the rejection
-      const { data: vpAdminReject } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["vp", "admin"]);
+      const { data: vpAdminReject } = await supabase.from("user_roles").select("user_id").in("role", ["vp", "admin"]);
 
       const rejectNotifyIds = [requestData.user_id];
       const rejectEmails: string[] = requestProfile?.email ? [requestProfile.email] : [];
@@ -854,21 +863,19 @@ export function useLeaveRequests() {
       return `${year}-${month}-${day}`;
     };
 
-    const { error } = await supabase
-      .from("leave_requests")
-      .insert({
-        user_id: params.user_id,
-        leave_type: params.leave_type,
-        start_date: formatLocalDate(params.start_date),
-        end_date: formatLocalDate(params.end_date),
-        days: params.days,
-        reason: `[Admin assigned] ${params.reason}`,
-        status: "approved",
-        approved_by: user.id,
-        approved_at: new Date().toISOString(),
-        is_half_day: params.is_half_day,
-        half_day_period: params.half_day_period,
-      } as any);
+    const { error } = await supabase.from("leave_requests").insert({
+      user_id: params.user_id,
+      leave_type: params.leave_type,
+      start_date: formatLocalDate(params.start_date),
+      end_date: formatLocalDate(params.end_date),
+      days: params.days,
+      reason: `[Admin assigned] ${params.reason}`,
+      status: "approved",
+      approved_by: user.id,
+      approved_at: new Date().toISOString(),
+      is_half_day: params.is_half_day,
+      half_day_period: params.half_day_period,
+    } as any);
 
     if (error) {
       toast({
@@ -877,6 +884,29 @@ export function useLeaveRequests() {
         variant: "destructive",
       });
     } else {
+      // Deduct from Annual Leave balance (Annual Leave and Sick Leave both deduct from Annual)
+      const isSickLeave = params.leave_type === "Other Leave - Sick Leave";
+      const deductsFromAnnual =
+        params.leave_type === "Annual Leave" || isSickLeave || isOtherLeaveType(params.leave_type);
+
+      if (deductsFromAnnual) {
+        const currentYear = new Date().getFullYear();
+        const { data: balanceRow } = await supabase
+          .from("leave_balances")
+          .select("id, used_days")
+          .eq("user_id", params.user_id)
+          .eq("leave_type", "Annual Leave")
+          .eq("year", currentYear)
+          .single();
+
+        if (balanceRow) {
+          await supabase
+            .from("leave_balances")
+            .update({ used_days: balanceRow.used_days + params.days })
+            .eq("id", balanceRow.id);
+        }
+      }
+
       toast({
         title: "Leave Assigned",
         description: `Leave has been assigned and auto-approved.`,
@@ -905,11 +935,7 @@ export function useLeaveRequests() {
   const cancelRequest = async (requestId: string, reason?: string) => {
     if (!user) return;
 
-    const { data: requestData } = await supabase
-      .from("leave_requests")
-      .select("*")
-      .eq("id", requestId)
-      .single();
+    const { data: requestData } = await supabase.from("leave_requests").select("*").eq("id", requestId).single();
 
     if (!requestData) {
       toast({ title: "Error", description: "Leave request not found", variant: "destructive" });
@@ -922,31 +948,44 @@ export function useLeaveRequests() {
     // Authorization check
     if (originalStatus === "pending") {
       if (!isOwnRequest) {
-        toast({ title: "Unauthorized", description: "You can only cancel your own pending leave.", variant: "destructive" });
+        toast({
+          title: "Unauthorized",
+          description: "You can only cancel your own pending leave.",
+          variant: "destructive",
+        });
         return;
       }
     } else if (originalStatus === "approved") {
       // Only admin, VP, line manager, or supervisor can cancel approved leave
       const canCancel = isAdmin || isVP || isSupervisor || isLineManager;
       if (!canCancel && !isOwnRequest) {
-        toast({ title: "Unauthorized", description: "Only Admin, CEO, Line Manager, or Supervisor can cancel approved leave.", variant: "destructive" });
+        toast({
+          title: "Unauthorized",
+          description: "Only Admin, CEO, Line Manager, or Supervisor can cancel approved leave.",
+          variant: "destructive",
+        });
         return;
       }
       // Even own approved leave needs manager+ role
       if (isOwnRequest && !isAdmin && !isVP && !isSupervisor && !isLineManager) {
-        toast({ title: "Unauthorized", description: "Approved leave can only be cancelled by Admin, CEO, Line Manager, or Supervisor.", variant: "destructive" });
+        toast({
+          title: "Unauthorized",
+          description: "Approved leave can only be cancelled by Admin, CEO, Line Manager, or Supervisor.",
+          variant: "destructive",
+        });
         return;
       }
     } else {
-      toast({ title: "Cannot Cancel", description: `Leave with status "${originalStatus}" cannot be cancelled.`, variant: "destructive" });
+      toast({
+        title: "Cannot Cancel",
+        description: `Leave with status "${originalStatus}" cannot be cancelled.`,
+        variant: "destructive",
+      });
       return;
     }
 
     // Update leave request status to cancelled
-    const { error } = await supabase
-      .from("leave_requests")
-      .update({ status: "cancelled" })
-      .eq("id", requestId);
+    const { error } = await supabase.from("leave_requests").update({ status: "cancelled" }).eq("id", requestId);
 
     if (error) {
       toast({ title: "Error", description: "Failed to cancel leave request", variant: "destructive" });
@@ -988,10 +1027,7 @@ export function useLeaveRequests() {
     }
 
     // Notify admins/VP
-    const { data: vpAdminCancel } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .in("role", ["vp", "admin"]);
+    const { data: vpAdminCancel } = await supabase.from("user_roles").select("user_id").in("role", ["vp", "admin"]);
 
     for (const va of vpAdminCancel || []) {
       if (va.user_id !== user.id) {
