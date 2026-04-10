@@ -47,7 +47,7 @@ const Index = () => {
   const isMobile = useIsMobile();
   const { employees } = useEmployees();
   const { tasks } = useTasks();
-  const { requests, ownRequests, teamLeaves } = useLeaveRequests();
+  const { requests, ownRequests, teamLeaves, allApprovedLeaves } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
 
   const firstName = profile?.first_name || "User";
@@ -77,9 +77,10 @@ const Index = () => {
   }, [requests, ownRequests, isManager]);
 
   const onLeaveToday = useMemo(() => {
-    const source = teamLeaves.length > 0 ? teamLeaves : requests;
-    return source.filter((r) => r.status === "approved" && r.start_date <= todayStr && r.end_date >= todayStr);
-  }, [teamLeaves, requests, todayStr]);
+    return allApprovedLeaves.filter(
+      (r) => r.status === "approved" && r.start_date <= todayStr && r.end_date >= todayStr,
+    );
+  }, [allApprovedLeaves, todayStr]);
 
   const leaveChangeText = useMemo(() => {
     if (isManager) {
