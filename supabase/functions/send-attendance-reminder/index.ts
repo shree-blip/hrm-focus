@@ -317,7 +317,7 @@ function buildReminderEmail(
       <tr>
         <td style="padding:8px 0;color:#666;width:180px;">Clocked In At</td>
         <td style="padding:8px 0;font-weight:600;">
-          ${clockIn.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+          ${clockIn.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kathmandu" })}
         </td>
       </tr>
       <tr>
@@ -329,7 +329,11 @@ function buildReminderEmail(
       <tr>
         <td style="padding:8px 0;color:#666;">Expected Clock Out</td>
         <td style="padding:8px 0;font-weight:600;color:#d97706;">
-          ${expectedClockOut.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+          ${expectedClockOut.toLocaleString("en-US", {
+            dateStyle: "medium",
+            timeStyle: "short",
+            timeZone: "Asia/Kathmandu",
+          })}
         </td>
       </tr>
     </table>
