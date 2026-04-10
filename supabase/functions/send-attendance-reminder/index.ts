@@ -293,7 +293,16 @@ Deno.serve(async (req) => {
     });
   }
 });
-
+function formatNPT(date: Date): string {
+  const nptOffset = 5 * 60 + 45;
+  const npt = new Date(date.getTime() + nptOffset * 60 * 1000);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const h = npt.getUTCHours();
+  const m = npt.getUTCMinutes();
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${months[npt.getUTCMonth()]} ${npt.getUTCDate()}, ${npt.getUTCFullYear()}, ${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
 function buildReminderEmail(
   firstName: string,
   lastName: string,
