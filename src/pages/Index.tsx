@@ -199,7 +199,7 @@ const Index = () => {
           icon={Calendar}
           iconColor="bg-info/10 text-info"
           delay={250}
-          onClick={() => navigate("/approvals")}
+          onClick={() => navigate(isManager ? "/approvals" : "/leave")}
         />
       </div>
 
