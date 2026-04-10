@@ -885,7 +885,7 @@ const Reports = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {teamAttendance.length === 0 ? (
+              {derivedSummary.length === 0 ? (
                 <p className="text-center py-8 text-slate-600">No attendance data available for this period</p>
               ) : (
                 <div className="overflow-x-auto">
@@ -896,7 +896,7 @@ const Reports = () => {
                       <span>Days Worked</span>
                       <span>Total Hours</span>
                     </div>
-                    {teamAttendance.map((emp) => (
+                    {derivedSummary.map((emp) => (
                       <div
                         key={emp.user_id}
                         className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-sm"
