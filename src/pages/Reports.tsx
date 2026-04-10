@@ -636,7 +636,7 @@ const Reports = () => {
       });
 
       csvContent = "Employee,Email,Days Worked,Total Hours,Total Working Days,Leave Days,Leave Dates\n";
-      teamAttendance.forEach((emp) => {
+      derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
         csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours},${totalWorkingDays},${leaveDays},"${leaveDates}"\n`;
