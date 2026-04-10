@@ -136,15 +136,67 @@ const Reports = () => {
     ),
   };
 
-  // Calculate attendance statistics
+  // Derive attendance summary directly from dailyAttendance records
+  // so that it always matches the Daily Attendance tab exactly.
+  const derivedSummary = useMemo(() => {
+    const userMap = new Map<
+      string,
+      {
+        employee_name: string;
+        email: string;
+        employee_id: string;
+        totalHours: number;
+        days: Set<string>;
+        user_id: string;
+      }
+    >();
+
+    dailyAttendance.forEach((att) => {
+      const rec = att as DailyAttendanceRecord;
+      if (!userMap.has(rec.user_id)) {
+        userMap.set(rec.user_id, {
+          employee_name: rec.employee_name,
+          email: rec.email,
+          employee_id: (att as any).employee_id || "",
+          totalHours: 0,
+          days: new Set(),
+          user_id: rec.user_id,
+        });
+      }
+      const entry = userMap.get(rec.user_id)!;
+      // Use the same calculation that the Daily Attendance tab uses
+      const hours = calculateTotalHours(rec);
+      if (hours !== null) {
+        entry.totalHours += hours;
+      }
+      // Count unique work dates
+      const dateKey = formatDateLocal(rec.clock_in, rec.employee_timezone);
+      entry.days.add(dateKey);
+    });
+
+    const rows = Array.from(userMap.values())
+      .map((u) => ({
+        user_id: u.user_id,
+        employee_name: u.employee_name,
+        email: u.email,
+        employee_id: u.employee_id,
+        total_hours: Math.round(u.totalHours * 10) / 10,
+        days_worked: u.days.size,
+      }))
+      .sort((a, b) => b.total_hours - a.total_hours);
+
+    return rows;
+  }, [dailyAttendance]);
+
+  // Calculate attendance statistics from derived summary
   const attendanceStats = {
-    totalRecords: teamAttendance.length,
+    totalRecords: derivedSummary.length,
     avgHoursWorked:
-      teamAttendance.length > 0
-        ? (teamAttendance.reduce((sum, emp) => sum + emp.total_hours, 0) / teamAttendance.length).toFixed(1)
+      derivedSummary.length > 0
+        ? (derivedSummary.reduce((sum, emp) => sum + emp.total_hours, 0) / derivedSummary.length).toFixed(1)
         : "0",
     lateArrivals: 0,
-    totalDaysWorked: teamAttendance.reduce((sum, emp) => sum + emp.days_worked, 0),
+    totalDaysWorked: derivedSummary.reduce((sum, emp) => sum + emp.days_worked, 0),
   };
 
   const formatDateLocal = (dateString: string | null, tz?: string) => {
@@ -584,7 +636,7 @@ const Reports = () => {
       });
 
       csvContent = "Employee,Email,Days Worked,Total Hours,Total Working Days,Leave Days,Leave Dates\n";
-      teamAttendance.forEach((emp) => {
+      derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
         csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours},${totalWorkingDays},${leaveDays},"${leaveDates}"\n`;
@@ -833,7 +885,7 @@ const Reports = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {teamAttendance.length === 0 ? (
+              {derivedSummary.length === 0 ? (
                 <p className="text-center py-8 text-slate-600">No attendance data available for this period</p>
               ) : (
                 <div className="overflow-x-auto">
@@ -844,7 +896,7 @@ const Reports = () => {
                       <span>Days Worked</span>
                       <span>Total Hours</span>
                     </div>
-                    {teamAttendance.map((emp) => (
+                    {derivedSummary.map((emp) => (
                       <div
                         key={emp.user_id}
                         className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-sm"
