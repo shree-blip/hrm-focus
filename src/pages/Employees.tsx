@@ -145,7 +145,7 @@ const EmployeeAvatar = ({ employee }: { employee: any }) => {
 };
 
 const Employees = () => {
-  const { employees, loading, createEmployee, updateEmployee, deactivateEmployee } = useEmployees();
+  const { employees, loading, createEmployee, updateEmployee, deactivateEmployee, reactivateEmployee } = useEmployees();
   const { user, isManager, isVP, isAdmin, isLineManager, isSupervisor, canCreateEmployee } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
