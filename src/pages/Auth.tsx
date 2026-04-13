@@ -78,6 +78,13 @@ export default function Auth() {
         description: "Your email is not authorized to access this system. Please contact your administrator.",
         variant: "destructive",
       });
+    } else if (rejected === "account_deactivated") {
+      sessionStorage.removeItem("auth_rejected");
+      toast({
+        title: "Account Deactivated",
+        description: "Your account has been deactivated. Please contact your Admin or CEO to reactivate it.",
+        variant: "destructive",
+      });
     }
   }, []);
 
