@@ -4546,6 +4546,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_employee_active: { Args: { check_email: string }; Returns: Json }
       check_rate_limit: {
         Args: {
           func_name: string
