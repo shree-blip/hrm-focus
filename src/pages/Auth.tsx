@@ -78,6 +78,13 @@ export default function Auth() {
         description: "Your email is not authorized to access this system. Please contact your administrator.",
         variant: "destructive",
       });
+    } else if (rejected === "account_deactivated") {
+      sessionStorage.removeItem("auth_rejected");
+      toast({
+        title: "Account Deactivated",
+        description: "Your account has been deactivated. Please contact your Admin or CEO to reactivate it.",
+        variant: "destructive",
+      });
     }
   }, []);
 
@@ -174,6 +181,24 @@ export default function Auth() {
     }
 
     setIsLoading(true);
+
+    // Check if the employee account is deactivated before attempting login
+    try {
+      const { data: activeCheck } = await supabase.rpc("check_employee_active", { check_email: normalized });
+      const result = activeCheck as { active?: boolean; reason?: string; name?: string } | null;
+      if (result && !result.active && result.reason === "deactivated") {
+        toast({
+          title: "Account Deactivated",
+          description: "Your account has been deactivated. Please contact your Admin or CEO to reactivate it.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+    } catch {
+      // If RPC fails, proceed with login — don't block on network errors
+    }
+
     const { error } = await signIn(normalized, loginPassword);
 
     if (error) {

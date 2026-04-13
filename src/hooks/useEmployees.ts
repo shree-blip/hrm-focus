@@ -247,6 +247,9 @@ export function useEmployees() {
       return;
     }
 
+    // Get employee email first
+    const employee = employees.find((e) => e.id === employeeId);
+
     const { error } = await supabase
       .from("employees")
       .update({ status: "inactive", termination_date: new Date().toISOString().split("T")[0] })
@@ -255,7 +258,48 @@ export function useEmployees() {
     if (error) {
       toast({ title: "Error", description: "Failed to deactivate employee", variant: "destructive" });
     } else {
-      toast({ title: "Employee Deactivated", description: "Employee has been deactivated." });
+      // Also block their login by removing from allowed_signups
+      if (employee?.email) {
+        await supabase
+          .from("allowed_signups")
+          .update({ is_used: true })
+          .eq("email", employee.email.toLowerCase());
+      }
+      toast({ title: "Employee Deactivated", description: "Employee has been deactivated and their login access has been revoked." });
+      fetchEmployees(true);
+    }
+  };
+
+  const reactivateEmployee = async (employeeId: string) => {
+    if (!isManager) {
+      toast({
+        title: "Unauthorized",
+        description: "You don't have permission to reactivate employees.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const employee = employees.find((e) => e.id === employeeId);
+
+    const { error } = await supabase
+      .from("employees")
+      .update({ status: "active", termination_date: null })
+      .eq("id", employeeId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to reactivate employee", variant: "destructive" });
+    } else {
+      // Re-enable their login
+      if (employee?.email) {
+        await supabase
+          .from("allowed_signups")
+          .upsert(
+            { email: employee.email.toLowerCase(), is_used: false, invited_at: new Date().toISOString() },
+            { onConflict: "email" },
+          );
+      }
+      toast({ title: "Employee Reactivated", description: "Employee has been reactivated and can now log in again." });
       fetchEmployees(true);
     }
   };
@@ -266,6 +310,7 @@ export function useEmployees() {
     createEmployee,
     updateEmployee,
     deactivateEmployee,
+    reactivateEmployee,
     refetch: () => fetchEmployees(true),
   };
 }

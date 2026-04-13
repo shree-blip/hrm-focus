@@ -27,6 +27,7 @@ import {
   ChevronRight,
   ArrowLeft,
   CalendarDays,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
@@ -145,7 +146,7 @@ const EmployeeAvatar = ({ employee }: { employee: any }) => {
 };
 
 const Employees = () => {
-  const { employees, loading, createEmployee, updateEmployee, deactivateEmployee } = useEmployees();
+  const { employees, loading, createEmployee, updateEmployee, deactivateEmployee, reactivateEmployee } = useEmployees();
   const { user, isManager, isVP, isAdmin, isLineManager, isSupervisor, canCreateEmployee } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -912,17 +913,31 @@ const Employees = () => {
                       <span className="text-sm font-medium">Leave Summary</span>
                     </Button>
 
-                    <Button
-                      variant="outline"
-                      className="flex-col h-24 gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-                      onClick={() => {
-                        handleDeactivate(clickedEmployee);
-                        setClickedEmployee(null);
-                      }}
-                    >
-                      <UserX className="h-6 w-6" />
-                      <span className="text-sm font-medium">Deactivate</span>
-                    </Button>
+                    {clickedEmployee?.status === "inactive" ? (
+                      <Button
+                        variant="outline"
+                        className="flex-col h-24 gap-2 text-success border-success/30 hover:bg-success/10"
+                        onClick={async () => {
+                          await reactivateEmployee(clickedEmployee.id);
+                          setClickedEmployee(null);
+                        }}
+                      >
+                        <UserCheck className="h-6 w-6" />
+                        <span className="text-sm font-medium">Reactivate</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="flex-col h-24 gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                        onClick={() => {
+                          handleDeactivate(clickedEmployee);
+                          setClickedEmployee(null);
+                        }}
+                      >
+                        <UserX className="h-6 w-6" />
+                        <span className="text-sm font-medium">Deactivate</span>
+                      </Button>
+                    )}
                   </>
                 )}
               </div>
