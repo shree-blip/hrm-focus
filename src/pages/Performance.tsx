@@ -51,6 +51,7 @@ import {
 
 import { supabase } from "@/integrations/supabase/client";
 import { useEmployees } from "@/hooks/useEmployees";
+import { useLineManagerAccess } from "@/hooks/useLineManagerAccess";
 import { useTeamPresence } from "@/hooks/useTeamPresence";
 import { usePerformanceReviews } from "@/hooks/usePerformanceReviews";
 import { useAuth } from "@/contexts/AuthContext";
@@ -815,6 +816,7 @@ function WeeklyBreakdown({ weeks }: { weeks: { week: number; hours: number; targ
 // ═══════════════════════════════════════════════════════════════
 const PerformanceMetrics = () => {
   const { isManager, isVP, isAdmin, user, isLineManager, isSupervisor } = useAuth();
+  const { teamMembers } = useLineManagerAccess();
   const canManage = isManager || isVP || isAdmin;
   const isTeamView = canManage || isLineManager || isSupervisor;
   const isEmployeeView = !isTeamView;
@@ -840,7 +842,14 @@ const PerformanceMetrics = () => {
   const { getStatus: getPresenceStatus, getOnlineCount } = useTeamPresence();
   const { goals, loading: goalsLoading, createGoal, updateGoal, deleteGoal, createFeedback } = usePerformanceReviews();
 
-  const activeEmployees = useMemo(() => employees.filter((e) => e.status === "active"), [employees]);
+  const activeEmployees = useMemo(() => {
+    if (isLineManager || isSupervisor) {
+      // Only show assigned team for line managers/supervisors
+      const teamIds = new Set(teamMembers.map((t) => t.id));
+      return employees.filter((e) => e.status === "active" && teamIds.has(e.id));
+    }
+    return employees.filter((e) => e.status === "active");
+  }, [employees, isLineManager, isSupervisor, teamMembers]);
   const activeEmployeesForDialog = useMemo(
     () => activeEmployees.map((e) => ({ id: e.id, first_name: e.first_name, last_name: e.last_name })),
     [activeEmployees],
