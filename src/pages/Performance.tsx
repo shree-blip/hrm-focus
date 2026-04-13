@@ -1421,18 +1421,20 @@ const PerformanceMetrics = () => {
         totalLogEntries: 0,
         total: 0,
       };
-    const n = metrics.length;
+    // Use filtered data (respects department filter) for KPIs
+    const dataSource = selectedDept === "All" ? metrics : filtered;
+    const n = dataSource.length;
     return {
-      avgScore: Math.round(metrics.reduce((s, m) => s + m.performanceScore, 0) / n),
-      avgNetHours: Math.round((metrics.reduce((s, m) => s + m.totalNetHours, 0) / n) * 10) / 10,
-      avgLogsheet: Math.round(metrics.reduce((s, m) => s + m.logsheetScore, 0) / n),
-      topPerformers: metrics.filter((m) => m.status === "top").length,
-      needsAttention: metrics.filter((m) => m.performanceScore < 50).length,
-      totalAlerts: metrics.reduce((s, m) => s + m.alerts.length, 0),
-      totalLogEntries: metrics.reduce((s, m) => s + m.totalLogEntries, 0),
+      avgScore: Math.round(dataSource.reduce((s, m) => s + m.performanceScore, 0) / n),
+      avgNetHours: Math.round((dataSource.reduce((s, m) => s + m.totalNetHours, 0) / n) * 10) / 10,
+      avgLogsheet: Math.round(dataSource.reduce((s, m) => s + m.logsheetScore, 0) / n),
+      topPerformers: dataSource.filter((m) => m.status === "top").length,
+      needsAttention: dataSource.filter((m) => m.performanceScore < 50).length,
+      totalAlerts: dataSource.reduce((s, m) => s + m.alerts.length, 0),
+      totalLogEntries: dataSource.reduce((s, m) => s + m.totalLogEntries, 0),
       total: n,
     };
-  }, [metrics]);
+  }, [metrics, filtered, selectedDept]);
 
   const selected = selectedEmployeeId ? metrics.find((m) => m.employeeId === selectedEmployeeId) : null;
   const empGoals = selected ? goals.filter((g) => g.employee_id === selected.employeeId) : [];
@@ -1447,7 +1449,7 @@ const PerformanceMetrics = () => {
   }, [metrics]);
 
   const radarData = useMemo(() => {
-    const source = selected ? [selected] : filtered;
+    const source = selected ? [selected] : selectedDept === "All" ? filtered : filtered;
     if (!source.length) return [];
     const avg = (fn: (s: (typeof source)[0]) => number) =>
       Math.round(source.reduce((a, s) => a + fn(s), 0) / source.length);
@@ -1459,19 +1461,20 @@ const PerformanceMetrics = () => {
       { metric: "Log Quality", value: avg((s) => s.logsheetQualityScore) },
       { metric: "Consistency", value: avg((s) => s.consistencyScore) },
     ];
-  }, [filtered, selected]);
+  }, [filtered, selected, selectedDept]);
 
   const barData = useMemo(() => {
     // Determine if we're showing pacing (real-time) or final scores
     const showPacing = metrics.some((m) => m.warmupState !== "final");
 
-    // Show ALL employees sorted by actual hours worked (so active people show first)
-    const allEmployees = [...metrics].sort((a, b) => {
+    // Use filtered data (respects department + tag filters) sorted by actual hours worked
+    const dataSource = selectedDept === "All" ? metrics : filtered;
+    const sortedEmployees = [...dataSource].sort((a, b) => {
       // Sort by actual hours worked (descending) - shows who's most active
       return b.totalNetHours - a.totalNetHours;
     });
 
-    return allEmployees.map((m) => {
+    return sortedEmployees.map((m) => {
       // Show pacing score for active/initializing, final score for past periods
       const scoreToShow = showPacing && m.warmupState !== "final" ? m.pacingScore : m.performanceScore;
 
@@ -1482,7 +1485,7 @@ const PerformanceMetrics = () => {
         logs: m.totalLogEntries,
       };
     });
-  }, [metrics]);
+  }, [metrics, filtered, selectedDept]);
 
   // Chart title based on what data is being shown
   const chartTitle = useMemo(() => {
