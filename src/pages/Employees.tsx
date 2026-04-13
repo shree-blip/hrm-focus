@@ -27,6 +27,7 @@ import {
   ChevronRight,
   ArrowLeft,
   CalendarDays,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
