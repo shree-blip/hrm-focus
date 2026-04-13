@@ -98,10 +98,11 @@ const OVERLOAD_THRESHOLD_HOURS = 9;
 /** Min daily hours for "underutilized" flag */
 const UNDERUTILIZED_THRESHOLD_HOURS = 5;
 
-type PeriodType = "this-week" | "this-month" | "last-month" | "this-quarter" | "this-year";
+type PeriodType = "this-week" | "last-week" | "this-month" | "last-month" | "this-quarter" | "this-year";
 
 const PERIOD_OPTIONS: { value: PeriodType; label: string }[] = [
   { value: "this-week", label: "This Week" },
+  { value: "last-week", label: "Last Week" },
   { value: "this-month", label: "This Month" },
   { value: "last-month", label: "Last Month" },
   { value: "this-quarter", label: "This Quarter" },
@@ -152,6 +153,16 @@ function getDateRange(period: PeriodType) {
       end.setHours(23, 59, 59, 999);
       break;
     }
+    case "last-week": {
+      const day = now.getDay();
+      const thisWeekStart = now.getDate() - day + (day === 0 ? -6 : 1);
+      start = new Date(y, m, thisWeekStart - 7);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      break;
+    }
     case "this-month":
       start = new Date(y, m, 1);
       end = new Date(y, m + 1, 0, 23, 59, 59, 999);
@@ -183,6 +194,139 @@ function getDateRange(period: PeriodType) {
   const totalWeeks = Math.max(1, Math.ceil(totalWorkingDays / 5));
 
   return { start, end, totalWorkingDays, elapsedWorkingDays, targetHours, totalWeeks };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TIME-ELAPSED NORMALIZATION HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Calculate working minutes elapsed from period start until now (9 AM - 5 PM, Mon-Fri only)
+ * EXCLUDES any days marked as approved leave
+ */
+function getWorkMinutesElapsed(periodStart: Date, now: Date, leaveDates: Set<string> = new Set()): number {
+  let totalMinutes = 0;
+  const current = new Date(periodStart);
+  current.setHours(9, 0, 0, 0); // Start at 9 AM
+
+  const endTime = new Date(now);
+  if (endTime < periodStart) return 0;
+
+  while (current < endTime) {
+    const dow = current.getDay();
+    const dayKey = current.toISOString().split("T")[0];
+
+    // Count only Mon-Fri AND not on leave
+    if (dow !== 0 && dow !== 6 && !leaveDates.has(dayKey)) {
+      // Set to 9 AM of current day if not already
+      const dayStart = new Date(current);
+      dayStart.setHours(9, 0, 0, 0);
+
+      // Set to 5 PM of current day or end time, whichever is earlier
+      const dayEnd = new Date(current);
+      dayEnd.setHours(17, 0, 0, 0);
+      const effectiveEnd = dayEnd < endTime ? dayEnd : endTime;
+
+      if (dayStart < effectiveEnd) {
+        totalMinutes += (effectiveEnd.getTime() - dayStart.getTime()) / (1000 * 60);
+      }
+    }
+    current.setDate(current.getDate() + 1);
+    current.setHours(9, 0, 0, 0);
+  }
+
+  return Math.max(0, totalMinutes);
+}
+
+/**
+ * Calculate expected hours worked so far in the period (9 AM - 5 PM pacing)
+ * ADJUSTED for approved leave days
+ */
+function calculateExpectedHoursSoFar(periodStart: Date, now: Date, leaveDates: Set<string> = new Set()): number {
+  const minutesElapsed = getWorkMinutesElapsed(periodStart, now, leaveDates);
+  return minutesElapsed / 60;
+}
+
+/**
+ * Calculate pacing score: actual vs expected at this moment
+ * Returns percentage of whether they're on pace for their current point in time
+ */
+function calculatePacingScore(actualHours: number, expectedHoursSoFar: number): number {
+  if (expectedHoursSoFar === 0) return 100; // Not started yet
+  const pacing = (actualHours / expectedHoursSoFar) * 100;
+  return Math.min(100, Math.max(0, Math.round(pacing)));
+}
+
+/**
+ * Project total hours by end of period based on current pace
+ * ADJUSTED for approved leave days: only calculates against available working days
+ */
+function calculateProjectedTotal(
+  actualHours: number,
+  workMinutesElapsed: number,
+  adjustedWeeklyWorkMinutes: number, // Target minutes excluding leave days
+): number {
+  if (workMinutesElapsed === 0) return 0;
+  const currentPace = actualHours / (workMinutesElapsed / 60);
+  const projectedHours = (currentPace * adjustedWeeklyWorkMinutes) / 60;
+  return Math.round(projectedHours * 10) / 10;
+}
+
+/**
+ * Determine warm-up state for the viewing period
+ * - If period already ended (past viewing): "final"
+ * - If today is Monday of period start: "initializing" (all day)
+ * - If today is Friday of period: "final"
+ * - Otherwise: "active"
+ */
+function getWarmUpState(
+  periodStart: Date,
+  periodEnd: Date,
+  now: Date,
+  leaveDates: Set<string> = new Set(),
+  totalNetHours: number = 0,
+): "initializing" | "active" | "final" {
+  // If we're past the period end → show final results
+  if (now > periodEnd) {
+    return "final";
+  }
+
+  const dow = now.getDay();
+  const periodStartDow = periodStart.getDay();
+
+  // Monday: Check if work hours logged (clocked out) → show real data
+  // If no work hours yet → still initializing
+  if (dow === periodStartDow && now >= periodStart) {
+    if (totalNetHours > 0) {
+      return "active"; // Has clocked out and logged work → show real data
+    }
+    return "initializing"; // No work logged yet → show calibrating
+  }
+
+  // Last day of week (Friday) = final
+  if (dow === 5) {
+    return "final";
+  }
+
+  // Default = active (Tuesday-Thursday)
+  return "active";
+}
+
+/**
+ * Calculate daily consistency score (low variance = high score)
+ */
+function calculateDailyConsistency(dailyHours: number[]): number {
+  if (dailyHours.length <= 1) return 100;
+  const validDays = dailyHours.filter((h) => h > 0);
+  if (validDays.length <= 1) return 100;
+
+  const mean = validDays.reduce((a, b) => a + b, 0) / validDays.length;
+  const variance = validDays.reduce((sum, h) => sum + Math.pow(h - mean, 2), 0) / validDays.length;
+  const stdDev = Math.sqrt(variance);
+
+  // Perfect consistency (0 variance) = 100, std dev > 3 = 0
+  const consistencyScore = Math.max(0, 100 - (stdDev / mean) * 50);
+  return Math.round(consistencyScore);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -274,9 +418,17 @@ interface EmployeeMetrics {
   reviewTags: string[];
   positiveAlerts: string[];
 
+  // Time-Elapsed Normalization (Pacing & Projection)
+  pacingScore: number; // Actual vs Expected at current moment (0-100)
+  projectedTotal: number; // Projected Friday total based on current pace
+  expectedHoursSoFar: number; // What they should have by now
+  warmupState: "initializing" | "active" | "final"; // Warm-up phase or final push
+  dailyConsistency: number; // Variance in daily hours (0-100)
+  workMinutesElapsed: number; // Total working minutes elapsed in period
+
   // Final
   performanceScore: number;
-  status: "top" | "good" | "needs-improvement" | "underutilized" | "overloaded";
+  status: "top" | "good" | "needs-improvement" | "underutilized" | "overloaded" | "initializing";
   trend: "up" | "down" | "same";
   alerts: string[];
   // Explanation strings for each dimension
@@ -288,13 +440,14 @@ interface EmployeeMetrics {
     consistency: string;
     logsheetQuality: string;
     validation: string;
+    pacing: string;
   };
 }
 
 function computeFinal(
   m: Omit<EmployeeMetrics, "performanceScore" | "status" | "trend" | "alerts" | "positiveAlerts">,
 ): Pick<EmployeeMetrics, "performanceScore" | "status" | "trend" | "alerts" | "positiveAlerts"> {
-  const score = Math.round(
+  const baseScore = Math.round(
     m.productiveHoursScore * 0.28 +
       m.logsheetScore * 0.23 +
       m.attendanceScore * 0.14 +
@@ -306,17 +459,86 @@ function computeFinal(
 
   const avgDailyHrs = m.daysAttended > 0 ? m.totalNetHours / m.daysAttended : 0;
 
+  // ═══ PACING-AWARE SCORING ═══
+  // During the week: use pacing score for real-time status
+  // Friday/End of period: use actual final score
+  let performanceScore = baseScore;
   let status: EmployeeMetrics["status"];
-  if (avgDailyHrs > OVERLOAD_THRESHOLD_HOURS) status = "overloaded";
-  else if (score >= 85) status = "top";
-  else if (score >= 70) status = "good";
-  else if (avgDailyHrs < UNDERUTILIZED_THRESHOLD_HOURS && m.daysAttended > 3) status = "underutilized";
-  else status = "needs-improvement";
 
-  const trend: EmployeeMetrics["trend"] = score >= 70 ? "up" : score >= 50 ? "same" : "down";
+  // Warm-up period: show "initializing" status
+  if (m.warmupState === "initializing") {
+    performanceScore = 0; // Hide raw percentage
+    status = "initializing";
+  }
+  // Active period: smart performance-based status
+  else if (m.warmupState === "active" && m.expectedHoursSoFar > 0) {
+    // Use projected score blended with current achievement
+    const projectedScore = (m.projectedTotal / m.adjustedTargetHours) * 100;
+    performanceScore = Math.round(m.pacingScore * 0.6 + projectedScore * 0.4);
+
+    // ═══ SMART STATUS: Based on actual pacing performance ═══
+    // If doing REALLY WELL → reward them, don't wait for Friday
+    // If falling behind → warn them early so they can catch up
+
+    if (avgDailyHrs > OVERLOAD_THRESHOLD_HOURS) {
+      status = "overloaded";
+    }
+    // Strong performance: 90%+ pacing = they're crushing it
+    else if (m.pacingScore >= 90) {
+      status = "top"; // Today's performance is excellent
+    }
+    // Good performance: 80-89% pacing = on track and solid
+    else if (m.pacingScore >= 80) {
+      status = "good"; // On track, good pace
+    }
+    // Falling behind: 60-79% pacing = warning, 2-3 days to recover
+    else if (m.pacingScore >= 60) {
+      status = "needs-improvement"; // Behind but recoverable
+    }
+    // Very low utilization
+    else if (avgDailyHrs < UNDERUTILIZED_THRESHOLD_HOURS && m.daysAttended > 1) {
+      status = "underutilized"; // Very low hours
+    }
+    // Default
+    else {
+      status = "needs-improvement"; // Not on track
+    }
+  }
+  // Final/Friday: use actual score
+  else {
+    if (avgDailyHrs > OVERLOAD_THRESHOLD_HOURS) status = "overloaded";
+    else if (baseScore >= 85) status = "top";
+    else if (baseScore >= 70) status = "good";
+    else if (avgDailyHrs < UNDERUTILIZED_THRESHOLD_HOURS && m.daysAttended > 3) status = "underutilized";
+    else status = "needs-improvement";
+  }
+
+  const trend: EmployeeMetrics["trend"] = baseScore >= 70 ? "up" : baseScore >= 50 ? "same" : "down";
 
   const negativeAlerts: string[] = [];
   const positiveAlerts: string[] = [];
+
+  // ═══ PACING ALERTS ═══
+  if (m.warmupState === "active" && m.expectedHoursSoFar > 0) {
+    const minutesBehind = Math.round((m.expectedHoursSoFar - m.totalNetHours) * 60);
+    const minutesAhead = Math.round((m.totalNetHours - m.expectedHoursSoFar) * 60);
+
+    if (minutesAhead > 30) {
+      positiveAlerts.push(`${(minutesAhead / 60).toFixed(1)}h ahead of schedule — maintaining strong pace`);
+    } else if (minutesBehind > 30) {
+      negativeAlerts.push(`${(minutesBehind / 60).toFixed(1)}h behind adjusted schedule (${m.pacingScore}% pacing)`);
+    }
+
+    // Use adjusted target (excluding leave days) for projection comparison
+    const projectedGap = m.adjustedTargetHours - m.projectedTotal;
+    if (Math.abs(projectedGap) > 1) {
+      negativeAlerts.push(
+        `Projected to deliver ${m.projectedTotal.toFixed(1)}h by end of period (adjusted target ${m.adjustedTargetHours.toFixed(1)}h after ${Math.round(m.leaveDaysTaken * PRODUCTIVE_HOURS_PER_DAY)}h leave)`,
+      );
+    }
+  }
+
+  // ═══ EXISTING ALERTS ═══
   if (avgDailyHrs > OVERLOAD_THRESHOLD_HOURS)
     negativeAlerts.push(
       `Avg ${avgDailyHrs.toFixed(1)}h/day — burnout risk (above ${OVERLOAD_THRESHOLD_HOURS}h threshold)`,
@@ -361,7 +583,7 @@ function computeFinal(
     negativeAlerts.push("Client name missing in many logsheet entries");
 
   return {
-    performanceScore: Math.min(100, Math.max(0, score)),
+    performanceScore: Math.min(100, Math.max(0, performanceScore)),
     status,
     trend,
     alerts: negativeAlerts,
@@ -382,6 +604,11 @@ const STATUS_CONFIG = {
   },
   underutilized: { label: "Underutilized", className: "bg-gray-400/15 text-gray-400 border-gray-400/30", icon: "↓" },
   overloaded: { label: "Overloaded", className: "bg-red-500/15 text-red-500 border-red-500/30", icon: "🔥" },
+  initializing: {
+    label: "Calibrating...",
+    className: "bg-purple-500/15 text-purple-500 border-purple-500/30",
+    icon: "⏳",
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -994,6 +1221,39 @@ const PerformanceMetrics = () => {
                 ? "High attendance matched by logs with low break time — validated continuous work."
                 : `Log hours cover ${(attendanceLogRatio * 100).toFixed(0)}% of net attendance hours.`;
 
+        // ═══════════════════════════════════════
+        // TIME-ELAPSED NORMALIZATION (Pacing & Projection)
+        // ADJUSTED FOR APPROVED LEAVE — Leave days don't count against performance
+        // ═══════════════════════════════════════
+
+        // Build set of leave dates for this employee
+        const leaveDates = new Set<string>();
+        empLeaves.forEach((l) => {
+          const ls = new Date(l.start_date);
+          const le = new Date(l.end_date);
+          const es = ls < start ? start : ls;
+          const ee = le > end ? end : le;
+          const d = new Date(es);
+          while (d <= ee) {
+            if (d.getDay() !== 0 && d.getDay() !== 6) {
+              leaveDates.add(d.toISOString().split("T")[0]);
+            }
+            d.setDate(d.getDate() + 1);
+          }
+        });
+
+        // Adjusted working minutes: total minus leave days (9 AM - 5 PM only)
+        const adjustedWeeklyWorkMinutes = adjustedWorkingDays * PRODUCTIVE_HOURS_PER_DAY * 60; // Adjusted target
+
+        const workMinutesElapsed = getWorkMinutesElapsed(start, new Date(), leaveDates);
+        const expectedHoursSoFar = calculateExpectedHoursSoFar(start, new Date(), leaveDates);
+        const pacingScore = calculatePacingScore(totalNetHours, expectedHoursSoFar);
+        const projectedTotal = calculateProjectedTotal(totalNetHours, workMinutesElapsed, adjustedWeeklyWorkMinutes);
+        const warmupState = getWarmUpState(start, end, new Date(), leaveDates, totalNetHours);
+        const dailyConsistency = calculateDailyConsistency(dailyNetHours);
+
+        const pacingExplanation = `Real-time pace (leave-adjusted): ${expectedHoursSoFar.toFixed(1)}h expected by now vs ${totalNetHours.toFixed(1)}h logged. Pacing: ${pacingScore}%. Approved leave: ${leaveDaysTaken}d (${leaveDaysTaken * PRODUCTIVE_HOURS_PER_DAY}h removed from target). Adjusted target: ${adjustedTargetHours.toFixed(1)}h. Projected: ${projectedTotal.toFixed(1)}h.`;
+
         const base = {
           employeeId: emp.id,
           employeeName: name,
@@ -1037,6 +1297,13 @@ const PerformanceMetrics = () => {
           breakDisciplineScore,
           consistencyScore,
           logsheetQualityScore,
+          // Pacing & Projection
+          pacingScore,
+          projectedTotal,
+          expectedHoursSoFar,
+          warmupState,
+          dailyConsistency,
+          workMinutesElapsed,
           explanations: {
             productiveHours: productiveHoursExplanation,
             logsheet: logsheetExplanation,
@@ -1045,6 +1312,7 @@ const PerformanceMetrics = () => {
             consistency: consistencyExplanation,
             logsheetQuality: logQualityExplanation,
             validation: validationExplanation,
+            pacing: pacingExplanation,
           },
         };
 
@@ -1063,6 +1331,27 @@ const PerformanceMetrics = () => {
   useEffect(() => {
     fetchMetrics();
   }, [fetchMetrics]);
+
+  // Real-time performance updates for Tue-Thu
+  useEffect(() => {
+    const now = new Date();
+    const dow = now.getDay();
+    const hour = now.getHours();
+
+    // Only enable real-time polling on Tue-Thu during work hours (9 AM - 5 PM)
+    const isTueThu = dow >= 2 && dow <= 4; // 2=Tue, 3=Wed, 4=Thu
+    const isDuringWorkHours = hour >= 9 && hour < 17;
+    const isActiveState = metrics.some((m) => m.warmupState === "active");
+
+    if (isTueThu && isDuringWorkHours && isActiveState) {
+      // Refresh metrics every 30 seconds for real-time updates
+      const interval = setInterval(() => {
+        fetchMetrics();
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [fetchMetrics, metrics]);
 
   // ═══════════════════════════════════════
   // DERIVED
@@ -1163,16 +1452,34 @@ const PerformanceMetrics = () => {
     ];
   }, [filtered, selected]);
 
-  const barData = useMemo(
-    () =>
-      filtered.slice(0, 12).map((m) => ({
+  const barData = useMemo(() => {
+    // Determine if we're showing pacing (real-time) or final scores
+    const showPacing = metrics.some((m) => m.warmupState !== "final");
+
+    // Show ALL employees sorted by actual hours worked (so active people show first)
+    const allEmployees = [...metrics].sort((a, b) => {
+      // Sort by actual hours worked (descending) - shows who's most active
+      return b.totalNetHours - a.totalNetHours;
+    });
+
+    return allEmployees.map((m) => {
+      // Show pacing score for active/initializing, final score for past periods
+      const scoreToShow = showPacing && m.warmupState !== "final" ? m.pacingScore : m.performanceScore;
+
+      return {
         name: m.employeeName.split(" ")[0],
-        score: m.performanceScore,
-        hours: m.productiveHoursScore,
-        logs: m.logsheetScore,
-      })),
-    [filtered],
-  );
+        score: scoreToShow,
+        hours: m.totalNetHours, // Show actual hours worked
+        logs: m.totalLogEntries,
+      };
+    });
+  }, [metrics]);
+
+  // Chart title based on what data is being shown
+  const chartTitle = useMemo(() => {
+    const showPacing = metrics.some((m) => m.warmupState !== "final");
+    return showPacing ? "Live Pacing Rankings" : "Performance Rankings";
+  }, [metrics]);
 
   const isLoading = loading || empLoading || goalsLoading;
 
@@ -1290,163 +1597,184 @@ const PerformanceMetrics = () => {
           </CardContent>
         </Card>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          <KPICard
-            title="Net Hours"
-            value={`${s.totalNetHours}h`}
-            subtitle={`of ${s.adjustedTargetHours}h target`}
-            icon={<Clock className="h-5 w-5 text-primary" />}
-            iconBg="bg-primary/10"
-            delay={100}
-          />
-          <KPICard
-            title="Avg Daily"
-            value={`${avgDailyHrs}h`}
-            subtitle={`${s.daysAttended} days worked`}
-            icon={<Activity className="h-5 w-5 text-green-500" />}
-            iconBg="bg-green-500/10"
-            delay={130}
-          />
-          <KPICard
-            title="Logsheets"
-            value={s.totalLogEntries.toString()}
-            subtitle={`${s.logEntriesWithClient} with client · ${s.daysWithEnoughLogs}/${s.adjustedWorkingDays}d compliant`}
-            icon={<BookOpen className="h-5 w-5 text-blue-500" />}
-            iconBg="bg-blue-500/10"
-            delay={160}
-          />
-          <KPICard
-            title="Attendance"
-            value={`${s.daysAttended}/${s.adjustedWorkingDays}`}
-            subtitle={`${s.attendanceScore}% · ${s.leaveDaysTaken}d leave`}
-            icon={<CheckCircle2 className="h-5 w-5 text-amber-500" />}
-            iconBg="bg-amber-500/10"
-            delay={190}
-          />
-          <KPICard
-            title="Weekly Logs"
-            value={`${s.avgLogEntriesPerWeek}/wk`}
-            subtitle={`Target ${Math.round(MONTHLY_MIN_LOGS / 4)}–${Math.round(MONTHLY_MAX_LOGS / 4)}/week`}
-            icon={<BookOpen className="h-5 w-5 text-sky-500" />}
-            iconBg="bg-sky-500/10"
-            delay={220}
-          />
-          <KPICard
-            title="Avg Break"
-            value={`${avgBreakPerDay}m`}
-            subtitle={`${s.daysWithExcessiveBreaks}d with >2 sessions`}
-            icon={<Coffee className="h-5 w-5 text-orange-500" />}
-            iconBg="bg-orange-500/10"
-            delay={250}
-          />
-          <KPICard
-            title="Leave"
-            value={`${s.leaveDaysTaken}d`}
-            subtitle="Approved (not penalized)"
-            icon={<Calendar className="h-5 w-5 text-purple-500" />}
-            iconBg="bg-purple-500/10"
-            delay={280}
-          />
-        </div>
-
-        <div className="mb-6">
-          <WeeklyLogsheetPanel weeks={s.weeklyHours} />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* 6-Dimension Breakdown */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display text-lg flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" /> Score Breakdown
-                <span className="text-xs text-muted-foreground font-normal ml-1">(click ⓘ for formula)</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <DimensionBar
-                label="Productive Hours"
-                value={s.productiveHoursScore}
-                weight="30%"
-                detail={`${s.totalNetHours}h net / ${s.adjustedTargetHours}h target (${s.adjustedWorkingDays}d × ${PRODUCTIVE_HOURS_PER_DAY}h)`}
-                explanation={s.explanations.productiveHours}
-                icon={<Clock className="h-3.5 w-3.5 text-muted-foreground" />}
-              />
-              <DimensionBar
-                label="Logsheet Compliance"
-                value={s.logsheetScore}
-                weight="25%"
-                detail={`${s.daysWithEnoughLogs}/${s.adjustedWorkingDays}d with ≥${MIN_LOGS_PER_DAY} entries · ${s.totalLogEntries} total`}
-                explanation={s.explanations.logsheet}
-                icon={<BookOpen className="h-3.5 w-3.5 text-muted-foreground" />}
-              />
-              <DimensionBar
-                label="Attendance"
-                value={s.attendanceScore}
-                weight="15%"
-                detail={`${s.daysAttended}/${s.adjustedWorkingDays} days (${s.leaveDaysTaken}d leave excluded)`}
-                explanation={s.explanations.attendance}
-                icon={<CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />}
-              />
-              <DimensionBar
-                label="Break Discipline"
-                value={s.breakDisciplineScore}
-                weight="10%"
-                detail={`Avg ${avgBreakPerDay}min/day · ${s.daysWithExcessiveBreaks}d with >2 sessions`}
-                explanation={s.explanations.breakDiscipline}
-                icon={<Coffee className="h-3.5 w-3.5 text-muted-foreground" />}
-              />
-              <DimensionBar
-                label="Logsheet Quality"
-                value={s.logsheetQualityScore}
-                weight="10%"
-                detail={`Avg ${s.avgLogMinutesPerEntry}min/entry · ${s.logEntriesWithClient}/${s.totalLogEntries} with client`}
-                explanation={s.explanations.logsheetQuality}
-                icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" />}
-              />
-              <DimensionBar
-                label="Consistency"
-                value={s.consistencyScore}
-                weight="10%"
-                detail="Daily hours regularity (6–9h/day is OK)"
-                explanation={s.explanations.consistency}
-                icon={<Shield className="h-3.5 w-3.5 text-muted-foreground" />}
-              />
-              <div className="pt-4 border-t">
-                <div className="flex justify-between items-center">
-                  <span className="font-display font-bold">Final Score</span>
-                  <ScoreBadge score={s.performanceScore} size="lg" />
-                </div>
+        {s.warmupState === "initializing" ? (
+          // Monday: Calibrating state - simplified view
+          <Card className="mb-6 border-purple-500/30 bg-purple-500/5">
+            <CardContent className="pt-6">
+              <div className="text-center py-12">
+                <div className="text-4xl mb-4">⏳</div>
+                <h3 className="text-lg font-display font-semibold text-purple-600 dark:text-purple-400 mb-2">
+                  Performance Calibrating...
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  Week just started. Detailed metrics will appear as the week progresses. Employee is logging work
+                  normally.
+                </p>
               </div>
             </CardContent>
           </Card>
+        ) : (
+          // Tue-Fri: Show full metrics
+          <>
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+              <KPICard
+                title="Net Hours"
+                value={`${s.totalNetHours}h`}
+                subtitle={`of ${s.adjustedTargetHours}h target`}
+                icon={<Clock className="h-5 w-5 text-primary" />}
+                iconBg="bg-primary/10"
+                delay={100}
+              />
+              <KPICard
+                title="Avg Daily"
+                value={`${avgDailyHrs}h`}
+                subtitle={`${s.daysAttended} days worked`}
+                icon={<Activity className="h-5 w-5 text-green-500" />}
+                iconBg="bg-green-500/10"
+                delay={130}
+              />
+              <KPICard
+                title="Logsheets"
+                value={s.totalLogEntries.toString()}
+                subtitle={`${s.logEntriesWithClient} with client · ${s.daysWithEnoughLogs}/${s.adjustedWorkingDays}d compliant`}
+                icon={<BookOpen className="h-5 w-5 text-blue-500" />}
+                iconBg="bg-blue-500/10"
+                delay={160}
+              />
+              <KPICard
+                title="Attendance"
+                value={`${s.daysAttended}/${s.adjustedWorkingDays}`}
+                subtitle={`${s.attendanceScore}% · ${s.leaveDaysTaken}d leave`}
+                icon={<CheckCircle2 className="h-5 w-5 text-amber-500" />}
+                iconBg="bg-amber-500/10"
+                delay={190}
+              />
+              <KPICard
+                title="Weekly Logs"
+                value={`${s.avgLogEntriesPerWeek}/wk`}
+                subtitle={`Target ${Math.round(MONTHLY_MIN_LOGS / 4)}–${Math.round(MONTHLY_MAX_LOGS / 4)}/week`}
+                icon={<BookOpen className="h-5 w-5 text-sky-500" />}
+                iconBg="bg-sky-500/10"
+                delay={220}
+              />
+              <KPICard
+                title="Avg Break"
+                value={`${avgBreakPerDay}m`}
+                subtitle={`${s.daysWithExcessiveBreaks}d with >2 sessions`}
+                icon={<Coffee className="h-5 w-5 text-orange-500" />}
+                iconBg="bg-orange-500/10"
+                delay={250}
+              />
+              <KPICard
+                title="Leave"
+                value={`${s.leaveDaysTaken}d`}
+                subtitle="Approved (not penalized)"
+                icon={<Calendar className="h-5 w-5 text-purple-500" />}
+                iconBg="bg-purple-500/10"
+                delay={280}
+              />
+            </div>
 
-          {/* Radar */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display text-lg">Performance Radar</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[320px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={radarData}>
-                    <PolarGrid stroke="hsl(var(--border))" />
-                    <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                    <Radar
-                      name="Score"
-                      dataKey="value"
-                      stroke="hsl(var(--primary))"
-                      fill="hsl(var(--primary))"
-                      fillOpacity={0.2}
-                      strokeWidth={2}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <div className="mb-6">
+              <WeeklyLogsheetPanel weeks={s.weeklyHours} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* 6-Dimension Breakdown */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-display text-lg flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-primary" /> Score Breakdown
+                    <span className="text-xs text-muted-foreground font-normal ml-1">(click ⓘ for formula)</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <DimensionBar
+                    label="Productive Hours"
+                    value={s.productiveHoursScore}
+                    weight="30%"
+                    detail={`${s.totalNetHours}h net / ${s.adjustedTargetHours}h target (${s.adjustedWorkingDays}d × ${PRODUCTIVE_HOURS_PER_DAY}h)`}
+                    explanation={s.explanations.productiveHours}
+                    icon={<Clock className="h-3.5 w-3.5 text-muted-foreground" />}
+                  />
+                  <DimensionBar
+                    label="Logsheet Compliance"
+                    value={s.logsheetScore}
+                    weight="25%"
+                    detail={`${s.daysWithEnoughLogs}/${s.adjustedWorkingDays}d with ≥${MIN_LOGS_PER_DAY} entries · ${s.totalLogEntries} total`}
+                    explanation={s.explanations.logsheet}
+                    icon={<BookOpen className="h-3.5 w-3.5 text-muted-foreground" />}
+                  />
+                  <DimensionBar
+                    label="Attendance"
+                    value={s.attendanceScore}
+                    weight="15%"
+                    detail={`${s.daysAttended}/${s.adjustedWorkingDays} days (${s.leaveDaysTaken}d leave excluded)`}
+                    explanation={s.explanations.attendance}
+                    icon={<CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />}
+                  />
+                  <DimensionBar
+                    label="Break Discipline"
+                    value={s.breakDisciplineScore}
+                    weight="10%"
+                    detail={`Avg ${avgBreakPerDay}min/day · ${s.daysWithExcessiveBreaks}d with >2 sessions`}
+                    explanation={s.explanations.breakDiscipline}
+                    icon={<Coffee className="h-3.5 w-3.5 text-muted-foreground" />}
+                  />
+                  <DimensionBar
+                    label="Logsheet Quality"
+                    value={s.logsheetQualityScore}
+                    weight="10%"
+                    detail={`Avg ${s.avgLogMinutesPerEntry}min/entry · ${s.logEntriesWithClient}/${s.totalLogEntries} with client`}
+                    explanation={s.explanations.logsheetQuality}
+                    icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" />}
+                  />
+                  <DimensionBar
+                    label="Consistency"
+                    value={s.consistencyScore}
+                    weight="10%"
+                    detail="Daily hours regularity (6–9h/day is OK)"
+                    explanation={s.explanations.consistency}
+                    icon={<Shield className="h-3.5 w-3.5 text-muted-foreground" />}
+                  />
+                  <div className="pt-4 border-t">
+                    <div className="flex justify-between items-center">
+                      <span className="font-display font-bold">Final Score</span>
+                      <ScoreBadge score={s.performanceScore} size="lg" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Radar */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-display text-lg">Performance Radar</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[320px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={radarData}>
+                        <PolarGrid stroke="hsl(var(--border))" />
+                        <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10 }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                        <Radar
+                          name="Score"
+                          dataKey="value"
+                          stroke="hsl(var(--primary))"
+                          fill="hsl(var(--primary))"
+                          fillOpacity={0.2}
+                          strokeWidth={2}
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
 
         {/* Weekly Breakdown */}
         <div className="mb-6">
@@ -1633,61 +1961,81 @@ const PerformanceMetrics = () => {
       {/* KPI Cards */}
       {isEmployeeView && metrics[0] ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <KPICard
-              delay={100}
-              title="My Score"
-              value={metrics[0].performanceScore.toString()}
-              subtitle={STATUS_CONFIG[metrics[0].status].label}
-              icon={<Award className="h-5 w-5 text-primary" />}
-              iconBg="bg-primary/10"
-            />
-            <KPICard
-              delay={130}
-              title="Net Hours"
-              value={`${metrics[0].totalNetHours}h`}
-              subtitle={`of ${metrics[0].adjustedTargetHours}h target (${metrics[0].adjustedWorkingDays}d × ${PRODUCTIVE_HOURS_PER_DAY}h)`}
-              icon={<Clock className="h-5 w-5 text-green-500" />}
-              iconBg="bg-green-500/10"
-            />
-            <KPICard
-              delay={160}
-              title="Logsheets"
-              value={`${metrics[0].daysWithEnoughLogs}/${metrics[0].adjustedWorkingDays}`}
-              subtitle={`${metrics[0].totalLogEntries} entries · ${metrics[0].logEntriesWithClient} with client`}
-              icon={<BookOpen className="h-5 w-5 text-blue-500" />}
-              iconBg="bg-blue-500/10"
-            />
-            <KPICard
-              delay={190}
-              title="Attendance"
-              value={`${metrics[0].daysAttended} days`}
-              subtitle={`${metrics[0].attendanceScore}% · ${metrics[0].leaveDaysTaken}d leave (OK)`}
-              icon={<CheckCircle2 className="h-5 w-5 text-amber-500" />}
-              iconBg="bg-amber-500/10"
-            />
-          </div>
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="font-display text-lg">Weekly Logsheet Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Avg logs per week</p>
-                  <p className="text-xl font-semibold">{metrics[0].avgLogEntriesPerWeek}</p>
+          {metrics[0].warmupState === "initializing" ? (
+            // Employee view on Monday: Calibrating state
+            <Card className="mb-6 border-purple-500/30 bg-purple-500/5">
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-4">⏳</div>
+                  <h3 className="text-lg font-display font-semibold text-purple-600 dark:text-purple-400 mb-2">
+                    Your Performance is Calibrating...
+                  </h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    Week just started. Detailed metrics will appear as the week progresses. Keep up the good work!
+                  </p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Weeks in period</p>
-                  <p className="text-xl font-semibold">{metrics[0].weeklyHours.length}</p>
-                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            // Tue-Fri: Show full metrics
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <KPICard
+                  delay={100}
+                  title="My Score"
+                  value={metrics[0].performanceScore.toString()}
+                  subtitle={STATUS_CONFIG[metrics[0].status].label}
+                  icon={<Award className="h-5 w-5 text-primary" />}
+                  iconBg="bg-primary/10"
+                />
+                <KPICard
+                  delay={130}
+                  title="Net Hours"
+                  value={`${metrics[0].totalNetHours}h`}
+                  subtitle={`of ${metrics[0].adjustedTargetHours}h target (${metrics[0].adjustedWorkingDays}d × ${PRODUCTIVE_HOURS_PER_DAY}h)`}
+                  icon={<Clock className="h-5 w-5 text-green-500" />}
+                  iconBg="bg-green-500/10"
+                />
+                <KPICard
+                  delay={160}
+                  title="Logsheets"
+                  value={`${metrics[0].daysWithEnoughLogs}/${metrics[0].adjustedWorkingDays}`}
+                  subtitle={`${metrics[0].totalLogEntries} entries · ${metrics[0].logEntriesWithClient} with client`}
+                  icon={<BookOpen className="h-5 w-5 text-blue-500" />}
+                  iconBg="bg-blue-500/10"
+                />
+                <KPICard
+                  delay={190}
+                  title="Attendance"
+                  value={`${metrics[0].daysAttended} days`}
+                  subtitle={`${metrics[0].attendanceScore}% · ${metrics[0].leaveDaysTaken}d leave (OK)`}
+                  icon={<CheckCircle2 className="h-5 w-5 text-amber-500" />}
+                  iconBg="bg-amber-500/10"
+                />
               </div>
-              <p className="text-xs text-muted-foreground mt-3">
-                Target: {Math.round(MONTHLY_MIN_LOGS / 4)}–{Math.round(MONTHLY_MAX_LOGS / 4)} logs/week · Net target:{" "}
-                {WEEKLY_TARGET_HOURS}h/week
-              </p>
-            </CardContent>
-          </Card>
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="font-display text-lg">Weekly Logsheet Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Avg logs per week</p>
+                      <p className="text-xl font-semibold">{metrics[0].avgLogEntriesPerWeek}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Weeks in period</p>
+                      <p className="text-xl font-semibold">{metrics[0].weeklyHours.length}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Target: {Math.round(MONTHLY_MIN_LOGS / 4)}–{Math.round(MONTHLY_MAX_LOGS / 4)} logs/week · Net
+                    target: {WEEKLY_TARGET_HOURS}h/week
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </>
       ) : !isEmployeeView ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
@@ -1809,98 +2157,107 @@ const PerformanceMetrics = () => {
           {/* Employee self-view */}
           {isEmployeeView && metrics[0] && (
             <>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="font-display text-lg flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-primary" /> Score Breakdown
-                      <span className="text-xs text-muted-foreground font-normal">(click ⓘ for details)</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    <DimensionBar
-                      label="Productive Hours"
-                      value={metrics[0].productiveHoursScore}
-                      weight="30%"
-                      detail={`${metrics[0].totalNetHours}h / ${metrics[0].adjustedTargetHours}h`}
-                      explanation={metrics[0].explanations.productiveHours}
-                      icon={<Clock className="h-3.5 w-3.5 text-muted-foreground" />}
-                    />
-                    <DimensionBar
-                      label="Logsheet Compliance"
-                      value={metrics[0].logsheetScore}
-                      weight="25%"
-                      detail={`${metrics[0].daysWithEnoughLogs}/${metrics[0].adjustedWorkingDays}d with ≥${MIN_LOGS_PER_DAY} entries`}
-                      explanation={metrics[0].explanations.logsheet}
-                      icon={<BookOpen className="h-3.5 w-3.5 text-muted-foreground" />}
-                    />
-                    <DimensionBar
-                      label="Attendance"
-                      value={metrics[0].attendanceScore}
-                      weight="15%"
-                      detail={`${metrics[0].daysAttended}/${metrics[0].adjustedWorkingDays} days`}
-                      explanation={metrics[0].explanations.attendance}
-                      icon={<CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />}
-                    />
-                    <DimensionBar
-                      label="Break Discipline"
-                      value={metrics[0].breakDisciplineScore}
-                      weight="10%"
-                      detail={`${metrics[0].daysAttended > 0 ? Math.round(metrics[0].totalBreakMinutes / metrics[0].daysAttended) : 0}min avg`}
-                      explanation={metrics[0].explanations.breakDiscipline}
-                      icon={<Coffee className="h-3.5 w-3.5 text-muted-foreground" />}
-                    />
-                    <DimensionBar
-                      label="Logsheet Quality"
-                      value={metrics[0].logsheetQualityScore}
-                      weight="10%"
-                      detail={`${metrics[0].avgLogMinutesPerEntry}min/entry · ${metrics[0].logEntriesWithClient}/${metrics[0].totalLogEntries} with client`}
-                      explanation={metrics[0].explanations.logsheetQuality}
-                      icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" />}
-                    />
-                    <DimensionBar
-                      label="Consistency"
-                      value={metrics[0].consistencyScore}
-                      weight="10%"
-                      detail="Daily hours regularity"
-                      explanation={metrics[0].explanations.consistency}
-                      icon={<Shield className="h-3.5 w-3.5 text-muted-foreground" />}
-                    />
-                    <div className="pt-4 border-t">
-                      <div className="flex justify-between items-center">
-                        <span className="font-display font-bold">Final Score</span>
-                        <ScoreBadge score={metrics[0].performanceScore} size="lg" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="font-display text-lg">Performance Radar</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[320px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart data={radarData}>
-                          <PolarGrid stroke="hsl(var(--border))" />
-                          <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10 }} />
-                          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                          <Radar
-                            name="Score"
-                            dataKey="value"
-                            stroke="hsl(var(--primary))"
-                            fill="hsl(var(--primary))"
-                            fillOpacity={0.2}
-                            strokeWidth={2}
-                          />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              {/* Weekly breakdown for self-view */}
-              <WeeklyBreakdown weeks={metrics[0].weeklyHours} />
+              {metrics[0].warmupState === "initializing" ? (
+                // Monday: Already shown calibrating message in KPI cards section
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Detailed metrics will populate as the week progresses.
+                </p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="font-display text-lg flex items-center gap-2">
+                          <Zap className="h-5 w-5 text-primary" /> Score Breakdown
+                          <span className="text-xs text-muted-foreground font-normal">(click ⓘ for details)</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-5">
+                        <DimensionBar
+                          label="Productive Hours"
+                          value={metrics[0].productiveHoursScore}
+                          weight="30%"
+                          detail={`${metrics[0].totalNetHours}h / ${metrics[0].adjustedTargetHours}h`}
+                          explanation={metrics[0].explanations.productiveHours}
+                          icon={<Clock className="h-3.5 w-3.5 text-muted-foreground" />}
+                        />
+                        <DimensionBar
+                          label="Logsheet Compliance"
+                          value={metrics[0].logsheetScore}
+                          weight="25%"
+                          detail={`${metrics[0].daysWithEnoughLogs}/${metrics[0].adjustedWorkingDays}d with ≥${MIN_LOGS_PER_DAY} entries`}
+                          explanation={metrics[0].explanations.logsheet}
+                          icon={<BookOpen className="h-3.5 w-3.5 text-muted-foreground" />}
+                        />
+                        <DimensionBar
+                          label="Attendance"
+                          value={metrics[0].attendanceScore}
+                          weight="15%"
+                          detail={`${metrics[0].daysAttended}/${metrics[0].adjustedWorkingDays} days`}
+                          explanation={metrics[0].explanations.attendance}
+                          icon={<CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />}
+                        />
+                        <DimensionBar
+                          label="Break Discipline"
+                          value={metrics[0].breakDisciplineScore}
+                          weight="10%"
+                          detail={`${metrics[0].daysAttended > 0 ? Math.round(metrics[0].totalBreakMinutes / metrics[0].daysAttended) : 0}min avg`}
+                          explanation={metrics[0].explanations.breakDiscipline}
+                          icon={<Coffee className="h-3.5 w-3.5 text-muted-foreground" />}
+                        />
+                        <DimensionBar
+                          label="Logsheet Quality"
+                          value={metrics[0].logsheetQualityScore}
+                          weight="10%"
+                          detail={`${metrics[0].avgLogMinutesPerEntry}min/entry · ${metrics[0].logEntriesWithClient}/${metrics[0].totalLogEntries} with client`}
+                          explanation={metrics[0].explanations.logsheetQuality}
+                          icon={<FileText className="h-3.5 w-3.5 text-muted-foreground" />}
+                        />
+                        <DimensionBar
+                          label="Consistency"
+                          value={metrics[0].consistencyScore}
+                          weight="10%"
+                          detail="Daily hours regularity"
+                          explanation={metrics[0].explanations.consistency}
+                          icon={<Shield className="h-3.5 w-3.5 text-muted-foreground" />}
+                        />
+                        <div className="pt-4 border-t">
+                          <div className="flex justify-between items-center">
+                            <span className="font-display font-bold">Final Score</span>
+                            <ScoreBadge score={metrics[0].performanceScore} size="lg" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="font-display text-lg">Performance Radar</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-[320px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart data={radarData}>
+                              <PolarGrid stroke="hsl(var(--border))" />
+                              <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10 }} />
+                              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                              <Radar
+                                name="Score"
+                                dataKey="value"
+                                stroke="hsl(var(--primary))"
+                                fill="hsl(var(--primary))"
+                                fillOpacity={0.2}
+                                strokeWidth={2}
+                              />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  {/* Weekly breakdown for self-view */}
+                  <WeeklyBreakdown weeks={metrics[0].weeklyHours} />
+                </>
+              )}
             </>
           )}
 
@@ -1959,39 +2316,52 @@ const PerformanceMetrics = () => {
 
               {/* Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="font-display text-lg flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5 text-primary" /> Performance Rankings
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {barData.length > 0 ? (
-                      <div className="h-[280px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={barData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                            <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                            <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} domain={[0, 100]} />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "hsl(var(--card))",
-                                border: "1px solid hsl(var(--border))",
-                                borderRadius: "8px",
-                              }}
-                            />
-                            <Bar dataKey="score" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Score" />
-                            <Bar dataKey="hours" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} name="Hours %" />
-                            <Bar dataKey="logs" fill="hsl(217, 91%, 60%)" radius={[4, 4, 0, 0]} name="Logsheet %" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <p className="text-center text-muted-foreground py-12">No data</p>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card>
+                {/* Hide bar chart on Monday (initializing), show only on active/final */}
+                {metrics.some((m) => m.warmupState !== "initializing") && (
+                  <Card className="lg:col-span-2">
+                    <CardHeader>
+                      <CardTitle className="font-display text-lg flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5 text-primary" /> {chartTitle}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {barData.length > 0 ? (
+                        <div className="h-[280px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={barData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                              <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                              <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} domain={[0, 100]} />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: "hsl(var(--card))",
+                                  border: "1px solid hsl(var(--border))",
+                                  borderRadius: "8px",
+                                }}
+                              />
+                              <Bar
+                                dataKey="score"
+                                fill="hsl(var(--primary))"
+                                radius={[4, 4, 0, 0]}
+                                name={chartTitle.includes("Pacing") ? "Pacing %" : "Score"}
+                              />
+                              <Bar
+                                dataKey="hours"
+                                fill="hsl(142, 76%, 36%)"
+                                radius={[4, 4, 0, 0]}
+                                name={chartTitle.includes("Pacing") ? "Actual Hours %" : "Hours %"}
+                              />
+                              <Bar dataKey="logs" fill="hsl(217, 91%, 60%)" radius={[4, 4, 0, 0]} name="Logsheet %" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <p className="text-center text-muted-foreground py-12">No data</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+                <Card className={metrics.some((m) => m.warmupState !== "initializing") ? "" : "lg:col-span-3"}>
                   <CardHeader>
                     <CardTitle className="font-display text-lg">6-Dimension Avg</CardTitle>
                   </CardHeader>
@@ -2077,55 +2447,98 @@ const PerformanceMetrics = () => {
                                     </div>
                                   </div>
                                 </td>
-                                <td className="py-3 text-center">
-                                  <ScoreBadge score={m.performanceScore} />
-                                </td>
-                                <td className="py-3 text-center hidden sm:table-cell">
-                                  <span className="text-xs">
-                                    {m.totalNetHours}h{" "}
-                                    <span className="text-muted-foreground">/ {m.adjustedTargetHours}h</span>
-                                  </span>
-                                </td>
-                                <td className="py-3 text-center hidden md:table-cell">
-                                  <span className="text-xs">
-                                    {m.totalLogEntries} ({m.logEntriesWithClient}c)
-                                  </span>
-                                </td>
-                                <td className="py-3 text-center hidden md:table-cell">
-                                  <span className="text-xs">
-                                    {m.daysAttended}/{m.adjustedWorkingDays}
-                                  </span>
-                                </td>
-                                <td className="py-3 text-center hidden lg:table-cell">
-                                  <span className="text-xs">
-                                    {m.daysAttended > 0 ? Math.round(m.totalBreakMinutes / m.daysAttended) : 0}m
-                                  </span>
-                                </td>
-                                <td className="py-3 text-center hidden lg:table-cell">
-                                  <span className="text-xs">{m.leaveDaysTaken}d</span>
-                                </td>
-                                <td className="py-3 text-center hidden sm:table-cell">
-                                  <Badge className={`${cfg.className} border text-[10px]`}>
-                                    {cfg.icon} {cfg.label}
-                                  </Badge>
-                                </td>
-                                <td className="py-3 text-center hidden md:table-cell">
-                                  <div className="flex justify-center gap-1 flex-wrap">
-                                    {m.reviewTags.slice(0, 2).map((tag) => (
+                                {/* ═══ MONDAY (Initializing): Hide details ═══ */}
+                                {m.warmupState === "initializing" ? (
+                                  <>
+                                    <td colSpan={8} className="py-3 text-center">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <div className="animate-pulse flex gap-1">
+                                          <div className="h-2 w-2 rounded-full bg-primary/60"></div>
+                                          <div className="h-2 w-2 rounded-full bg-primary/40"></div>
+                                          <div className="h-2 w-2 rounded-full bg-primary/20"></div>
+                                        </div>
+                                        <span className="text-xs text-muted-foreground">
+                                          Calibrating Performance...
+                                        </span>
+                                      </div>
+                                    </td>
+                                  </>
+                                ) : m.warmupState === "active" ? (
+                                  // ═══ TUESDAY-THURSDAY (Active): Show pacing only ═══
+                                  <>
+                                    <td className="py-3 text-center">
                                       <Badge
-                                        key={tag}
-                                        className={`text-[10px] ${tag === "Missing Logs" || tag === "Attendance/Log Mismatch" ? "bg-red-500/15 text-red-500 border-red-500/30" : tag === "Excessive Break Usage" ? "bg-amber-500/15 text-amber-500 border-amber-500/30" : "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"}`}
+                                        className={`text-[11px] ${m.pacingScore >= 90 ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300" : m.pacingScore >= 80 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300" : m.pacingScore >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"}`}
                                       >
-                                        {tag}
+                                        {m.pacingScore}%
                                       </Badge>
-                                    ))}
-                                    {m.reviewTags.length > 2 && (
-                                      <Badge className="text-[10px] bg-muted/10 border text-muted-foreground">
-                                        +{m.reviewTags.length - 2}
+                                    </td>
+                                    <td className="py-3 text-center hidden sm:table-cell">
+                                      <span className="text-xs font-medium">{m.projectedTotal}h</span>
+                                      <span className="text-xs text-muted-foreground block">proj.</span>
+                                    </td>
+                                    <td colSpan={5} className="py-3 text-center hidden md:table-cell">
+                                      <Badge className={`${cfg.className} border text-[10px]`}>
+                                        {cfg.icon} {cfg.label}
                                       </Badge>
-                                    )}
-                                  </div>
-                                </td>
+                                    </td>
+                                  </>
+                                ) : (
+                                  // ═══ FRIDAY/PAST (Final): Show all details ═══
+                                  <>
+                                    <td className="py-3 text-center">
+                                      <ScoreBadge score={m.performanceScore} />
+                                    </td>
+                                    <td className="py-3 text-center hidden sm:table-cell">
+                                      <span className="text-xs">
+                                        {m.totalNetHours}h{" "}
+                                        <span className="text-muted-foreground">/ {m.adjustedTargetHours}h</span>
+                                      </span>
+                                    </td>
+                                    <td className="py-3 text-center hidden md:table-cell">
+                                      <span className="text-xs">
+                                        {m.totalLogEntries} ({m.logEntriesWithClient}c)
+                                      </span>
+                                    </td>
+                                    <td className="py-3 text-center hidden md:table-cell">
+                                      <span className="text-xs">
+                                        {m.daysAttended}/{m.adjustedWorkingDays}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 text-center hidden lg:table-cell">
+                                      <span className="text-xs">
+                                        {m.daysAttended > 0 ? Math.round(m.totalBreakMinutes / m.daysAttended) : 0}m
+                                      </span>
+                                    </td>
+                                    <td className="py-3 text-center hidden lg:table-cell">
+                                      <span className="text-xs">{m.leaveDaysTaken}d</span>
+                                    </td>
+                                    <td className="py-3 text-center hidden sm:table-cell">
+                                      <Badge className={`${cfg.className} border text-[10px]`}>
+                                        {cfg.icon} {cfg.label}
+                                      </Badge>
+                                    </td>
+                                  </>
+                                )}
+                                {m.warmupState !== "initializing" && (
+                                  <td className="py-3 text-center hidden md:table-cell">
+                                    <div className="flex justify-center gap-1 flex-wrap">
+                                      {m.reviewTags.slice(0, 2).map((tag) => (
+                                        <Badge
+                                          key={tag}
+                                          className={`text-[10px] ${tag === "Missing Logs" || tag === "Attendance/Log Mismatch" ? "bg-red-500/15 text-red-500 border-red-500/30" : tag === "Excessive Break Usage" ? "bg-amber-500/15 text-amber-500 border-amber-500/30" : "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"}`}
+                                        >
+                                          {tag}
+                                        </Badge>
+                                      ))}
+                                      {m.reviewTags.length > 2 && (
+                                        <Badge className="text-[10px] bg-muted/10 border text-muted-foreground">
+                                          +{m.reviewTags.length - 2}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </td>
+                                )}
                               </tr>
                             );
                           })}
