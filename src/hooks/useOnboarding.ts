@@ -292,6 +292,19 @@ export function useOnboarding() {
         }
         employeeId = newEmployee.id;
         employeeName = `${hireData.firstName} ${hireData.lastName}`;
+
+        // Send welcome email to the new employee
+        supabase.functions.invoke("send-welcome-email", {
+          body: {
+            employee_id: employeeId,
+            first_name: hireData.firstName,
+            last_name: hireData.lastName,
+            email: hireData.email.toLowerCase(),
+            job_title: hireData.role,
+            department: hireData.department,
+            start_date: hireData.startDate,
+          },
+        }).catch((err) => console.error("Welcome email failed:", err));
       }
 
       // Step 3: Create onboarding workflow
