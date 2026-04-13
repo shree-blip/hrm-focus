@@ -199,6 +199,20 @@ export function useEmployees() {
     } else {
       toast({ title: "Employee Added", description: `${employee.first_name} ${employee.last_name} has been added.` });
       fetchEmployees(true);
+
+      // Send welcome email to the new employee
+      supabase.functions.invoke("send-welcome-email", {
+        body: {
+          employee_id: data.id,
+          first_name: employee.first_name,
+          last_name: employee.last_name,
+          email: employee.email,
+          job_title: employee.job_title,
+          department: employee.department,
+          start_date: employee.hire_date,
+        },
+      }).catch((err) => console.error("Welcome email failed:", err));
+
       return { ...data, user_id: null } as Employee;
     }
   };
