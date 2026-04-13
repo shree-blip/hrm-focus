@@ -127,6 +127,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // SIGNED_IN — first login in this tab
         if (email) {
           setTimeout(async () => {
+            // Check if employee is deactivated
+            try {
+              const { data: activeCheck } = await supabase.rpc("check_employee_active", { check_email: email });
+              const activeResult = activeCheck as { active?: boolean; reason?: string } | null;
+              if (activeResult && !activeResult.active && activeResult.reason === "deactivated") {
+                console.warn(`Employee ${email} is deactivated, signing out`);
+                await supabase.auth.signOut();
+                setUser(null);
+                setSession(null);
+                setProfile(null);
+                setRole(null);
+                setIsLineManager(false);
+                setCanCreateEmployee(false);
+                sessionStorage.setItem("auth_rejected", "account_deactivated");
+                return;
+              }
+            } catch {
+              // Don't block login on RPC failure
+            }
+
             const isAllowed = await checkAllowlist(email);
             if (!isAllowed) {
               console.warn(`Email ${email} not on allowlist, signing out`);
