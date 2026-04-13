@@ -26,19 +26,22 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const token = authHeader.replace("Bearer ", "");
-    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
-
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-    const userId = claimsData?.claims?.sub;
-
-    if (claimsError || !userId) {
-      console.error("sidebar-badges: invalid token", claimsError);
+    // Decode JWT payload to extract user ID
+    let userId: string;
+    try {
+      const payloadB64 = token.split(".")[1];
+      const payload = JSON.parse(atob(payloadB64));
+      if (!payload.sub) throw new Error("missing sub");
+      // Check expiry
+      if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+        return new Response(JSON.stringify({ error: "JWT has expired" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = payload.sub;
+    } catch (e) {
+      console.error("sidebar-badges: invalid token", e);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

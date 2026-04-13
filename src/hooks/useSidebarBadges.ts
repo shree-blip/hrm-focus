@@ -28,16 +28,20 @@ export function useSidebarBadges() {
   const fetchBadges = useCallback(async () => {
     if (!session?.access_token) return;
     try {
+      // Use fresh token from current session
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      const token = freshSession?.access_token;
+      if (!token) return;
+
       const { data, error } = await supabase.functions.invoke("sidebar-badges", {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!error && data) {
         setBadges((prev) => {
           const next = { ...data } as BadgeCounts;
-          // Re-apply cleared keys
           clearedRef.current.forEach((key) => {
             delete next[key];
           });
