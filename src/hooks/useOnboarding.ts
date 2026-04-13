@@ -486,15 +486,38 @@ export function useOnboarding() {
             .single();
 
           if (workflow) {
+            // Update employee status to active
             await supabase
               .from("employees")
-              .update({ status: "active" }) // Valid status: active, probation, inactive, on_leave
+              .update({ status: "active" })
               .eq("id", workflow.employee_id);
+
+            // Auto-whitelist the employee email for signup (login authority)
+            const { data: emp } = await supabase
+              .from("employees")
+              .select("email")
+              .eq("id", workflow.employee_id)
+              .single();
+
+            if (emp?.email) {
+              // Insert into allowed_signups so they can create a login account
+              await supabase
+                .from("allowed_signups")
+                .upsert(
+                  {
+                    email: emp.email.toLowerCase(),
+                    employee_id: workflow.employee_id,
+                    invited_by: user.id,
+                    invited_at: new Date().toISOString(),
+                  },
+                  { onConflict: "email" }
+                );
+            }
           }
 
           toast({
             title: "🎉 Onboarding Complete!",
-            description: "All tasks finished. Employee is now active.",
+            description: "All tasks finished. Employee is now active and can sign up for their account.",
           });
         } else if (completedCount > 0) {
           newStatus = "in-progress";
