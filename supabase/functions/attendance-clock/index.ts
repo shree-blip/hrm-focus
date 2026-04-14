@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
 
         if (activeLogs && activeLogs.length > 0) {
           const clockOutHHMM = serverNow.toLocaleString("en-GB", {
-            timeZone: "UTC",
+            timeZone: employeeTimezone,
             hour: "2-digit",
             minute: "2-digit",
           });
