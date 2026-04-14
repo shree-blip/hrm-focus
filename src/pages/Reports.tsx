@@ -1342,6 +1342,15 @@ const Reports = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        {/* ── Logsheet Report Tab ── */}
+        <TabsContent value="logsheet" className="space-y-6">
+          <ClientReportDownload />
+        </TabsContent>
+
+        {/* ── Leave Report Tab ── */}
+        <TabsContent value="leave" className="space-y-6">
+          <LeaveReportsTab requests={requests} />
+        </TabsContent>
       </Tabs>
 
       {/* VP Edit Attendance Dialog */}
