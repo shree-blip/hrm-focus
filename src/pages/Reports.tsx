@@ -1,6 +1,8 @@
 import { useState, Fragment, useMemo, useRef } from "react";
 import { useBreakSessions } from "@/hooks/useBreakSessions";
 import { BreakPauseCell, BreakPauseDetailPanel } from "@/components/attendance/BreakPauseDetail";
+import { ClientReportDownload } from "@/components/logsheet/ClientReportDownload";
+import { LeaveReportsTab } from "@/components/approvals/LeaveReportsTab";
 import {
   formatAttendanceTime,
   getWorkDate,
