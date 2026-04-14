@@ -797,19 +797,31 @@ const Reports = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:w-auto lg:w-[400px] h-auto gap-1">
+        <TabsList className="grid w-full grid-cols-4 sm:w-auto lg:w-[600px] h-auto gap-1">
           <TabsTrigger value="attendance" className="gap-2">
             <Clock className="h-4 w-4" />
-            Attendance Summary
+            <span className="hidden sm:inline">Attendance Summary</span>
+            <span className="sm:hidden">Summary</span>
           </TabsTrigger>
 
           <TabsTrigger value="daily" className="gap-2">
             <Users className="h-4 w-4" />
-            Daily Attendance
+            <span className="hidden sm:inline">Daily Attendance</span>
+            <span className="sm:hidden">Daily</span>
+          </TabsTrigger>
+
+          <TabsTrigger value="logsheet" className="gap-2">
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Logsheet Report</span>
+            <span className="sm:hidden">Logsheet</span>
+          </TabsTrigger>
+
+          <TabsTrigger value="leave" className="gap-2">
+            <Calendar className="h-4 w-4" />
+            <span className="hidden sm:inline">Leave Report</span>
+            <span className="sm:hidden">Leave</span>
           </TabsTrigger>
         </TabsList>
-
-        {/* LEAVE REPORTS TAB - Moved to Approvals page */}
 
         <TabsContent value="attendance" className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
