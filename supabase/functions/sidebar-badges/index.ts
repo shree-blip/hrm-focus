@@ -25,28 +25,19 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const token = authHeader.replace("Bearer ", "");
-    // Decode JWT payload to extract user ID
-    let userId: string;
-    try {
-      const payloadB64 = token.split(".")[1];
-      const payload = JSON.parse(atob(payloadB64));
-      if (!payload.sub) throw new Error("missing sub");
-      // Check expiry
-      if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-        return new Response(JSON.stringify({ error: "JWT has expired" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      userId = payload.sub;
-    } catch (e) {
-      console.error("sidebar-badges: invalid token", e);
+    // Verify JWT using Supabase auth to prevent token forgery
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: authError } = await anonClient.auth.getUser();
+    if (authError || !userData?.user?.id) {
+      console.error("sidebar-badges: auth failed", authError?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const userId = userData.user.id;
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
