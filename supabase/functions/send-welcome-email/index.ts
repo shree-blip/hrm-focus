@@ -26,16 +26,44 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const payload: WelcomeEmailPayload = await req.json();
-
-    if (!payload.email || !payload.first_name) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields: email, first_name" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Verify caller is authenticated and has admin/vp role
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Missing authorization" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
+    const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: authError } = await anonClient.auth.getUser();
+    if (authError || !userData?.user?.id) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify caller has admin or vp role
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id)
+      .limit(1)
+      .single();
+
+    const callerRole = roleData?.role;
+    if (!callerRole || !["admin", "vp", "supervisor"].includes(callerRole)) {
+      return new Response(JSON.stringify({ error: "Forbidden: insufficient role" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const payload: WelcomeEmailPayload = await req.json();
 
     // Log the notification
     const { data: logEntry } = await supabase
