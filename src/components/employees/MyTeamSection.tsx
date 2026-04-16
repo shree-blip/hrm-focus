@@ -23,7 +23,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { TeamMemberAttendanceDialog } from "./TeamMemberAttendanceDialog";
+import { TimesheetDialog } from "./TimesheetDialog";
 import { AddToTeamDialog } from "./AddToTeamDialog";
 import { toast } from "@/hooks/use-toast";
 import { RequestPromotionDialog } from "./RequestPromotionDialog";
@@ -50,10 +50,10 @@ export function MyTeamSection() {
   const { user, role, profile, isVP, isAdmin, isManager, isLineManager, isSupervisor } = useAuth();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
   const [promotionMember, setPromotionMember] = useState<TeamMember | null>(null);
   const [promotionOpen, setPromotionOpen] = useState(false);
-  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
+  const [timesheetDialogOpen, setTimesheetDialogOpen] = useState(false);
   const [addToTeamOpen, setAddToTeamOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -134,11 +134,19 @@ export function MyTeamSection() {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
 
-  const handleViewAttendance = (member: TeamMember) => {
-    setSelectedMember(member);
-    setAttendanceDialogOpen(true);
+  const handleViewTimesheet = (member: TeamMember) => {
+    setSelectedMember({
+      ...member,
+      name: `${member.first_name} ${member.last_name}`,
+      initials: getInitials(member.first_name, member.last_name),
+      role: member.job_title || "Employee",
+      department: member.department || "",
+      location: member.location || "",
+      status: member.status || "active",
+      phone: "",
+    });
+    setTimesheetDialogOpen(true);
   };
-
   const showStatus = (type: "success" | "error", text: string) => {
     setStatusMessage({ type, text });
     setTimeout(() => setStatusMessage(null), 5000);
@@ -394,10 +402,10 @@ export function MyTeamSection() {
                               variant="outline"
                               size="sm"
                               className="gap-1"
-                              onClick={() => handleViewAttendance(member)}
+                              onClick={() => handleViewTimesheet(member)}
                             >
                               <Clock className="h-3 w-3" />
-                              Attendance
+                              Timesheet
                             </Button>
                             {canRequestPromotion && (
                               <Button
@@ -567,11 +575,7 @@ export function MyTeamSection() {
         </DialogContent>
       </Dialog>
 
-      <TeamMemberAttendanceDialog
-        employee={selectedMember}
-        open={attendanceDialogOpen}
-        onOpenChange={setAttendanceDialogOpen}
-      />
+      <TimesheetDialog employee={selectedMember} open={timesheetDialogOpen} onOpenChange={setTimesheetDialogOpen} />
 
       <AddToTeamDialog
         open={addToTeamOpen}
@@ -601,7 +605,12 @@ export function MyTeamSection() {
       />
 
       {/* ─── Remove Confirmation Dialog ─── */}
-      <Dialog open={!!removeConfirm} onOpenChange={(open) => { if (!open) setRemoveConfirm(null); }}>
+      <Dialog
+        open={!!removeConfirm}
+        onOpenChange={(open) => {
+          if (!open) setRemoveConfirm(null);
+        }}
+      >
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Remove from Team?</DialogTitle>
