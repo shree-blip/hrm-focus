@@ -18,9 +18,9 @@ export function useBreakSessions() {
   const [sessionsByLogId, setSessionsByLogId] = useState<Record<string, BreakSession[]>>({});
   const [loadingLogIds, setLoadingLogIds] = useState<Set<string>>(new Set());
 
-  const fetchSessions = useCallback(async (logId: string) => {
-    // Already cached
-    if (sessionsByLogId[logId]) return sessionsByLogId[logId];
+  const fetchSessions = useCallback(async (logId: string, forceRefresh = false) => {
+    // Already cached (unless forced)
+    if (!forceRefresh && sessionsByLogId[logId]) return sessionsByLogId[logId];
 
     setLoadingLogIds((prev) => new Set(prev).add(logId));
 
@@ -52,5 +52,18 @@ export function useBreakSessions() {
     [loadingLogIds]
   );
 
-  return { fetchSessions, getSessions, isLoading };
+  /** Clear cached sessions — pass a logId to clear one entry, or omit to clear all */
+  const clearCache = useCallback((logId?: string) => {
+    if (logId) {
+      setSessionsByLogId((prev) => {
+        const next = { ...prev };
+        delete next[logId];
+        return next;
+      });
+    } else {
+      setSessionsByLogId({});
+    }
+  }, []);
+
+  return { fetchSessions, getSessions, isLoading, clearCache };
 }
