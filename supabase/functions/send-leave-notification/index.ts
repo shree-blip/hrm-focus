@@ -12,7 +12,8 @@ const FIXED_CC_EMAIL = "hello@focusyourfinance.com";
 
 interface LeaveNotificationPayload {
   leave_request_id: string;
-  event_type: "submitted" | "approved" | "rejected";
+  admin_name?: string;
+  event_type: "submitted" | "approved" | "rejected" | "admin_assigned";
   employee_name: string;
   employee_email?: string;
   leave_type: string;
@@ -68,6 +69,7 @@ Deno.serve(async (req) => {
       reason,
       rejection_reason,
       approver_name,
+      admin_name,
       target_user_ids,
       target_emails = [],
       requesting_user_id,
@@ -90,6 +92,9 @@ Deno.serve(async (req) => {
     } else if (event_type === "rejected") {
       title = `❌ Leave Request Rejected`;
       message = `Your ${leave_type} request for ${days} day(s) (${dateRange}) has been rejected by ${approver_name || "Manager"}.${rejection_reason ? ` Reason: ${rejection_reason}` : ""}`;
+    } else if (event_type === "admin_assigned") {
+      title = `📋 Leave Assigned by Admin`;
+      message = `${admin_name || "Admin"} has assigned and approved ${leave_type} for ${days} day(s) (${dateRange}) on your behalf.${reason ? ` Reason: ${reason}` : ""}`;
     } else {
       return new Response(JSON.stringify({ error: "Invalid event_type" }), {
         status: 400,
@@ -378,6 +383,45 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---- ADMIN ASSIGNED ----
+    else if (event_type === "admin_assigned") {
+      const assignedAdminName = admin_name || "Admin";
+      
+      // Employee-facing email
+      if (employeeRecipients.length > 0) {
+        const subject = `Leave Assigned: ${leave_type} (${days} days) – Auto-Approved`;
+        const html = buildAdminAssignedEmail(employee_name, leave_type, start_date, end_date, days, assignedAdminName, reason);
+
+        for (const email of employeeRecipients) {
+          const logEntry = await createNotificationLog(supabase, {
+            recipient_email: email,
+            event_type,
+            payload: { leave_request_id, employee_name, leave_type, start_date, end_date, days, admin_name: assignedAdminName, recipient_group: "employee" },
+            status: "pending",
+          });
+          const emailResult = await sendEmailWithRetry(supabase, logEntry.id, email, subject, html);
+          results.push({ type: "email", target: email, success: emailResult.success, error: emailResult.error });
+        }
+      }
+
+      // Management CC
+      if (managementRecipients.length > 0) {
+        const mgmtSubject = `Leave Assigned: ${employee_name} - ${leave_type} (${days} days) by ${assignedAdminName}`;
+        const mgmtHtml = buildAdminAssignedManagementEmail(employee_name, leave_type, start_date, end_date, days, assignedAdminName, reason);
+
+        for (const email of managementRecipients) {
+          const logEntry = await createNotificationLog(supabase, {
+            recipient_email: email,
+            event_type,
+            payload: { leave_request_id, employee_name, leave_type, start_date, end_date, days, admin_name: assignedAdminName, recipient_group: "management" },
+            status: "pending",
+          });
+          const emailResult = await sendEmailWithRetry(supabase, logEntry.id, email, mgmtSubject, mgmtHtml);
+          results.push({ type: "email", target: email, success: emailResult.success, error: emailResult.error });
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -662,6 +706,58 @@ function buildRejectedManagementEmail(
       ${reason ? `<tr><td style="padding:8px 0;color:#666;">Reason</td><td style="padding:8px 0;color:#dc2626;">${reason}</td></tr>` : ""}
     </table>
     <a href="https://hrm-focus.lovable.app/leave" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin-top:8px;">View Details</a>
+  </div>
+</body>
+</html>`;
+}
+
+function buildAdminAssignedEmail(
+  name: string, type: string, start: string, end: string, days: number, adminName: string, reason?: string | null,
+): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <h2 style="color:#2563eb;margin-top:0;">📋 Leave Assigned &amp; Auto-Approved</h2>
+    <p>Hi ${name},</p>
+    <p><strong>${adminName}</strong> has assigned and auto-approved the following leave on your behalf:</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 0;color:#666;width:140px;">Leave Type</td><td style="padding:8px 0;font-weight:600;">${type}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Start Date</td><td style="padding:8px 0;">${start}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">End Date</td><td style="padding:8px 0;">${end}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Total Days</td><td style="padding:8px 0;font-weight:600;">${days}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Assigned By</td><td style="padding:8px 0;font-weight:600;">${adminName}</td></tr>
+      ${reason ? `<tr><td style="padding:8px 0;color:#666;">Reason</td><td style="padding:8px 0;">${reason}</td></tr>` : ""}
+    </table>
+    <p style="color:#666;font-size:14px;">This leave has been automatically approved. No action is required from you.</p>
+    <a href="https://hrm-focus.lovable.app/leave" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin-top:8px;">View Leave Details</a>
+  </div>
+</body>
+</html>`;
+}
+
+function buildAdminAssignedManagementEmail(
+  employeeName: string, type: string, start: string, end: string, days: number, adminName: string, reason?: string | null,
+): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <h2 style="color:#2563eb;margin-top:0;">📋 Leave Assigned by Admin</h2>
+    <p><strong>${adminName}</strong> has assigned and auto-approved leave for <strong>${employeeName}</strong>.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 0;color:#666;width:160px;">Employee</td><td style="padding:8px 0;font-weight:600;">${employeeName}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Assigned By</td><td style="padding:8px 0;font-weight:600;">${adminName}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Leave Type</td><td style="padding:8px 0;">${type}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Period</td><td style="padding:8px 0;">${start} to ${end}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Days</td><td style="padding:8px 0;font-weight:600;">${days}</td></tr>
+      ${reason ? `<tr><td style="padding:8px 0;color:#666;">Reason</td><td style="padding:8px 0;">${reason}</td></tr>` : ""}
+    </table>
+    <a href="https://hrm-focus.lovable.app/leave" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin-top:8px;">View Details</a>
   </div>
 </body>
 </html>`;

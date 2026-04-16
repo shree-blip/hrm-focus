@@ -885,13 +885,59 @@ export function useLeaveRequests() {
       });
     } else {
       // Balance deduction is now handled by the auto_deduct_leave_balance DB trigger
-      // which fires on INSERT with status='approved'. No manual deduction needed here.
 
       toast({
         title: "Leave Assigned",
         description: `Leave has been assigned and auto-approved.`,
       });
       await loadAllData();
+
+      // Send email notification to the employee
+      try {
+        // Get admin profile name
+        const { data: adminProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", user.id)
+          .single();
+        const adminName = adminProfile ? `${adminProfile.first_name} ${adminProfile.last_name}` : "Admin";
+
+        // Get employee profile
+        const { data: empProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, email")
+          .eq("user_id", params.user_id)
+          .single();
+        const employeeName = empProfile ? `${empProfile.first_name} ${empProfile.last_name}` : "Employee";
+        const employeeEmail = empProfile?.email || "";
+
+        const formatLocalDate = (date: Date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        };
+
+        await supabase.functions.invoke("send-leave-notification", {
+          body: {
+            leave_request_id: "admin-assigned",
+            event_type: "admin_assigned",
+            employee_name: employeeName,
+            employee_email: employeeEmail,
+            admin_name: adminName,
+            leave_type: params.leave_type,
+            start_date: formatLocalDate(params.start_date),
+            end_date: formatLocalDate(params.end_date),
+            days: params.days,
+            reason: params.reason,
+            target_user_ids: [params.user_id],
+            target_emails: [employeeEmail].filter(Boolean),
+            requesting_user_id: user.id,
+          },
+        });
+      } catch (notifErr) {
+        console.error("Failed to send admin-assigned leave notification:", notifErr);
+      }
     }
   };
 
