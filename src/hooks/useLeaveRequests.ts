@@ -884,28 +884,8 @@ export function useLeaveRequests() {
         variant: "destructive",
       });
     } else {
-      // Deduct from Annual Leave balance (Annual Leave and Sick Leave both deduct from Annual)
-      const isSickLeave = params.leave_type === "Other Leave - Sick Leave";
-      const deductsFromAnnual =
-        params.leave_type === "Annual Leave" || isSickLeave || isOtherLeaveType(params.leave_type);
-
-      if (deductsFromAnnual) {
-        const currentYear = new Date().getFullYear();
-        const { data: balanceRow } = await supabase
-          .from("leave_balances")
-          .select("id, used_days")
-          .eq("user_id", params.user_id)
-          .eq("leave_type", "Annual Leave")
-          .eq("year", currentYear)
-          .single();
-
-        if (balanceRow) {
-          await supabase
-            .from("leave_balances")
-            .update({ used_days: balanceRow.used_days + params.days })
-            .eq("id", balanceRow.id);
-        }
-      }
+      // Balance deduction is now handled by the auto_deduct_leave_balance DB trigger
+      // which fires on INSERT with status='approved'. No manual deduction needed here.
 
       toast({
         title: "Leave Assigned",

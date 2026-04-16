@@ -22,11 +22,25 @@ const LEAVE_TYPE_OPTIONS = [
   "Other Leave - Family Emergency",
   "Other Leave - Travel Complications",
   "Other Leave - Other Emergency",
+  "Leave in Lieu",
   "Wedding Leave",
   "Bereavement Leave",
   "Maternity Leave",
   "Paternity Leave",
 ];
+
+function getDeductionInfo(leaveType: string): { balance: string; description: string } {
+  if (leaveType === "Annual Leave" || leaveType.startsWith("Other Leave")) {
+    return { balance: "Annual Leave", description: "Deducted from the employee's Annual Leave balance." };
+  }
+  if (leaveType === "Leave in Lieu" || leaveType.startsWith("Leave on Lieu") || leaveType.startsWith("Leave on Leave")) {
+    return { balance: "Leave in Lieu", description: "Deducted from the employee's Leave in Lieu balance." };
+  }
+  if (["Wedding Leave", "Bereavement Leave", "Maternity Leave", "Paternity Leave"].includes(leaveType)) {
+    return { balance: "none", description: "Special leave — tracked separately, not deducted from Annual Leave." };
+  }
+  return { balance: "Annual Leave", description: "Deducted from the employee's Annual Leave balance." };
+}
 
 interface AdminLeaveDialogProps {
   open: boolean;
@@ -293,7 +307,7 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
           <div className="flex items-center gap-2 p-2 rounded-md bg-primary/5 border border-primary/20">
             <Info className="h-3 w-3 text-primary shrink-0" />
             <p className="text-xs text-muted-foreground">
-              This leave will be auto-approved and deducted from the employee's Annual Leave balance.
+              This leave will be auto-approved. {leaveType ? getDeductionInfo(leaveType).description : "Select a leave type to see deduction details."}
             </p>
           </div>
 
