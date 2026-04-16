@@ -290,9 +290,7 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
       };
 
       // ---- Build RPC payloads ----
-      const sessionsToDelete = sessions
-        .filter((s) => s.deleted && s.dbId)
-        .map((s) => s.dbId!);
+      const sessionsToDelete = sessions.filter((s) => s.deleted && s.dbId).map((s) => s.dbId!);
 
       const sessionsToUpdate = sessions
         .filter((s) => !s.deleted && s.dbId)
@@ -398,20 +396,20 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
         }
       }
 
-      // try {
-      //   await supabase.functions.invoke("send-attendance-edit-notification", {
-      //     body: {
-      //       editor_name: editorName,
-      //       editor_email: editorEmail,
-      //       employee_name: record.employee_name,
-      //       edit_date: editDate,
-      //       change_summary: changeSummary,
-      //       reason: reason.trim(),
-      //     },
-      //   });
-      // } catch (emailErr) {
-      //   console.error("Failed to send attendance edit email:", emailErr);
-      // }
+      try {
+        await supabase.functions.invoke("send-attendance-edit-notification", {
+          body: {
+            editor_name: editorName,
+            editor_email: editorEmail,
+            employee_name: record.employee_name,
+            edit_date: editDate,
+            change_summary: changeSummary,
+            reason: reason.trim(),
+          },
+        });
+      } catch (emailErr) {
+        console.error("Failed to send attendance edit email:", emailErr);
+      }
 
       toast({ title: "Attendance Updated", description: `Record for ${record.employee_name} has been edited.` });
       onSaved();
