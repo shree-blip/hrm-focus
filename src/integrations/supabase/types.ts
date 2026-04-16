@@ -4524,6 +4524,23 @@ export type Database = {
         Args: { _manager_employee_id: string; _member_employee_id: string }
         Returns: Json
       }
+      apply_attendance_edit: {
+        Args: {
+          _attendance_log_id: string
+          _break_end: string
+          _break_start: string
+          _clock_in: string
+          _clock_out: string
+          _pause_end: string
+          _pause_start: string
+          _sessions_to_delete?: string[]
+          _sessions_to_insert?: Json
+          _sessions_to_update?: Json
+          _total_break_minutes: number
+          _total_pause_minutes: number
+        }
+        Returns: undefined
+      }
       auto_clock_out_after_8_hours: { Args: never; Returns: number }
       can_create_employee: { Args: { _user_id: string }; Returns: boolean }
       can_manage_announcements: { Args: { _user_id: string }; Returns: boolean }
