@@ -92,6 +92,9 @@ Deno.serve(async (req) => {
     } else if (event_type === "rejected") {
       title = `❌ Leave Request Rejected`;
       message = `Your ${leave_type} request for ${days} day(s) (${dateRange}) has been rejected by ${approver_name || "Manager"}.${rejection_reason ? ` Reason: ${rejection_reason}` : ""}`;
+    } else if (event_type === "admin_assigned") {
+      title = `📋 Leave Assigned by Admin`;
+      message = `${admin_name || "Admin"} has assigned and approved ${leave_type} for ${days} day(s) (${dateRange}) on your behalf.${reason ? ` Reason: ${reason}` : ""}`;
     } else {
       return new Response(JSON.stringify({ error: "Invalid event_type" }), {
         status: 400,
