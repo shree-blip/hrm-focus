@@ -265,53 +265,7 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
       const newClockInIso = fromDatetimeLocal(clockIn);
       const newClockOutIso = fromDatetimeLocal(clockOut);
 
-      // ---- Process break sessions ----
-      // 1) Delete removed sessions (those with dbId that are marked deleted)
-      const toDelete = sessions.filter((s) => s.deleted && s.dbId);
-      for (const s of toDelete) {
-        await supabase.from("attendance_break_sessions").delete().eq("id", s.dbId!);
-      }
-
-      // 2) Update existing sessions
-      const toUpdate = sessions.filter((s) => !s.deleted && s.dbId);
-      for (const s of toUpdate) {
-        const startIso = fromDatetimeLocal(s.startTime);
-        const endIso = fromDatetimeLocal(s.endTime);
-        const dur = calcMinutes(s.startTime, s.endTime);
-        await supabase
-          .from("attendance_break_sessions")
-          .update({
-            session_type: s.sessionType,
-            start_time: startIso!,
-            end_time: endIso,
-            duration_minutes: dur > 0 ? dur : null,
-          })
-          .eq("id", s.dbId!);
-      }
-
-      // 3) Insert new sessions
-      // We need the user_id from the attendance_log
-      const { data: logData } = await supabase.from("attendance_logs").select("user_id").eq("id", record.id).single();
-      const logUserId = logData?.user_id || user.id;
-
-      const toInsert = sessions.filter((s) => !s.deleted && !s.dbId && s.startTime);
-      for (const s of toInsert) {
-        const startIso = fromDatetimeLocal(s.startTime);
-        const endIso = fromDatetimeLocal(s.endTime);
-        const dur = calcMinutes(s.startTime, s.endTime);
-        if (startIso) {
-          await supabase.from("attendance_break_sessions").insert({
-            attendance_log_id: record.id,
-            user_id: logUserId,
-            session_type: s.sessionType,
-            start_time: startIso,
-            end_time: endIso,
-            duration_minutes: dur > 0 ? dur : null,
-          });
-        }
-      }
-
-      // 4) Recalculate totals from active sessions
+      // ---- Recalculate totals from active sessions ----
       const activeSessions = sessions.filter((s) => !s.deleted && s.startTime);
       const totalBreakMin = activeSessions
         .filter((s) => s.sessionType === "break")
@@ -335,21 +289,55 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
         total_pause_minutes: totalPauseMin,
       };
 
-      // Update the attendance record
-      const { error: updateError } = await supabase
-        .from("attendance_logs")
-        .update({
-          clock_in: newValues.clock_in!,
-          clock_out: newValues.clock_out,
-          break_start: newValues.break_start,
-          break_end: newValues.break_end,
-          total_break_minutes: newValues.total_break_minutes,
-          pause_start: newValues.pause_start,
-          pause_end: newValues.pause_end,
-          total_pause_minutes: newValues.total_pause_minutes,
-          is_edited: true,
-        })
-        .eq("id", record.id);
+      // ---- Build RPC payloads ----
+      const sessionsToDelete = sessions
+        .filter((s) => s.deleted && s.dbId)
+        .map((s) => s.dbId!);
+
+      const sessionsToUpdate = sessions
+        .filter((s) => !s.deleted && s.dbId)
+        .map((s) => {
+          const startIso = fromDatetimeLocal(s.startTime);
+          const endIso = fromDatetimeLocal(s.endTime);
+          const dur = calcMinutes(s.startTime, s.endTime);
+          return {
+            id: s.dbId,
+            session_type: s.sessionType,
+            start_time: startIso,
+            end_time: endIso || null,
+            duration_minutes: dur > 0 ? dur : null,
+          };
+        });
+
+      const sessionsToInsert = sessions
+        .filter((s) => !s.deleted && !s.dbId && s.startTime)
+        .map((s) => {
+          const startIso = fromDatetimeLocal(s.startTime);
+          const endIso = fromDatetimeLocal(s.endTime);
+          const dur = calcMinutes(s.startTime, s.endTime);
+          return {
+            session_type: s.sessionType,
+            start_time: startIso,
+            end_time: endIso || null,
+            duration_minutes: dur > 0 ? dur : null,
+          };
+        });
+
+      // Atomic DB transaction via RPC
+      const { error: updateError } = await supabase.rpc("apply_attendance_edit", {
+        _attendance_log_id: record.id,
+        _clock_in: newValues.clock_in!,
+        _clock_out: newValues.clock_out,
+        _break_start: newValues.break_start,
+        _break_end: newValues.break_end,
+        _total_break_minutes: newValues.total_break_minutes,
+        _pause_start: newValues.pause_start,
+        _pause_end: newValues.pause_end,
+        _total_pause_minutes: newValues.total_pause_minutes,
+        _sessions_to_delete: sessionsToDelete,
+        _sessions_to_update: sessionsToUpdate,
+        _sessions_to_insert: sessionsToInsert,
+      } as any);
 
       if (updateError) throw updateError;
 
