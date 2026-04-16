@@ -97,7 +97,7 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
           sessionType: s.session_type as "break" | "pause",
           startTime: toDatetimeLocal(s.start_time),
           endTime: toDatetimeLocal(s.end_time),
-        }))
+        })),
       );
     } else {
       // Fall back to legacy single fields
@@ -152,9 +152,7 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
   };
 
   const removeSession = (idx: number) => {
-    setSessions((prev) =>
-      prev.map((s, i) => (i === idx ? { ...s, deleted: true } : s))
-    );
+    setSessions((prev) => prev.map((s, i) => (i === idx ? { ...s, deleted: true } : s)));
   };
 
   const addSession = (type: "break" | "pause") => {
@@ -293,11 +291,7 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
 
       // 3) Insert new sessions
       // We need the user_id from the attendance_log
-      const { data: logData } = await supabase
-        .from("attendance_logs")
-        .select("user_id")
-        .eq("id", record.id)
-        .single();
+      const { data: logData } = await supabase.from("attendance_logs").select("user_id").eq("id", record.id).single();
       const logUserId = logData?.user_id || user.id;
 
       const toInsert = sessions.filter((s) => !s.deleted && !s.dbId && s.startTime);
@@ -416,20 +410,20 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
         }
       }
 
-      try {
-        await supabase.functions.invoke("send-attendance-edit-notification", {
-          body: {
-            editor_name: editorName,
-            editor_email: editorEmail,
-            employee_name: record.employee_name,
-            edit_date: editDate,
-            change_summary: changeSummary,
-            reason: reason.trim(),
-          },
-        });
-      } catch (emailErr) {
-        console.error("Failed to send attendance edit email:", emailErr);
-      }
+      // try {
+      //   await supabase.functions.invoke("send-attendance-edit-notification", {
+      //     body: {
+      //       editor_name: editorName,
+      //       editor_email: editorEmail,
+      //       employee_name: record.employee_name,
+      //       edit_date: editDate,
+      //       change_summary: changeSummary,
+      //       reason: reason.trim(),
+      //     },
+      //   });
+      // } catch (emailErr) {
+      //   console.error("Failed to send attendance edit email:", emailErr);
+      // }
 
       toast({ title: "Attendance Updated", description: `Record for ${record.employee_name} has been edited.` });
       onSaved();
@@ -474,7 +468,13 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
                 <Coffee className="h-3.5 w-3.5 text-warning" />
                 Breaks ({visibleBreaks.length})
               </Label>
-              <Button type="button" variant="outline" size="sm" onClick={() => addSession("break")} className="h-7 text-xs gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => addSession("break")}
+                className="h-7 text-xs gap-1"
+              >
                 <Plus className="h-3 w-3" /> Add Break
               </Button>
             </div>
@@ -534,7 +534,13 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
                 <Pause className="h-3.5 w-3.5 text-info" />
                 Pauses ({visiblePauses.length})
               </Label>
-              <Button type="button" variant="outline" size="sm" onClick={() => addSession("pause")} className="h-7 text-xs gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => addSession("pause")}
+                className="h-7 text-xs gap-1"
+              >
                 <Plus className="h-3 w-3" /> Add Pause
               </Button>
             </div>
