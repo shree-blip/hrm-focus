@@ -10,7 +10,6 @@ export type BadgeCounts = Record<string, number>;
 /** Map sidebar hrefs to badge keys returned by the edge function */
 const HREF_TO_BADGE_KEY: Record<string, string> = {
   "/attendance": "attendance",
-  "/leave": "leave",
   "/approvals": "approvals",
   "/tasks": "tasks",
   "/announcements": "announcements",
@@ -29,7 +28,9 @@ export function useSidebarBadges() {
     if (!session?.access_token) return;
     try {
       // Use fresh token from current session
-      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      const {
+        data: { session: freshSession },
+      } = await supabase.auth.getSession();
       const token = freshSession?.access_token;
       if (!token) return;
 
