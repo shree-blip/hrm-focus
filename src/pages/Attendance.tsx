@@ -1052,7 +1052,7 @@ const Attendance = () => {
           onReview={async (id, decision, comment) => {
             const success = await reviewRequest(id, decision, comment);
             if (success && decision === "approved") {
-              // Refetch attendance data so the corrected values show immediately
+              clearBreakCache();
               refetch();
             }
             return success;
@@ -1061,6 +1061,7 @@ const Attendance = () => {
           onOverride={async (id, decision, comment) => {
             const success = await overrideRequest(id, decision, comment);
             if (success) {
+              clearBreakCache();
               refetch();
             }
             return success;
