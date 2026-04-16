@@ -325,6 +325,7 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
     const attendanceChannel = supabase
       .channel("team-attendance-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, debouncedFetch)
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_break_sessions" }, debouncedFetch)
       .subscribe();
 
     return () => {

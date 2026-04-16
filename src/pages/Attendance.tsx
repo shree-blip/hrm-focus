@@ -78,7 +78,7 @@ const Attendance = () => {
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
   const [expandedBreakRows, setExpandedBreakRows] = useState<Set<string>>(new Set());
-  const { fetchSessions, getSessions, isLoading: isSessionLoading } = useBreakSessions();
+  const { fetchSessions, getSessions, isLoading: isSessionLoading, clearCache: clearBreakCache } = useBreakSessions();
   const [showResumeLocationDialog, setShowResumeLocationDialog] = useState(false);
   const [adjustmentLog, setAdjustmentLog] = useState<{
     id: string;
@@ -142,6 +142,20 @@ const Attendance = () => {
       setNavigatedWeeklyLogs(null);
     }
   }, [currentWeekStart, isCurrentWeek, fetchWeeklyLogsForRange]);
+
+  // Clear break session cache when break sessions are modified (e.g. admin edit)
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`break-session-sync-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_break_sessions", filter: `user_id=eq.${user.id}` },
+        () => { clearBreakCache(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user, clearBreakCache]);
 
   const { myRequests, teamRequests, submitRequest, reviewRequest, overrideRequest, getAdjustmentStatus } =
     useAttendanceAdjustments();
