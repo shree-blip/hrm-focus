@@ -426,7 +426,7 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Attendance — {record.employee_name}</DialogTitle>
           <DialogDescription>
