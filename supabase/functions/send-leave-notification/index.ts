@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
       reason,
       rejection_reason,
       approver_name,
+      admin_name,
       target_user_ids,
       target_emails = [],
       requesting_user_id,
