@@ -1061,6 +1061,7 @@ const Attendance = () => {
           onOverride={async (id, decision, comment) => {
             const success = await overrideRequest(id, decision, comment);
             if (success) {
+              clearBreakCache();
               refetch();
             }
             return success;
