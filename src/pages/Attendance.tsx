@@ -143,6 +143,20 @@ const Attendance = () => {
     }
   }, [currentWeekStart, isCurrentWeek, fetchWeeklyLogsForRange]);
 
+  // Clear break session cache when break sessions are modified (e.g. admin edit)
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`break-session-sync-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_break_sessions", filter: `user_id=eq.${user.id}` },
+        () => { clearBreakCache(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user, clearBreakCache]);
+
   const { myRequests, teamRequests, submitRequest, reviewRequest, overrideRequest, getAdjustmentStatus } =
     useAttendanceAdjustments();
   const { ownRequests: leaveRequests } = useLeaveRequests();
