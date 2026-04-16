@@ -1,4 +1,5 @@
-import { useState } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -87,10 +88,12 @@ export function EditAttendanceDialog({ open, onOpenChange, record, onSaved }: Ed
     onOpenChange(isOpen);
   };
 
-  // Also reset when dialog opens with a new record
-  if (open && record && !clockIn) {
-    resetForm();
-  }
+  // Reset form whenever the record changes (fixes stale data when switching employees)
+  useEffect(() => {
+    if (open && record) {
+      resetForm();
+    }
+  }, [record?.id]);
 
   const handleDelete = async () => {
     if (!record || !user) return;
