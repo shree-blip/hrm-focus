@@ -710,3 +710,55 @@ function buildRejectedManagementEmail(
 </body>
 </html>`;
 }
+
+function buildAdminAssignedEmail(
+  name: string, type: string, start: string, end: string, days: number, adminName: string, reason?: string | null,
+): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <h2 style="color:#2563eb;margin-top:0;">📋 Leave Assigned &amp; Auto-Approved</h2>
+    <p>Hi ${name},</p>
+    <p><strong>${adminName}</strong> has assigned and auto-approved the following leave on your behalf:</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 0;color:#666;width:140px;">Leave Type</td><td style="padding:8px 0;font-weight:600;">${type}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Start Date</td><td style="padding:8px 0;">${start}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">End Date</td><td style="padding:8px 0;">${end}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Total Days</td><td style="padding:8px 0;font-weight:600;">${days}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Assigned By</td><td style="padding:8px 0;font-weight:600;">${adminName}</td></tr>
+      ${reason ? `<tr><td style="padding:8px 0;color:#666;">Reason</td><td style="padding:8px 0;">${reason}</td></tr>` : ""}
+    </table>
+    <p style="color:#666;font-size:14px;">This leave has been automatically approved. No action is required from you.</p>
+    <a href="https://hrm-focus.lovable.app/leave" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin-top:8px;">View Leave Details</a>
+  </div>
+</body>
+</html>`;
+}
+
+function buildAdminAssignedManagementEmail(
+  employeeName: string, type: string, start: string, end: string, days: number, adminName: string, reason?: string | null,
+): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <h2 style="color:#2563eb;margin-top:0;">📋 Leave Assigned by Admin</h2>
+    <p><strong>${adminName}</strong> has assigned and auto-approved leave for <strong>${employeeName}</strong>.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 0;color:#666;width:160px;">Employee</td><td style="padding:8px 0;font-weight:600;">${employeeName}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Assigned By</td><td style="padding:8px 0;font-weight:600;">${adminName}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Leave Type</td><td style="padding:8px 0;">${type}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Period</td><td style="padding:8px 0;">${start} to ${end}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Days</td><td style="padding:8px 0;font-weight:600;">${days}</td></tr>
+      ${reason ? `<tr><td style="padding:8px 0;color:#666;">Reason</td><td style="padding:8px 0;">${reason}</td></tr>` : ""}
+    </table>
+    <a href="https://hrm-focus.lovable.app/leave" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin-top:8px;">View Details</a>
+  </div>
+</body>
+</html>`;
+}
