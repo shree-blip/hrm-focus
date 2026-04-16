@@ -13,7 +13,7 @@ const FIXED_CC_EMAIL = "hello@focusyourfinance.com";
 interface LeaveNotificationPayload {
   leave_request_id: string;
   admin_name?: string;
-  event_type: "submitted" | "approved" | "rejected";
+  event_type: "submitted" | "approved" | "rejected" | "admin_assigned";
   employee_name: string;
   employee_email?: string;
   leave_type: string;
