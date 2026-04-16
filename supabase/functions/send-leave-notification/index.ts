@@ -383,6 +383,45 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---- ADMIN ASSIGNED ----
+    else if (event_type === "admin_assigned") {
+      const assignedAdminName = admin_name || "Admin";
+      
+      // Employee-facing email
+      if (employeeRecipients.length > 0) {
+        const subject = `Leave Assigned: ${leave_type} (${days} days) – Auto-Approved`;
+        const html = buildAdminAssignedEmail(employee_name, leave_type, start_date, end_date, days, assignedAdminName, reason);
+
+        for (const email of employeeRecipients) {
+          const logEntry = await createNotificationLog(supabase, {
+            recipient_email: email,
+            event_type,
+            payload: { leave_request_id, employee_name, leave_type, start_date, end_date, days, admin_name: assignedAdminName, recipient_group: "employee" },
+            status: "pending",
+          });
+          const emailResult = await sendEmailWithRetry(supabase, logEntry.id, email, subject, html);
+          results.push({ type: "email", target: email, success: emailResult.success, error: emailResult.error });
+        }
+      }
+
+      // Management CC
+      if (managementRecipients.length > 0) {
+        const mgmtSubject = `Leave Assigned: ${employee_name} - ${leave_type} (${days} days) by ${assignedAdminName}`;
+        const mgmtHtml = buildAdminAssignedManagementEmail(employee_name, leave_type, start_date, end_date, days, assignedAdminName, reason);
+
+        for (const email of managementRecipients) {
+          const logEntry = await createNotificationLog(supabase, {
+            recipient_email: email,
+            event_type,
+            payload: { leave_request_id, employee_name, leave_type, start_date, end_date, days, admin_name: assignedAdminName, recipient_group: "management" },
+            status: "pending",
+          });
+          const emailResult = await sendEmailWithRetry(supabase, logEntry.id, email, mgmtSubject, mgmtHtml);
+          results.push({ type: "email", target: email, success: emailResult.success, error: emailResult.error });
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
