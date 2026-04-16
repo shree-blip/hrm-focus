@@ -78,7 +78,7 @@ const Attendance = () => {
   const [showClockOutDialog, setShowClockOutDialog] = useState(false);
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
   const [expandedBreakRows, setExpandedBreakRows] = useState<Set<string>>(new Set());
-  const { fetchSessions, getSessions, isLoading: isSessionLoading } = useBreakSessions();
+  const { fetchSessions, getSessions, isLoading: isSessionLoading, clearCache: clearBreakCache } = useBreakSessions();
   const [showResumeLocationDialog, setShowResumeLocationDialog] = useState(false);
   const [adjustmentLog, setAdjustmentLog] = useState<{
     id: string;

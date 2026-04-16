@@ -119,7 +119,7 @@ const Reports = () => {
   // VP edit state
   const [editRecord, setEditRecord] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const { fetchSessions, getSessions, isLoading: isSessionLoading } = useBreakSessions();
+  const { fetchSessions, getSessions, isLoading: isSessionLoading, clearCache: clearBreakCache } = useBreakSessions();
 
   const loading = leaveLoading || attendanceLoading;
 
@@ -1358,7 +1358,10 @@ const Reports = () => {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         record={editRecord}
-        onSaved={refetchAttendance}
+        onSaved={() => {
+          clearBreakCache();
+          refetchAttendance();
+        }}
       />
     </DashboardLayout>
   );
