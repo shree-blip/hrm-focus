@@ -25,19 +25,20 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify JWT using Supabase auth to prevent token forgery
+    // Verify JWT using getClaims for edge-runtime compatibility
     const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: userData, error: authError } = await anonClient.auth.getUser();
-    if (authError || !userData?.user?.id) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: authError } = await anonClient.auth.getClaims(token);
+    if (authError || !claimsData?.claims?.sub) {
       console.error("sidebar-badges: auth failed", authError?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = userData.user.id;
+    const userId = claimsData.claims.sub as string;
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
