@@ -311,20 +311,10 @@ export function useAttendance(weekStart?: Date) {
     prevLogRef.current = currentLog;
     setCurrentLog(optimisticLog);
 
-    // Don't block on geolocation — fire and forget
-    let locationName = workMode === "wfh" ? "Home" : "Office";
-    const geoPromise = ("geolocation" in navigator)
-      ? new Promise<string>((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => resolve(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`),
-            () => resolve(locationName),
-            { timeout: 3000 }
-          );
-        })
-      : Promise.resolve(locationName);
+    // Location permission disabled — use work mode label only
+    const locationName = workMode === "wfh" ? "Home" : "Office";
 
     try {
-      locationName = await geoPromise;
       const result = await callAttendanceClock({
         action: "clock_in",
         clock_type: type,
