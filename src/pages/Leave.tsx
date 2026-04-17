@@ -511,13 +511,28 @@ const Leave = () => {
             style={{ animationDelay: "300ms", animationFillMode: "forwards" }}
           >
             <CardHeader className="pb-4">
-              <CardTitle className="font-display text-lg flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                My Leave History
-                <Badge variant="secondary" className="ml-2">
-                  {myLeaveHistory.length} total
-                </Badge>
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  My Leave History
+                  <Badge variant="secondary" className="ml-2">
+                    {myLeaveHistory.length} total
+                  </Badge>
+                </CardTitle>
+                {myLeaveHistory.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 shrink-0"
+                    onClick={() =>
+                      exportLeaveHistoryToCsv(myLeaveHistory, `leave-history-${format(new Date(), "yyyy-MM-dd")}`)
+                    }
+                  >
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {myLeaveHistory.length === 0 ? (
