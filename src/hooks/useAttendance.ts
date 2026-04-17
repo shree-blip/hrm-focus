@@ -23,26 +23,78 @@ export interface AttendanceLog {
  * The server is the SINGLE SOURCE OF TRUTH for timestamps.
  * Client NEVER sends timezone info — only action + IDs.
  */
-async function callAttendanceClock(payload: Record<string, unknown>) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error("Not authenticated");
+async function getFreshAccessToken(): Promise<string> {
+  // getSession returns the cached session (auto-refreshed by the SDK when valid).
+  let { data: { session } } = await supabase.auth.getSession();
 
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const res = await fetch(
-    `https://${projectId}.supabase.co/functions/v1/attendance-clock`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-      },
-      body: JSON.stringify(payload),
+  // If token is missing or expires within the next 60s, force a refresh to avoid
+  // sending a stale/expired JWT (a common cause of intermittent 401 / "Failed to fetch"
+  // after the tab has been idle).
+  const nowSec = Math.floor(Date.now() / 1000);
+  const expiresAt = session?.expires_at ?? 0;
+  if (!session || !session.access_token || expiresAt - nowSec < 60) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session) {
+      throw new Error("Not authenticated");
     }
-  );
+    session = data.session;
+  }
+  return session.access_token;
+}
 
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error || "Attendance action failed");
+async function callAttendanceClock(
+  payload: Record<string, unknown>,
+  attempt = 0
+): Promise<any> {
+  const token = await getFreshAccessToken();
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+
+  // 15s timeout so a hung request doesn't leave the UI stuck on "actionInProgress".
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15_000);
+
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/attendance-clock`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      }
+    );
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    // Retry once on transient network errors / aborts (mobile network switch, brief offline)
+    if (attempt === 0) {
+      await new Promise((r) => setTimeout(r, 500));
+      return callAttendanceClock(payload, attempt + 1);
+    }
+    if (err?.name === "AbortError") {
+      throw new Error("Request timed out — please check your connection and try again.");
+    }
+    throw new Error("Network error — please check your connection and try again.");
+  }
+  clearTimeout(timeoutId);
+
+  // Auth expired between getSession() and fetch — refresh and retry once.
+  if (res.status === 401 && attempt === 0) {
+    try { await supabase.auth.refreshSession(); } catch { /* fallthrough */ }
+    return callAttendanceClock(payload, attempt + 1);
+  }
+
+  let body: any;
+  try {
+    body = await res.json();
+  } catch {
+    throw new Error(`Attendance action failed (status ${res.status})`);
+  }
+  if (!res.ok) throw new Error(body?.error || "Attendance action failed");
   return body;
 }
 
