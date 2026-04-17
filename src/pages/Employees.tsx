@@ -376,6 +376,35 @@ const Employees = () => {
     setLoadingLeave(false);
   };
 
+  // Fetch managers that the clicked employee reports to
+  const fetchClickedEmployeeManagers = async (employeeId: string) => {
+    setLoadingClickedManagers(true);
+    try {
+      const { data: managerRows } = await supabase
+        .from("team_members")
+        .select("manager_employee_id")
+        .eq("member_employee_id", employeeId);
+
+      const managerIds = (managerRows || []).map((r: { manager_employee_id: string }) => r.manager_employee_id);
+
+      if (managerIds.length > 0) {
+        const { data: managers } = await supabase
+          .from("employees")
+          .select("id, first_name, last_name, email, job_title, department")
+          .in("id", managerIds)
+          .order("first_name", { ascending: true });
+
+        setClickedEmployeeManagers(managers || []);
+      } else {
+        setClickedEmployeeManagers([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch managers:", err);
+      setClickedEmployeeManagers([]);
+    }
+    setLoadingClickedManagers(false);
+  };
+
   // When clicked employee changes, fetch their team and leave
   useEffect(() => {
     if (clickedEmployee?.id) {
