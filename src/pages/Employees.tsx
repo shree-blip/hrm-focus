@@ -170,6 +170,18 @@ const Employees = () => {
   const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
   const [managingEmployeeId, setManagingEmployeeId] = useState<string | null>(null);
 
+  // Managers that the clicked employee reports to
+  interface ClickedEmployeeManager {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    job_title: string | null;
+    department: string | null;
+  }
+  const [clickedEmployeeManagers, setClickedEmployeeManagers] = useState<ClickedEmployeeManager[]>([]);
+  const [loadingClickedManagers, setLoadingClickedManagers] = useState(false);
+
   // Leave summary for clicked employee
   interface LeaveBalanceSummary {
     leave_type: string;
