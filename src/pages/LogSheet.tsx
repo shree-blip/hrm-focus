@@ -651,13 +651,37 @@ export default function LogSheet() {
   };
 
   // ── Export CSV handler ────────────────────────────────────────────────
-  const handleExportCsv = () => {
-    const isSameDay = format(exportRangeFrom, "yyyy-MM-dd") === format(exportRangeTo, "yyyy-MM-dd");
-    const fileName = isSameDay
-      ? `my-logs-${format(exportRangeFrom, "yyyy-MM-dd")}`
-      : `my-logs-${format(exportRangeFrom, "yyyy-MM-dd")}-to-${format(exportRangeTo, "yyyy-MM-dd")}`;
-    exportLogsToCsv(logs, fileName);
-    setIsExportPopoverOpen(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    if (!user) return;
+    setIsExporting(true);
+
+    try {
+      const fromStr = format(exportRangeFrom, "yyyy-MM-dd");
+      const toStr = format(exportRangeTo, "yyyy-MM-dd");
+
+      const { data, error } = await supabase
+        .from("work_logs")
+        .select("*, client:clients(*)")
+        .eq("user_id", user.id)
+        .gte("log_date", fromStr)
+        .lte("log_date", toStr)
+        .order("log_date", { ascending: true })
+        .order("start_time", { ascending: true });
+
+      if (error) throw error;
+
+      const isSameDay = fromStr === toStr;
+      const fileName = isSameDay ? `my-logs-${fromStr}` : `my-logs-${fromStr}-to-${toStr}`;
+
+      exportLogsToCsv(data || [], fileName);
+      setIsExportPopoverOpen(false);
+    } catch (err) {
+      console.error("Export failed:", err);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // ── Computed ──────────────────────────────────────────────────────────
