@@ -51,6 +51,14 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const { fetchSessions, getSessions, isLoading } = useBreakSessions();
+  const sessions = getSessions(log.id);
+  const sessionsLoading = isLoading(log.id);
+
+  useEffect(() => {
+    if (open) fetchSessions(log.id);
+  }, [open, log.id, fetchSessions]);
+
   const handleSubmit = async () => {
     if (!reason.trim()) return;
     setSubmitting(true);
