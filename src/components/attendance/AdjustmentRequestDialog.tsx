@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { toNPT, toPST } from "@/utils/timezone";
+import { BreakPauseDetailPanel } from "@/components/attendance/BreakPauseDetail";
+import { useBreakSessions } from "@/hooks/useBreakSessions";
 
 interface AttendanceLog {
   id: string;
@@ -13,6 +15,10 @@ interface AttendanceLog {
   clock_out: string | null;
   total_break_minutes: number;
   total_pause_minutes?: number;
+  break_start?: string | null;
+  break_end?: string | null;
+  pause_start?: string | null;
+  pause_end?: string | null;
 }
 
 interface Props {
