@@ -466,7 +466,7 @@ export default function LogSheet() {
   } = useWorkLogs();
   const { clients, loading: clientsLoading, refetch: refetchClients } = useClients();
   const { fetchAlertsForClient } = useClientAlerts();
-  const { isManager, isVP, isLineManager, isAdmin } = useAuth();
+  const { isManager, isVP, isLineManager, isAdmin, user } = useAuth();
 
   // Check if user can add clients (line_manager, manager, vp, admin only - not employees)
   const canAddClient = true;
