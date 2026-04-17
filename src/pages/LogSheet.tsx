@@ -44,7 +44,7 @@ import { useClients } from "@/hooks/useClients";
 import { useClientAlerts, ClientAlert } from "@/hooks/useClientAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useAuth } from "@/contexts/AuthContext";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import {
   CalendarIcon,
   Plus,
@@ -73,7 +73,52 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+// ─── CSV Export ──────────────────────────────────────────────────────────────
+function escapeCsv(value: string | number | null | undefined): string {
+  if (value == null) return "";
+  const str = String(value);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
 
+function exportLogsToCsv(logs: any[], fileName: string): void {
+  const headers = [
+    "Date",
+    "Task Description",
+    "Client",
+    "Client ID",
+    "Department",
+    "Start Time",
+    "End Time",
+    "Duration",
+    "Status",
+    "Notes",
+  ];
+
+  const rows = logs.map((log) => [
+    escapeCsv(log.log_date || ""),
+    escapeCsv(log.task_description),
+    escapeCsv(log.client?.name || ""),
+    escapeCsv(log.client?.client_id || ""),
+    escapeCsv((log.department || "").replace(/_/g, " ")),
+    escapeCsv(log.start_time || ""),
+    escapeCsv(log.end_time || ""),
+    escapeCsv(formatTime(log.time_spent_minutes)),
+    escapeCsv(log.status || ""),
+    escapeCsv(log.notes || ""),
+  ]);
+
+  const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${fileName}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 // ─── Nested Department Data ─────────────────────────────────────────────────
 interface DepartmentItem {
   label: string;
