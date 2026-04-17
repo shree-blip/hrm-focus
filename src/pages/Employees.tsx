@@ -24,6 +24,7 @@ import {
   UserPlus,
   UserMinus,
   TrendingUp,
+  Crown,
   ChevronRight,
   ArrowLeft,
   CalendarDays,
