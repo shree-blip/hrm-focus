@@ -28,6 +28,39 @@ import { Button } from "@/components/ui/button";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
 import { toast } from "@/hooks/use-toast";
 
+// ─── CSV Export ───────────────────────────────────────────────────────────────
+function escapeCsv(value: string | number | null | undefined): string {
+  if (value == null) return "";
+  const str = String(value);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function exportLeaveHistoryToCsv(requests: any[], fileName: string): void {
+  const headers = ["Leave Type", "Start Date", "End Date", "Days", "Status", "Reason", "Rejection Reason"];
+
+  const rows = requests.map((r) => [
+    escapeCsv(r.leave_type),
+    escapeCsv(format(new Date(r.start_date), "yyyy-MM-dd")),
+    escapeCsv(format(new Date(r.end_date), "yyyy-MM-dd")),
+    escapeCsv(r.days),
+    escapeCsv(r.status),
+    escapeCsv(r.reason || ""),
+    escapeCsv(r.rejection_reason || ""),
+  ]);
+
+  const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${fileName}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 // Special leave subtypes configuration
 const SPECIAL_LEAVE_TYPES = {
   "Wedding Leave": { days: 15, color: "bg-pink-500" },
