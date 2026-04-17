@@ -810,9 +810,18 @@ export default function LogSheet() {
                   ))}
                 </div>
 
-                <Button size="sm" className="w-full gap-2" onClick={handleExportCsv}>
-                  <Download className="h-4 w-4" />
-                  Download CSV
+                <Button size="sm" className="w-full gap-2" onClick={handleExportCsv} disabled={isExporting}>
+                  {isExporting ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Download CSV
+                    </>
+                  )}
                 </Button>
               </PopoverContent>
             </Popover>
