@@ -73,6 +73,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
 // ─── CSV Export ──────────────────────────────────────────────────────────────
 function escapeCsv(value: string | number | null | undefined): string {
   if (value == null) return "";
@@ -479,6 +480,11 @@ export default function LogSheet() {
     task: string;
   } | null>(null);
   const [addClientDialogOpen, setAddClientDialogOpen] = useState(false);
+
+  // ── Export state ──────────────────────────────────────────────────────
+  const [isExportPopoverOpen, setIsExportPopoverOpen] = useState(false);
+  const [exportRangeFrom, setExportRangeFrom] = useState<Date>(new Date());
+  const [exportRangeTo, setExportRangeTo] = useState<Date>(new Date());
 
   // ── Inline edit state ─────────────────────────────────────────────────
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
