@@ -986,6 +986,61 @@ const Employees = () => {
                 )}
               </div>
 
+              {/* Under Team Of - shows which managers this employee reports to */}
+              {isManager && (
+                <>
+                  <Separator className="my-5" />
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <Crown className="h-4 w-4 text-primary" />
+                      {clickedEmployee.first_name} Reports To
+                    </h4>
+
+                    {loadingClickedManagers ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : clickedEmployeeManagers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic py-2">Not assigned to any manager yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {clickedEmployeeManagers.map((mgr) => (
+                          <div key={mgr.id} className="flex items-center gap-3 rounded-lg border bg-muted/30 p-2.5">
+                            <Avatar className="h-9 w-9 shrink-0 ring-2 ring-primary/15">
+                              <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+                                {getInitials(mgr.first_name, mgr.last_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-sm font-semibold truncate">
+                                  {mgr.first_name} {mgr.last_name}
+                                </p>
+                                <Badge className="h-4 px-1.5 text-[9px] bg-primary/10 text-primary border border-primary/20 hover:bg-primary/10">
+                                  <Crown className="mr-0.5 h-2.5 w-2.5" />
+                                  Manager
+                                </Badge>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                {mgr.job_title || "Manager"}
+                                {mgr.department ? ` · ${mgr.department}` : ""}
+                              </p>
+                            </div>
+                            <a
+                              href={`mailto:${mgr.email}`}
+                              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                              title={mgr.email}
+                            >
+                              <Mail className="h-3.5 w-3.5" />
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
               {/* Team Section - shown below action buttons for managers/VP/admin */}
               {isManager && (
                 <>
