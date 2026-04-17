@@ -409,10 +409,12 @@ const Employees = () => {
   useEffect(() => {
     if (clickedEmployee?.id) {
       fetchClickedEmployeeTeam(String(clickedEmployee.id));
+      fetchClickedEmployeeManagers(String(clickedEmployee.id));
       fetchClickedEmployeeLeave(clickedEmployee.user_id || null);
     } else {
       setClickedEmployeeTeam([]);
       setClickedTeamManagerIds(new Set());
+      setClickedEmployeeManagers([]);
       setClickedLeaveBalances([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
