@@ -697,6 +697,101 @@ export default function LogSheet() {
               </PopoverContent>
             </Popover>
 
+            {/* Export CSV */}
+            <Popover open={isExportPopoverOpen} onOpenChange={setIsExportPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-4 space-y-4" align="end">
+                <div>
+                  <p className="text-sm font-semibold">Export My Logs</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Select a date range then download</p>
+                </div>
+
+                {/* From */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">From</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start gap-2 font-normal">
+                        <CalendarIcon className="h-3.5 w-3.5" />
+                        {format(exportRangeFrom, "MMM d, yyyy")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={exportRangeFrom}
+                        onSelect={(date) => {
+                          if (date) {
+                            setExportRangeFrom(date);
+                            if (date > exportRangeTo) setExportRangeTo(date);
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* To */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">To</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start gap-2 font-normal">
+                        <CalendarIcon className="h-3.5 w-3.5" />
+                        {format(exportRangeTo, "MMM d, yyyy")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={exportRangeTo}
+                        onSelect={(date) => {
+                          if (date) {
+                            setExportRangeTo(date);
+                            if (date < exportRangeFrom) setExportRangeFrom(date);
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex gap-1.5 flex-wrap">
+                  {[
+                    { label: "Today", from: new Date(), to: new Date() },
+                    { label: "Last 7 days", from: addDays(new Date(), -6), to: new Date() },
+                    { label: "Last 30 days", from: addDays(new Date(), -29), to: new Date() },
+                  ].map((preset) => (
+                    <Button
+                      key={preset.label}
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs px-2"
+                      onClick={() => {
+                        setExportRangeFrom(preset.from);
+                        setExportRangeTo(preset.to);
+                      }}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                </div>
+
+                <Button size="sm" className="w-full gap-2" onClick={handleExportCsv}>
+                  <Download className="h-4 w-4" />
+                  Download CSV
+                </Button>
+              </PopoverContent>
+            </Popover>
+
             {/* Add Log Button */}
             <Button size="sm" className="gap-2" onClick={handleOpenAddDialog}>
               <Plus className="h-4 w-4" />
