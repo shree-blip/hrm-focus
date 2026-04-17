@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { toNPT, toPST } from "@/utils/timezone";
+import { BreakPauseDetailPanel } from "@/components/attendance/BreakPauseDetail";
+import { useBreakSessions } from "@/hooks/useBreakSessions";
 
 interface AttendanceLog {
   id: string;
@@ -13,6 +15,10 @@ interface AttendanceLog {
   clock_out: string | null;
   total_break_minutes: number;
   total_pause_minutes?: number;
+  break_start?: string | null;
+  break_end?: string | null;
+  pause_start?: string | null;
+  pause_end?: string | null;
 }
 
 interface Props {
@@ -44,6 +50,14 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
   const [pauseMinutes, setPauseMinutes] = useState(log.total_pause_minutes || 0);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const { fetchSessions, getSessions, isLoading } = useBreakSessions();
+  const sessions = getSessions(log.id);
+  const sessionsLoading = isLoading(log.id);
+
+  useEffect(() => {
+    if (open) fetchSessions(log.id);
+  }, [open, log.id, fetchSessions]);
 
   const handleSubmit = async () => {
     if (!reason.trim()) return;
@@ -110,12 +124,25 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
               <strong>Clock Out:</strong>{" "}
               {log.clock_out ? `${toNPT(log.clock_out)} / ${toPST(log.clock_out)}` : "Not clocked out"}
             </p>
-            <p>
-              <strong>Break:</strong> {log.total_break_minutes || 0} min
+          </div>
+
+          {/* Break / Pause detailed sessions */}
+          <div className="space-y-2">
+            <p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+              Break & Pause Sessions
             </p>
-            <p>
-              <strong>Pause:</strong> {log.total_pause_minutes || 0} min
-            </p>
+            <BreakPauseDetailPanel
+              sessions={sessions}
+              loading={sessionsLoading}
+              legacyData={{
+                break_start: log.break_start,
+                break_end: log.break_end,
+                total_break_minutes: log.total_break_minutes,
+                pause_start: log.pause_start,
+                pause_end: log.pause_end,
+                total_pause_minutes: log.total_pause_minutes,
+              }}
+            />
           </div>
 
           {/* Corrected values */}
