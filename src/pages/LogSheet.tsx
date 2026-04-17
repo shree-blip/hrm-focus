@@ -191,6 +191,7 @@ function getDepartmentDisplayLabel(value: string): string | null {
 }
 
 import { formatTime12h, getCurrentTime24h, formatDuration } from "@/lib/timeFormat";
+import { supabase } from "@/integrations/supabase/client";
 
 /** Get current time as HH:mm */
 const getCurrentTime = getCurrentTime24h;
