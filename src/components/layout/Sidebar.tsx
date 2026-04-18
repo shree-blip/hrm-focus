@@ -128,12 +128,14 @@ interface SidebarProps {
   onNavigate?: () => void;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+  embedded?: boolean;
 }
 
 export const Sidebar = memo(function Sidebar({
   onNavigate,
   collapsed: controlledCollapsed,
   onCollapsedChange,
+  embedded = false,
 }: SidebarProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const collapsed = controlledCollapsed ?? internalCollapsed;
@@ -142,44 +144,36 @@ export const Sidebar = memo(function Sidebar({
     onCollapsedChange?.(v);
   };
   const location = useLocation();
-  const { isManager, isVP } = useAuth();
+  const { isManager } = useAuth();
   const { hasPermission } = usePermissions();
   const { getBadgeCount, clearBadge } = useSidebarBadges();
   const { theme, toggleTheme } = useTheme();
 
   const isItemVisible = (item: MenuItem): boolean => {
-    // Hide if user has a higher-level permission that supersedes this entry
     if (item.hideIfHas?.some((p) => hasPermission(p))) return false;
     if (item.alwaysVisible) return true;
     if (item.permissions) {
-      // Check effective permissions (role + overrides)
       const hasEffective = item.permissions.some((p) => hasPermission(p));
       if (hasEffective) return true;
     }
-    // Legacy fallback: managers+ see manager-only items
     if (item.managerOnly && isManager) return true;
     return false;
   };
 
   const visibleMenuItems = useMemo(
     () => ALL_MENU_ITEMS.filter(isItemVisible),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [hasPermission, isManager],
   );
 
   const handleNavClick = useCallback(
     (href: string) => {
       clearBadge(href);
-      if (onNavigate) {
-        onNavigate();
-      }
+      onNavigate?.();
     },
     [clearBadge, onNavigate],
   );
 
-  /** Prefetch the route chunk on hover so navigation feels instant */
   const handlePrefetch = useCallback((href: string) => {
-    // Convert href like "/log-sheet" → "log-sheet", "/" → skip
     const key = href === "/" ? "" : href.replace(/^\//, "");
     if (key) prefetchRoute(key);
   }, []);
@@ -187,13 +181,18 @@ export const Sidebar = memo(function Sidebar({
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen transition-all duration-300 ease-in-out",
-        "bg-sidebar text-sidebar-foreground flex flex-col",
+        "z-40 flex flex-col bg-sidebar text-sidebar-foreground overflow-hidden transition-all duration-300 ease-in-out will-change-transform",
+        embedded ? "relative h-full w-full" : "fixed left-0 top-0 h-screen",
         collapsed ? "w-[72px]" : "w-64",
+        embedded && "max-w-full",
       )}
     >
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border mt-2">
+      <div
+        className={cn(
+          "flex h-16 items-center justify-between border-b border-sidebar-border px-4",
+          !embedded && "mt-2",
+        )}
+      >
         {!collapsed && (
           <div className="flex items-center gap-3 animate-fade-in">
             <img src={focusLogo} alt="Focus Logo" className="h-10 w-10 object-contain" />
@@ -206,8 +205,7 @@ export const Sidebar = memo(function Sidebar({
         {collapsed && <img src={focusLogo} alt="Focus Logo" className="h-9 w-9 mx-auto object-contain" />}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
           {visibleMenuItems.map((item, index) => {
             const isActive = location.pathname === item.href;
@@ -261,8 +259,7 @@ export const Sidebar = memo(function Sidebar({
         </ul>
       </nav>
 
-      {/* Bottom Menu */}
-      <div className="border-t border-sidebar-border p-3 space-y-1">
+      <div className="space-y-1 border-t border-sidebar-border p-3">
         {bottomMenuItems.map((item) => {
           const isActive = location.pathname === item.href;
           const Icon = item.icon;
@@ -296,13 +293,12 @@ export const Sidebar = memo(function Sidebar({
           );
         })}
 
-        {/* Collapse Button */}
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
-            "w-full justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+            "w-full justify-center text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
             !collapsed && "justify-start px-3",
           )}
         >
@@ -310,12 +306,12 @@ export const Sidebar = memo(function Sidebar({
             <ChevronRight className="h-5 w-5" />
           ) : (
             <>
-              <ChevronLeft className="h-5 w-5 mr-2" />
+              <ChevronLeft className="mr-2 h-5 w-5" />
               <span>Collapse</span>
             </>
           )}
         </Button>
-        {/* Theme Toggle */}
+
         {collapsed ? (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
@@ -323,7 +319,7 @@ export const Sidebar = memo(function Sidebar({
                 variant="ghost"
                 size="sm"
                 onClick={toggleTheme}
-                className="w-full justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                className="w-full justify-center text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </Button>
@@ -337,9 +333,9 @@ export const Sidebar = memo(function Sidebar({
             variant="ghost"
             size="sm"
             onClick={toggleTheme}
-            className="w-full justify-start px-3 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            className="w-full justify-start px-3 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
           >
-            {theme === "dark" ? <Sun className="h-5 w-5 mr-2" /> : <Moon className="h-5 w-5 mr-2" />}
+            {theme === "dark" ? <Sun className="mr-2 h-5 w-5" /> : <Moon className="mr-2 h-5 w-5" />}
             <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
           </Button>
         )}

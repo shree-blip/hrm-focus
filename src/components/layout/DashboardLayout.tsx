@@ -45,8 +45,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-[280px] sm:w-64">
-                <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
+              <SheetContent side="left" className="w-64 max-w-[85vw] overflow-hidden p-0">
+                <Sidebar embedded onNavigate={() => setMobileMenuOpen(false)} />
               </SheetContent>
             </Sheet>
           }
