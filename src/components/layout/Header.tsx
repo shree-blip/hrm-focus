@@ -195,7 +195,7 @@ export function Header({ isMobile, mobileMenuSlot }: HeaderProps = {}) {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-4 shrink-0">
           <button
             onClick={() => setShowTimeZoneModal(true)}
             className={cn(
