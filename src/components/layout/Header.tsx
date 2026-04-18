@@ -24,9 +24,10 @@ import focusLogo from "@/assets/focus-logo.png";
 import { TimeZoneModal } from "@/components/dashboard/GlobalTimeZoneWidget";
 interface HeaderProps {
   isMobile?: boolean;
+  mobileMenuSlot?: React.ReactNode;
 }
 
-export function Header({ isMobile }: HeaderProps = {}) {
+export function Header({ isMobile, mobileMenuSlot }: HeaderProps = {}) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [showTimeZoneModal, setShowTimeZoneModal] = useState(false);
