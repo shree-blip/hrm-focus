@@ -965,8 +965,6 @@ const Reports = () => {
                           onChange={(e) => {
                             e.stopPropagation();
                             setEmployeeSearchQuery(e.target.value);
-                            // Force refocus after Radix tries to steal it
-                            setTimeout(() => searchInputRef.current?.focus(), 0);
                           }}
                           onKeyDown={(e) => e.stopPropagation()}
                           onKeyUp={(e) => e.stopPropagation()}
@@ -976,11 +974,16 @@ const Reports = () => {
                         />
                       </div>
                       <SelectItem value="all">All Employees</SelectItem>
-                      {filteredEmployeesList.map((emp) => (
+                      {visibleEmployeesList.map((emp) => (
                         <SelectItem key={emp.user_id} value={emp.user_id}>
                           {emp.employee_name}
                         </SelectItem>
                       ))}
+                      {filteredEmployeesList.length > visibleEmployeesList.length && (
+                        <div className="p-2 text-xs text-muted-foreground text-center">
+                          Showing {visibleEmployeesList.length} of {filteredEmployeesList.length}. Refine your search…
+                        </div>
+                      )}
                       {filteredEmployeesList.length === 0 && employeeSearchQuery && (
                         <div className="p-2 text-sm text-muted-foreground text-center">No employees found</div>
                       )}
