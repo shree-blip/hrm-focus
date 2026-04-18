@@ -176,12 +176,14 @@ export function Header({ isMobile, mobileMenuSlot }: HeaderProps = {}) {
           isMobile ? "h-14" : "h-16",
         )}
       >
-        <div className={cn("flex items-center gap-4 flex-1", isMobile ? "max-w-xs" : "max-w-xl")}>
+        <div className={cn("flex items-center gap-2 sm:gap-4 flex-1 min-w-0", isMobile ? "max-w-xs" : "max-w-xl")}>
+          {/* Mobile hamburger slot */}
+          {mobileMenuSlot}
           {/* Mobile logo */}
-          <div className="md:hidden flex items-center gap-2 shrink-0">
+          <div className="lg:hidden flex items-center gap-2 shrink-0">
             <img src={focusLogo} alt="Focus" className="h-8 w-8 object-contain" />
           </div>
-          <div className="relative w-full">
+          <div className="relative w-full min-w-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={isMobile ? "Search..." : "Search employees, tasks, documents..."}
