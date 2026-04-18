@@ -1,4 +1,4 @@
-import { useState, Fragment, useMemo, useRef } from "react";
+import { useState, Fragment, useMemo, useRef, useEffect } from "react";
 import { useBreakSessions } from "@/hooks/useBreakSessions";
 import { BreakPauseCell, BreakPauseDetailPanel } from "@/components/attendance/BreakPauseDetail";
 import { ClientReportDownload } from "@/components/logsheet/ClientReportDownload";
@@ -115,6 +115,13 @@ const Reports = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
+  const [debouncedEmployeeSearch, setDebouncedEmployeeSearch] = useState("");
+
+  // Debounce search input to keep typing snappy on large lists
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedEmployeeSearch(employeeSearchQuery), 120);
+    return () => clearTimeout(t);
+  }, [employeeSearchQuery]);
 
   // VP edit state
   const [editRecord, setEditRecord] = useState<any>(null);
@@ -164,14 +171,21 @@ const Reports = () => {
     return Array.from(employeesMap.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name));
   }, [dailyAttendance]);
 
-  // Filter employees list based on search query
+  // Filter employees list based on debounced search query for snappy typing
   const filteredEmployeesList = useMemo(() => {
-    if (!employeeSearchQuery.trim()) return employeesList;
-    const query = employeeSearchQuery.toLowerCase();
+    if (!debouncedEmployeeSearch.trim()) return employeesList;
+    const query = debouncedEmployeeSearch.toLowerCase();
     return employeesList.filter(
       (emp) => emp.employee_name.toLowerCase().includes(query) || emp.email.toLowerCase().includes(query),
     );
-  }, [employeesList, employeeSearchQuery]);
+  }, [employeesList, debouncedEmployeeSearch]);
+
+  // Cap rendered options to keep the dropdown fast on large datasets
+  const MAX_VISIBLE_EMPLOYEES = 100;
+  const visibleEmployeesList = useMemo(
+    () => filteredEmployeesList.slice(0, MAX_VISIBLE_EMPLOYEES),
+    [filteredEmployeesList],
+  );
   // Add at the top with other state declarations
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -951,8 +965,6 @@ const Reports = () => {
                           onChange={(e) => {
                             e.stopPropagation();
                             setEmployeeSearchQuery(e.target.value);
-                            // Force refocus after Radix tries to steal it
-                            setTimeout(() => searchInputRef.current?.focus(), 0);
                           }}
                           onKeyDown={(e) => e.stopPropagation()}
                           onKeyUp={(e) => e.stopPropagation()}
@@ -962,11 +974,16 @@ const Reports = () => {
                         />
                       </div>
                       <SelectItem value="all">All Employees</SelectItem>
-                      {filteredEmployeesList.map((emp) => (
+                      {visibleEmployeesList.map((emp) => (
                         <SelectItem key={emp.user_id} value={emp.user_id}>
                           {emp.employee_name}
                         </SelectItem>
                       ))}
+                      {filteredEmployeesList.length > visibleEmployeesList.length && (
+                        <div className="p-2 text-xs text-muted-foreground text-center">
+                          Showing {visibleEmployeesList.length} of {filteredEmployeesList.length}. Refine your search…
+                        </div>
+                      )}
                       {filteredEmployeesList.length === 0 && employeeSearchQuery && (
                         <div className="p-2 text-sm text-muted-foreground text-center">No employees found</div>
                       )}
