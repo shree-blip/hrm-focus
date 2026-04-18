@@ -171,14 +171,21 @@ const Reports = () => {
     return Array.from(employeesMap.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name));
   }, [dailyAttendance]);
 
-  // Filter employees list based on search query
+  // Filter employees list based on debounced search query for snappy typing
   const filteredEmployeesList = useMemo(() => {
-    if (!employeeSearchQuery.trim()) return employeesList;
-    const query = employeeSearchQuery.toLowerCase();
+    if (!debouncedEmployeeSearch.trim()) return employeesList;
+    const query = debouncedEmployeeSearch.toLowerCase();
     return employeesList.filter(
       (emp) => emp.employee_name.toLowerCase().includes(query) || emp.email.toLowerCase().includes(query),
     );
-  }, [employeesList, employeeSearchQuery]);
+  }, [employeesList, debouncedEmployeeSearch]);
+
+  // Cap rendered options to keep the dropdown fast on large datasets
+  const MAX_VISIBLE_EMPLOYEES = 100;
+  const visibleEmployeesList = useMemo(
+    () => filteredEmployeesList.slice(0, MAX_VISIBLE_EMPLOYEES),
+    [filteredEmployeesList],
+  );
   // Add at the top with other state declarations
   const searchInputRef = useRef<HTMLInputElement>(null);
 
