@@ -115,6 +115,13 @@ const Reports = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
+  const [debouncedEmployeeSearch, setDebouncedEmployeeSearch] = useState("");
+
+  // Debounce search input to keep typing snappy on large lists
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedEmployeeSearch(employeeSearchQuery), 120);
+    return () => clearTimeout(t);
+  }, [employeeSearchQuery]);
 
   // VP edit state
   const [editRecord, setEditRecord] = useState<any>(null);
