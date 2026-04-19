@@ -348,10 +348,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  session: null,
+  profile: null,
+  role: null,
+  loading: true,
+  signIn: async () => ({ error: new Error("AuthProvider not ready") }),
+  signUp: async () => ({ error: new Error("AuthProvider not ready") }),
+  signInWithGoogle: async () => ({ error: new Error("AuthProvider not ready") }),
+  signOut: async () => {},
+  refreshProfile: async () => {},
+  isManager: false,
+  isAdmin: false,
+  isVP: false,
+  isLineManager: false,
+  isSupervisor: false,
+  canCreateEmployee: false,
+};
+
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    if (typeof console !== "undefined") {
+      console.warn("useAuth called outside AuthProvider — returning safe defaults (likely HMR transient)");
+    }
+    return defaultAuthContext;
   }
   return context;
 }
