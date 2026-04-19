@@ -45,8 +45,11 @@ export function useTasks() {
     try {
       // Fetch all data in parallel for faster loading
       const [tasksResult, assigneesResult, profilesResult, commentsResult] = await Promise.all([
-        supabase.from("tasks").select("*").order("created_at", { ascending: false }),
-        supabase.from("task_assignees").select("*"),
+        supabase
+          .from("tasks")
+          .select("id, title, description, client_name, client_id, assignee_id, created_by, priority, status, due_date, time_estimate, is_recurring, created_at")
+          .order("created_at", { ascending: false }),
+        supabase.from("task_assignees").select("task_id, user_id, assigned_by, assigned_at"),
         supabase.from("profiles").select("user_id, first_name, last_name"),
         supabase.from("task_comments").select("task_id"),
       ]);

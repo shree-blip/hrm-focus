@@ -191,7 +191,7 @@ export function useEmployees() {
       return null;
     }
 
-    const { data, error } = await supabase.from("employees").insert(employee).select().single();
+    const { data, error } = await supabase.from("employees").insert(employee).select("id, first_name, last_name, email").single();
 
     if (error) {
       toast({ title: "Error", description: "Failed to add employee", variant: "destructive" });
