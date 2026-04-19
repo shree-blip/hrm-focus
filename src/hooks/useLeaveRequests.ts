@@ -143,7 +143,7 @@ export function useLeaveRequests() {
 
     const { data, error } = await supabase
       .from("leave_requests")
-      .select("*")
+      .select("id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -180,7 +180,7 @@ export function useLeaveRequests() {
 
     const { data, error } = await supabase
       .from("leave_requests")
-      .select("*")
+      .select("id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at")
       .eq("status", "approved")
       .order("start_date", { ascending: true });
 
@@ -212,7 +212,7 @@ export function useLeaveRequests() {
 
     const { data, error } = await supabase
       .from("leave_requests")
-      .select("*")
+      .select("id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at")
       .eq("status", "pending")
       .neq("user_id", user.id)
       .order("created_at", { ascending: false });
@@ -246,10 +246,11 @@ export function useLeaveRequests() {
   const fetchAllTeamRequests = useCallback(async () => {
     if (!user || !isManager) return [];
 
+    const cols = "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at";
     if (role === "admin" || role === "vp") {
       const { data, error } = await supabase
         .from("leave_requests")
-        .select("*")
+        .select(cols)
         .neq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) return [];
@@ -259,7 +260,7 @@ export function useLeaveRequests() {
     if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
       const { data, error } = await supabase
         .from("leave_requests")
-        .select("*")
+        .select(cols)
         .neq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) return [];
@@ -287,7 +288,7 @@ export function useLeaveRequests() {
 
     const { data, error } = await supabase
       .from("leave_requests")
-      .select("*")
+      .select("id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at")
       .eq("status", "approved")
       .gte("end_date", todayStr)
       .order("start_date", { ascending: true });
@@ -358,7 +359,7 @@ export function useLeaveRequests() {
 
     const { data: balanceConfigs, error: configError } = await supabase
       .from("leave_balances")
-      .select("*")
+      .select("id, leave_type, total_days, used_days")
       .eq("user_id", user.id)
       .eq("year", currentYear);
 
