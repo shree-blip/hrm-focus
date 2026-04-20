@@ -227,7 +227,7 @@ const Index = () => {
         </div>
 
         {!isMobile && (
-          <div className="space-y-6 pb-24">
+          <div className="space-y-6">
             <ClockWidget />
             <Suspense fallback={<WidgetCardSkeleton delay={100} />}>
               <RealTimeAttendanceWidget />
