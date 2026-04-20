@@ -679,27 +679,36 @@ const Leave = () => {
                     const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-                    const isUserOnLeave =
-                      !isWeekend &&
-                      ownRequests.some((r) => {
-                        if (r.status !== "approved" || r.user_id !== user?.id) return false;
-                        const startDate = new Date(r.start_date);
-                        startDate.setHours(0, 0, 0, 0);
-                        const endDate = new Date(r.end_date);
-                        endDate.setHours(0, 0, 0, 0);
-                        return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
-                      });
+                    // Collect all approved leaves overlapping this date
+                    const leavesOnDay = !isWeekend
+                      ? allApprovedLeaves.filter((r) => {
+                          const startDate = new Date(r.start_date);
+                          startDate.setHours(0, 0, 0, 0);
+                          const endDate = new Date(r.end_date);
+                          endDate.setHours(0, 0, 0, 0);
+                          return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
+                        })
+                      : [];
 
-                    const othersOnLeave =
-                      !isWeekend &&
-                      allApprovedLeaves.some((r) => {
-                        if (r.user_id === user?.id) return false;
-                        const startDate = new Date(r.start_date);
-                        startDate.setHours(0, 0, 0, 0);
-                        const endDate = new Date(r.end_date);
-                        endDate.setHours(0, 0, 0, 0);
-                        return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
-                      });
+                    const userLeave = leavesOnDay.find((r) => r.user_id === user?.id);
+                    const otherLeaves = leavesOnDay.filter((r) => r.user_id !== user?.id);
+                    const isUserOnLeave = !!userLeave;
+                    const othersOnLeave = otherLeaves.length > 0;
+
+                    // Background highlight uses the first other person's color
+                    const firstOtherColor = otherLeaves[0] ? getColorForUser(otherLeaves[0].user_id) : null;
+
+                    const tooltipText = leavesOnDay
+                      .map((r) => {
+                        const name =
+                          r.user_id === user?.id
+                            ? "You"
+                            : r.profile
+                              ? `${r.profile.first_name} ${r.profile.last_name}`
+                              : "Employee";
+                        return `${name}: ${format(new Date(r.start_date), "MMM d")} – ${format(new Date(r.end_date), "MMM d")}`;
+                      })
+                      .join("\n");
 
                     return (
                       <div
@@ -711,18 +720,24 @@ const Leave = () => {
                           othersOnLeave &&
                             !isUserOnLeave &&
                             !isToday &&
-                            "bg-warning/50 text-black font-medium border border-warning/70",
+                            cn("text-black font-medium border", firstOtherColor?.bg, firstOtherColor?.border),
                         )}
-                        title={isUserOnLeave ? "You are on leave" : othersOnLeave ? "Team member(s) on leave" : ""}
+                        title={tooltipText}
                       >
                         {day}
-                        {(isUserOnLeave || othersOnLeave) && !isToday && (
-                          <div
-                            className={cn(
-                              "absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full",
-                              isUserOnLeave ? "bg-success" : "bg-warning",
+                        {leavesOnDay.length > 0 && !isToday && (
+                          <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5">
+                            {leavesOnDay.slice(0, 4).map((r) => {
+                              const c =
+                                r.user_id === user?.id ? { dot: "bg-success" } : getColorForUser(r.user_id);
+                              return <div key={r.id} className={cn("h-1 w-1 rounded-full", c.dot)} />;
+                            })}
+                            {leavesOnDay.length > 4 && (
+                              <div className="text-[7px] leading-none text-foreground/70">
+                                +{leavesOnDay.length - 4}
+                              </div>
                             )}
-                          />
+                          </div>
                         )}
                       </div>
                     );
@@ -735,8 +750,12 @@ const Leave = () => {
                     <span>Your leave</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="h-3 w-3 rounded bg-warning/50 border border-warning/70" />
-                    <span>Others on leave</span>
+                    <div className="flex items-center gap-0.5">
+                      <div className="h-2 w-2 rounded-full bg-rose-500" />
+                      <div className="h-2 w-2 rounded-full bg-sky-500" />
+                      <div className="h-2 w-2 rounded-full bg-violet-500" />
+                    </div>
+                    <span>Each teammate has their own color</span>
                   </div>
                 </div>
 
