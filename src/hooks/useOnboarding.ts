@@ -659,6 +659,26 @@ export function useOnboarding() {
     }
   };
 
+  // Delete an offboarding workflow (admin/CEO only)
+  const deleteOffboarding = async (workflowId: string) => {
+    if (!user || !isManager) return;
+
+    try {
+      const { error } = await supabase.from("offboarding_workflows").delete().eq("id", workflowId);
+
+      if (error) {
+        console.error("Error deleting offboarding workflow:", error);
+        toast({ title: "Error", description: "Failed to delete offboarding", variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Deleted", description: "Offboarding workflow removed" });
+      await fetchWorkflows();
+    } catch (err) {
+      console.error("Error in deleteOffboarding:", err);
+    }
+  };
+
   // Cancel onboarding (soft delete)
   const cancelOnboarding = async (workflowId: string) => {
     if (!user || !isManager) return;
