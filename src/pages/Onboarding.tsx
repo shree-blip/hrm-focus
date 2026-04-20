@@ -606,16 +606,31 @@ const Onboarding = () => {
                                 </h3>
                                 <p className="text-sm text-muted-foreground">{employee?.job_title || "Employee"}</p>
                               </div>
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  workflow.status === "completed" && "border-success text-success bg-success/10",
-                                  workflow.status === "in-progress" && "border-warning text-warning bg-warning/10",
-                                  workflow.status === "pending" && "border-muted-foreground",
-                                )}
-                              >
-                                {workflow.status}
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    workflow.status === "completed" && "border-success text-success bg-success/10",
+                                    workflow.status === "in-progress" && "border-warning text-warning bg-warning/10",
+                                    workflow.status === "pending" && "border-muted-foreground",
+                                  )}
+                                >
+                                  {workflow.status}
+                                </Badge>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                      onClick={() => confirmDeleteOffboarding(workflow.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete workflow</TooltipContent>
+                                </Tooltip>
+                              </div>
                             </div>
                             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                               <span>Last Day: {format(lastDay, "MMM d, yyyy")}</span>
