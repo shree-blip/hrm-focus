@@ -84,6 +84,14 @@ const Onboarding = () => {
     "onboarding:workflowToDelete",
     null,
   );
+  const [offboardingDeleteDialogOpen, setOffboardingDeleteDialogOpen] = usePersistentState(
+    "onboarding:offboardingDeleteDialogOpen",
+    false,
+  );
+  const [offboardingToDelete, setOffboardingToDelete] = usePersistentState<string | null>(
+    "onboarding:offboardingToDelete",
+    null,
+  );
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [lastWorkingDate, setLastWorkingDate] = useState("");
   const [offboardingReason, setOffboardingReason] = useState("");
