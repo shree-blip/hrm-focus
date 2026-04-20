@@ -838,13 +838,24 @@ const Leave = () => {
                               ? `${r.profile.first_name} ${r.profile.last_name}`
                               : "Employee";
                         const isCurrentUser = r.user_id === user?.id;
+                        const color = isCurrentUser ? null : getColorForUser(r.user_id);
                         return (
                           <div key={r.id} className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2">
                               <div
-                                className={cn("h-2 w-2 rounded-full", isCurrentUser ? "bg-success" : "bg-warning")}
+                                className={cn(
+                                  "h-2.5 w-2.5 rounded-full",
+                                  isCurrentUser ? "bg-success" : color?.dot,
+                                )}
                               />
-                              <span className={cn("font-medium", isCurrentUser && "text-success")}>{employeeName}</span>
+                              <span
+                                className={cn(
+                                  "font-medium",
+                                  isCurrentUser ? "text-success" : color?.text,
+                                )}
+                              >
+                                {employeeName}
+                              </span>
                             </div>
                             <span className="text-muted-foreground text-xs">
                               {format(new Date(r.start_date), "MMM d")} - {format(new Date(r.end_date), "MMM d")}
