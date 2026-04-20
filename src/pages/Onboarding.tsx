@@ -135,6 +135,18 @@ const Onboarding = () => {
     setDeleteDialogOpen(true);
   };
 
+  const handleDeleteOffboarding = async () => {
+    if (!offboardingToDelete) return;
+    await deleteOffboarding(offboardingToDelete);
+    setOffboardingDeleteDialogOpen(false);
+    setOffboardingToDelete(null);
+  };
+
+  const confirmDeleteOffboarding = (workflowId: string) => {
+    setOffboardingToDelete(workflowId);
+    setOffboardingDeleteDialogOpen(true);
+  };
+
   const activeWorkflows = workflows.filter((w) => w.status !== "completed");
   const completedWorkflows = workflows.filter((w) => w.status === "completed");
   const activeOffboarding = offboardingWorkflows.filter((w) => w.status !== "completed");
