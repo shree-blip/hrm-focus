@@ -64,6 +64,7 @@ const Onboarding = () => {
     createNewHireWithOnboarding,
     toggleTask,
     deleteOnboarding,
+    deleteOffboarding,
     createOffboarding,
     updateOffboarding,
     getProgress,
