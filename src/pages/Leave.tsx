@@ -95,6 +95,32 @@ const Leave = () => {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
+  // ── Per-user consistent color palette for the Team Calendar ──
+  // Each user_id is mapped deterministically to one color from this palette,
+  // so the same person always gets the same dot/highlight color.
+  const LEAVE_USER_PALETTE: { bg: string; border: string; dot: string; text: string; hex: string }[] = [
+    { bg: "bg-rose-400/60", border: "border-rose-500", dot: "bg-rose-500", text: "text-rose-700 dark:text-rose-300", hex: "#f43f5e" },
+    { bg: "bg-amber-400/60", border: "border-amber-500", dot: "bg-amber-500", text: "text-amber-700 dark:text-amber-300", hex: "#f59e0b" },
+    { bg: "bg-emerald-400/60", border: "border-emerald-500", dot: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300", hex: "#10b981" },
+    { bg: "bg-sky-400/60", border: "border-sky-500", dot: "bg-sky-500", text: "text-sky-700 dark:text-sky-300", hex: "#0ea5e9" },
+    { bg: "bg-violet-400/60", border: "border-violet-500", dot: "bg-violet-500", text: "text-violet-700 dark:text-violet-300", hex: "#8b5cf6" },
+    { bg: "bg-pink-400/60", border: "border-pink-500", dot: "bg-pink-500", text: "text-pink-700 dark:text-pink-300", hex: "#ec4899" },
+    { bg: "bg-teal-400/60", border: "border-teal-500", dot: "bg-teal-500", text: "text-teal-700 dark:text-teal-300", hex: "#14b8a6" },
+    { bg: "bg-orange-400/60", border: "border-orange-500", dot: "bg-orange-500", text: "text-orange-700 dark:text-orange-300", hex: "#f97316" },
+    { bg: "bg-indigo-400/60", border: "border-indigo-500", dot: "bg-indigo-500", text: "text-indigo-700 dark:text-indigo-300", hex: "#6366f1" },
+    { bg: "bg-lime-400/60", border: "border-lime-500", dot: "bg-lime-500", text: "text-lime-700 dark:text-lime-300", hex: "#84cc16" },
+    { bg: "bg-fuchsia-400/60", border: "border-fuchsia-500", dot: "bg-fuchsia-500", text: "text-fuchsia-700 dark:text-fuchsia-300", hex: "#d946ef" },
+    { bg: "bg-cyan-400/60", border: "border-cyan-500", dot: "bg-cyan-500", text: "text-cyan-700 dark:text-cyan-300", hex: "#06b6d4" },
+  ];
+
+  const getColorForUser = (userId: string) => {
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
+    }
+    return LEAVE_USER_PALETTE[hash % LEAVE_USER_PALETTE.length];
+  };
+
   // Get team members currently on leave (excluding current user)
   const getTeamMembersOnLeave = () => {
     const today = new Date();
@@ -653,27 +679,36 @@ const Leave = () => {
                     const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-                    const isUserOnLeave =
-                      !isWeekend &&
-                      ownRequests.some((r) => {
-                        if (r.status !== "approved" || r.user_id !== user?.id) return false;
-                        const startDate = new Date(r.start_date);
-                        startDate.setHours(0, 0, 0, 0);
-                        const endDate = new Date(r.end_date);
-                        endDate.setHours(0, 0, 0, 0);
-                        return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
-                      });
+                    // Collect all approved leaves overlapping this date
+                    const leavesOnDay = !isWeekend
+                      ? allApprovedLeaves.filter((r) => {
+                          const startDate = new Date(r.start_date);
+                          startDate.setHours(0, 0, 0, 0);
+                          const endDate = new Date(r.end_date);
+                          endDate.setHours(0, 0, 0, 0);
+                          return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
+                        })
+                      : [];
 
-                    const othersOnLeave =
-                      !isWeekend &&
-                      allApprovedLeaves.some((r) => {
-                        if (r.user_id === user?.id) return false;
-                        const startDate = new Date(r.start_date);
-                        startDate.setHours(0, 0, 0, 0);
-                        const endDate = new Date(r.end_date);
-                        endDate.setHours(0, 0, 0, 0);
-                        return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
-                      });
+                    const userLeave = leavesOnDay.find((r) => r.user_id === user?.id);
+                    const otherLeaves = leavesOnDay.filter((r) => r.user_id !== user?.id);
+                    const isUserOnLeave = !!userLeave;
+                    const othersOnLeave = otherLeaves.length > 0;
+
+                    // Background highlight uses the first other person's color
+                    const firstOtherColor = otherLeaves[0] ? getColorForUser(otherLeaves[0].user_id) : null;
+
+                    const tooltipText = leavesOnDay
+                      .map((r) => {
+                        const name =
+                          r.user_id === user?.id
+                            ? "You"
+                            : r.profile
+                              ? `${r.profile.first_name} ${r.profile.last_name}`
+                              : "Employee";
+                        return `${name}: ${format(new Date(r.start_date), "MMM d")} – ${format(new Date(r.end_date), "MMM d")}`;
+                      })
+                      .join("\n");
 
                     return (
                       <div
@@ -685,18 +720,24 @@ const Leave = () => {
                           othersOnLeave &&
                             !isUserOnLeave &&
                             !isToday &&
-                            "bg-warning/50 text-black font-medium border border-warning/70",
+                            cn("text-black font-medium border", firstOtherColor?.bg, firstOtherColor?.border),
                         )}
-                        title={isUserOnLeave ? "You are on leave" : othersOnLeave ? "Team member(s) on leave" : ""}
+                        title={tooltipText}
                       >
                         {day}
-                        {(isUserOnLeave || othersOnLeave) && !isToday && (
-                          <div
-                            className={cn(
-                              "absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full",
-                              isUserOnLeave ? "bg-success" : "bg-warning",
+                        {leavesOnDay.length > 0 && !isToday && (
+                          <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5">
+                            {leavesOnDay.slice(0, 4).map((r) => {
+                              const c =
+                                r.user_id === user?.id ? { dot: "bg-success" } : getColorForUser(r.user_id);
+                              return <div key={r.id} className={cn("h-1 w-1 rounded-full", c.dot)} />;
+                            })}
+                            {leavesOnDay.length > 4 && (
+                              <div className="text-[7px] leading-none text-foreground/70">
+                                +{leavesOnDay.length - 4}
+                              </div>
                             )}
-                          />
+                          </div>
                         )}
                       </div>
                     );
@@ -709,8 +750,12 @@ const Leave = () => {
                     <span>Your leave</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="h-3 w-3 rounded bg-warning/50 border border-warning/70" />
-                    <span>Others on leave</span>
+                    <div className="flex items-center gap-0.5">
+                      <div className="h-2 w-2 rounded-full bg-rose-500" />
+                      <div className="h-2 w-2 rounded-full bg-sky-500" />
+                      <div className="h-2 w-2 rounded-full bg-violet-500" />
+                    </div>
+                    <span>Each teammate has their own color</span>
                   </div>
                 </div>
 
@@ -740,19 +785,30 @@ const Leave = () => {
                               ? `${r.profile.first_name} ${r.profile.last_name}`
                               : "Employee";
                         const isCurrentUser = r.user_id === user?.id;
+                        const color = isCurrentUser ? null : getColorForUser(r.user_id);
                         return (
                           <div key={r.id} className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2">
                               <div
-                                className={cn("h-2 w-2 rounded-full", isCurrentUser ? "bg-success" : "bg-warning")}
+                                className={cn(
+                                  "h-2.5 w-2.5 rounded-full",
+                                  isCurrentUser ? "bg-success" : color?.dot,
+                                )}
                               />
-                              <span className={cn("font-medium", isCurrentUser && "text-success")}>{employeeName}</span>
+                              <span
+                                className={cn(
+                                  "font-medium",
+                                  isCurrentUser ? "text-success" : color?.text,
+                                )}
+                              >
+                                {employeeName}
+                              </span>
                               <Badge variant="outline" className="text-xs">
                                 {r.leave_type.replace(" Leave", "")}
                               </Badge>
                             </div>
                             <span className="text-muted-foreground text-xs">
-                              {format(new Date(r.end_date), "MMM d")}
+                              {format(new Date(r.start_date), "MMM d")} - {format(new Date(r.end_date), "MMM d")}
                             </span>
                           </div>
                         );
@@ -782,13 +838,24 @@ const Leave = () => {
                               ? `${r.profile.first_name} ${r.profile.last_name}`
                               : "Employee";
                         const isCurrentUser = r.user_id === user?.id;
+                        const color = isCurrentUser ? null : getColorForUser(r.user_id);
                         return (
                           <div key={r.id} className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2">
                               <div
-                                className={cn("h-2 w-2 rounded-full", isCurrentUser ? "bg-success" : "bg-warning")}
+                                className={cn(
+                                  "h-2.5 w-2.5 rounded-full",
+                                  isCurrentUser ? "bg-success" : color?.dot,
+                                )}
                               />
-                              <span className={cn("font-medium", isCurrentUser && "text-success")}>{employeeName}</span>
+                              <span
+                                className={cn(
+                                  "font-medium",
+                                  isCurrentUser ? "text-success" : color?.text,
+                                )}
+                              >
+                                {employeeName}
+                              </span>
                             </div>
                             <span className="text-muted-foreground text-xs">
                               {format(new Date(r.start_date), "MMM d")} - {format(new Date(r.end_date), "MMM d")}
