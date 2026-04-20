@@ -64,6 +64,7 @@ const Onboarding = () => {
     createNewHireWithOnboarding,
     toggleTask,
     deleteOnboarding,
+    deleteOffboarding,
     createOffboarding,
     updateOffboarding,
     getProgress,
@@ -81,6 +82,14 @@ const Onboarding = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = usePersistentState("onboarding:deleteDialogOpen", false);
   const [workflowToDelete, setWorkflowToDelete] = usePersistentState<string | null>(
     "onboarding:workflowToDelete",
+    null,
+  );
+  const [offboardingDeleteDialogOpen, setOffboardingDeleteDialogOpen] = usePersistentState(
+    "onboarding:offboardingDeleteDialogOpen",
+    false,
+  );
+  const [offboardingToDelete, setOffboardingToDelete] = usePersistentState<string | null>(
+    "onboarding:offboardingToDelete",
     null,
   );
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
@@ -124,6 +133,18 @@ const Onboarding = () => {
   const confirmDelete = (workflowId: string) => {
     setWorkflowToDelete(workflowId);
     setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteOffboarding = async () => {
+    if (!offboardingToDelete) return;
+    await deleteOffboarding(offboardingToDelete);
+    setOffboardingDeleteDialogOpen(false);
+    setOffboardingToDelete(null);
+  };
+
+  const confirmDeleteOffboarding = (workflowId: string) => {
+    setOffboardingToDelete(workflowId);
+    setOffboardingDeleteDialogOpen(true);
   };
 
   const activeWorkflows = workflows.filter((w) => w.status !== "completed");
@@ -585,16 +606,31 @@ const Onboarding = () => {
                                 </h3>
                                 <p className="text-sm text-muted-foreground">{employee?.job_title || "Employee"}</p>
                               </div>
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  workflow.status === "completed" && "border-success text-success bg-success/10",
-                                  workflow.status === "in-progress" && "border-warning text-warning bg-warning/10",
-                                  workflow.status === "pending" && "border-muted-foreground",
-                                )}
-                              >
-                                {workflow.status}
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    workflow.status === "completed" && "border-success text-success bg-success/10",
+                                    workflow.status === "in-progress" && "border-warning text-warning bg-warning/10",
+                                    workflow.status === "pending" && "border-muted-foreground",
+                                  )}
+                                >
+                                  {workflow.status}
+                                </Badge>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                      onClick={() => confirmDeleteOffboarding(workflow.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete workflow</TooltipContent>
+                                </Tooltip>
+                              </div>
                             </div>
                             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                               <span>Last Day: {format(lastDay, "MMM d, yyyy")}</span>
@@ -785,6 +821,26 @@ const Onboarding = () => {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDeleteWorkflow}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={offboardingDeleteDialogOpen} onOpenChange={setOffboardingDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Offboarding Workflow?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete this offboarding workflow. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteOffboarding}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Delete
