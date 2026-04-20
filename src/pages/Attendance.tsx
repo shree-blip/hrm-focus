@@ -151,10 +151,14 @@ const Attendance = () => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "attendance_break_sessions", filter: `user_id=eq.${user.id}` },
-        () => { clearBreakCache(); }
+        () => {
+          clearBreakCache();
+        },
       )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [user, clearBreakCache]);
 
   const { myRequests, teamRequests, submitRequest, reviewRequest, overrideRequest, getAdjustmentStatus } =
@@ -372,14 +376,20 @@ const Attendance = () => {
     }
 
     // Determine max break/pause counts for dynamic columns
-    const maxBreaks = Math.max(1, weeklyLogs.reduce((max: number, log: any) => {
-      const s = sessionsMap.get(log.id) || [];
-      return Math.max(max, s.filter((x: any) => x.session_type === "break").length);
-    }, 0));
-    const maxPauses = Math.max(1, weeklyLogs.reduce((max: number, log: any) => {
-      const s = sessionsMap.get(log.id) || [];
-      return Math.max(max, s.filter((x: any) => x.session_type === "pause").length);
-    }, 0));
+    const maxBreaks = Math.max(
+      1,
+      weeklyLogs.reduce((max: number, log: any) => {
+        const s = sessionsMap.get(log.id) || [];
+        return Math.max(max, s.filter((x: any) => x.session_type === "break").length);
+      }, 0),
+    );
+    const maxPauses = Math.max(
+      1,
+      weeklyLogs.reduce((max: number, log: any) => {
+        const s = sessionsMap.get(log.id) || [];
+        return Math.max(max, s.filter((x: any) => x.session_type === "pause").length);
+      }, 0),
+    );
 
     // Build dynamic header matching Reports page format
     let header = "Date,Clock In";
@@ -402,8 +412,10 @@ const Attendance = () => {
       const breaks = allSessions.filter((s: any) => s.session_type === "break");
       const pauses = allSessions.filter((s: any) => s.session_type === "pause");
 
-      const totalBreakMinutes = log.total_break_minutes || breaks.reduce((sum: number, b: any) => sum + (b.duration_minutes || 0), 0);
-      const totalPauseMinutes = log.total_pause_minutes || pauses.reduce((sum: number, p: any) => sum + (p.duration_minutes || 0), 0);
+      const totalBreakMinutes =
+        log.total_break_minutes || breaks.reduce((sum: number, b: any) => sum + (b.duration_minutes || 0), 0);
+      const totalPauseMinutes =
+        log.total_pause_minutes || pauses.reduce((sum: number, p: any) => sum + (p.duration_minutes || 0), 0);
 
       let totalHoursStr = "In Progress";
       if (clockOutTime) {
@@ -538,7 +550,9 @@ const Attendance = () => {
             )}
 
             <div className="text-center py-6 sm:py-8 rounded-xl bg-secondary/50 border border-border">
-              <p className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold tracking-wider text-foreground">{elapsedTime}</p>
+              <p className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold tracking-wider text-foreground">
+                {elapsedTime}
+              </p>
 
               {currentLog && !currentLog.clock_out && (
                 <p className="text-sm text-muted-foreground mt-2">
@@ -914,10 +928,7 @@ const Attendance = () => {
 
                   return (
                     <Fragment key={log.id}>
-                      <TableRow
-                        className="animate-fade-in"
-                        style={{ animationDelay: `${400 + index * 50}ms` }}
-                      >
+                      <TableRow className="animate-fade-in" style={{ animationDelay: `${400 + index * 50}ms` }}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-1.5">
                             {getWorkDateDisplay(log.clock_in, tz)}
@@ -994,10 +1005,20 @@ const Attendance = () => {
                                   {reviewerName && (
                                     <span className="text-xs text-muted-foreground">by {reviewerName}</span>
                                   )}
+                                  {adj.reviewer_comment && (
+                                    <span className="text-xs text-muted-foreground max-w-[180px] text-right break-words">
+                                      Reply: {adj.reviewer_comment}
+                                    </span>
+                                  )}
                                   {adj.override_status && (
                                     <Badge variant="outline" className="text-xs border-amber-500 text-amber-600">
                                       Overridden
                                     </Badge>
+                                  )}
+                                  {adj.override_comment && (
+                                    <span className="text-xs text-muted-foreground max-w-[180px] text-right break-words">
+                                      Override reply: {adj.override_comment}
+                                    </span>
                                   )}
                                 </div>
                               );
