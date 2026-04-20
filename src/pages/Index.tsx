@@ -58,12 +58,10 @@ const Index = () => {
     return t.due_date === today && t.status !== "done";
   }).length;
 
+  // Use company timezone (Asia/Kathmandu) so all viewers see the same "today"
+  // regardless of their PC's local date/time settings.
   const todayStr = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kathmandu" });
   }, []);
 
   const pendingLeaves = useMemo(() => {
