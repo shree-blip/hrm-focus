@@ -856,6 +856,7 @@ export function useOnboarding() {
     uncompleteTask,
     toggleTask,
     deleteOnboarding,
+    deleteOffboarding,
     cancelOnboarding,
     createOffboarding,
     updateOffboarding,
