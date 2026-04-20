@@ -597,7 +597,7 @@ const Leave = () => {
           </Card>
 
           {/* Team Calendar & Upcoming */}
-          <div className="space-y-6">
+          <div className="space-y-6 pb-24">
             <Card
               className="animate-slide-up opacity-0"
               style={{ animationDelay: "400ms", animationFillMode: "forwards" }}
