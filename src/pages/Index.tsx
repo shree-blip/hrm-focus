@@ -145,7 +145,11 @@ const Index = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+    <div
+        className={`grid grid-cols-2 ${
+          showLieuCard ? "lg:grid-cols-5" : "lg:grid-cols-4"
+        } gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8`}
+      >
         {isManager ? (
           <StatCard
             title="Total Employees"
@@ -201,6 +205,8 @@ const Index = () => {
           delay={250}
           onClick={() => navigate(isManager ? "/approvals" : "/leave")}
         />
+       {showLieuCard && <LeaveInLieuAlert delay={300} />}
+      </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
