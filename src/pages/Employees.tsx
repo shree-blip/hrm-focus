@@ -1327,12 +1327,17 @@ const Employees = () => {
                   <div className="flex items-baseline gap-1">
                     <span className="text-lg font-bold text-foreground">{lb.remaining_days}</span>
                     <span className="text-xs text-muted-foreground">/ {lb.total_days} remaining</span>
+                    {lb.used_days > lb.total_days && (
+                      <span className="ml-1 text-xs font-semibold text-destructive">
+                        +{lb.used_days - lb.total_days} over
+                      </span>
+                    )}
                   </div>
                   <div className="w-full bg-muted rounded-full h-1.5">
                     <div
                       className={cn(
                         "h-1.5 rounded-full transition-all",
-                        lb.total_days > 0 && lb.used_days / lb.total_days > 0.8
+                        lb.total_days > 0 && lb.used_days >= lb.total_days
                           ? "bg-destructive"
                           : lb.total_days > 0 && lb.used_days / lb.total_days > 0.5
                             ? "bg-yellow-500"

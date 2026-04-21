@@ -1,0 +1,1 @@
+ALTER TABLE public.leave_balances DROP CONSTRAINT IF EXISTS check_used_not_exceed_total;

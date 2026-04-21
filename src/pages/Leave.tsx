@@ -347,9 +347,18 @@ const Leave = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Annual Leave Balance</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()} days
-                  </p>
+                  {(() => {
+                    const remaining = getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal();
+                    const over = remaining < 0 ? -remaining : 0;
+                    return (
+                      <p className="text-2xl font-bold mt-1">
+                        {Math.max(0, remaining)} days
+                        {over > 0 && (
+                          <span className="ml-1 text-sm font-semibold text-destructive">+{over} over</span>
+                        )}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Calendar className="h-6 w-6 text-primary" />
@@ -417,18 +426,31 @@ const Leave = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-medium text-muted-foreground">Annual Leave</p>
-                <Badge variant="secondary">{getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()} days left</Badge>
+                <Badge variant="secondary">
+                  {(() => {
+                    const r = getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal();
+                    return r >= 0 ? `${r} days left` : `+${-r} over`;
+                  })()}
+                </Badge>
               </div>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-display font-bold">
-                    {getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()}
+                    {getAnnualLeaveUsedTotal()}
                   </span>
-                  <span className="text-muted-foreground">/ {getAnnualLeaveTotalDays()} days</span>
+                  <span className="text-muted-foreground">/ {getAnnualLeaveTotalDays()} days used</span>
+                  {getAnnualLeaveUsedTotal() > getAnnualLeaveTotalDays() && (
+                    <span className="ml-2 text-sm font-semibold text-destructive">
+                      +{getAnnualLeaveUsedTotal() - getAnnualLeaveTotalDays()} over
+                    </span>
+                  )}
                 </div>
                 <div className="h-2 bg-secondary rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-full transition-all duration-500 bg-primary"
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      getAnnualLeaveUsedTotal() > getAnnualLeaveTotalDays() ? "bg-destructive" : "bg-primary",
+                    )}
                     style={{
                       width: `${Math.min((getAnnualLeaveUsedTotal() / getAnnualLeaveTotalDays()) * 100, 100)}%`,
                     }}
