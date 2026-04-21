@@ -442,42 +442,50 @@ export function ClientReportDownload() {
     setHasSearched(true);
 
     try {
-      let query = supabase
-        .from("work_logs")
-        .select(
-          `
-          id,
-          log_date,
-          task_description,
-          time_spent_minutes,
-          notes,
-          start_time,
-          end_time,
-          status,
-          department,
-          employee:employees(first_name, last_name, department),
-          client:clients(name, client_id)
-        `,
-        )
-        .gte("log_date", format(startDate, "yyyy-MM-dd"))
-        .lte("log_date", format(endDate, "yyyy-MM-dd"))
-        .order("log_date", { ascending: false });
+      // Paginate to bypass Supabase's default 1000-row cap so that long
+      // date ranges (e.g. a full month) return ALL entries, not just the
+      // most recent 1000 (which previously cut off the earliest days).
+      const PAGE_SIZE = 1000;
+      const allRows: ReportLog[] = [];
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        let query = supabase
+          .from("work_logs")
+          .select(
+            `
+            id,
+            log_date,
+            task_description,
+            time_spent_minutes,
+            notes,
+            start_time,
+            end_time,
+            status,
+            department,
+            employee:employees(first_name, last_name, department),
+            client:clients(name, client_id)
+          `,
+          )
+          .gte("log_date", format(startDate, "yyyy-MM-dd"))
+          .lte("log_date", format(endDate, "yyyy-MM-dd"))
+          .order("log_date", { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
 
-      // Apply filters only if selected
-      if (selectedClient) {
-        query = query.eq("client_id", selectedClient);
-      }
-      if (selectedEmployee) {
-        query = query.eq("employee_id", selectedEmployee);
-      }
-      if (selectedDepartment) {
-        query = query.eq("department", selectedDepartment);
+        if (selectedClient) query = query.eq("client_id", selectedClient);
+        if (selectedEmployee) query = query.eq("employee_id", selectedEmployee);
+        if (selectedDepartment) query = query.eq("department", selectedDepartment);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const batch = (data as ReportLog[]) || [];
+        allRows.push(...batch);
+        if (batch.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setReportLogs((data as ReportLog[]) || []);
+      setReportLogs(allRows);
     } catch (error: any) {
       console.error("Error fetching report:", error);
       toast({
