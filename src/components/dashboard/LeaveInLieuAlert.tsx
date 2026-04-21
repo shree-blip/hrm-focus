@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CalendarCheck, CalendarX, Sparkles } from "lucide-react";
 
@@ -131,20 +131,6 @@ export function LeaveInLieuAlert({ delay = 300 }: { delay?: number }) {
 
   const workedOffDays = useWorkedOffDays();
 
-  const storageKey = profile?.user_id ? `lieu-alert-dismissed-${profile.user_id}` : "lieu-alert-dismissed";
-
-  useEffect(() => {
-    if (workedOffDays.length === 0) return;
-    let dismissed: string[] = [];
-    try {
-      dismissed = JSON.parse(sessionStorage.getItem(storageKey) || "[]");
-    } catch {
-      dismissed = [];
-    }
-    const hasNew = workedOffDays.some((w) => !dismissed.includes(w.dateStr));
-    if (hasNew) setDialogOpen(true);
-  }, [workedOffDays, storageKey]);
-
   if (workedOffDays.length === 0) return null;
 
   const firstName = profile?.first_name || "there";
@@ -154,21 +140,11 @@ export function LeaveInLieuAlert({ delay = 300 }: { delay?: number }) {
     workedOffDays[0].windowEnd,
   );
 
-  const markDismissed = () => {
-    try {
-      sessionStorage.setItem(storageKey, JSON.stringify(workedOffDays.map((w) => w.dateStr)));
-    } catch {
-      // storage unavailable — silently skip
-    }
-  };
-
   const handleCloseDialog = () => {
-    markDismissed();
     setDialogOpen(false);
   };
 
   const handleRequestLeave = () => {
-    markDismissed();
     setDialogOpen(false);
     navigate("/leave");
   };
