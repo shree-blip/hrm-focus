@@ -195,8 +195,41 @@ const Attendance = () => {
       }
     });
 
+    // 2. Add holidays and manual leave events from calendar (dynamic)
+    calendarEvents.forEach((event) => {
+      if (!event.is_active) return;
+      if (event.event_type === "holiday") {
+        const key = event.event_date;
+        const dateObj = parseDateOnly(key);
+        const dayOfWeek = dateObj.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) return;
+        leaveHoursMap.set(key, STANDARD_HOURS_PER_DAY);
+      }
+      if (event.event_type === "leave" && event.created_by === user?.id) {
+        const key = event.event_date;
+        const dateObj = parseDateOnly(key);
+        const dayOfWeek = dateObj.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) return;
+        leaveHoursMap.set(key, STANDARD_HOURS_PER_DAY);
+      }
+    });
+
+    // 3. Add static holidays from calendarEntries
+    calendarEntries.forEach((entry) => {
+      if (entry.type === "holiday") {
+        const dateObj = entry.date;
+        const dayOfWeek = dateObj.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) return;
+        const key = format(dateObj, "yyyy-MM-dd");
+        // Only add if not already present (dynamic events take precedence)
+        if (!leaveHoursMap.has(key)) {
+          leaveHoursMap.set(key, STANDARD_HOURS_PER_DAY);
+        }
+      }
+    });
+
     return leaveHoursMap;
-  }, [leaveRequests]);
+  }, [leaveRequests, calendarEvents, user]);
 
   // Elapsed time timer (like ClockWidget)
   useEffect(() => {
