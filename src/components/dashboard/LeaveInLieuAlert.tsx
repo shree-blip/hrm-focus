@@ -131,20 +131,6 @@ export function LeaveInLieuAlert({ delay = 300 }: { delay?: number }) {
 
   const workedOffDays = useWorkedOffDays();
 
-  const storageKey = profile?.user_id ? `lieu-alert-dismissed-${profile.user_id}` : "lieu-alert-dismissed";
-
-  useEffect(() => {
-    if (workedOffDays.length === 0) return;
-    let dismissed: string[] = [];
-    try {
-      dismissed = JSON.parse(sessionStorage.getItem(storageKey) || "[]");
-    } catch {
-      dismissed = [];
-    }
-    const hasNew = workedOffDays.some((w) => !dismissed.includes(w.dateStr));
-    if (hasNew) setDialogOpen(true);
-  }, [workedOffDays, storageKey]);
-
   if (workedOffDays.length === 0) return null;
 
   const firstName = profile?.first_name || "there";
