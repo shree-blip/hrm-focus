@@ -864,11 +864,21 @@ const Attendance = () => {
                           hours > 0
                             ? "text-primary-foreground"
                             : isLeaveDay
-                              ? "text-emerald-700"
+                              ? isStaticHoliday
+                                ? "text-amber-700"
+                                : "text-emerald-700"
                               : "text-muted-foreground",
                         )}
                       >
-                        {hours > 0 ? `${hours}h` : isLeaveDay ? (isHalfLeave ? "½ Leave" : "Leave") : "-"}
+                        {hours > 0
+                          ? `${hours}h`
+                          : isLeaveDay
+                            ? isStaticHoliday
+                              ? "Holiday"
+                              : isHalfLeave
+                                ? "½ Leave"
+                                : "Leave"
+                            : "-"}
                       </span>
                     </div>
                   </div>
