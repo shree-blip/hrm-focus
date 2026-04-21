@@ -845,7 +845,7 @@ const Attendance = () => {
                     >
                       {isLeaveDay && (
                         <span className="absolute top-1 right-1 z-10 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
-                          {isHalfLeave ? "Half Leave" : "Leave"}
+                          {isStaticHoliday ? "Holiday" : isHalfLeave ? "Half Leave" : "Leave"}
                         </span>
                       )}
 
