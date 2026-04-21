@@ -188,10 +188,12 @@ const Attendance = () => {
       for (let current = new Date(start); current <= end; current.setDate(current.getDate() + 1)) {
         const dayOfWeek = current.getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-
         const key = format(current, "yyyy-MM-dd");
-        const existingHours = leaveHoursMap.get(key) || 0;
-        leaveHoursMap.set(key, Math.min(STANDARD_HOURS_PER_DAY, existingHours + leaveHoursPerDay));
+        const existing = leaveHoursMap.get(key);
+        leaveHoursMap.set(key, {
+          hours: Math.min(STANDARD_HOURS_PER_DAY, (existing?.hours || 0) + leaveHoursPerDay),
+          type: "leave",
+        });
       }
     });
 
@@ -203,14 +205,17 @@ const Attendance = () => {
         const dateObj = parseDateOnly(key);
         const dayOfWeek = dateObj.getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) return;
-        leaveHoursMap.set(key, STANDARD_HOURS_PER_DAY);
+        // Only set if not already present as leave (leave takes precedence)
+        if (!leaveHoursMap.has(key) || leaveHoursMap.get(key)?.type !== "leave") {
+          leaveHoursMap.set(key, { hours: STANDARD_HOURS_PER_DAY, type: "holiday" });
+        }
       }
       if (event.event_type === "leave" && event.created_by === user?.id) {
         const key = event.event_date;
         const dateObj = parseDateOnly(key);
         const dayOfWeek = dateObj.getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) return;
-        leaveHoursMap.set(key, STANDARD_HOURS_PER_DAY);
+        leaveHoursMap.set(key, { hours: STANDARD_HOURS_PER_DAY, type: "leave" });
       }
     });
 
@@ -221,9 +226,9 @@ const Attendance = () => {
         const dayOfWeek = dateObj.getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) return;
         const key = format(dateObj, "yyyy-MM-dd");
-        // Only add if not already present (dynamic events take precedence)
+        // Only add if not already present (dynamic events/leave take precedence)
         if (!leaveHoursMap.has(key)) {
-          leaveHoursMap.set(key, STANDARD_HOURS_PER_DAY);
+          leaveHoursMap.set(key, { hours: STANDARD_HOURS_PER_DAY, type: "holiday" });
         }
       }
     });
