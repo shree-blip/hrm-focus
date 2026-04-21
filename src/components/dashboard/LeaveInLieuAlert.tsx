@@ -140,21 +140,11 @@ export function LeaveInLieuAlert({ delay = 300 }: { delay?: number }) {
     workedOffDays[0].windowEnd,
   );
 
-  const markDismissed = () => {
-    try {
-      sessionStorage.setItem(storageKey, JSON.stringify(workedOffDays.map((w) => w.dateStr)));
-    } catch {
-      // storage unavailable — silently skip
-    }
-  };
-
   const handleCloseDialog = () => {
-    markDismissed();
     setDialogOpen(false);
   };
 
   const handleRequestLeave = () => {
-    markDismissed();
     setDialogOpen(false);
     navigate("/leave");
   };
