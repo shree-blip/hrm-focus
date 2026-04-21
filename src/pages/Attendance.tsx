@@ -822,6 +822,7 @@ const Attendance = () => {
               {weekDays.map((day, index) => {
                 const hours = getHoursForDay(day);
                 const leaveHours = getLeaveHoursForDay(day);
+                const leaveType = getLeaveTypeForDay(day); // 'leave' | 'holiday' | null
                 const isLeaveDay = leaveHours > 0;
                 const isHalfLeave = leaveHours > 0 && leaveHours < STANDARD_HOURS_PER_DAY;
                 const isWeekend = index >= 5;
@@ -855,7 +856,7 @@ const Attendance = () => {
                     >
                       {isLeaveDay && (
                         <span className="absolute top-1 right-1 z-10 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
-                          {isStaticHoliday ? "Holiday" : isHalfLeave ? "Half Leave" : "Leave"}
+                          {leaveType === "holiday" ? "Holiday" : isHalfLeave ? "Half Leave" : "Leave"}
                         </span>
                       )}
 
