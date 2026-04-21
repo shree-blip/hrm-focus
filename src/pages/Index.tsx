@@ -49,6 +49,8 @@ const Index = () => {
   const { tasks } = useTasks();
   const { requests, ownRequests, teamLeaves, allApprovedLeaves } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
+  const workedOffDays = useWorkedOffDays();
+  const showLieuCard = workedOffDays.length > 0;
 
   const firstName = profile?.first_name || "User";
   const pendingTasks = tasks.filter((t) => t.status !== "done").length;
