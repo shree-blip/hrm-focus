@@ -12,6 +12,7 @@ import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
 import { useMemo, lazy, Suspense } from "react";
 
 import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { LeaveInLieuAlert, useWorkedOffDays } from "@/components/dashboard/LeaveInLieuAlert";
 
 const PerformanceChart = lazy(() =>
   import("@/components/dashboard/PerformanceChart").then((m) => ({ default: m.PerformanceChart })),
@@ -206,7 +207,6 @@ const Index = () => {
           onClick={() => navigate(isManager ? "/approvals" : "/leave")}
         />
        {showLieuCard && <LeaveInLieuAlert delay={300} />}
-      </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
