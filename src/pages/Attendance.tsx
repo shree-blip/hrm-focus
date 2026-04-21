@@ -816,6 +816,11 @@ const Attendance = () => {
                 const isHalfLeave = leaveHours > 0 && leaveHours < STANDARD_HOURS_PER_DAY;
                 const isWeekend = index >= 5;
 
+                // Determine if this day is a static holiday
+                const isStaticHoliday = calendarEntries.some(
+                  (entry) => entry.type === "holiday" && format(entry.date, "yyyy-MM-dd") === format(day, "yyyy-MM-dd"),
+                );
+
                 return (
                   <div key={day.toISOString()} className="text-center min-w-0">
                     <p
