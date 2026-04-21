@@ -29,7 +29,7 @@ type TabKey = "upcoming" | "holidays" | "milestones";
 // CALENDAR DATA (static)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const calendarEntries: CalendarEntry[] = [
+export const calendarEntries: CalendarEntry[] = [
   // ── 2025 ──
   { date: new Date(2025, 0, 1), name: "New Year's Day", type: "holiday" },
   { date: new Date(2025, 0, 15), name: "Maghe Sankranti", type: "holiday" },
@@ -476,7 +476,7 @@ export function CompanyCalendar() {
 
   const { isManager } = useAuth();
   const { hasPermission } = usePermissions();
-  const canManageCalendar = isManager || hasPermission('manage_calendar');
+  const canManageCalendar = isManager || hasPermission("manage_calendar");
 
   const {
     loading: milestonesLoading,
