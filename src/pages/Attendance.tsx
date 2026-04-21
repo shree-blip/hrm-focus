@@ -166,12 +166,15 @@ const Attendance = () => {
   const { myRequests, teamRequests, submitRequest, reviewRequest, overrideRequest, getAdjustmentStatus } =
     useAttendanceAdjustments();
   const { ownRequests: leaveRequests } = useLeaveRequests();
+  const { events: calendarEvents } = useCalendarEvents();
 
   // Use shared status from context
   const clockStatus = sharedStatus;
 
   const approvedLeaveHoursByDate = useMemo(() => {
     const leaveHoursMap = new Map<string, number>();
+
+    // 1. Add approved leave requests
 
     leaveRequests.forEach((request) => {
       if (request.status !== "approved" || !request.start_date || !request.end_date || request.user_id !== user?.id) {
