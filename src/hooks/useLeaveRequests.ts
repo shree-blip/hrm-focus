@@ -634,11 +634,16 @@ export function useLeaveRequests() {
       .eq("id", requestId);
 
     if (error) {
+      const isPermission = /row-level security|permission|denied/i.test(error.message || "");
       toast({
         title: "Error",
-        description: "Failed to approve request",
+        description: isPermission
+          ? "You don't have permission to approve this leave. The employee may not have you set as their line manager."
+          : error.message || "Failed to approve request",
         variant: "destructive",
       });
+      console.error("[leave][approve] update failed:", error);
+      return;
     } else {
       const { data: managerProfile } = await supabase
         .from("profiles")
