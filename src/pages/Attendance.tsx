@@ -875,7 +875,7 @@ const Attendance = () => {
                           hours > 0
                             ? "text-primary-foreground"
                             : isLeaveDay
-                              ? isStaticHoliday
+                              ? leaveType === "holiday"
                                 ? "text-amber-700"
                                 : "text-emerald-700"
                               : "text-muted-foreground",
@@ -884,7 +884,7 @@ const Attendance = () => {
                         {hours > 0
                           ? `${hours}h`
                           : isLeaveDay
-                            ? isStaticHoliday
+                            ? leaveType === "holiday"
                               ? "Holiday"
                               : isHalfLeave
                                 ? "½ Leave"
