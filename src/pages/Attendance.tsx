@@ -30,6 +30,8 @@ import { cn } from "@/lib/utils";
 import { useTimeTracker } from "@/contexts/TimeTrackerContext";
 import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
+import { calendarEntries } from "@/components/dashboard/CompanyCalendar";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { AdjustmentRequestDialog } from "@/components/attendance/AdjustmentRequestDialog";
 import { ManagerAdjustmentPanel } from "@/components/attendance/ManagerAdjustmentPanel";
 import { useAuth } from "@/contexts/AuthContext";
