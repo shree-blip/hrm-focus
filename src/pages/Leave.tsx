@@ -426,18 +426,31 @@ const Leave = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-medium text-muted-foreground">Annual Leave</p>
-                <Badge variant="secondary">{getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()} days left</Badge>
+                <Badge variant="secondary">
+                  {(() => {
+                    const r = getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal();
+                    return r >= 0 ? `${r} days left` : `+${-r} over`;
+                  })()}
+                </Badge>
               </div>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-display font-bold">
-                    {getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()}
+                    {getAnnualLeaveUsedTotal()}
                   </span>
-                  <span className="text-muted-foreground">/ {getAnnualLeaveTotalDays()} days</span>
+                  <span className="text-muted-foreground">/ {getAnnualLeaveTotalDays()} days used</span>
+                  {getAnnualLeaveUsedTotal() > getAnnualLeaveTotalDays() && (
+                    <span className="ml-2 text-sm font-semibold text-destructive">
+                      +{getAnnualLeaveUsedTotal() - getAnnualLeaveTotalDays()} over
+                    </span>
+                  )}
                 </div>
                 <div className="h-2 bg-secondary rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-full transition-all duration-500 bg-primary"
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      getAnnualLeaveUsedTotal() > getAnnualLeaveTotalDays() ? "bg-destructive" : "bg-primary",
+                    )}
                     style={{
                       width: `${Math.min((getAnnualLeaveUsedTotal() / getAnnualLeaveTotalDays()) * 100, 100)}%`,
                     }}
