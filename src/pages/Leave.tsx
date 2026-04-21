@@ -347,9 +347,18 @@ const Leave = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Annual Leave Balance</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()} days
-                  </p>
+                  {(() => {
+                    const remaining = getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal();
+                    const over = remaining < 0 ? -remaining : 0;
+                    return (
+                      <p className="text-2xl font-bold mt-1">
+                        {Math.max(0, remaining)} days
+                        {over > 0 && (
+                          <span className="ml-1 text-sm font-semibold text-destructive">+{over} over</span>
+                        )}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Calendar className="h-6 w-6 text-primary" />
