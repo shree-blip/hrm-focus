@@ -338,7 +338,12 @@ const Attendance = () => {
 
   const getLeaveHoursForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    return approvedLeaveHoursByDate.get(dateStr) || 0;
+    return approvedLeaveHoursByDate.get(dateStr)?.hours || 0;
+  };
+
+  const getLeaveTypeForDay = (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    return approvedLeaveHoursByDate.get(dateStr)?.type || null;
   };
 
   const getHoursForDay = (date: Date) => {
