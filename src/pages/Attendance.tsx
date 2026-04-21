@@ -172,7 +172,7 @@ const Attendance = () => {
   const clockStatus = sharedStatus;
 
   const approvedLeaveHoursByDate = useMemo(() => {
-    const leaveHoursMap = new Map<string, number>();
+    const leaveHoursMap = new Map<string, { hours: number; type: "leave" | "holiday" }>();
 
     // 1. Add approved leave requests
 
