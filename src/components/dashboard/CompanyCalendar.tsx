@@ -233,12 +233,19 @@ function CustomDayCell({
   customEventsForDate,
   isManager,
   onAddClick,
+  displayMonth,
 }: {
   date: Date;
   customEventsForDate: CalendarEvent[];
   isManager?: boolean;
   onAddClick?: (date: Date) => void;
+  displayMonth?: Date;
 }) {
+  // Hide days that belong to previous/next month — keeps grid focused on 1st–last
+  if (displayMonth && date.getMonth() !== displayMonth.getMonth()) {
+    return <div className="h-full w-full" aria-hidden />;
+  }
+
   const entries = getEntriesForDate(date);
   const isDayOff = isWeekend(date) || isNamedHoliday(date);
   const isDeadline = isDeadlineDate(date);
