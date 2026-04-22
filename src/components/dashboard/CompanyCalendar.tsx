@@ -807,9 +807,16 @@ export function CompanyCalendar() {
 
           {/* ── SELECTED DATE DETAIL ── */}
           {selectedDate && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between px-1">
-                <p className="text-sm font-medium text-foreground">{formatDateFull(selectedDate)}</p>
+            <div className="space-y-2 rounded-xl border border-border/50 bg-muted/20 p-3">
+              <div className="flex items-center justify-between gap-2 px-0.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary text-xs font-bold tabular-nums">
+                    {selectedDate.getDate()}
+                  </span>
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {formatDateFull(selectedDate)}
+                  </p>
+                </div>
                 <div className="flex items-center gap-1">
                   {canManageCalendar && (
                     <Button
@@ -930,7 +937,7 @@ export function CompanyCalendar() {
           )}
 
           {/* ── LEGEND ── */}
-          <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 text-[10px] sm:text-[11px] text-muted-foreground px-0.5">
+          <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1.5 text-[10px] sm:text-[11px] text-muted-foreground px-1 py-2 rounded-lg bg-muted/30 border border-border/40">
             <span className="flex items-center gap-1 sm:gap-1.5">
               <span
                 className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-sm"
@@ -962,7 +969,7 @@ export function CompanyCalendar() {
           </div>
 
           {/* ── TABS ── */}
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 p-1 rounded-xl bg-muted/40 border border-border/40">
             <TabButton
               active={activeTab === "upcoming"}
               onClick={() => setActiveTab("upcoming")}
