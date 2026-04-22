@@ -764,6 +764,7 @@ export function CompanyCalendar() {
             selected={selectedDate}
             onSelect={handleDateSelect}
             onMonthChange={setCalendarMonth}
+            showOutsideDays={false}
             className="rounded-xl border border-border/60 bg-card p-2 sm:p-3 w-full shadow-inner"
             classNames={{
               months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
