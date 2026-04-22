@@ -780,9 +780,9 @@ export function CompanyCalendar() {
               caption_label: "text-sm sm:text-base font-semibold tracking-tight text-foreground",
               nav: "space-x-1 flex items-center",
               nav_button:
-                "h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-muted/40 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors p-0",
-              nav_button_previous: "absolute left-1",
-              nav_button_next: "absolute right-1",
+                "h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full bg-background border border-border/60 text-foreground/70 hover:text-foreground hover:bg-accent hover:border-border shadow-sm transition-all p-0",
+              nav_button_previous: "absolute left-2",
+              nav_button_next: "absolute right-2",
               table: "w-full border-collapse",
               head_row: "flex w-full mb-1",
               head_cell:
@@ -802,9 +802,10 @@ export function CompanyCalendar() {
             modifiers={calendarModifiers}
             modifiersStyles={calendarModifierStyles}
             components={{
-              Day: ({ date }) => (
+              Day: ({ date, displayMonth }) => (
                 <CustomDayCell
                   date={date}
+                  displayMonth={displayMonth}
                   customEventsForDate={getCustomEventsForDate(date)}
                   isManager={canManageCalendar}
                   onAddClick={handleAddEventFromCell}
