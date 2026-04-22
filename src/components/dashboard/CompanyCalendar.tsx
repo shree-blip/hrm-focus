@@ -263,10 +263,15 @@ function CustomDayCell({
   return (
     <div
       className={cn(
-        "relative h-full w-full flex flex-col items-center p-0.5 sm:p-1 group/cell",
-        "justify-start pt-1 sm:justify-center sm:pt-0",
-        isToday && "bg-accent text-accent-foreground",
-        (isDayOff || hasCustomHoliday) && !isToday && "bg-amber-50 dark:bg-amber-950/20",
+        "relative h-full w-full flex flex-col items-center p-0.5 sm:p-1.5 group/cell rounded-md",
+        "justify-start pt-1 sm:justify-start sm:pt-1.5",
+        "transition-colors duration-150",
+        "hover:bg-accent/60",
+        isToday &&
+          "bg-primary/10 ring-1 ring-inset ring-primary/40 text-foreground",
+        (isDayOff || hasCustomHoliday) &&
+          !isToday &&
+          "bg-amber-50/70 dark:bg-amber-950/20",
       )}
     >
       {/* Add button overlay for managers */}
@@ -276,11 +281,11 @@ function CustomDayCell({
           className={cn(
             "absolute top-0.5 right-0.5 z-10",
             "w-4 h-4 sm:w-5 sm:h-5 rounded-full",
-            "bg-primary/80 hover:bg-primary text-primary-foreground",
+            "bg-primary/90 hover:bg-primary text-primary-foreground",
             "flex items-center justify-center",
-            "opacity-0 group-hover/cell:opacity-100",
+            "opacity-0 group-hover/cell:opacity-100 focus:opacity-100",
             "transition-all duration-150",
-            "shadow-sm hover:shadow-md",
+            "shadow-md ring-2 ring-background",
             "transform scale-75 group-hover/cell:scale-100",
           )}
           title="Add event"
@@ -290,7 +295,14 @@ function CustomDayCell({
       )}
 
       {/* Day number - responsive sizing */}
-      <div className={cn("text-xs sm:text-sm md:text-base font-medium", "leading-tight", isToday && "font-bold")}>
+      <div
+        className={cn(
+          "text-xs sm:text-sm md:text-[15px] font-semibold leading-none tabular-nums tracking-tight",
+          "text-foreground/80",
+          isToday &&
+            "text-primary font-bold inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/15",
+        )}
+      >
         {day}
       </div>
 
