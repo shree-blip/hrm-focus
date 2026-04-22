@@ -727,17 +727,29 @@ export function CompanyCalendar() {
   return (
     <>
       <Card
-        className="animate-slide-up opacity-0 overflow-hidden"
+        className="animate-slide-up opacity-0 overflow-hidden border-border/60 shadow-sm hover:shadow-md transition-shadow duration-300"
         style={{ animationDelay: "350ms", animationFillMode: "forwards" }}
       >
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="font-display text-lg flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5 text-primary" />
-              Company Calendar
+        <CardHeader className="pb-3 border-b border-border/40 bg-gradient-to-br from-muted/40 via-background to-background">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="font-display text-base sm:text-lg flex items-center gap-2.5">
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 ring-1 ring-primary/20 text-primary">
+                <CalendarIcon className="h-4.5 w-4.5" />
+              </span>
+              <span className="flex flex-col leading-tight">
+                <span className="font-semibold tracking-tight">Company Calendar</span>
+                <span className="text-[11px] font-normal text-muted-foreground">
+                  Holidays, deadlines & milestones
+                </span>
+              </span>
             </CardTitle>
             {canManageCalendar && selectedDate && (
-              <Button size="sm" variant="outline" onClick={handleAddEventClick} className="h-8 text-xs">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleAddEventClick}
+                className="h-8 text-xs rounded-full border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+              >
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 Add Event
               </Button>
@@ -745,37 +757,38 @@ export function CompanyCalendar() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-4">
           {/* ── CALENDAR ── */}
           <Calendar
             mode="single"
             selected={selectedDate}
             onSelect={handleDateSelect}
             onMonthChange={setCalendarMonth}
-            className="rounded-lg border p-2 sm:p-3 w-full"
+            className="rounded-xl border border-border/60 bg-card p-2 sm:p-3 w-full shadow-inner"
             classNames={{
               months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
               month: "space-y-4 w-full",
-              caption: "flex justify-center pt-1 relative items-center px-2",
-              caption_label: "text-sm sm:text-base font-medium",
+              caption: "flex justify-center pt-1 pb-2 relative items-center px-2",
+              caption_label: "text-sm sm:text-base font-semibold tracking-tight text-foreground",
               nav: "space-x-1 flex items-center",
-              nav_button: "h-7 w-7 sm:h-8 sm:w-8 bg-transparent p-0 opacity-50 hover:opacity-100",
+              nav_button:
+                "h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-muted/40 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors p-0",
               nav_button_previous: "absolute left-1",
               nav_button_next: "absolute right-1",
               table: "w-full border-collapse",
-              head_row: "flex w-full",
+              head_row: "flex w-full mb-1",
               head_cell:
-                "text-muted-foreground rounded-md flex-1 font-medium text-[0.65rem] sm:text-[0.8rem] py-1 sm:py-2 text-center",
-              row: "flex w-full mt-0.5 sm:mt-1",
-              cell: "flex-1 text-center text-sm p-0 sm:p-0.5 relative focus-within:relative focus-within:z-20 h-10 sm:h-16 md:h-24",
-              day: "h-full w-full rounded-md p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground",
+                "text-muted-foreground/80 rounded-md flex-1 font-semibold uppercase tracking-wider text-[0.6rem] sm:text-[0.7rem] py-1.5 sm:py-2 text-center",
+              row: "flex w-full mt-0.5 sm:mt-1 gap-px",
+              cell: "flex-1 text-center text-sm p-0 sm:p-0.5 relative focus-within:relative focus-within:z-20 h-11 sm:h-16 md:h-24",
+              day: "h-full w-full rounded-md p-0 font-normal aria-selected:opacity-100 transition-colors",
               day_range_end: "day-range-end",
               day_selected:
-                "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-              day_today: "bg-accent text-accent-foreground",
+                "ring-2 ring-primary ring-offset-1 ring-offset-background rounded-md shadow-sm",
+              day_today: "",
               day_outside:
                 "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-              day_disabled: "text-muted-foreground opacity-50",
+              day_disabled: "text-muted-foreground opacity-40",
               day_hidden: "invisible",
             }}
             modifiers={calendarModifiers}
