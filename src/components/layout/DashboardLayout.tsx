@@ -45,8 +45,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-64 max-w-[85vw] overflow-hidden p-0">
-                <Sidebar embedded onNavigate={() => setMobileMenuOpen(false)} />
+              <SheetContent
+                side="left"
+                className="w-64 max-w-[85vw] overflow-hidden p-0"
+                // Prevent Radix from focus-trapping into body and blocking the
+                // first tap on a nav Link (mobile Safari/Chrome quirk).
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                onCloseAutoFocus={(e) => e.preventDefault()}
+              >
+                <Sidebar
+                  embedded
+                  onNavigate={() => {
+                    // Defer close until after react-router commits the
+                    // navigation, so Radix doesn't toggle body pointer-events
+                    // mid-tap and swallow the first click on mobile.
+                    setTimeout(() => setMobileMenuOpen(false), 0);
+                  }}
+                />
               </SheetContent>
             </Sheet>
           }
