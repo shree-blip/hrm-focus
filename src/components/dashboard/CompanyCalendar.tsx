@@ -444,11 +444,11 @@ function TabButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-lg text-xs font-semibold",
-        "transition-all duration-200 border cursor-pointer select-none",
+        "flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold",
+        "transition-all duration-200 cursor-pointer select-none",
         active
-          ? "bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/25"
-          : "bg-transparent text-muted-foreground border-border/50 hover:bg-accent/60 hover:text-foreground hover:border-border",
+          ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+          : "bg-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground",
       )}
     >
       {icon}
