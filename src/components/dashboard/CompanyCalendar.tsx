@@ -263,10 +263,15 @@ function CustomDayCell({
   return (
     <div
       className={cn(
-        "relative h-full w-full flex flex-col items-center p-0.5 sm:p-1 group/cell",
-        "justify-start pt-1 sm:justify-center sm:pt-0",
-        isToday && "bg-accent text-accent-foreground",
-        (isDayOff || hasCustomHoliday) && !isToday && "bg-amber-50 dark:bg-amber-950/20",
+        "relative h-full w-full flex flex-col items-center p-0.5 sm:p-1.5 group/cell rounded-md",
+        "justify-start pt-1 sm:justify-start sm:pt-1.5",
+        "transition-colors duration-150",
+        "hover:bg-accent/60",
+        isToday &&
+          "bg-primary/10 ring-1 ring-inset ring-primary/40 text-foreground",
+        (isDayOff || hasCustomHoliday) &&
+          !isToday &&
+          "bg-amber-50/70 dark:bg-amber-950/20",
       )}
     >
       {/* Add button overlay for managers */}
@@ -276,11 +281,11 @@ function CustomDayCell({
           className={cn(
             "absolute top-0.5 right-0.5 z-10",
             "w-4 h-4 sm:w-5 sm:h-5 rounded-full",
-            "bg-primary/80 hover:bg-primary text-primary-foreground",
+            "bg-primary/90 hover:bg-primary text-primary-foreground",
             "flex items-center justify-center",
-            "opacity-0 group-hover/cell:opacity-100",
+            "opacity-0 group-hover/cell:opacity-100 focus:opacity-100",
             "transition-all duration-150",
-            "shadow-sm hover:shadow-md",
+            "shadow-md ring-2 ring-background",
             "transform scale-75 group-hover/cell:scale-100",
           )}
           title="Add event"
@@ -290,7 +295,14 @@ function CustomDayCell({
       )}
 
       {/* Day number - responsive sizing */}
-      <div className={cn("text-xs sm:text-sm md:text-base font-medium", "leading-tight", isToday && "font-bold")}>
+      <div
+        className={cn(
+          "text-xs sm:text-sm md:text-[15px] font-semibold leading-none tabular-nums tracking-tight",
+          "text-foreground/80",
+          isToday &&
+            "text-primary font-bold inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/15",
+        )}
+      >
         {day}
       </div>
 
@@ -432,11 +444,11 @@ function TabButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-lg text-xs font-semibold",
-        "transition-all duration-200 border cursor-pointer select-none",
+        "flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold",
+        "transition-all duration-200 cursor-pointer select-none",
         active
-          ? "bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/25"
-          : "bg-transparent text-muted-foreground border-border/50 hover:bg-accent/60 hover:text-foreground hover:border-border",
+          ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+          : "bg-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground",
       )}
     >
       {icon}
@@ -715,17 +727,29 @@ export function CompanyCalendar() {
   return (
     <>
       <Card
-        className="animate-slide-up opacity-0 overflow-hidden"
+        className="animate-slide-up opacity-0 overflow-hidden border-border/60 shadow-sm hover:shadow-md transition-shadow duration-300"
         style={{ animationDelay: "350ms", animationFillMode: "forwards" }}
       >
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="font-display text-lg flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5 text-primary" />
-              Company Calendar
+        <CardHeader className="pb-3 border-b border-border/40 bg-gradient-to-br from-muted/40 via-background to-background">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="font-display text-base sm:text-lg flex items-center gap-2.5">
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 ring-1 ring-primary/20 text-primary">
+                <CalendarIcon className="h-4.5 w-4.5" />
+              </span>
+              <span className="flex flex-col leading-tight">
+                <span className="font-semibold tracking-tight">Company Calendar</span>
+                <span className="text-[11px] font-normal text-muted-foreground">
+                  Holidays, deadlines & milestones
+                </span>
+              </span>
             </CardTitle>
             {canManageCalendar && selectedDate && (
-              <Button size="sm" variant="outline" onClick={handleAddEventClick} className="h-8 text-xs">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleAddEventClick}
+                className="h-8 text-xs rounded-full border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+              >
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 Add Event
               </Button>
@@ -733,37 +757,38 @@ export function CompanyCalendar() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-4">
           {/* ── CALENDAR ── */}
           <Calendar
             mode="single"
             selected={selectedDate}
             onSelect={handleDateSelect}
             onMonthChange={setCalendarMonth}
-            className="rounded-lg border p-2 sm:p-3 w-full"
+            className="rounded-xl border border-border/60 bg-card p-2 sm:p-3 w-full shadow-inner"
             classNames={{
               months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
               month: "space-y-4 w-full",
-              caption: "flex justify-center pt-1 relative items-center px-2",
-              caption_label: "text-sm sm:text-base font-medium",
+              caption: "flex justify-center pt-1 pb-2 relative items-center px-2",
+              caption_label: "text-sm sm:text-base font-semibold tracking-tight text-foreground",
               nav: "space-x-1 flex items-center",
-              nav_button: "h-7 w-7 sm:h-8 sm:w-8 bg-transparent p-0 opacity-50 hover:opacity-100",
+              nav_button:
+                "h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-muted/40 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors p-0",
               nav_button_previous: "absolute left-1",
               nav_button_next: "absolute right-1",
               table: "w-full border-collapse",
-              head_row: "flex w-full",
+              head_row: "flex w-full mb-1",
               head_cell:
-                "text-muted-foreground rounded-md flex-1 font-medium text-[0.65rem] sm:text-[0.8rem] py-1 sm:py-2 text-center",
-              row: "flex w-full mt-0.5 sm:mt-1",
-              cell: "flex-1 text-center text-sm p-0 sm:p-0.5 relative focus-within:relative focus-within:z-20 h-10 sm:h-16 md:h-24",
-              day: "h-full w-full rounded-md p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground",
+                "text-muted-foreground/80 rounded-md flex-1 font-semibold uppercase tracking-wider text-[0.6rem] sm:text-[0.7rem] py-1.5 sm:py-2 text-center",
+              row: "flex w-full mt-0.5 sm:mt-1 gap-px",
+              cell: "flex-1 text-center text-sm p-0 sm:p-0.5 relative focus-within:relative focus-within:z-20 h-11 sm:h-16 md:h-24",
+              day: "h-full w-full rounded-md p-0 font-normal aria-selected:opacity-100 transition-colors",
               day_range_end: "day-range-end",
               day_selected:
-                "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-              day_today: "bg-accent text-accent-foreground",
+                "ring-2 ring-primary ring-offset-1 ring-offset-background rounded-md shadow-sm",
+              day_today: "",
               day_outside:
                 "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-              day_disabled: "text-muted-foreground opacity-50",
+              day_disabled: "text-muted-foreground opacity-40",
               day_hidden: "invisible",
             }}
             modifiers={calendarModifiers}
@@ -782,9 +807,16 @@ export function CompanyCalendar() {
 
           {/* ── SELECTED DATE DETAIL ── */}
           {selectedDate && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between px-1">
-                <p className="text-sm font-medium text-foreground">{formatDateFull(selectedDate)}</p>
+            <div className="space-y-2 rounded-xl border border-border/50 bg-muted/20 p-3">
+              <div className="flex items-center justify-between gap-2 px-0.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary text-xs font-bold tabular-nums">
+                    {selectedDate.getDate()}
+                  </span>
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {formatDateFull(selectedDate)}
+                  </p>
+                </div>
                 <div className="flex items-center gap-1">
                   {canManageCalendar && (
                     <Button
@@ -905,7 +937,7 @@ export function CompanyCalendar() {
           )}
 
           {/* ── LEGEND ── */}
-          <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 text-[10px] sm:text-[11px] text-muted-foreground px-0.5">
+          <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1.5 text-[10px] sm:text-[11px] text-muted-foreground px-1 py-2 rounded-lg bg-muted/30 border border-border/40">
             <span className="flex items-center gap-1 sm:gap-1.5">
               <span
                 className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-sm"
@@ -937,7 +969,7 @@ export function CompanyCalendar() {
           </div>
 
           {/* ── TABS ── */}
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 p-1 rounded-xl bg-muted/40 border border-border/40">
             <TabButton
               active={activeTab === "upcoming"}
               onClick={() => setActiveTab("upcoming")}
