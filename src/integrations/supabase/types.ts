@@ -4604,6 +4604,16 @@ export type Database = {
       get_all_user_ids_for_sharing: { Args: never; Returns: string[] }
       get_employee_id_for_user: { Args: { _user_id: string }; Returns: string }
       get_management_user_ids: { Args: never; Returns: string[] }
+      get_milestones_in_days: {
+        Args: { days_ahead: number }
+        Returns: {
+          first_name: string
+          last_name: string
+          milestone_type: string
+          user_id: string
+          years: number
+        }[]
+      }
       get_org_by_slug: {
         Args: { _slug: string }
         Returns: {
