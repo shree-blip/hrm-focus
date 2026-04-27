@@ -419,7 +419,7 @@ function buildPlanningMilestoneEmail(milestone: MilestoneRecord): { subject: str
 
   if (milestone.milestone_type === "birthday") {
     return {
-      subject: `📅 Upcoming Birthday in 20 Days - ${fullName}`,
+      subject: `📅 Upcoming Birthday in 15 Days - ${fullName}`,
       html: `
 <!DOCTYPE html>
 <html>
@@ -431,7 +431,7 @@ function buildPlanningMilestoneEmail(milestone: MilestoneRecord): { subject: str
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
       <tr><td style="padding:8px 0;color:#666;width:180px;">Employee</td><td style="padding:8px 0;font-weight:600;">${fullName}</td></tr>
       <tr><td style="padding:8px 0;color:#666;">Milestone</td><td style="padding:8px 0;">Birthday</td></tr>
-      <tr><td style="padding:8px 0;color:#666;">Timing</td><td style="padding:8px 0;">20 days before</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Timing</td><td style="padding:8px 0;">15 days before</td></tr>
     </table>
     <p style="color:#666;">Please plan recognition or celebration in advance.</p>
   </div>
@@ -442,7 +442,7 @@ function buildPlanningMilestoneEmail(milestone: MilestoneRecord): { subject: str
 
   const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
   return {
-    subject: `📅 Upcoming Work Anniversary in 20 Days - ${fullName}`,
+    subject: `📅 Upcoming Work Anniversary in 15 Days - ${fullName}`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -455,7 +455,7 @@ function buildPlanningMilestoneEmail(milestone: MilestoneRecord): { subject: str
       <tr><td style="padding:8px 0;color:#666;width:180px;">Employee</td><td style="padding:8px 0;font-weight:600;">${fullName}</td></tr>
       <tr><td style="padding:8px 0;color:#666;">Milestone</td><td style="padding:8px 0;">Work Anniversary</td></tr>
       <tr><td style="padding:8px 0;color:#666;">Years</td><td style="padding:8px 0;font-weight:600;">${yearsText}</td></tr>
-      <tr><td style="padding:8px 0;color:#666;">Timing</td><td style="padding:8px 0;">20 days before</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Timing</td><td style="padding:8px 0;">15 days before</td></tr>
     </table>
     <p style="color:#666;">Please plan recognition or celebration in advance.</p>
   </div>
