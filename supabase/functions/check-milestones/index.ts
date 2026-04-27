@@ -52,8 +52,9 @@ Deno.serve(async (req) => {
     // or equivalent DB functions.
     // =========================================================
 
-    const { data: milestones20, error: error20 } = await supabase.rpc("get_milestones_in_days", {
-      days_ahead: 20,
+    // 15 days ahead → admin/CEO planning notice
+    const { data: milestones15, error: error15 } = await supabase.rpc("get_milestones_in_days", {
+      days_ahead: 15,
     });
 
     const { data: milestones1, error: error1 } = await supabase.rpc("get_milestones_in_days", {
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
       days_ahead: 0,
     });
 
-    if (error20) throw error20;
+    if (error15) throw error15;
     if (error1) throw error1;
     if (errorToday) throw errorToday;
 
@@ -90,10 +91,11 @@ Deno.serve(async (req) => {
     // 3. FETCH ADMIN + CEO USERS
     // =========================================================
 
+    // CEO is stored as the 'vp' role internally
     const { data: privilegedUsers, error: privilegedError } = await supabase
       .from("user_roles")
       .select("user_id, role")
-      .in("role", ["admin", "ceo"]);
+      .in("role", ["admin", "vp"]);
 
     if (privilegedError) {
       console.error("Error fetching admin/ceo users:", privilegedError);
@@ -262,7 +264,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    async function processMilestones(milestones: MilestoneRecord[], phase: "early_20" | "pre_1" | "today") {
+    async function processMilestones(milestones: MilestoneRecord[], phase: "early_15" | "pre_1" | "today") {
       const currentYear = new Date().getFullYear();
 
       for (const milestone of milestones || []) {
@@ -271,14 +273,14 @@ Deno.serve(async (req) => {
         let inAppTitle = "";
         let inAppMessage = "";
 
-        if (phase === "early_20") {
+        if (phase === "early_15") {
           if (milestone.milestone_type === "birthday") {
             inAppTitle = `📅 Upcoming Birthday`;
-            inAppMessage = `${fullName}'s birthday is in 20 days. Please plan accordingly.`;
+            inAppMessage = `${fullName}'s birthday is in 15 days. Please plan accordingly.`;
           } else {
             const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
             inAppTitle = `📅 Upcoming Work Anniversary`;
-            inAppMessage = `${fullName}'s ${yearsText} work anniversary is in 20 days. Please plan accordingly.`;
+            inAppMessage = `${fullName}'s ${yearsText} work anniversary is in 15 days. Please plan accordingly.`;
           }
 
           // Admin + CEO only
@@ -293,12 +295,12 @@ Deno.serve(async (req) => {
             const { subject, html } = buildPlanningMilestoneEmail(milestone);
 
             for (const email of recipients) {
-              await sendMilestoneEmail(email, `milestone_20day_${milestone.milestone_type}`, subject, html, {
+              await sendMilestoneEmail(email, `milestone_15day_${milestone.milestone_type}`, subject, html, {
                 milestone,
                 milestone_user_id: milestone.user_id,
                 milestone_type: milestone.milestone_type,
                 milestone_year: currentYear,
-                phase: "20_days_before",
+                phase: "15_days_before",
                 person: fullName,
                 years: milestone.years,
               });
@@ -386,14 +388,14 @@ Deno.serve(async (req) => {
     // 5. PROCESS ALL PHASES
     // =========================================================
 
-    await processMilestones((milestones20 || []) as MilestoneRecord[], "early_20");
+    await processMilestones((milestones15 || []) as MilestoneRecord[], "early_15");
     await processMilestones((milestones1 || []) as MilestoneRecord[], "pre_1");
     await processMilestones((milestonesToday || []) as MilestoneRecord[], "today");
 
     return new Response(
       JSON.stringify({
         success: true,
-        milestones_20_days: (milestones20 || []).length,
+        milestones_15_days: (milestones15 || []).length,
         milestones_1_day: (milestones1 || []).length,
         milestones_today: (milestonesToday || []).length,
         results: notificationResults,
