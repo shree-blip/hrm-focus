@@ -850,12 +850,18 @@ const Attendance = () => {
                           !isToday(day) &&
                           !isLeaveDay &&
                           "border-dashed border-destructive/30",
-                        isLeaveDay && "border-emerald-200 bg-emerald-50/80",
+                        isLeaveDay && leaveType === "holiday" && "border-amber-200 bg-amber-50/80",
+                        isLeaveDay && leaveType !== "holiday" && "border-emerald-200 bg-emerald-50/80",
                         isToday(day) && "ring-2 ring-primary",
                       )}
                     >
                       {isLeaveDay && (
-                        <span className="absolute top-1 right-1 z-10 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                        <span
+                          className={cn(
+                            "absolute top-1 right-1 z-10 rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white",
+                            leaveType === "holiday" ? "bg-amber-600" : "bg-emerald-600",
+                          )}
+                        >
                           {leaveType === "holiday" ? "Holiday" : isHalfLeave ? "Half Leave" : "Leave"}
                         </span>
                       )}
