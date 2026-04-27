@@ -531,8 +531,24 @@ const Attendance = () => {
     if (day.getDay() === 0 || day.getDay() === 6) return acc;
     return acc + Math.min(STANDARD_HOURS_PER_DAY, getLeaveHoursForDay(day));
   }, 0);
+  // Split adjustment hours by source: approved leave vs calendar holiday
+  const weeklyApprovedLeaveHours = weekDays.reduce((acc, day) => {
+    if (day.getDay() === 0 || day.getDay() === 6) return acc;
+    if (getLeaveTypeForDay(day) === "leave") {
+      return acc + Math.min(STANDARD_HOURS_PER_DAY, getLeaveHoursForDay(day));
+    }
+    return acc;
+  }, 0);
+  const weeklyHolidayHours = weekDays.reduce((acc, day) => {
+    if (day.getDay() === 0 || day.getDay() === 6) return acc;
+    if (getLeaveTypeForDay(day) === "holiday") {
+      return acc + Math.min(STANDARD_HOURS_PER_DAY, getLeaveHoursForDay(day));
+    }
+    return acc;
+  }, 0);
   const adjustedTargetHours = Math.max(0, baseTargetHours - weeklyLeaveHours);
-  const leaveDaysTaken = weeklyLeaveHours / STANDARD_HOURS_PER_DAY;
+  const leaveDaysTaken = weeklyApprovedLeaveHours / STANDARD_HOURS_PER_DAY;
+  const holidayDaysTaken = weeklyHolidayHours / STANDARD_HOURS_PER_DAY;
   const targetMet = adjustedTargetHours === 0 ? 100 : Math.round((weeklyTotal / adjustedTargetHours) * 100);
 
   if (loading) {
