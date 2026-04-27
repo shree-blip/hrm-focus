@@ -943,9 +943,18 @@ const Attendance = () => {
             </div>
             {weeklyLeaveHours > 0 && (
               <p className="mt-3 text-xs text-muted-foreground">
-                Approved leave this week:{" "}
-                {leaveDaysTaken % 1 === 0 ? leaveDaysTaken.toFixed(0) : leaveDaysTaken.toFixed(1)} day
-                {leaveDaysTaken === 1 ? "" : "s"} • target adjusted from {baseTargetHours}h to {adjustedTargetHours}h.
+                {(() => {
+                  const formatDays = (n: number) =>
+                    `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(1)} day${n === 1 ? "" : "s"}`;
+                  const parts: string[] = [];
+                  if (holidayDaysTaken > 0) {
+                    parts.push(`Public holiday this week: ${formatDays(holidayDaysTaken)}`);
+                  }
+                  if (leaveDaysTaken > 0) {
+                    parts.push(`Approved leave this week: ${formatDays(leaveDaysTaken)}`);
+                  }
+                  return `${parts.join(" • ")} • target adjusted from ${baseTargetHours}h to ${adjustedTargetHours}h.`;
+                })()}
               </p>
             )}
           </CardContent>
