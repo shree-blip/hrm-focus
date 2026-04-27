@@ -12,7 +12,7 @@ import { Users, Clock, Calendar, CheckCircle2 } from "lucide-react";
 import { useMemo, lazy, Suspense } from "react";
 
 import { ChartSkeleton, WidgetCardSkeleton } from "@/components/dashboard/DashboardSkeleton";
-import { LeaveInLieuAlert, useWorkedOffDays } from "@/components/dashboard/LeaveInLieuAlert";
+// import { LeaveInLieuAlert, useWorkedOffDays } from "@/components/dashboard/LeaveInLieuAlert";
 
 const PerformanceChart = lazy(() =>
   import("@/components/dashboard/PerformanceChart").then((m) => ({ default: m.PerformanceChart })),
@@ -50,8 +50,8 @@ const Index = () => {
   const { tasks } = useTasks();
   const { requests, ownRequests, teamLeaves, allApprovedLeaves } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
-  const workedOffDays = useWorkedOffDays();
-  const showLieuCard = workedOffDays.length > 0;
+  // Leave on Lieu dashboard tile temporarily disabled for all employees
+  const showLieuCard = false;
 
   const firstName = profile?.first_name || "User";
   const pendingTasks = tasks.filter((t) => t.status !== "done").length;
@@ -206,7 +206,8 @@ const Index = () => {
           delay={250}
           onClick={() => navigate(isManager ? "/approvals" : "/leave")}
         />
-       {showLieuCard && <LeaveInLieuAlert delay={300} />}
+       {/* Leave on Lieu tile hidden for all users
+       {showLieuCard && <LeaveInLieuAlert delay={300} />} */}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
