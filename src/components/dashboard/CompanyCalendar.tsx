@@ -23,7 +23,7 @@ interface CalendarEntry {
   type: "holiday" | "deadline" | "optional";
 }
 
-type TabKey = "upcoming" | "holidays" | "milestones";
+type TabKey = "upcoming" | "holidays" | "deadlines" | "milestones";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CALENDAR DATA (static)
@@ -705,7 +705,11 @@ export function CompanyCalendar() {
   };
 
   const upcomingCount = upcomingAll.length;
-  const holidayTabCount = monthHolidays.length + monthDeadlines.length + monthCustomEvents.length;
+  const customHolidayCount = monthCustomEvents.filter((e) => e.event_type === "holiday").length;
+  const customDeadlineCount = monthCustomEvents.filter((e) => e.event_type === "deadline").length;
+  const customEventCount = monthCustomEvents.filter((e) => e.event_type === "event").length;
+  const holidayTabCount = monthHolidays.length + customHolidayCount;
+  const deadlineTabCount = monthDeadlines.length + customDeadlineCount + customEventCount;
   const milestoneTabCount = monthMilestones.length;
 
   // ── Handlers ──────────────────────────────────────────────────────────
@@ -994,6 +998,13 @@ export function CompanyCalendar() {
               count={holidayTabCount}
             />
             <TabButton
+              active={activeTab === "deadlines"}
+              onClick={() => setActiveTab("deadlines")}
+              icon={<AlertCircle className="h-3.5 w-3.5" />}
+              label="Deadlines"
+              count={deadlineTabCount}
+            />
+            <TabButton
               active={activeTab === "milestones"}
               onClick={() => setActiveTab("milestones")}
               icon={<Cake className="h-3.5 w-3.5" />}
@@ -1154,6 +1165,16 @@ export function CompanyCalendar() {
                   ) : null;
                 })()}
 
+                {monthHolidays.length === 0 &&
+                  monthCustomEvents.filter((e) => e.event_type === "holiday").length === 0 && (
+                    <EmptyState icon={<Star className="h-6 w-6" />} text="No holidays this month" />
+                  )}
+              </div>
+            )}
+
+            {/* ═══ DEADLINES TAB ═══ */}
+            {activeTab === "deadlines" && (
+              <div className="space-y-3">
                 {/* Deadlines Section - includes both static deadlines and custom deadlines */}
                 {(() => {
                   const customDeadlines = monthCustomEvents.filter((e) => e.event_type === "deadline");
@@ -1173,11 +1194,6 @@ export function CompanyCalendar() {
 
                   return allDeadlines.length > 0 ? (
                     <div className="space-y-1">
-                      {(() => {
-                        const customHolidays = monthCustomEvents.filter((e) => e.event_type === "holiday");
-                        const totalHolidays = monthHolidays.length + customHolidays.length;
-                        return totalHolidays > 0 ? <div className="border-t border-border/40 my-1" /> : null;
-                      })()}
                       <p className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
                         <AlertCircle className="h-3 w-3" /> Deadlines
                       </p>
@@ -1227,10 +1243,8 @@ export function CompanyCalendar() {
                   return generalEvents.length > 0 ? (
                     <div className="space-y-1">
                       {(() => {
-                        const customHolidays = monthCustomEvents.filter((e) => e.event_type === "holiday");
                         const customDeadlines = monthCustomEvents.filter((e) => e.event_type === "deadline");
-                        const totalOthers =
-                          monthHolidays.length + monthDeadlines.length + customHolidays.length + customDeadlines.length;
+                        const totalOthers = monthDeadlines.length + customDeadlines.length;
                         return totalOthers > 0 ? <div className="border-t border-border/40 my-1" /> : null;
                       })()}
                       <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
@@ -1278,9 +1292,9 @@ export function CompanyCalendar() {
                   ) : null;
                 })()}
 
-                {monthHolidays.length === 0 && monthDeadlines.length === 0 && monthCustomEvents.length === 0 && (
-                  <EmptyState icon={<Star className="h-6 w-6" />} text="No events this month" />
-                )}
+                {monthDeadlines.length === 0 &&
+                  monthCustomEvents.filter((e) => e.event_type === "deadline" || e.event_type === "event").length ===
+                    0 && <EmptyState icon={<AlertCircle className="h-6 w-6" />} text="No deadlines or events this month" />}
               </div>
             )}
 
