@@ -23,7 +23,7 @@ interface CalendarEntry {
   type: "holiday" | "deadline" | "optional";
 }
 
-type TabKey = "upcoming" | "holidays" | "milestones";
+type TabKey = "upcoming" | "holidays" | "deadlines" | "milestones";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CALENDAR DATA (static)
@@ -705,7 +705,11 @@ export function CompanyCalendar() {
   };
 
   const upcomingCount = upcomingAll.length;
-  const holidayTabCount = monthHolidays.length + monthDeadlines.length + monthCustomEvents.length;
+  const customHolidayCount = monthCustomEvents.filter((e) => e.event_type === "holiday").length;
+  const customDeadlineCount = monthCustomEvents.filter((e) => e.event_type === "deadline").length;
+  const customEventCount = monthCustomEvents.filter((e) => e.event_type === "event").length;
+  const holidayTabCount = monthHolidays.length + customHolidayCount;
+  const deadlineTabCount = monthDeadlines.length + customDeadlineCount + customEventCount;
   const milestoneTabCount = monthMilestones.length;
 
   // ── Handlers ──────────────────────────────────────────────────────────
@@ -992,6 +996,13 @@ export function CompanyCalendar() {
               icon={<Star className="h-3.5 w-3.5" />}
               label="Holidays"
               count={holidayTabCount}
+            />
+            <TabButton
+              active={activeTab === "deadlines"}
+              onClick={() => setActiveTab("deadlines")}
+              icon={<AlertCircle className="h-3.5 w-3.5" />}
+              label="Deadlines"
+              count={deadlineTabCount}
             />
             <TabButton
               active={activeTab === "milestones"}
