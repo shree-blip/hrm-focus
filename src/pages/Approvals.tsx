@@ -143,7 +143,8 @@ const Approvals = () => {
   const monthlyStats = useMemo(() => {
     const monthFiltered = filterByMonth(requests);
     return {
-      pending: monthFiltered.filter((r) => r.user_id !== user?.id && r.status === "pending").length,
+      // Pending count ignores month filter — all pending requests need attention regardless of start date
+      pending: requests.filter((r) => r.user_id !== user?.id && r.status === "pending").length,
       approved: monthFiltered.filter((r) => r.status === "approved").length,
       rejected: monthFiltered.filter((r) => r.status === "rejected").length,
     };
@@ -177,9 +178,21 @@ const Approvals = () => {
   };
 
   const filteredPending = useMemo(
-    () => applyAllFilters(pendingRequests),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pendingRequests, filterMonth, filterEmployee, filterLeaveType, searchQuery],
+    () => {
+      // Pending list ignores month filter so future-dated pending requests are always visible
+      let filtered = pendingRequests;
+      if (filterEmployee !== "all") filtered = filtered.filter((r) => r.user_id === filterEmployee);
+      if (filterLeaveType !== "all") filtered = filtered.filter((r) => r.leave_type === filterLeaveType);
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter((r) => {
+          const name = r.profile ? `${r.profile.first_name} ${r.profile.last_name}`.toLowerCase() : "";
+          return name.includes(q) || r.leave_type.toLowerCase().includes(q) || (r.reason || "").toLowerCase().includes(q);
+        });
+      }
+      return filtered;
+    },
+    [pendingRequests, filterEmployee, filterLeaveType, searchQuery],
   );
   const filteredApproved = useMemo(
     () => applyAllFilters(approvedRequests),
