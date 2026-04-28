@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
             .then(({ count }) => { badges.invoices = count || 0; })
         );
       }
-    } else if (has("view_invoices")) {
+    } else if (has("view_invoices") && role !== "admin") {
       queries.push(
         supabase.from("invoices").select("id", { count: "exact", head: true }).eq("user_id", userId).in("status", ["submitted", "draft"])
           .then(({ count }) => { badges.invoices = count || 0; })
