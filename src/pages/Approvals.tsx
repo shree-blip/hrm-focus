@@ -514,7 +514,7 @@ const Approvals = () => {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Pending ({selectedMonthLabel})</p>
+                    <p className="text-sm font-medium text-muted-foreground">Pending (All)</p>
                     <p className="text-3xl font-display font-bold text-warning">{monthlyStats.pending}</p>
                   </div>
                   <div className="p-3 rounded-full bg-warning/10">
@@ -651,7 +651,7 @@ const Approvals = () => {
                   <div className="text-center py-12 text-muted-foreground">
                     <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p className="font-medium">All caught up!</p>
-                    <p className="text-sm">No pending approvals{filterMonth !== "all" ? ` for ${selectedMonthLabel}` : ""}</p>
+                    <p className="text-sm">No pending approvals</p>
                   </div>
                 ) : (
                   filteredPending.map((request) => renderRequestCard(request, true))
