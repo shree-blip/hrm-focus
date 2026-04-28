@@ -182,7 +182,8 @@ Deno.serve(async (req) => {
     }
 
     // Invoices
-    if (has("manage_invoices")) {
+    // Only VP can see all submitted invoices; admins are excluded per access policy
+    if (has("manage_invoices") && role === "vp") {
       if (isAdmin) {
         queries.push(
           supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "submitted")
