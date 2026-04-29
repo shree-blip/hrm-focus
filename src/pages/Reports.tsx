@@ -623,6 +623,11 @@ const Reports = () => {
       // Build a map of approved leave days + dates per employee
       const leaveDaysMap: Record<string, number> = {};
       const leaveDatesMap: Record<string, string[]> = {};
+      // Per-employee, per-leave-type breakdown of dates taken
+      // Key: user_id -> leave_type label -> array of leave dates (weekdays in range)
+      const leaveTypeDetailsMap: Record<string, Record<string, string[]>> = {};
+      // Per-employee map of lieu leave date -> worked date (extracted from "Leave on Lieu - YYYY-MM-DD")
+      const lieuWorkedDatesMap: Record<string, Record<string, string>> = {};
       requests.forEach((r) => {
         if (r.status !== "approved") return;
         const leaveStart = new Date(r.start_date);
@@ -634,6 +639,15 @@ const Reports = () => {
 
         // Collect individual leave dates (only weekdays within the range)
         if (!leaveDatesMap[empKey]) leaveDatesMap[empKey] = [];
+        if (!leaveTypeDetailsMap[empKey]) leaveTypeDetailsMap[empKey] = {};
+        if (!lieuWorkedDatesMap[empKey]) lieuWorkedDatesMap[empKey] = {};
+
+        // Detect Leave on Lieu and extract the worked date from the type string
+        const lieuMatch = /^Leave on Lieu\s*-\s*(\d{4}-\d{2}-\d{2})/i.exec(r.leave_type || "");
+        const typeLabel = lieuMatch ? "Leave on Lieu" : (r.leave_type || "Unknown");
+        const workedDate = lieuMatch ? lieuMatch[1] : null;
+        if (!leaveTypeDetailsMap[empKey][typeLabel]) leaveTypeDetailsMap[empKey][typeLabel] = [];
+
         const current = new Date(Math.max(leaveStart.getTime(), rangeStart.getTime()));
         const end = new Date(Math.min(leaveEnd.getTime(), rangeEnd.getTime()));
         while (current <= end) {
@@ -642,17 +656,43 @@ const Reports = () => {
             const yyyy = current.getFullYear();
             const mm = String(current.getMonth() + 1).padStart(2, "0");
             const dd = String(current.getDate()).padStart(2, "0");
-            leaveDatesMap[empKey].push(`${yyyy}-${mm}-${dd}`);
+            const dateKey = `${yyyy}-${mm}-${dd}`;
+            leaveDatesMap[empKey].push(dateKey);
+            leaveTypeDetailsMap[empKey][typeLabel].push(dateKey);
+            if (workedDate) {
+              lieuWorkedDatesMap[empKey][dateKey] = workedDate;
+            }
           }
           current.setDate(current.getDate() + 1);
         }
       });
 
-      csvContent = "Employee,Email,Days Worked,Total Hours,Total Working Days,Leave Days,Leave Dates\n";
+      csvContent =
+        "Employee,Email,Days Worked,Total Hours,Total Working Days,Leave Days,Leave Dates,Leave Type Breakdown,Lieu Worked Dates\n";
       derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
-        csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours},${totalWorkingDays},${leaveDays},"${leaveDates}"\n`;
+
+        // Build "Type: date1, date2 ; Type2: date3" string
+        const typeMap = leaveTypeDetailsMap[emp.user_id];
+        let typeBreakdown = "-";
+        if (typeMap && Object.keys(typeMap).length > 0) {
+          typeBreakdown = Object.entries(typeMap)
+            .map(([t, dates]) => `${t}: ${[...dates].sort().join(", ")}`)
+            .join(" ; ");
+        }
+
+        // Build "leaveDate => workedDate" pairs for lieu entries
+        const lieuMap = lieuWorkedDatesMap[emp.user_id];
+        let lieuPairs = "-";
+        if (lieuMap && Object.keys(lieuMap).length > 0) {
+          lieuPairs = Object.entries(lieuMap)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([leaveDate, workedDate]) => `Leave ${leaveDate} <= Worked ${workedDate}`)
+            .join(" ; ");
+        }
+
+        csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours},${totalWorkingDays},${leaveDays},"${leaveDates}","${typeBreakdown}","${lieuPairs}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
