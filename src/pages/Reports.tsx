@@ -101,6 +101,7 @@ const Reports = () => {
   const { requests, loading: leaveLoading } = useLeaveRequests();
   const { isVP, user } = useAuth();
   const { hasPermission } = usePermissions();
+  const { events: calendarEvents } = useCalendarEvents();
   const canEditAttendance = isVP || hasPermission("edit_attendance");
   const [dateRange, setDateRange] = useState<DateRangeType>("this-month");
 
