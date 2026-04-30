@@ -58,9 +58,16 @@ const SPECIAL_LEAVE_TYPES: Record<string, number> = {
   "Paternity Leave": 22,
 };
 
+
+// Helper to check if a leave type is "Other Leave" (reason-based)
+const isOtherLeaveType = (leaveType: string) => {
+  return leaveType.startsWith("Other Leave");
+};
+
 // Helper to check if a leave type is "Leave in Lieu" (date-based)
+// Accepts legacy "Leave on Lieu" stored values for backward compatibility.
 const isLeaveOnLieuType = (leaveType: string) => {
-  return leaveType.startsWith("Leave in Lieu");
+  return leaveType.startsWith("Leave in Lieu") || leaveType.startsWith("Leave on Lieu");
 };
 
 // Helper to check if a leave type is "Other Leave" (reason-based)
@@ -70,7 +77,7 @@ const isOtherLeaveType = (leaveType: string) => {
 
 // Legacy support: old "Leave on Leave" prefix
 const isLeaveOnLeaveType = (leaveType: string) => {
-  return leaveType.startsWith("Leave on Leave") || leaveType.startsWith("Leave in Lieu");
+  return leaveType.startsWith("Leave on Leave") || leaveType.startsWith("Leave in Lieu") || leaveType.startsWith("Leave on Lieu");
 };
 
 export function useLeaveRequests() {
