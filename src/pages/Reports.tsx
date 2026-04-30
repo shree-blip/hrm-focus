@@ -643,7 +643,8 @@ const Reports = () => {
         if (!lieuWorkedDatesMap[empKey]) lieuWorkedDatesMap[empKey] = {};
 
         // Detect Leave in Lieu and extract the worked date from the type string
-        const lieuMatch = /^Leave in Lieu\s*-\s*(\d{4}-\d{2}-\d{2})/i.exec(r.leave_type || "");
+        // Accepts legacy "Leave on Lieu" stored values for backward compatibility.
+        const lieuMatch = /^Leave (?:in|on) Lieu\s*-\s*(\d{4}-\d{2}-\d{2})/i.exec(r.leave_type || "");
         const typeLabel = lieuMatch ? "Leave in Lieu" : (r.leave_type || "Unknown");
         const workedDate = lieuMatch ? lieuMatch[1] : null;
         if (!leaveTypeDetailsMap[empKey][typeLabel]) leaveTypeDetailsMap[empKey][typeLabel] = [];
