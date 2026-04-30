@@ -59,11 +59,6 @@ const SPECIAL_LEAVE_TYPES: Record<string, number> = {
 };
 
 
-// Helper to check if a leave type is "Other Leave" (reason-based)
-const isOtherLeaveType = (leaveType: string) => {
-  return leaveType.startsWith("Other Leave");
-};
-
 // Helper to check if a leave type is "Leave in Lieu" (date-based)
 // Accepts legacy "Leave on Lieu" stored values for backward compatibility.
 const isLeaveOnLieuType = (leaveType: string) => {
