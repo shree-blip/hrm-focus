@@ -70,8 +70,9 @@ const SPECIAL_LEAVE_TYPES = {
 } as const;
 
 // Helper to check if a leave type is "Leave in Lieu"
+// Accepts legacy "Leave on Lieu" stored values for backward compatibility.
 const isLeaveOnLieuType = (leaveType: string) => {
-  return leaveType.startsWith("Leave in Lieu");
+  return leaveType.startsWith("Leave in Lieu") || leaveType.startsWith("Leave on Lieu");
 };
 
 // Helper to check if a leave type is "Other Leave"
@@ -179,11 +180,11 @@ const Leave = () => {
   // Get leave type display for history
   const getLeaveTypeDisplay = (leaveType: string) => {
     if (isLeaveOnLieuType(leaveType)) {
-      const dateMatch = leaveType.match(/Leave in Lieu - (\d{4}-\d{2}-\d{2})/);
+      const dateMatch = leaveType.match(/Leave (?:in|on) Lieu - (\d{4}-\d{2}-\d{2})/);
       if (dateMatch) {
         return `Lieu (worked: ${format(new Date(dateMatch[1] + "T12:00:00"), "MMM d")})`;
       }
-      return leaveType.replace("Leave in Lieu - ", "Lieu: ");
+      return leaveType.replace(/Leave (?:in|on) Lieu - /, "Lieu: ");
     }
     if (isSickLeaveType(leaveType)) return "Sick Leave";
     if (isOtherLeaveType(leaveType)) return leaveType.replace("Other Leave - ", "");
