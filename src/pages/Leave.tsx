@@ -69,9 +69,9 @@ const SPECIAL_LEAVE_TYPES = {
   "Paternity Leave": { days: 22, color: "bg-indigo-500" },
 } as const;
 
-// Helper to check if a leave type is "Leave on Lieu"
+// Helper to check if a leave type is "Leave in Lieu"
 const isLeaveOnLieuType = (leaveType: string) => {
-  return leaveType.startsWith("Leave on Lieu");
+  return leaveType.startsWith("Leave in Lieu");
 };
 
 // Helper to check if a leave type is "Other Leave"
@@ -162,7 +162,7 @@ const Leave = () => {
       .reduce((sum, r) => sum + r.days, 0);
   };
 
-  // Calculate Leave on Lieu usage
+  // Calculate Leave in Lieu usage
   const getLeaveOnLieuUsed = () => {
     return ownRequests
       .filter((r) => r.status === "approved" && isLeaveOnLieuType(r.leave_type) && r.user_id === user?.id)
@@ -179,11 +179,11 @@ const Leave = () => {
   // Get leave type display for history
   const getLeaveTypeDisplay = (leaveType: string) => {
     if (isLeaveOnLieuType(leaveType)) {
-      const dateMatch = leaveType.match(/Leave on Lieu - (\d{4}-\d{2}-\d{2})/);
+      const dateMatch = leaveType.match(/Leave in Lieu - (\d{4}-\d{2}-\d{2})/);
       if (dateMatch) {
         return `Lieu (worked: ${format(new Date(dateMatch[1] + "T12:00:00"), "MMM d")})`;
       }
-      return leaveType.replace("Leave on Lieu - ", "Lieu: ");
+      return leaveType.replace("Leave in Lieu - ", "Lieu: ");
     }
     if (isSickLeaveType(leaveType)) return "Sick Leave";
     if (isOtherLeaveType(leaveType)) return leaveType.replace("Other Leave - ", "");
@@ -515,7 +515,7 @@ const Leave = () => {
             </CardContent>
           </Card>
 
-          {/* Leave on Lieu Card */}
+          {/* Leave in Lieu Card */}
           <Card
             className="animate-slide-up opacity-0 hover:shadow-md transition-shadow border-orange-500/20"
             style={{ animationDelay: "200ms", animationFillMode: "forwards" }}
@@ -524,7 +524,7 @@ const Leave = () => {
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <Layers className="h-4 w-4 text-orange-500" />
-                  Leave on Lieu
+                  Leave in Lieu
                 </p>
                 <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 dark:text-orange-400">
                   Date based

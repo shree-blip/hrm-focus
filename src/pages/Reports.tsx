@@ -626,7 +626,7 @@ const Reports = () => {
       // Per-employee, per-leave-type breakdown of dates taken
       // Key: user_id -> leave_type label -> array of leave dates (weekdays in range)
       const leaveTypeDetailsMap: Record<string, Record<string, string[]>> = {};
-      // Per-employee map of lieu leave date -> worked date (extracted from "Leave on Lieu - YYYY-MM-DD")
+      // Per-employee map of lieu leave date -> worked date (extracted from "Leave in Lieu - YYYY-MM-DD")
       const lieuWorkedDatesMap: Record<string, Record<string, string>> = {};
       requests.forEach((r) => {
         if (r.status !== "approved") return;
@@ -642,9 +642,9 @@ const Reports = () => {
         if (!leaveTypeDetailsMap[empKey]) leaveTypeDetailsMap[empKey] = {};
         if (!lieuWorkedDatesMap[empKey]) lieuWorkedDatesMap[empKey] = {};
 
-        // Detect Leave on Lieu and extract the worked date from the type string
-        const lieuMatch = /^Leave on Lieu\s*-\s*(\d{4}-\d{2}-\d{2})/i.exec(r.leave_type || "");
-        const typeLabel = lieuMatch ? "Leave on Lieu" : (r.leave_type || "Unknown");
+        // Detect Leave in Lieu and extract the worked date from the type string
+        const lieuMatch = /^Leave in Lieu\s*-\s*(\d{4}-\d{2}-\d{2})/i.exec(r.leave_type || "");
+        const typeLabel = lieuMatch ? "Leave in Lieu" : (r.leave_type || "Unknown");
         const workedDate = lieuMatch ? lieuMatch[1] : null;
         if (!leaveTypeDetailsMap[empKey][typeLabel]) leaveTypeDetailsMap[empKey][typeLabel] = [];
 

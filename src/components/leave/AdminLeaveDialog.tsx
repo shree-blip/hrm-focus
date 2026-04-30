@@ -33,7 +33,7 @@ function getDeductionInfo(leaveType: string): { balance: string; description: st
   if (leaveType === "Annual Leave" || leaveType.startsWith("Other Leave")) {
     return { balance: "Annual Leave", description: "Deducted from the employee's Annual Leave balance." };
   }
-  if (leaveType === "Leave in Lieu" || leaveType.startsWith("Leave on Lieu") || leaveType.startsWith("Leave on Leave")) {
+  if (leaveType === "Leave in Lieu" || leaveType.startsWith("Leave in Lieu") || leaveType.startsWith("Leave on Leave")) {
     return { balance: "Leave in Lieu", description: "Deducted from the employee's Leave in Lieu balance." };
   }
   if (["Wedding Leave", "Bereavement Leave", "Maternity Leave", "Paternity Leave"].includes(leaveType)) {
