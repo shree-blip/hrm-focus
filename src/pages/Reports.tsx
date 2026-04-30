@@ -671,8 +671,73 @@ const Reports = () => {
         }
       });
 
+      // Build per-employee approved leave date set (incl. weekends — used to
+      // exclude any leave-covered date from "Absent Dates").
+      const approvedLeaveDateSet: Record<string, Set<string>> = {};
+      requests.forEach((r) => {
+        if (r.status !== "approved") return;
+        const leaveStart = new Date(r.start_date);
+        const leaveEnd = new Date(r.end_date);
+        if (leaveEnd < rangeStart || leaveStart > rangeEnd) return;
+        const empKey = r.user_id;
+        if (!approvedLeaveDateSet[empKey]) approvedLeaveDateSet[empKey] = new Set();
+        const cur = new Date(Math.max(leaveStart.getTime(), rangeStart.getTime()));
+        const ed = new Date(Math.min(leaveEnd.getTime(), rangeEnd.getTime()));
+        while (cur <= ed) {
+          const yyyy = cur.getFullYear();
+          const mm = String(cur.getMonth() + 1).padStart(2, "0");
+          const dd = String(cur.getDate()).padStart(2, "0");
+          approvedLeaveDateSet[empKey].add(`${yyyy}-${mm}-${dd}`);
+          cur.setDate(cur.getDate() + 1);
+        }
+      });
+
+      // Build public holiday date set within range from static + dynamic sources.
+      const fmtKey = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${dd}`;
+      };
+      const holidayDateSet = new Set<string>();
+      calendarEntries.forEach((entry) => {
+        if (entry.type !== "holiday") return;
+        if (entry.date >= rangeStart && entry.date <= rangeEnd) {
+          holidayDateSet.add(fmtKey(entry.date));
+        }
+      });
+      (calendarEvents || []).forEach((ev) => {
+        if (ev.event_type !== "holiday") return;
+        const ed = new Date(ev.event_date + "T00:00:00");
+        if (ed >= rangeStart && ed <= rangeEnd) {
+          holidayDateSet.add(fmtKey(ed));
+        }
+      });
+
+      // Per-employee worked dates (from dailyAttendance — only days with a clock_in).
+      const workedDatesMap: Record<string, Set<string>> = {};
+      dailyAttendance.forEach((att: any) => {
+        if (!att.clock_in) return;
+        const ci = new Date(att.clock_in);
+        if (ci < rangeStart || ci > rangeEnd) return;
+        const key = fmtKey(ci);
+        if (!workedDatesMap[att.user_id]) workedDatesMap[att.user_id] = new Set();
+        workedDatesMap[att.user_id].add(key);
+      });
+
+      // All weekdays in range (used as the universe for absent-day calc).
+      const weekdayKeysInRange: string[] = [];
+      {
+        const cur = new Date(rangeStart);
+        while (cur <= rangeEnd) {
+          const dow = cur.getDay();
+          if (dow !== 0 && dow !== 6) weekdayKeysInRange.push(fmtKey(cur));
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+
       csvContent =
-        "Employee,Email,Days Worked,Total Hours,Total Working Days,Leave Days,Leave Dates,Leave Type Breakdown,Lieu Worked Dates\n";
+        "Employee,Email,Days Worked,Total Hours,Total Working Days,Leave Days,Leave Dates,Leave Type Breakdown,Lieu Worked Dates,Absent Dates (excl. approved leave),Off-Day Work Dates\n";
       derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
@@ -696,7 +761,24 @@ const Reports = () => {
             .join(" ; ");
         }
 
-        csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours},${totalWorkingDays},${leaveDays},"${leaveDates}","${typeBreakdown}","${lieuPairs}"\n`;
+        // Absent Dates = weekdays in range with no clock_in, excluding approved
+        // leave dates and excluding public holidays.
+        const empWorked = workedDatesMap[emp.user_id] || new Set<string>();
+        const empLeave = approvedLeaveDateSet[emp.user_id] || new Set<string>();
+        const absentDates = weekdayKeysInRange.filter(
+          (k) => !empWorked.has(k) && !empLeave.has(k) && !holidayDateSet.has(k),
+        );
+        const absentStr = absentDates.length > 0 ? absentDates.sort().join(" | ") : "None";
+
+        // Off-Day Work Dates = worked dates that fall on Sat/Sun OR a public holiday.
+        const offDayWork = Array.from(empWorked).filter((k) => {
+          const [yy, mm, dd] = k.split("-").map(Number);
+          const dow = new Date(yy, mm - 1, dd).getDay();
+          return dow === 0 || dow === 6 || holidayDateSet.has(k);
+        });
+        const offDayStr = offDayWork.length > 0 ? offDayWork.sort().join(" | ") : "None";
+
+        csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours},${totalWorkingDays},${leaveDays},"${leaveDates}","${typeBreakdown}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
