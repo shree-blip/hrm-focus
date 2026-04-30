@@ -323,7 +323,7 @@ const Employees = () => {
         // Normalize type: "Other Leave - Sick Leave" → "Sick Leave", "Other Leave - X" → "Other Leave"
         let type = r.leave_type;
         if (type.startsWith("Other Leave -")) type = "Other Leave";
-        else if (type.startsWith("Leave on Lieu")) type = "Leave on Lieu";
+        else if (type.startsWith("Leave in Lieu")) type = "Leave in Lieu";
 
         const dayCount = r.is_half_day ? 0.5 : r.days;
         usedMap.set(type, (usedMap.get(type) || 0) + dayCount);

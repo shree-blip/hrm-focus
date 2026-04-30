@@ -19,7 +19,7 @@ import { Separator } from "@/components/ui/separator";
 const LEAVE_TYPES = {
   "Annual Leave": { days: 12, description: "Regular annual leave allocation" },
   "Special Leave": { days: null, description: "Select a category below" },
-  "Leave on Lieu": {
+  "Leave in Lieu": {
     days: null,
     description: "Take a day off for a day you worked on a holiday/leave day",
   },
@@ -151,7 +151,7 @@ export function RequestLeaveDialog({
   const [halfDayPeriod, setHalfDayPeriod] = useState<string>("first_half");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Leave on Lieu specific fields
+  // Leave in Lieu specific fields
   const [dateWorked, setDateWorked] = useState<Date>(); // The date they worked on a holiday/leave
   const [lieuLeaveDate, setLieuLeaveDate] = useState<Date>(); // The date they want to take off
 
@@ -206,8 +206,8 @@ export function RequestLeaveDialog({
 
     if (isSubmitting) return;
 
-    // Validation for Leave on Lieu
-    if (leaveType === "Leave on Lieu") {
+    // Validation for Leave in Lieu
+    if (leaveType === "Leave in Lieu") {
       if (!dateWorked || !lieuLeaveDate) {
         toast({
           title: "Missing Information",
@@ -235,7 +235,7 @@ export function RequestLeaveDialog({
 
       try {
         const submitted = await onSubmit({
-          type: `Leave on Lieu - ${format(dateWorked, "yyyy-MM-dd")}`,
+          type: `Leave in Lieu - ${format(dateWorked, "yyyy-MM-dd")}`,
           startDate: adjustedLieuDate,
           endDate: adjustedLieuDate,
           reason: `Worked on: ${format(dateWorked, "MMM d, yyyy")}. ${reason}`,
@@ -352,7 +352,7 @@ export function RequestLeaveDialog({
     return null;
   };
 
-  const isLeaveOnLieu = leaveType === "Leave on Lieu";
+  const isLeaveOnLieu = leaveType === "Leave in Lieu";
   const isOtherLeave = leaveType === "Other Leave";
 
   return (
@@ -363,7 +363,7 @@ export function RequestLeaveDialog({
             {isLeaveOnLieu ? (
               <>
                 <Layers className="h-5 w-5 text-orange-500" />
-                Leave on Lieu Request
+                Leave in Lieu Request
               </>
             ) : isOtherLeave ? (
               <>
@@ -424,11 +424,11 @@ export function RequestLeaveDialog({
 
                 <Separator className="my-1" />
 
-                {/* Leave on Lieu */}
-                <SelectItem value="Leave on Lieu" className="py-3">
+                {/* Leave in Lieu */}
+                <SelectItem value="Leave in Lieu" className="py-3">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-orange-500" />
-                    <span className="font-medium">Leave on Lieu</span>
+                    <span className="font-medium">Leave in Lieu</span>
                     <Badge
                       variant="secondary"
                       className="text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30"
@@ -461,13 +461,13 @@ export function RequestLeaveDialog({
             )}
           </div>
 
-          {/* ========== LEAVE ON LIEU SECTION ========== */}
+          {/* ========== LEAVE IN LIEU SECTION ========== */}
           {isLeaveOnLieu && (
             <div className="space-y-4 p-4 rounded-lg border-2 border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-amber-500/5">
               <div className="flex items-center gap-2 mb-1">
                 <Layers className="h-4 w-4 text-orange-500" />
                 <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">
-                  Leave on Lieu Details
+                  Leave in Lieu Details
                 </span>
               </div>
 
@@ -575,7 +575,7 @@ export function RequestLeaveDialog({
               <div className="p-2 rounded-md bg-orange-500/10 border border-orange-500/20">
                 <p className="text-xs text-orange-600 dark:text-orange-400 flex items-start gap-1">
                   <Info className="h-3 w-3 mt-0.5 shrink-0" />
-                  Leave on Lieu is for employees who worked on a public holiday or during approved leave. Select the
+                  Leave in Lieu is for employees who worked on a public holiday or during approved leave. Select the
                   date you worked and the date you'd like off.
                 </p>
               </div>
@@ -707,7 +707,7 @@ export function RequestLeaveDialog({
             </div>
           )}
 
-          {/* Half-Day Toggle - NOT shown for Leave on Lieu or Special Leave */}
+          {/* Half-Day Toggle - NOT shown for Leave in Lieu or Special Leave */}
           {!isLeaveOnLieu && leaveType !== "Special Leave" && (
             <div className="space-y-2 p-3 rounded-lg border border-border bg-accent/30">
               <div className="flex items-center gap-3">
@@ -743,7 +743,7 @@ export function RequestLeaveDialog({
             </div>
           )}
 
-          {/* Date Selection - NOT shown for Leave on Lieu (has its own date pickers) */}
+          {/* Date Selection - NOT shown for Leave in Lieu (has its own date pickers) */}
           {!isLeaveOnLieu && (
             <div className={cn("grid gap-4", isHalfDay ? "grid-cols-1" : "grid-cols-2")}>
               <div className="space-y-2">
@@ -818,7 +818,7 @@ export function RequestLeaveDialog({
             </div>
           )}
 
-          {/* Weekend notice - not for Leave on Lieu */}
+          {/* Weekend notice - not for Leave in Lieu */}
           {!isLeaveOnLieu && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Info className="h-3 w-3" />
@@ -826,7 +826,7 @@ export function RequestLeaveDialog({
             </p>
           )}
 
-          {/* Days Summary - not for Leave on Lieu */}
+          {/* Days Summary - not for Leave in Lieu */}
           {!isLeaveOnLieu && startDate && (isHalfDay || (endDate && getCalculatedDays() !== null)) && (
             <div
               className={cn(

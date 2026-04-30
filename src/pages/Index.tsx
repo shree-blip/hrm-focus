@@ -50,7 +50,7 @@ const Index = () => {
   const { tasks } = useTasks();
   const { requests, ownRequests, teamLeaves, allApprovedLeaves } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
-  // Leave on Lieu dashboard tile temporarily disabled for all employees
+  // Leave in Lieu dashboard tile temporarily disabled for all employees
   const showLieuCard = false;
 
   const firstName = profile?.first_name || "User";
@@ -206,7 +206,7 @@ const Index = () => {
           delay={250}
           onClick={() => navigate(isManager ? "/approvals" : "/leave")}
         />
-       {/* Leave on Lieu tile hidden for all users
+       {/* Leave in Lieu tile hidden for all users
        {showLieuCard && <LeaveInLieuAlert delay={300} />} */}
       </div>
 

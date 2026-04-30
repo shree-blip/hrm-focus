@@ -60,7 +60,7 @@ const getLeaveTypeBadge = (type: string) => {
   if (type.includes("Sick"))
     return { bg: "bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400", label: "Sick Leave" };
   if (type.includes("Lieu"))
-    return { bg: "bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400", label: "Leave on Lieu" };
+    return { bg: "bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400", label: "Leave in Lieu" };
   if (type.includes("Other") && type.includes("Medical"))
     return { bg: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400", label: "Other Leave - Medical Emergency" };
   if (type.includes("Other"))

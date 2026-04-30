@@ -70,13 +70,13 @@ export function useWorkedOffDays(): WorkedOffDay[] {
     return map;
   }, [customEvents]);
 
-  // Dates already covered by an approved / pending Leave on Lieu request
+  // Dates already covered by an approved / pending Leave in Lieu request
   const coveredDates = useMemo(() => {
     const set = new Set();
     ownRequests
       .filter(
         (r) =>
-          r.leave_type?.toLowerCase().startsWith("leave on lieu") &&
+          r.leave_type?.toLowerCase().startsWith("leave in lieu") &&
           (r.status === "approved" || r.status === "pending"),
       )
       .forEach((r) => {
@@ -152,7 +152,7 @@ export function LeaveInLieuAlert({ delay = 300 }: { delay?: number }) {
   return (
     <>
       <StatCard
-        title="Leave on Lieu Available"
+        title="Leave in Lieu Available"
         value={`${workedOffDays.length}`}
         change={`Deadline ${formatShort(earliestDeadline)}`}
         changeType="negative"
@@ -185,7 +185,7 @@ export function LeaveInLieuAlert({ delay = 300 }: { delay?: number }) {
               </p>
 
               <p className="text-sm text-muted-foreground">
-                Please take a <span className="font-medium text-foreground">Leave on Lieu</span> on any working
+                Please take a <span className="font-medium text-foreground">Leave in Lieu</span> on any working
                 day between{" "}
                 <span className="font-medium text-foreground">{formatShort(mostRecent.windowStart)}</span> and{" "}
                 <span className="font-medium text-foreground">{formatShort(mostRecent.windowEnd)}</span> so you
@@ -225,7 +225,7 @@ export function LeaveInLieuAlert({ delay = 300 }: { delay?: number }) {
             </Button>
             <Button onClick={handleRequestLeave} className="w-full sm:w-auto gap-2">
               <CalendarCheck className="h-4 w-4" />
-              Request Leave on Lieu
+              Request Leave in Lieu
             </Button>
           </DialogFooter>
         </DialogContent>

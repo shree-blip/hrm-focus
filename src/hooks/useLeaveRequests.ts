@@ -58,9 +58,11 @@ const SPECIAL_LEAVE_TYPES: Record<string, number> = {
   "Paternity Leave": 22,
 };
 
-// Helper to check if a leave type is "Leave on Lieu" (date-based)
+
+// Helper to check if a leave type is "Leave in Lieu" (date-based)
+// Accepts legacy "Leave on Lieu" stored values for backward compatibility.
 const isLeaveOnLieuType = (leaveType: string) => {
-  return leaveType.startsWith("Leave on Lieu");
+  return leaveType.startsWith("Leave in Lieu") || leaveType.startsWith("Leave on Lieu");
 };
 
 // Helper to check if a leave type is "Other Leave" (reason-based)
@@ -70,7 +72,7 @@ const isOtherLeaveType = (leaveType: string) => {
 
 // Legacy support: old "Leave on Leave" prefix
 const isLeaveOnLeaveType = (leaveType: string) => {
-  return leaveType.startsWith("Leave on Leave") || leaveType.startsWith("Leave on Lieu");
+  return leaveType.startsWith("Leave on Leave") || leaveType.startsWith("Leave in Lieu") || leaveType.startsWith("Leave on Lieu");
 };
 
 export function useLeaveRequests() {
@@ -424,7 +426,7 @@ export function useLeaveRequests() {
       // Check if it's a special leave type with fixed days
       days = SPECIAL_LEAVE_TYPES[request.leave_type];
     } else if (isLeaveOnLieuType(request.leave_type)) {
-      // Leave on Lieu is always 1 day
+      // Leave in Lieu is always 1 day
       days = 1;
     } else {
       // For Annual Leave, Other Leave, and other types - calculate business days (excluding weekends)
@@ -511,7 +513,7 @@ export function useLeaveRequests() {
       return false;
     } else {
       const toastTitle = isLieu
-        ? "Leave on Lieu Request Submitted"
+        ? "Leave in Lieu Request Submitted"
         : isOther
           ? "Other Leave Request Submitted"
           : "Request Submitted";
@@ -528,7 +530,7 @@ export function useLeaveRequests() {
         user.id,
         toastTitle,
         isLieu
-          ? `Your Leave on Lieu request for ${days} day(s) has been submitted.`
+          ? `Your Leave in Lieu request for ${days} day(s) has been submitted.`
           : isOther
             ? `Your Other Leave (${request.leave_type.replace("Other Leave - ", "")}) request for ${days} day(s) has been submitted.`
             : `Your ${request.leave_type} request for ${days} day(s) has been submitted and is pending approval.`,
@@ -562,12 +564,12 @@ export function useLeaveRequests() {
 
       for (const managerId of notifySet) {
         const notifTitle = isLieu
-          ? "📅 Leave on Lieu Request"
+          ? "📅 Leave in Lieu Request"
           : isOther
             ? "📋 Other Leave Request"
             : "📋 New Leave Request";
         const notifMsg = isLieu
-          ? `${userName} submitted a Leave on Lieu request for ${days} day(s). ${request.reason}`
+          ? `${userName} submitted a Leave in Lieu request for ${days} day(s). ${request.reason}`
           : isOther
             ? `${userName} submitted an Other Leave request (${request.leave_type.replace("Other Leave - ", "")}) for ${days} day(s).`
             : `${userName} submitted a ${request.leave_type} request for ${days} day(s) (${formatLocalDate(request.start_date)} to ${formatLocalDate(request.end_date)}).`;
@@ -657,7 +659,7 @@ export function useLeaveRequests() {
       const isOther = isOtherLeaveType(requestData.leave_type);
 
       const approveTitle = isLieu
-        ? "✅ Leave on Lieu Approved"
+        ? "✅ Leave in Lieu Approved"
         : isOther
           ? "✅ Other Leave Approved"
           : "✅ Leave Request Approved";
@@ -778,7 +780,7 @@ export function useLeaveRequests() {
       const isOther = isOtherLeaveType(requestData.leave_type);
 
       const rejectTitle = isLieu
-        ? "❌ Leave on Lieu Rejected"
+        ? "❌ Leave in Lieu Rejected"
         : isOther
           ? "❌ Other Leave Rejected"
           : "❌ Leave Request Rejected";
