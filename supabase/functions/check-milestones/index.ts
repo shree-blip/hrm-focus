@@ -57,16 +57,11 @@ Deno.serve(async (req) => {
       days_ahead: 15,
     });
 
-    const { data: milestones1, error: error1 } = await supabase.rpc("get_milestones_in_days", {
-      days_ahead: 1,
-    });
-
     const { data: milestonesToday, error: errorToday } = await supabase.rpc("get_milestones_in_days", {
       days_ahead: 0,
     });
 
     if (error15) throw error15;
-    if (error1) throw error1;
     if (errorToday) throw errorToday;
 
     // =========================================================
@@ -264,7 +259,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    async function processMilestones(milestones: MilestoneRecord[], phase: "early_15" | "pre_1" | "today") {
+    async function processMilestones(milestones: MilestoneRecord[], phase: "early_15" | "today") {
       const currentYear = new Date().getFullYear();
 
       for (const milestone of milestones || []) {
@@ -301,43 +296,6 @@ Deno.serve(async (req) => {
                 milestone_type: milestone.milestone_type,
                 milestone_year: currentYear,
                 phase: "15_days_before",
-                person: fullName,
-                years: milestone.years,
-              });
-            }
-          }
-        } else if (phase === "pre_1") {
-          if (milestone.milestone_type === "birthday") {
-            inAppTitle = `🎉 Birthday Tomorrow`;
-            inAppMessage = `${fullName}'s birthday is tomorrow! Don't forget to wish them.`;
-          } else {
-            const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
-            inAppTitle = `🎉 Work Anniversary Tomorrow`;
-            inAppMessage = `${fullName}'s ${yearsText} work anniversary is tomorrow!`;
-          }
-
-          // Admin + CEO + everyone except the milestone person
-          for (const userId of allUserIds) {
-            if (userId === milestone.user_id) continue;
-            await createInAppNotification(userId, inAppTitle, inAppMessage);
-          }
-
-          if (RESEND_API_KEY) {
-            const teamEmailsExceptSelf = allEmails.filter((e) => {
-              const profile = profiles.find((p) => p.email === e);
-              return profile?.user_id !== milestone.user_id;
-            });
-
-            const recipients = [...new Set([...teamEmailsExceptSelf, FIXED_CC_EMAIL])];
-            const { subject, html } = buildTomorrowMilestoneEmail(milestone);
-
-            for (const email of recipients) {
-              await sendMilestoneEmail(email, `milestone_1day_${milestone.milestone_type}`, subject, html, {
-                milestone,
-                milestone_user_id: milestone.user_id,
-                milestone_type: milestone.milestone_type,
-                milestone_year: currentYear,
-                phase: "1_day_before",
                 person: fullName,
                 years: milestone.years,
               });
@@ -389,14 +347,12 @@ Deno.serve(async (req) => {
     // =========================================================
 
     await processMilestones((milestones15 || []) as MilestoneRecord[], "early_15");
-    await processMilestones((milestones1 || []) as MilestoneRecord[], "pre_1");
     await processMilestones((milestonesToday || []) as MilestoneRecord[], "today");
 
     return new Response(
       JSON.stringify({
         success: true,
         milestones_15_days: (milestones15 || []).length,
-        milestones_1_day: (milestones1 || []).length,
         milestones_today: (milestonesToday || []).length,
         results: notificationResults,
       }),
