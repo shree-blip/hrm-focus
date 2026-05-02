@@ -981,7 +981,7 @@ export default function LogSheet() {
                                 />
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-xs font-medium text-muted-foreground">Department</Label>
+                                <Label className="text-xs font-medium text-muted-foreground">Task Department</Label>
                                 <DepartmentSelect
                                   value={inlineData.department}
                                   onChange={(v) => setInlineData({ ...inlineData, department: v })}
