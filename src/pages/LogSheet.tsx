@@ -578,7 +578,7 @@ export default function LogSheet() {
       ...formData,
       time_spent_minutes: calculatedTimeSpent,
       client_id: formData.client_id || undefined,
-      department: formData.department || undefined,
+      department: formData.department || userDepartment || undefined,
       start_time: formData.start_time || undefined,
       end_time: formData.end_time || undefined,
       status: !formData.end_time ? "in_progress" : formData.status || "completed",
