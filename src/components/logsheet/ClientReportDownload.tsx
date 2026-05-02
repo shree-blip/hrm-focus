@@ -1085,7 +1085,8 @@ export function ClientReportDownload() {
                       <TableHead>Employee</TableHead>
                       <TableHead>Department</TableHead>
                       <TableHead>Client</TableHead>
-                      <TableHead>Task</TableHead>
+                      <TableHead>Task Department</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead>Time</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -1101,10 +1102,8 @@ export function ClientReportDownload() {
                         </TableCell>
                         {/* 3. Department — from work_logs.department with friendly label */}
                         <TableCell>
-                          {log.department ? (
-                            <Badge variant="secondary" className="font-normal text-xs">
-                              {getDepartmentDisplayLabel(log.department) || log.department}
-                            </Badge>
+                          {log.employee?.department ? (
+                            <span className="text-sm">{log.employee.department}</span>
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>
                           )}
@@ -1122,7 +1121,17 @@ export function ClientReportDownload() {
                             "N/A"
                           )}
                         </TableCell>
-                        {/* 5. Task */}
+                        {/* 5. Task Department — from work_logs.department */}
+                        <TableCell>
+                          {log.department ? (
+                            <Badge variant="secondary" className="font-normal text-xs">
+                              {getDepartmentDisplayLabel(log.department) || log.department}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        {/* 6. Description */}
                         <TableCell className="max-w-xs">
                           <p className="truncate">{log.task_description}</p>
                         </TableCell>
