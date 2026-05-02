@@ -248,9 +248,10 @@ export function TeamLogsFilters({
             <TableHeader>
               <TableRow>
                 <TableHead>Employee</TableHead>
-                <TableHead>Client</TableHead>
                 <TableHead>Department</TableHead>
+                <TableHead>Client</TableHead>
                 <TableHead>Task</TableHead>
+                <TableHead>Description</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
@@ -264,10 +265,14 @@ export function TeamLogsFilters({
                       <p className="font-medium text-sm">
                         {log.employee?.first_name} {log.employee?.last_name}
                       </p>
-                      {log.employee?.department && (
-                        <p className="text-xs text-muted-foreground">{log.employee.department}</p>
-                      )}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {log.employee?.department ? (
+                      <span className="text-sm">{log.employee.department}</span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {log.client?.name ? (
@@ -294,7 +299,7 @@ export function TeamLogsFilters({
                       <span className="text-muted-foreground text-xs">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="max-w-[200px]">
+                  <TableCell className="max-w-[250px]">
                     <p className="text-sm truncate">{log.task_description}</p>
                   </TableCell>
                   <TableCell>
