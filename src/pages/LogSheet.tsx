@@ -1370,10 +1370,7 @@ export default function LogSheet() {
               {/* Department */}
               <div className="space-y-1.5">
                 <Label className="text-sm">
-                  Work Department
-                  {userDepartment && !editingLog && (
-                    <span className="text-xs text-muted-foreground ml-1.5">(auto-filled from profile)</span>
-                  )}
+                  Task Department
                 </Label>
                 <DepartmentSelect
                   value={formData.department || ""}
