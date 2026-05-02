@@ -250,7 +250,7 @@ export function TeamLogsFilters({
                 <TableHead>Employee</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Client</TableHead>
-                <TableHead>Task</TableHead>
+                <TableHead>Task Department</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead>Status</TableHead>
