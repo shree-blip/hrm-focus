@@ -621,10 +621,11 @@ export function ClientReportDownload() {
     const detailHeaders = [
       "Date",
       "Employee",
+      "Department",
       "Task Department",
       "Client",
       "Client ID",
-      "Task",
+      "Description",
       "Time Spent",
       "Hours (Decimal)",
       "Start Time",
@@ -639,6 +640,7 @@ export function ClientReportDownload() {
       const row = [
         format(new Date(log.log_date), "yyyy-MM-dd"),
         log.employee ? `"${log.employee.first_name} ${log.employee.last_name}"` : "N/A",
+        log.employee?.department ? `"${log.employee.department}"` : "N/A",
         `"${deptDisplay}"`,
         log.client?.name ? `"${log.client.name}"` : "N/A",
         log.client?.client_id || "N/A",
