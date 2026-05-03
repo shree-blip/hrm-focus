@@ -89,6 +89,7 @@ const getDateRangeLabel = (rangeType: DateRangeType): string => {
   const { start, end } = getDateRangeFromType(rangeType);
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
+      timeZone: "UTC",
       month: "short",
       day: "numeric",
       year: "numeric",
