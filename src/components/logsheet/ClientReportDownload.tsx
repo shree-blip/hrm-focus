@@ -543,9 +543,9 @@ export function ClientReportDownload() {
     // Department info
     if (selectedDepartment) {
       const deptDisplay = getDepartmentDisplayLabel(selectedDepartment) || selectedDepartment;
-      csvLines.push(`Department Filter,${deptDisplay}`);
+      csvLines.push(`Task Department Filter,${deptDisplay}`);
     } else {
-      csvLines.push("Department Filter,All Departments");
+      csvLines.push("Task Department Filter,All Task Departments");
     }
 
     csvLines.push(`Report Period,${format(startDate, "yyyy-MM-dd")} to ${format(endDate, "yyyy-MM-dd")}`);
@@ -564,7 +564,7 @@ export function ClientReportDownload() {
       csvLines.push(`Total Employees,${employeeTimeSummary.length}`);
     }
     if (!selectedDepartment) {
-      csvLines.push(`Total Departments,${departmentTimeSummary.length}`);
+      csvLines.push(`Total Task Departments,${departmentTimeSummary.length}`);
     }
     csvLines.push("");
 
@@ -602,9 +602,9 @@ export function ClientReportDownload() {
 
     // ===== SECTION 4b: Time by Department =====
     if (!selectedDepartment && departmentTimeSummary.length > 0) {
-      csvLines.push("TIME BY DEPARTMENT");
+      csvLines.push("TIME BY TASK DEPARTMENT");
       csvLines.push("");
-      csvLines.push("Department,Total Time,Hours (Decimal)");
+      csvLines.push("Task Department,Total Time,Hours (Decimal)");
 
       departmentTimeSummary.forEach((dept) => {
         csvLines.push(`"${dept.name}","${formatTime(dept.totalMinutes)}",${formatDecimalHours(dept.totalMinutes)}`);
@@ -621,7 +621,7 @@ export function ClientReportDownload() {
     const detailHeaders = [
       "Date",
       "Employee",
-      "Department",
+      "Task Department",
       "Client",
       "Client ID",
       "Task",
@@ -853,12 +853,12 @@ export function ClientReportDownload() {
 
           {/* Department Filter — now nested dropdown */}
           <div className="space-y-2">
-            <Label>Department</Label>
+            <Label>Task Department</Label>
             <div className="relative">
               <DepartmentSelect
                 value={selectedDepartment}
                 onChange={setSelectedDepartment}
-                placeholder="All departments"
+                placeholder="All task departments"
               />
               {selectedDepartment && (
                 <Button
