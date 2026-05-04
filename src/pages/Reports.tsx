@@ -399,7 +399,15 @@ const Reports = () => {
   };
 
   const dailyStats = {
-    totalRecords: filteredDailyAttendance.length,
+    totalRecords: (() => {
+      const seen = new Set<string>();
+      filteredDailyAttendance.forEach((att) => {
+        const rec = att as DailyAttendanceRecord;
+        const dateKey = formatDateLocal(rec.clock_in, rec.employee_timezone);
+        seen.add(`${rec.user_id}::${dateKey}`);
+      });
+      return seen.size;
+    })(),
     avgTotalHours: (() => {
       const completedRecords = filteredDailyAttendance.filter((att) => (att as DailyAttendanceRecord).clock_out);
       if (completedRecords.length === 0) return "0";
@@ -467,7 +475,12 @@ const Reports = () => {
     return {
       employee_name: firstRecord.employee_name,
       email: firstRecord.email,
-      totalDaysWorked: employeeRecords.length,
+      totalDaysWorked: new Set(
+        employeeRecords.map((att) => {
+          const t = att as DailyAttendanceRecord;
+          return formatDateLocal(t.clock_in, t.employee_timezone);
+        })
+      ).size,
       totalHoursWorked: totalHoursWorked.toFixed(1),
       avgHoursPerDay: completedRecords.length > 0 ? (totalHoursWorked / completedRecords.length).toFixed(1) : "0",
       totalBreakMinutes,
