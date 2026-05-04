@@ -467,7 +467,12 @@ const Reports = () => {
     return {
       employee_name: firstRecord.employee_name,
       email: firstRecord.email,
-      totalDaysWorked: employeeRecords.length,
+      totalDaysWorked: new Set(
+        employeeRecords.map((att) => {
+          const t = att as DailyAttendanceRecord;
+          return formatDateLocal(t.clock_in, t.employee_timezone);
+        })
+      ).size,
       totalHoursWorked: totalHoursWorked.toFixed(1),
       avgHoursPerDay: completedRecords.length > 0 ? (totalHoursWorked / completedRecords.length).toFixed(1) : "0",
       totalBreakMinutes,
