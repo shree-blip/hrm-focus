@@ -399,7 +399,15 @@ const Reports = () => {
   };
 
   const dailyStats = {
-    totalRecords: filteredDailyAttendance.length,
+    totalRecords: (() => {
+      const seen = new Set<string>();
+      filteredDailyAttendance.forEach((att) => {
+        const rec = att as DailyAttendanceRecord;
+        const dateKey = formatDateLocal(rec.clock_in, rec.employee_timezone);
+        seen.add(`${rec.user_id}::${dateKey}`);
+      });
+      return seen.size;
+    })(),
     avgTotalHours: (() => {
       const completedRecords = filteredDailyAttendance.filter((att) => (att as DailyAttendanceRecord).clock_out);
       if (completedRecords.length === 0) return "0";
