@@ -32,6 +32,8 @@ import {
   Coffee,
   Info,
   ChevronRight,
+  MessageSquare,
+  Star,
 } from "lucide-react";
 import {
   BarChart,
@@ -840,7 +842,23 @@ const PerformanceMetrics = () => {
 
   const { employees, loading: empLoading } = useEmployees();
   const { getStatus: getPresenceStatus, getOnlineCount } = useTeamPresence();
-  const { goals, loading: goalsLoading, createGoal, updateGoal, deleteGoal, createFeedback } = usePerformanceReviews();
+  const { goals, feedback, loading: goalsLoading, createGoal, updateGoal, deleteGoal, createFeedback } = usePerformanceReviews();
+
+  // ── Feedback Review data ──
+  const myEmployeeId = useMemo(() => {
+    if (!user) return null;
+    return metrics.find((m) => m.userId === user.id)?.employeeId || null;
+  }, [user, metrics]);
+
+  const feedbackReceived = useMemo(() => {
+    if (!myEmployeeId) return [];
+    return feedback.filter((f) => f.to_employee_id === myEmployeeId);
+  }, [feedback, myEmployeeId]);
+
+  const feedbackSent = useMemo(() => {
+    if (!user) return [];
+    return feedback.filter((f) => f.from_user_id === user.id);
+  }, [feedback, user]);
 
   const activeEmployees = useMemo(() => {
     if (isLineManager || isSupervisor) {
@@ -2161,6 +2179,10 @@ const PerformanceMetrics = () => {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="goals">Goals ({goals.length})</TabsTrigger>
+          <TabsTrigger value="feedback-review">
+            <MessageSquare className="h-4 w-4 mr-1" />
+            Feedback Review
+          </TabsTrigger>
           {!isEmployeeView && <TabsTrigger value="alerts">Alerts ({kpis.totalAlerts})</TabsTrigger>}
         </TabsList>
 
@@ -2682,6 +2704,105 @@ const PerformanceMetrics = () => {
         </TabsContent>
 
         {/* ════════ ALERTS ════════ */}
+        {/* ════════ FEEDBACK REVIEW ════════ */}
+        <TabsContent value="feedback-review" className="space-y-6">
+          {/* Feedback Received */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display text-lg flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" /> Feedback Received
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {feedbackReceived.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No feedback received yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {feedbackReceived.map((fb) => (
+                    <div key={fb.id} className="p-4 rounded-lg border bg-card space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-7 w-7">
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                              {fb.from_name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">{fb.from_name || "Anonymous"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-xs capitalize">{fb.category}</Badge>
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <Star
+                                key={n}
+                                className={`h-3.5 w-3.5 ${n <= fb.rating ? "text-warning fill-warning" : "text-muted-foreground/30"}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      {fb.comment && <p className="text-sm text-muted-foreground pl-9">{fb.comment}</p>}
+                      <p className="text-xs text-muted-foreground pl-9">
+                        {new Date(fb.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Feedback Sent (visible to managers/admin/vp) */}
+          {!isEmployeeView && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" /> Feedback Sent by You
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {feedbackSent.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">You haven't sent any feedback yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {feedbackSent.map((fb) => (
+                      <div key={fb.id} className="p-4 rounded-lg border bg-card space-y-2">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">To:</span>
+                            <span className="text-sm font-medium">{fb.to_name || "Unknown"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs capitalize">{fb.category}</Badge>
+                            <div className="flex items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <Star
+                                  key={n}
+                                  className={`h-3.5 w-3.5 ${n <= fb.rating ? "text-warning fill-warning" : "text-muted-foreground/30"}`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        {fb.comment && <p className="text-sm text-muted-foreground">{fb.comment}</p>}
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(fb.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         {!isEmployeeView && (
           <TabsContent value="alerts" className="space-y-4">
             <Card>
