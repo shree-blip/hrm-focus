@@ -75,9 +75,10 @@ const DEPARTMENTS: DepartmentItem[] = [
       { label: "Tax Return Review", value: "Tax_Return_Review" },
       { label: "Tax Return Walk Through", value: "Tax_Return_Walk_Through" },
       { label: "Tax Return Compliance", value: "Tax_Return_Compliance" },
-      { label: "TR Compliance", value: "TR_Compliance" },
       { label: "TR Closure", value: "TR_Closure" },
       { label: "TR Invoicing", value: "TR_Invoicing" },
+      { label: "Final Review", value: "Final_Review" },
+      { label: "Tax Filing", value: "Tax_Filing" },
     ],
   },
   {
