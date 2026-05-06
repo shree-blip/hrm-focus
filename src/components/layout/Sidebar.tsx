@@ -35,6 +35,8 @@ import { useSidebarBadges } from "@/hooks/useSidebarBadges";
 import focusLogo from "@/assets/focus-logo.png";
 import { useTheme } from "@/components/dashboard/ThemeContext";
 
+const HOVER_STYLES = "[@media(hover:hover)]:hover:bg-sidebar-accent [@media(hover:hover)]:hover:text-sidebar-foreground";
+
 interface MenuItem {
   icon: typeof LayoutDashboard;
   label: string;
@@ -221,10 +223,10 @@ export const Sidebar = memo(function Sidebar({
                 onFocus={() => handlePrefetch(item.href)}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 touch-manipulation",
-                  "hover:bg-sidebar-accent",
+                  HOVER_STYLES,
                   isActive
                     ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md"
-                    : "text-sidebar-foreground/80 hover:text-sidebar-foreground",
+                    : "text-sidebar-foreground/80",
                 )}
               >
                 <Icon className={cn("h-5 w-5 shrink-0", collapsed && "mx-auto")} />
@@ -268,10 +270,10 @@ export const Sidebar = memo(function Sidebar({
               onClick={() => handleNavClick(item.href)}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 touch-manipulation",
-                "hover:bg-sidebar-accent",
+                HOVER_STYLES,
                 isActive
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/80 hover:text-sidebar-foreground",
+                  : "text-sidebar-foreground/80",
               )}
             >
               <Icon className={cn("h-5 w-5 shrink-0", collapsed && "mx-auto")} />
@@ -296,7 +298,8 @@ export const Sidebar = memo(function Sidebar({
           size="sm"
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
-            "w-full justify-center text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            "w-full justify-center text-sidebar-foreground/60",
+            HOVER_STYLES,
             !collapsed && "justify-start px-3",
           )}
         >
@@ -317,7 +320,7 @@ export const Sidebar = memo(function Sidebar({
                 variant="ghost"
                 size="sm"
                 onClick={toggleTheme}
-                className="w-full justify-center text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                className={cn("w-full justify-center text-sidebar-foreground/60", HOVER_STYLES)}
               >
                 {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </Button>
@@ -331,7 +334,7 @@ export const Sidebar = memo(function Sidebar({
             variant="ghost"
             size="sm"
             onClick={toggleTheme}
-            className="w-full justify-start px-3 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            className={cn("w-full justify-start px-3 text-sidebar-foreground/60", HOVER_STYLES)}
           >
             {theme === "dark" ? <Sun className="mr-2 h-5 w-5" /> : <Moon className="mr-2 h-5 w-5" />}
             <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
