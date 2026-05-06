@@ -139,6 +139,7 @@ export const Sidebar = memo(function Sidebar({
 }: SidebarProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const collapsed = controlledCollapsed ?? internalCollapsed;
+  const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
   const setCollapsed = (v: boolean) => {
     setInternalCollapsed(v);
     onCollapsedChange?.(v);
@@ -219,13 +220,12 @@ export const Sidebar = memo(function Sidebar({
                 onMouseEnter={() => handlePrefetch(item.href)}
                 onFocus={() => handlePrefetch(item.href)}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 touch-manipulation",
                   "hover:bg-sidebar-accent",
                   isActive
                     ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md"
                     : "text-sidebar-foreground/80 hover:text-sidebar-foreground",
                 )}
-                style={{ animationDelay: `${index * 50}ms` }}
               >
                 <Icon className={cn("h-5 w-5 shrink-0", collapsed && "mx-auto")} />
                 {!collapsed && <span className="truncate">{item.label}</span>}
@@ -240,10 +240,8 @@ export const Sidebar = memo(function Sidebar({
             return (
               <li
                 key={item.href + item.label}
-                className="animate-slide-in-left"
-                style={{ animationDelay: `${index * 50}ms` }}
               >
-                {collapsed ? (
+                {collapsed && !isTouchDevice ? (
                   <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
                     <TooltipContent side="right" className="font-medium">
@@ -269,7 +267,7 @@ export const Sidebar = memo(function Sidebar({
               to={item.href}
               onClick={() => handleNavClick(item.href)}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 touch-manipulation",
                 "hover:bg-sidebar-accent",
                 isActive
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"
@@ -281,7 +279,7 @@ export const Sidebar = memo(function Sidebar({
             </Link>
           );
 
-          return collapsed ? (
+          return collapsed && !isTouchDevice ? (
             <Tooltip key={item.href} delayDuration={0}>
               <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
               <TooltipContent side="right" className="font-medium">
