@@ -405,7 +405,7 @@ export function PersonalReportsWidget() {
               <p className={`text-sm font-medium ${trackingStatus.color}`}>{trackingStatus.message}</p>
               {workingDaysRemaining > 0 && remainingHoursNeeded > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Need ~{avgHoursNeededPerDay}h/day for remaining {workingDaysRemaining} days to hit target
+                  Need ~{avgHoursNeededPerDay}h/day for remaining {workingDaysRemaining} days to hit Metrix Report
                 </p>
               )}
               {remainingHoursNeeded <= 0 && <p className="text-xs text-success mt-1">🎉 Monthly target achieved!</p>}
