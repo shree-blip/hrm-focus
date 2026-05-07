@@ -93,10 +93,9 @@ export function useDocuments() {
           return false;
         }
 
-        // Contracts - visible to uploader (VP), admin, VP, and the assigned employee
+        // Contracts - visible ONLY to uploader and the assigned employee (strict privacy)
         if (doc.category === "Contracts") {
           if (doc.uploaded_by === user.id) return true;
-          if (isVP) return true;
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
           return false;
         }
