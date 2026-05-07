@@ -4680,6 +4680,10 @@ export type Database = {
         Args: { _employee_id: string; _user_id: string }
         Returns: boolean
       }
+      is_document_recipient: {
+        Args: { _employee_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_it_team: { Args: { _user_id: string }; Returns: boolean }
       is_line_manager: { Args: { _user_id: string }; Returns: boolean }
       is_loan_officer: { Args: { _user_id: string }; Returns: boolean }
