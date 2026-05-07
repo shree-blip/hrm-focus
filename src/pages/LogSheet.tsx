@@ -1471,8 +1471,8 @@ export default function LogSheet() {
                 </div>
               )}
 
-              {/* Notes */}
-              <div className="space-y-1.5">
+              {/* Notes - commented out per request */}
+              {/* <div className="space-y-1.5">
                 <Label className="text-sm">Notes (optional)</Label>
                 <Textarea
                   placeholder="Any additional notes..."
@@ -1481,7 +1481,7 @@ export default function LogSheet() {
                   rows={2}
                   className="resize-none"
                 />
-              </div>
+              </div> */}
 
               <DialogFooter className="gap-2 sm:gap-0">
                 <Button
