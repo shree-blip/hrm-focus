@@ -7,6 +7,7 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const FIXED_CC_EMAIL = "hello@focusyourfinance.com";
+const PREP_NOTIFY_EMAIL = "resham@focusyourfinance.com";
 
 interface MilestoneRecord {
   user_id: string;
@@ -57,11 +58,17 @@ Deno.serve(async (req) => {
       days_ahead: 15,
     });
 
+    // 7 days ahead → preparation notice to resham@focusyourfinance.com
+    const { data: milestones7, error: error7 } = await supabase.rpc("get_milestones_in_days", {
+      days_ahead: 7,
+    });
+
     const { data: milestonesToday, error: errorToday } = await supabase.rpc("get_milestones_in_days", {
       days_ahead: 0,
     });
 
     if (error15) throw error15;
+    if (error7) throw error7;
     if (errorToday) throw errorToday;
 
     // =========================================================
@@ -259,7 +266,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    async function processMilestones(milestones: MilestoneRecord[], phase: "early_15" | "today") {
+    async function processMilestones(milestones: MilestoneRecord[], phase: "early_15" | "early_7" | "today") {
       const currentYear = new Date().getFullYear();
 
       for (const milestone of milestones || []) {
@@ -302,6 +309,25 @@ Deno.serve(async (req) => {
             }
           }
         } else if (phase === "today") {
+          // ... today handling below
+        } else if (phase === "early_7") {
+          // 7-day heads-up → only resham@focusyourfinance.com
+          if (RESEND_API_KEY) {
+            const { subject, html } = build7DayPrepEmail(milestone);
+            await sendMilestoneEmail(PREP_NOTIFY_EMAIL, `milestone_7day_${milestone.milestone_type}`, subject, html, {
+              milestone,
+              milestone_user_id: milestone.user_id,
+              milestone_type: milestone.milestone_type,
+              milestone_year: currentYear,
+              phase: "7_days_before",
+              person: fullName,
+              years: milestone.years,
+            });
+          }
+        }
+
+        // Re-check today so the original block still runs
+        if (phase === "today") {
           if (milestone.milestone_type === "birthday") {
             inAppTitle = `🎂 Birthday Celebration!`;
             inAppMessage = `Today is ${fullName}'s birthday! Wish them a happy birthday! 🎉`;
@@ -347,12 +373,14 @@ Deno.serve(async (req) => {
     // =========================================================
 
     await processMilestones((milestones15 || []) as MilestoneRecord[], "early_15");
+    await processMilestones((milestones7 || []) as MilestoneRecord[], "early_7");
     await processMilestones((milestonesToday || []) as MilestoneRecord[], "today");
 
     return new Response(
       JSON.stringify({
         success: true,
         milestones_15_days: (milestones15 || []).length,
+        milestones_7_days: (milestones7 || []).length,
         milestones_today: (milestonesToday || []).length,
         results: notificationResults,
       }),
@@ -546,4 +574,59 @@ function getOrdinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function build7DayPrepEmail(milestone: MilestoneRecord): { subject: string; html: string } {
+  const fullName = `${milestone.first_name} ${milestone.last_name}`;
+
+  if (milestone.milestone_type === "birthday") {
+    return {
+      subject: `🎂 Heads Up: ${fullName}'s Birthday in 1 Week — Be Prepared!`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+    <h2 style="color:#1a1a2e;margin-top:0;">🎂 Birthday Coming Up in 1 Week</h2>
+    <p style="color:#333;">Hi Resham,</p>
+    <p style="color:#333;">This is a friendly reminder that <strong>${fullName}</strong>'s birthday is coming up in <strong>7 days</strong>. Please start preparing any celebration or recognition plans.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 0;color:#666;width:180px;">Employee</td><td style="padding:8px 0;font-weight:600;">${fullName}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Milestone</td><td style="padding:8px 0;">Birthday</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Timing</td><td style="padding:8px 0;">7 days from now</td></tr>
+    </table>
+    <p style="color:#666;">Please make sure everything is ready before the big day! 🎉</p>
+    <p style="color:#999;font-size:12px;margin-top:24px;">This is an automated reminder from HRM Focus.</p>
+  </div>
+</body>
+</html>`,
+    };
+  }
+
+  const yearsText = milestone.years === 1 ? "1 year" : `${milestone.years} years`;
+  const ordinal = getOrdinal(milestone.years);
+  return {
+    subject: `🎊 Heads Up: ${fullName}'s ${ordinal} Work Anniversary in 1 Week — Be Prepared!`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+    <h2 style="color:#1a1a2e;margin-top:0;">🎊 Work Anniversary Coming Up in 1 Week</h2>
+    <p style="color:#333;">Hi Resham,</p>
+    <p style="color:#333;">This is a friendly reminder that <strong>${fullName}</strong>'s <strong>${ordinal}</strong> work anniversary (<strong>${yearsText}</strong>) is coming up in <strong>7 days</strong>. Please start preparing any celebration or recognition plans.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 0;color:#666;width:180px;">Employee</td><td style="padding:8px 0;font-weight:600;">${fullName}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Milestone</td><td style="padding:8px 0;">Work Anniversary</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Years</td><td style="padding:8px 0;font-weight:600;">${yearsText}</td></tr>
+      <tr><td style="padding:8px 0;color:#666;">Timing</td><td style="padding:8px 0;">7 days from now</td></tr>
+    </table>
+    <p style="color:#666;">Please make sure everything is ready before the big day! 🎉</p>
+    <p style="color:#999;font-size:12px;margin-top:24px;">This is an automated reminder from HRM Focus.</p>
+  </div>
+</body>
+</html>`,
+  };
 }
