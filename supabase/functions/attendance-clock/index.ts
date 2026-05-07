@@ -298,22 +298,21 @@ Deno.serve(async (req) => {
           start_time: serverUtc,
         });
 
-        // Auto-pause active work log
-        const { data: activeWorkLog } = await supabaseAdmin
+        // Auto-pause ALL active work logs
+        const { data: activeWorkLogs } = await supabaseAdmin
           .from("work_logs")
           .select("id")
           .eq("user_id", userId)
           .eq("status", "in_progress")
-          .is("end_time", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
+          .is("end_time", null);
 
-        if (activeWorkLog) {
-          await supabaseAdmin
-            .from("work_logs")
-            .update({ status: "on_hold", pause_start: serverUtc })
-            .eq("id", activeWorkLog.id);
+        if (activeWorkLogs && activeWorkLogs.length > 0) {
+          for (const wl of activeWorkLogs) {
+            await supabaseAdmin
+              .from("work_logs")
+              .update({ status: "on_hold", pause_start: serverUtc })
+              .eq("id", wl.id);
+          }
         }
 
         await supabaseAdmin.rpc("create_notification", {
@@ -374,26 +373,25 @@ Deno.serve(async (req) => {
             .eq("id", openSession.id);
         }
 
-        // Auto-resume work log
-        const { data: pausedLog } = await supabaseAdmin
+        // Auto-resume ALL paused work logs
+        const { data: pausedLogs } = await supabaseAdmin
           .from("work_logs")
           .select("id, pause_start, total_pause_minutes")
           .eq("user_id", userId)
           .eq("status", "on_hold")
-          .is("end_time", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
+          .is("end_time", null);
 
-        if (pausedLog) {
-          let totalPause = pausedLog.total_pause_minutes || 0;
-          if (pausedLog.pause_start) {
-            totalPause += Math.round((serverNow.getTime() - new Date(pausedLog.pause_start).getTime()) / 60000);
+        if (pausedLogs && pausedLogs.length > 0) {
+          for (const pl of pausedLogs) {
+            let totalPause = pl.total_pause_minutes || 0;
+            if (pl.pause_start) {
+              totalPause += Math.round((serverNow.getTime() - new Date(pl.pause_start).getTime()) / 60000);
+            }
+            await supabaseAdmin
+              .from("work_logs")
+              .update({ status: "in_progress", pause_end: serverUtc, total_pause_minutes: totalPause })
+              .eq("id", pl.id);
           }
-          await supabaseAdmin
-            .from("work_logs")
-            .update({ status: "in_progress", pause_end: serverUtc, total_pause_minutes: totalPause })
-            .eq("id", pausedLog.id);
         }
 
         await supabaseAdmin.rpc("create_notification", {
@@ -433,22 +431,21 @@ Deno.serve(async (req) => {
           start_time: serverUtc,
         });
 
-        // Auto-pause active work log
-        const { data: activeWorkLog } = await supabaseAdmin
+        // Auto-pause ALL active work logs
+        const { data: activeWorkLogs } = await supabaseAdmin
           .from("work_logs")
           .select("id")
           .eq("user_id", userId)
           .eq("status", "in_progress")
-          .is("end_time", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
+          .is("end_time", null);
 
-        if (activeWorkLog) {
-          await supabaseAdmin
-            .from("work_logs")
-            .update({ status: "on_hold", pause_start: serverUtc })
-            .eq("id", activeWorkLog.id);
+        if (activeWorkLogs && activeWorkLogs.length > 0) {
+          for (const wl of activeWorkLogs) {
+            await supabaseAdmin
+              .from("work_logs")
+              .update({ status: "on_hold", pause_start: serverUtc })
+              .eq("id", wl.id);
+          }
         }
 
         await supabaseAdmin.rpc("create_notification", {
@@ -512,26 +509,25 @@ Deno.serve(async (req) => {
             .eq("id", openPauseSession.id);
         }
 
-        // Auto-resume work log
-        const { data: pausedLog } = await supabaseAdmin
+        // Auto-resume ALL paused work logs
+        const { data: pausedLogs } = await supabaseAdmin
           .from("work_logs")
           .select("id, pause_start, total_pause_minutes")
           .eq("user_id", userId)
           .eq("status", "on_hold")
-          .is("end_time", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
+          .is("end_time", null);
 
-        if (pausedLog) {
-          let totalPause = pausedLog.total_pause_minutes || 0;
-          if (pausedLog.pause_start) {
-            totalPause += Math.round((serverNow.getTime() - new Date(pausedLog.pause_start).getTime()) / 60000);
+        if (pausedLogs && pausedLogs.length > 0) {
+          for (const pl of pausedLogs) {
+            let totalPause = pl.total_pause_minutes || 0;
+            if (pl.pause_start) {
+              totalPause += Math.round((serverNow.getTime() - new Date(pl.pause_start).getTime()) / 60000);
+            }
+            await supabaseAdmin
+              .from("work_logs")
+              .update({ status: "in_progress", pause_end: serverUtc, total_pause_minutes: totalPause })
+              .eq("id", pl.id);
           }
-          await supabaseAdmin
-            .from("work_logs")
-            .update({ status: "in_progress", pause_end: serverUtc, total_pause_minutes: totalPause })
-            .eq("id", pausedLog.id);
         }
 
         await supabaseAdmin.rpc("create_notification", {
