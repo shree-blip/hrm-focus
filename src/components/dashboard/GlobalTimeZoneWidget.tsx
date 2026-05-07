@@ -330,18 +330,12 @@ function formatTime(date: Date, use24h = false): string {
 
 function formatDate(date: Date): string {
   if (!date || isNaN(date.getTime())) return "—";
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}/${m}/${d}`;
+  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatDateShort(date: Date): string {
   if (!date || isNaN(date.getTime())) return "—";
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}/${m}/${d}`;
+  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
 function getOffsetHours(iana: string, refDate: Date): number {
