@@ -492,7 +492,7 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   // STEP 6: Derive input values from getPartsInZone (never touches Invalid Date)
   const refParts = getPartsInZone(refZone, refDate);
   const refTimeStr = `${String(refParts.hour).padStart(2, "0")}:${String(refParts.minute).padStart(2, "0")}`;
-  const refDateStr = `${String(refParts.day).padStart(2, "0")}/${String(refParts.month).padStart(2, "0")}/${refParts.year}`;
+  const refDateStr = `${refParts.year}-${String(refParts.month).padStart(2, "0")}-${String(refParts.day).padStart(2, "0")}`;
 
   // Local time for display
   const localTime = getTimeInZone(localTz.iana, refDate);
