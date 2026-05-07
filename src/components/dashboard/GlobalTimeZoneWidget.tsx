@@ -492,7 +492,7 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   // STEP 6: Derive input values from getPartsInZone (never touches Invalid Date)
   const refParts = getPartsInZone(refZone, refDate);
   const refTimeStr = `${String(refParts.hour).padStart(2, "0")}:${String(refParts.minute).padStart(2, "0")}`;
-  const refDateStr = `${String(refParts.day).padStart(2, "0")}/${String(refParts.month).padStart(2, "0")}/${refParts.year}`;
+  const refDateStr = `${refParts.year}-${String(refParts.month).padStart(2, "0")}-${String(refParts.day).padStart(2, "0")}`;
 
   // Local time for display
   const localTime = getTimeInZone(localTz.iana, refDate);
@@ -654,21 +654,10 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
                     <div className="relative group">
                       <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                       <input
-                        type="text"
-                        readOnly
-                        onClick={(e) => {
-                          const hidden = (e.currentTarget.nextElementSibling as HTMLInputElement);
-                          if (hidden) hidden.showPicker?.();
-                        }}
-                        value={refDateStr}
-                        className="w-full pl-10 pr-3 py-2.5 rounded-xl border-2 border-border bg-background text-foreground text-sm font-medium tabular-nums shadow-sm hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
-                      />
-                      <input
                         type="date"
-                        value={`${refParts.year}-${String(refParts.month).padStart(2, "0")}-${String(refParts.day).padStart(2, "0")}`}
+                        value={refDateStr}
                         onChange={handleDateChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        tabIndex={-1}
+                        className="w-full pl-10 pr-3 py-2.5 rounded-xl border-2 border-border bg-background text-foreground text-sm font-medium tabular-nums shadow-sm hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
                       />
                     </div>
                   </div>
