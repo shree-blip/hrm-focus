@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Globe, X, Search, Clock, Calendar, Trash2, Sun, Moon, Sunrise, Sunset } from "lucide-react";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // ─── Timezone Database ───────────────────────────────────────────────
 interface TZInfo {
@@ -532,6 +534,21 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
     setOffsetMs((prev) => prev + diffMs);
   };
 
+  const handleCalendarSelect = (date: Date | undefined) => {
+    if (!date) return;
+    const yr = date.getFullYear();
+    const mo = date.getMonth() + 1;
+    const dy = date.getDate();
+    const currentParts = getPartsInZone(refZone, refDate);
+    const currentUtc = Date.UTC(currentParts.year, currentParts.month - 1, currentParts.day);
+    const desiredUtc = Date.UTC(yr, mo - 1, dy);
+    const diffMs = desiredUtc - currentUtc;
+    setOffsetMs((prev) => prev + diffMs);
+  };
+
+  const refDateDisplay = `${String(refParts.day).padStart(2, "0")}/${String(refParts.month).padStart(2, "0")}/${refParts.year}`;
+  const refDateAsDate = new Date(refParts.year, refParts.month - 1, refParts.day);
+
   const resetToNow = () => {
     setOffsetMs(0);
     setRefZone(localTz.iana);
@@ -651,15 +668,25 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
                   </div>
                   <div className="flex-1 min-w-[160px]">
                     <label className="text-[11px] font-medium text-muted-foreground block mb-1.5">Change Date</label>
-                    <div className="relative group">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                      <input
-                        type="date"
-                        value={refDateStr}
-                        onChange={handleDateChange}
-                        className="w-full pl-10 pr-3 py-2.5 rounded-xl border-2 border-border bg-background text-foreground text-sm font-medium tabular-nums shadow-sm hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
-                      />
-                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="relative w-full pl-10 pr-3 py-2.5 rounded-xl border-2 border-border bg-background text-foreground text-sm font-medium tabular-nums shadow-sm hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all text-left"
+                        >
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          {refDateDisplay}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarPicker
+                          mode="single"
+                          selected={refDateAsDate}
+                          onSelect={handleCalendarSelect}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   {offsetMs !== 0 && (
                     <button
