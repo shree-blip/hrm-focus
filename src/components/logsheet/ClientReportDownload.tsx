@@ -102,6 +102,8 @@ const DEPARTMENTS: DepartmentItem[] = [
       { label: "Book Discussion with Client", value: "Book_Discussion_with_Client" },
       { label: "Sales Tax Preparation & Filing", value: "Sales_Tax_Preparation_Filing" },
       { label: "Sales Tax Notice Resolution", value: "Sales_Tax_Notice_Resolution" },
+      { label: "Ad hoc requests", value: "Ad_hoc_requests" },
+      { label: "Client communications", value: "Client_communications" },
     ],
   },
 
