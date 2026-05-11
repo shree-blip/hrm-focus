@@ -1195,8 +1195,8 @@ export function RealTimeAttendanceWidget() {
       </Card>
 
       <Dialog open={openFullActivityView} onOpenChange={setOpenFullActivityView}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden p-3 sm:p-6">
-          <DialogHeader className="space-y-1">
+        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] sm:h-[88vh] max-h-[90vh] overflow-hidden p-3 sm:p-6 flex flex-col">
+          <DialogHeader className="space-y-1 shrink-0">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
               <span className="truncate">Live Attendance - Full Recent Activity</span>
@@ -1288,7 +1288,7 @@ export function RealTimeAttendanceWidget() {
             Showing {filteredFullActivities.length} of {fullActivities.length} activities
           </div>
 
-          <ScrollArea className="h-[40vh] sm:h-[50vh] md:h-[58vh] pr-1 sm:pr-2">
+          <ScrollArea className="flex-1 min-h-0 pr-1 sm:pr-2">
             {filteredFullActivities.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 sm:py-16 text-muted-foreground">
                 <Clock className="h-8 w-8 sm:h-10 sm:w-10 mb-2 opacity-40" />
