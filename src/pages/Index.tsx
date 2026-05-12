@@ -48,7 +48,7 @@ const Index = () => {
   const isMobile = useIsMobile();
   const { employees } = useEmployees();
   const { tasks } = useTasks();
-  const { requests, ownRequests, teamLeaves, allApprovedLeaves } = useLeaveRequests();
+  const { requests, ownRequests, teamLeaves, allApprovedLeaves, balances } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
   // Leave in Lieu dashboard tile temporarily disabled for all employees
   const showLieuCard = false;
