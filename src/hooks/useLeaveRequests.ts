@@ -385,7 +385,7 @@ export function useLeaveRequests() {
 
     const debouncedLoad = () => {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
-      realtimeTimerRef.current = setTimeout(() => loadAllData(), 500);
+      realtimeTimerRef.current = setTimeout(() => loadAllData(), 1500);
     };
 
     const channel = supabase
