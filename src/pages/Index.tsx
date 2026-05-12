@@ -46,9 +46,9 @@ const Index = () => {
   const navigate = useNavigate();
 
   const isMobile = useIsMobile();
-  const { employees } = useEmployees(isManager);
+  const { employees } = useEmployees();
   const { tasks } = useTasks();
-  const { requests, ownRequests, teamLeaves, allApprovedLeaves, balances } = useLeaveRequests();
+  const { requests, ownRequests, teamLeaves, allApprovedLeaves } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
   // Leave in Lieu dashboard tile temporarily disabled for all employees
   const showLieuCard = false;
@@ -212,12 +212,8 @@ const Index = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-            <Suspense fallback={<WidgetCardSkeleton delay={300} />}>
-              {isManager ? (
-                <TeamReportsWidget />
-              ) : (
-                <PersonalReportsWidget ownRequests={ownRequests} balances={balances} monthlyHours={monthlyHours} />
-              )}
+          <Suspense fallback={<WidgetCardSkeleton delay={300} />}>
+            {isManager ? <TeamReportsWidget /> : <PersonalReportsWidget />}
           </Suspense>
           <Suspense fallback={<ChartSkeleton delay={350} />}>
             <PerformanceChart />

@@ -58,18 +58,14 @@ export function clearEmployeesCache() {
   _employeesCache = null;
 }
 
-export function useEmployees(enabled = true) {
+export function useEmployees() {
   const { user, isManager } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>(_employeesCache || []);
-  const [loading, setLoading] = useState(enabled && _employeesCache === null);
+  const [loading, setLoading] = useState(_employeesCache === null);
   const [hasFetched, setHasFetched] = useState(false);
 
   const fetchEmployees = useCallback(
     async (force = false) => {
-      if (!enabled) {
-        setLoading(false);
-        return;
-      }
       if (hasFetched && !force) return;
 
       // Fetch profiles to get user_id mapping AND avatar_url
@@ -148,29 +144,21 @@ export function useEmployees(enabled = true) {
       setLoading(false);
       setHasFetched(true);
     },
-    [enabled, isManager, hasFetched],
+    [isManager, hasFetched],
   );
 
   useEffect(() => {
-    if (!enabled) {
-      setEmployees([]);
-      setLoading(false);
-      return;
-    }
     fetchEmployees();
-  }, [enabled, fetchEmployees]);
+  }, [fetchEmployees]);
 
   // ✅ Set up realtime subscription for both employees AND profiles changes
   // Debounce to prevent cascading re-fetches when multiple changes fire rapidly
   const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
-
     const debouncedRefetch = () => {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
-      // Longer debounce to absorb bursts of changes without hammering the DB
-      realtimeTimerRef.current = setTimeout(() => fetchEmployees(true), 2000);
+      realtimeTimerRef.current = setTimeout(() => fetchEmployees(true), 500);
     };
 
     const employeesChannel = supabase
@@ -180,13 +168,18 @@ export function useEmployees(enabled = true) {
         { event: "*", schema: "public", table: "employees" },
         debouncedRefetch,
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        debouncedRefetch, // ✅ Also refetch when profiles change (avatar updates)
+      )
       .subscribe();
 
     return () => {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       supabase.removeChannel(employeesChannel);
     };
-  }, [enabled, fetchEmployees]);
+  }, []);
 
   const createEmployee = async (employee: Omit<Employee, "id">) => {
     if (!isManager) {

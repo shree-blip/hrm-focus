@@ -83,7 +83,6 @@ export function useLeaveRequests() {
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamMemberUserIds, setTeamMemberUserIds] = useState<string[]>([]);
-  const inFlightLoadRef = useRef<Promise<void> | null>(null);
 
   const createNotification = async (
     userId: string,
@@ -373,22 +372,9 @@ export function useLeaveRequests() {
   }, [user]);
 
   const loadAllData = useCallback(async () => {
-    if (inFlightLoadRef.current) {
-      await inFlightLoadRef.current;
-      return;
-    }
-
     setLoading(true);
-    inFlightLoadRef.current = (async () => {
-      await Promise.all([fetchRequests(), fetchBalances()]);
-    })();
-
-    try {
-      await inFlightLoadRef.current;
-    } finally {
-      inFlightLoadRef.current = null;
-      setLoading(false);
-    }
+    await Promise.all([fetchRequests(), fetchBalances()]);
+    setLoading(false);
   }, [fetchRequests, fetchBalances]);
 
   // Debounce realtime to prevent cascading re-fetches
@@ -399,7 +385,7 @@ export function useLeaveRequests() {
 
     const debouncedLoad = () => {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
-      realtimeTimerRef.current = setTimeout(() => loadAllData(), 1500);
+      realtimeTimerRef.current = setTimeout(() => loadAllData(), 500);
     };
 
     const channel = supabase

@@ -51,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isLineManager, setIsLineManager] = useState(false);
   const [canCreateEmployee, setCanCreateEmployee] = useState(false);
-  const loadingReleasedRef = useRef(false);
 
   // Track whether the user was already validated in this browser session
   // so TOKEN_REFRESHED doesn't re-check allowlist (the main cause of random logouts)
@@ -60,15 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Prevent running init logic from both getSession and onAuthStateChange simultaneously
   const initRunRef = useRef(false);
 
-  const releaseLoading = useCallback(() => {
-    if (loadingReleasedRef.current) return;
-    loadingReleasedRef.current = true;
-    setLoading(false);
-  }, []);
-
   // Check if email exists as an allowed signup/login email (uses a backend RPC to avoid RLS issues)
-  // Returns null when the check itself fails so login is not blocked by transient network/CORS issues.
-  const checkAllowlist = async (email: string): Promise<boolean | null> => {
+  const checkAllowlist = async (email: string): Promise<boolean> => {
     const safeEmail = normalizeEmail(email);
 
     try {
@@ -78,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error("Allowlist check (verify_signup_email) error:", error);
-        return null;
+        return false;
       }
 
       // verify_signup_email is primarily for signup; for existing users it may return allowed=false with reason=already_used.
@@ -89,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     } catch (err) {
       console.error("Allowlist check exception:", err);
-      return null;
+      return false;
     }
   };
 
@@ -104,10 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const loadingFallback = window.setTimeout(() => {
-      releaseLoading();
-    }, 6000);
-
     // Set up auth state listener FIRST
     const {
       data: { subscription },
@@ -126,13 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // RPC on every token refresh caused random logouts when the RPC
           // returned an error (network blip, rate-limit, timeout).
           // Still refresh profile/role in case they changed.
-          setTimeout(async () => {
-            try {
-              await initUserData(userId);
-            } finally {
-              releaseLoading();
-            }
-          }, 0);
+          setTimeout(() => initUserData(userId), 0);
           return;
         }
 
@@ -145,30 +127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // SIGNED_IN — first login in this tab
         if (email) {
           setTimeout(async () => {
+            // Check if employee is deactivated
             try {
-              // Check if employee is deactivated
-              try {
-                const { data: activeCheck } = await supabase.rpc("check_employee_active", { check_email: email });
-                const activeResult = activeCheck as { active?: boolean; reason?: string } | null;
-                if (activeResult && !activeResult.active && activeResult.reason === "deactivated") {
-                  console.warn(`Employee ${email} is deactivated, signing out`);
-                  await supabase.auth.signOut();
-                  setUser(null);
-                  setSession(null);
-                  setProfile(null);
-                  setRole(null);
-                  setIsLineManager(false);
-                  setCanCreateEmployee(false);
-                  sessionStorage.setItem("auth_rejected", "account_deactivated");
-                  return;
-                }
-              } catch {
-                // Don't block login on RPC failure
-              }
-
-              const isAllowed = await checkAllowlist(email);
-              if (isAllowed === false) {
-                console.warn(`Email ${email} not on allowlist, signing out`);
+              const { data: activeCheck } = await supabase.rpc("check_employee_active", { check_email: email });
+              const activeResult = activeCheck as { active?: boolean; reason?: string } | null;
+              if (activeResult && !activeResult.active && activeResult.reason === "deactivated") {
+                console.warn(`Employee ${email} is deactivated, signing out`);
                 await supabase.auth.signOut();
                 setUser(null);
                 setSession(null);
@@ -176,15 +140,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setRole(null);
                 setIsLineManager(false);
                 setCanCreateEmployee(false);
-                sessionStorage.setItem("auth_rejected", "not_allowed");
+                sessionStorage.setItem("auth_rejected", "account_deactivated");
                 return;
               }
-
-              allowlistValidatedRef.current = true;
-              await initUserData(userId);
-            } finally {
-              releaseLoading();
+            } catch {
+              // Don't block login on RPC failure
             }
+
+            const isAllowed = await checkAllowlist(email);
+            if (!isAllowed) {
+              console.warn(`Email ${email} not on allowlist, signing out`);
+              await supabase.auth.signOut();
+              setUser(null);
+              setSession(null);
+              setProfile(null);
+              setRole(null);
+              setIsLineManager(false);
+              setCanCreateEmployee(false);
+              sessionStorage.setItem("auth_rejected", "not_allowed");
+              return;
+            }
+
+            allowlistValidatedRef.current = true;
+            await initUserData(userId);
           }, 0);
         }
       } else if (!currentSession?.user) {
@@ -200,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data: { session: existingSession } }) => {
       if (initRunRef.current) {
         // onAuthStateChange already handled this
-        releaseLoading();
+        setLoading(false);
         return;
       }
       initRunRef.current = true;
@@ -214,17 +192,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         allowlistValidatedRef.current = true;
         await initUserData(existingSession.user.id);
       }
-      releaseLoading();
-    }).catch((error) => {
-      console.error("Auth session restore failed:", error);
-      releaseLoading();
+      setLoading(false);
     });
 
-    return () => {
-      window.clearTimeout(loadingFallback);
-      subscription.unsubscribe();
-    };
-  }, [releaseLoading]);
+    return () => subscription.unsubscribe();
+  }, []);
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")

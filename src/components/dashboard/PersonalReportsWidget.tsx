@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLeaveRequests } from "@/hooks/useLeaveRequests";
+import { useAttendance } from "@/hooks/useAttendance";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -85,32 +87,14 @@ interface TeamHierarchyMember {
   hasSubTeam?: boolean;
 }
 
-interface LeaveBalance {
-  id: string;
-  leave_type: string;
-  total_days: number;
-  used_days: number;
-}
-
-interface LeaveRequest {
-  id: string;
-  user_id: string;
-  status: "pending" | "approved" | "rejected" | "cancelled";
-  days: number;
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface PersonalReportsWidgetProps {
-  balances: LeaveBalance[];
-  monthlyHours: number;
-  ownRequests: LeaveRequest[];
-}
-
-export function PersonalReportsWidget({ balances, monthlyHours, ownRequests }: PersonalReportsWidgetProps) {
+export function PersonalReportsWidget() {
   const { user } = useAuth();
+  const { ownRequests, balances } = useLeaveRequests();
+  const { monthlyHours } = useAttendance();
 
   const [managers, setManagers] = useState<Manager[]>([]);
   const [teammates, setTeammates] = useState<TeamHierarchyMember[]>([]);

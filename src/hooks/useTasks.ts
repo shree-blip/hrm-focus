@@ -32,36 +32,19 @@ export interface Task {
 
 // Module-level cache so revisiting the page shows data instantly
 let _tasksCache: Task[] | null = null;
-let _tasksCacheUserId: string | null = null;
-let _tasksRequest: Promise<Task[]> | null = null;
 
 export function useTasks() {
   const { user } = useAuth();
   const userId = user?.id;
-  const hasWarmCache = !!userId && _tasksCacheUserId === userId && _tasksCache !== null;
-  const [tasks, setTasks] = useState<Task[]>(hasWarmCache ? (_tasksCache || []) : []);
-  const [loading, setLoading] = useState(!hasWarmCache);
+  const [tasks, setTasks] = useState<Task[]>(_tasksCache || []);
+  const [loading, setLoading] = useState(_tasksCache === null);
 
   const fetchTasks = useCallback(async () => {
     if (!userId) return;
 
-    if (_tasksCacheUserId === userId && _tasksCache) {
-      setTasks(_tasksCache);
-      setLoading(false);
-      return;
-    }
-
-    if (_tasksRequest) {
-      const sharedTasks = await _tasksRequest;
-      setTasks(sharedTasks);
-      setLoading(false);
-      return;
-    }
-
     try {
-      _tasksRequest = (async () => {
-        // Fetch all data in parallel for faster loading
-        const [tasksResult, assigneesResult, profilesResult, commentsResult] = await Promise.all([
+      // Fetch all data in parallel for faster loading
+      const [tasksResult, assigneesResult, profilesResult, commentsResult] = await Promise.all([
         supabase
           .from("tasks")
           .select("id, title, description, client_name, client_id, assignee_id, created_by, priority, status, due_date, time_estimate, is_recurring, created_at")
@@ -71,26 +54,27 @@ export function useTasks() {
         supabase.from("task_comments").select("task_id"),
       ]);
 
-        if (tasksResult.error) {
-          console.error("Error fetching tasks:", tasksResult.error);
-          return [];
-        }
+      if (tasksResult.error) {
+        console.error("Error fetching tasks:", tasksResult.error);
+        setLoading(false);
+        return;
+      }
 
-        const tasksData = tasksResult.data;
-        const assigneesData = assigneesResult.data;
-        const profilesData = profilesResult.data;
-        const commentsData = commentsResult.data;
+      const tasksData = tasksResult.data;
+      const assigneesData = assigneesResult.data;
+      const profilesData = profilesResult.data;
+      const commentsData = commentsResult.data;
 
-        const commentCountMap = new Map<string, number>();
-        (commentsData || []).forEach((c: { task_id: string }) => {
-          commentCountMap.set(c.task_id, (commentCountMap.get(c.task_id) || 0) + 1);
-        });
+      const commentCountMap = new Map<string, number>();
+      (commentsData || []).forEach((c: { task_id: string }) => {
+        commentCountMap.set(c.task_id, (commentCountMap.get(c.task_id) || 0) + 1);
+      });
 
-        const profileMap = new Map((profilesData || []).map((p) => [p.user_id, `${p.first_name} ${p.last_name}`]));
+      const profileMap = new Map((profilesData || []).map((p) => [p.user_id, `${p.first_name} ${p.last_name}`]));
 
       // Map assignees to tasks with names
-        const assigneesByTask = new Map<string, TaskAssignee[]>();
-        (assigneesData || []).forEach((a) => {
+      const assigneesByTask = new Map<string, TaskAssignee[]>();
+      (assigneesData || []).forEach((a) => {
         const taskAssignees = assigneesByTask.get(a.task_id) || [];
         taskAssignees.push({
           user_id: a.user_id,
@@ -99,18 +83,18 @@ export function useTasks() {
           assignee_name: profileMap.get(a.user_id) || "Unknown",
           assigner_name: profileMap.get(a.assigned_by) || "Unknown",
         });
-          assigneesByTask.set(a.task_id, taskAssignees);
-        });
+        assigneesByTask.set(a.task_id, taskAssignees);
+      });
 
       // Build a set of task IDs where the current user is assigned
-        const userAssignedTaskIds = new Set<string>();
-        (assigneesData || []).forEach((a) => {
+      const userAssignedTaskIds = new Set<string>();
+      (assigneesData || []).forEach((a) => {
         if (a.user_id === userId) {
           userAssignedTaskIds.add(a.task_id);
         }
-        });
+      });
 
-        const allTasksWithAssignees: Task[] = (tasksData || []).map((task) => ({
+      const allTasksWithAssignees: Task[] = (tasksData || []).map((task) => ({
         id: task.id,
         title: task.title,
         description: task.description,
@@ -130,25 +114,19 @@ export function useTasks() {
       }));
 
       // FILTER: Only show tasks where the user is the creator OR is assigned
-        const filteredTasks = allTasksWithAssignees.filter((task) => {
+      const filteredTasks = allTasksWithAssignees.filter((task) => {
         // User created the task
         if (task.created_by === userId) return true;
         // User is assigned to the task
         if (userAssignedTaskIds.has(task.id)) return true;
         return false;
-        });
+      });
 
-        _tasksCache = filteredTasks;
-        _tasksCacheUserId = userId;
-        return filteredTasks;
-      })();
-
-      const filteredTasks = await _tasksRequest;
       setTasks(filteredTasks);
+      _tasksCache = filteredTasks;
     } catch (error) {
       console.error("Unexpected error in fetchTasks:", error);
     } finally {
-      _tasksRequest = null;
       setLoading(false);
     }
   }, [userId]);
@@ -161,7 +139,7 @@ export function useTasks() {
 
     const debouncedFetch = () => {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
-      realtimeTimerRef.current = setTimeout(() => fetchTasks(), 1500);
+      realtimeTimerRef.current = setTimeout(() => fetchTasks(), 500);
     };
 
     // Set up real-time subscription
