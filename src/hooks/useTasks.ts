@@ -139,7 +139,7 @@ export function useTasks() {
 
     const debouncedFetch = () => {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
-      realtimeTimerRef.current = setTimeout(() => fetchTasks(), 500);
+      realtimeTimerRef.current = setTimeout(() => fetchTasks(), 1500);
     };
 
     // Set up real-time subscription
