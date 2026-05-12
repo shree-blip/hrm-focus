@@ -46,7 +46,7 @@ const Index = () => {
   const navigate = useNavigate();
 
   const isMobile = useIsMobile();
-  const { employees } = useEmployees();
+  const { employees } = useEmployees(isManager);
   const { tasks } = useTasks();
   const { requests, ownRequests, teamLeaves, allApprovedLeaves, balances } = useLeaveRequests();
   const { monthlyHours } = useTimeTracker();
