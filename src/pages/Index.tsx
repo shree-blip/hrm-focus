@@ -212,8 +212,12 @@ const Index = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Suspense fallback={<WidgetCardSkeleton delay={300} />}>
-            {isManager ? <TeamReportsWidget /> : <PersonalReportsWidget />}
+            <Suspense fallback={<WidgetCardSkeleton delay={300} />}>
+              {isManager ? (
+                <TeamReportsWidget />
+              ) : (
+                <PersonalReportsWidget ownRequests={ownRequests} balances={balances} monthlyHours={monthlyHours} />
+              )}
           </Suspense>
           <Suspense fallback={<ChartSkeleton delay={350} />}>
             <PerformanceChart />
