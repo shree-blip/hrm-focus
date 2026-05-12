@@ -58,14 +58,18 @@ export function clearEmployeesCache() {
   _employeesCache = null;
 }
 
-export function useEmployees() {
+export function useEmployees(enabled = true) {
   const { user, isManager } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>(_employeesCache || []);
-  const [loading, setLoading] = useState(_employeesCache === null);
+  const [loading, setLoading] = useState(enabled && _employeesCache === null);
   const [hasFetched, setHasFetched] = useState(false);
 
   const fetchEmployees = useCallback(
     async (force = false) => {
+      if (!enabled) {
+        setLoading(false);
+        return;
+      }
       if (hasFetched && !force) return;
 
       // Fetch profiles to get user_id mapping AND avatar_url
@@ -144,18 +148,25 @@ export function useEmployees() {
       setLoading(false);
       setHasFetched(true);
     },
-    [isManager, hasFetched],
+    [enabled, isManager, hasFetched],
   );
 
   useEffect(() => {
+    if (!enabled) {
+      setEmployees([]);
+      setLoading(false);
+      return;
+    }
     fetchEmployees();
-  }, [fetchEmployees]);
+  }, [enabled, fetchEmployees]);
 
   // ✅ Set up realtime subscription for both employees AND profiles changes
   // Debounce to prevent cascading re-fetches when multiple changes fire rapidly
   const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const debouncedRefetch = () => {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       // Longer debounce to absorb bursts of changes without hammering the DB
@@ -175,7 +186,7 @@ export function useEmployees() {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       supabase.removeChannel(employeesChannel);
     };
-  }, []);
+  }, [enabled, fetchEmployees]);
 
   const createEmployee = async (employee: Omit<Employee, "id">) => {
     if (!isManager) {
