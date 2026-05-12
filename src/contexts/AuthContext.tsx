@@ -67,7 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Check if email exists as an allowed signup/login email (uses a backend RPC to avoid RLS issues)
-  const checkAllowlist = async (email: string): Promise<boolean> => {
+  // Returns null when the check itself fails so login is not blocked by transient network/CORS issues.
+  const checkAllowlist = async (email: string): Promise<boolean | null> => {
     const safeEmail = normalizeEmail(email);
 
     try {
@@ -77,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error("Allowlist check (verify_signup_email) error:", error);
-        return false;
+        return null;
       }
 
       // verify_signup_email is primarily for signup; for existing users it may return allowed=false with reason=already_used.
@@ -88,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     } catch (err) {
       console.error("Allowlist check exception:", err);
-      return false;
+      return null;
     }
   };
 
@@ -166,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               }
 
               const isAllowed = await checkAllowlist(email);
-              if (!isAllowed) {
+              if (isAllowed === false) {
                 console.warn(`Email ${email} not on allowlist, signing out`);
                 await supabase.auth.signOut();
                 setUser(null);

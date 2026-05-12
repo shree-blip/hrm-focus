@@ -15,8 +15,9 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requiredRole, requiredPermission }: ProtectedRouteProps) {
   const { user, loading, isManager, isAdmin, isVP } = useAuth();
   const { hasPermission, loading: permLoading } = usePermissions();
+  const requiresPermissionCheck = Boolean(requiredPermission);
 
-  if (loading || permLoading) {
+  if (loading || (requiresPermissionCheck && permLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
