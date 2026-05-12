@@ -158,7 +158,8 @@ export function useEmployees() {
   useEffect(() => {
     const debouncedRefetch = () => {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
-      realtimeTimerRef.current = setTimeout(() => fetchEmployees(true), 500);
+      // Longer debounce to absorb bursts of changes without hammering the DB
+      realtimeTimerRef.current = setTimeout(() => fetchEmployees(true), 2000);
     };
 
     const employeesChannel = supabase
@@ -167,11 +168,6 @@ export function useEmployees() {
         "postgres_changes",
         { event: "*", schema: "public", table: "employees" },
         debouncedRefetch,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
-        debouncedRefetch, // ✅ Also refetch when profiles change (avatar updates)
       )
       .subscribe();
 
