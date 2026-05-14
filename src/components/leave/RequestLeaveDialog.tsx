@@ -539,11 +539,9 @@ export function RequestLeaveDialog({
                       initialFocus
                       className="pointer-events-auto"
                       disabled={(date) => {
-                        // Disable weekends and past dates
+                        // Disable weekends only (allow past dates for back-dated requests)
                         if (date.getDay() === 0 || date.getDay() === 6) return true;
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        return date < today;
+                        return false;
                       }}
                     />
                   </PopoverContent>
@@ -772,7 +770,7 @@ export function RequestLeaveDialog({
                       disabled={(date) => {
                         if (date.getDay() === 0 || date.getDay() === 6) return true;
                         if (isOtherLeave && isEmergencySubtype(otherLeaveSubtype)) return false;
-                        return date < new Date();
+                        return false;
                       }}
                     />
                   </PopoverContent>
