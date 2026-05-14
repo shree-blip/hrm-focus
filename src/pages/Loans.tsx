@@ -64,7 +64,7 @@ export default function Loans() {
             <TabsTrigger value="my-loans">My Loans</TabsTrigger>
             <TabsTrigger value="calculator">Calculator</TabsTrigger>
             {showManagerTab && <TabsTrigger value="manager">Manager Review</TabsTrigger>}
-            {isVP && <TabsTrigger value="vp">CEO / Finance</TabsTrigger>}
+            {isVP && <TabsTrigger value="vp">Executive / Finance</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="my-loans">

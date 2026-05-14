@@ -89,7 +89,7 @@ export function Header({ isMobile, mobileMenuSlot }: HeaderProps = {}) {
       case "admin":
         return "Admin";
       case "vp":
-        return "CEO";
+        return "Executive";
       case "line_manager":
         return "Line Manager";
       case "supervisor":

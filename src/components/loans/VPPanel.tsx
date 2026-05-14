@@ -100,7 +100,7 @@ export function VPPanel({
         <CardContent className="p-4 flex items-center gap-3">
           <Crown className="h-8 w-8 text-primary" />
           <div>
-            <p className="text-xs text-muted-foreground">Awaiting CEO Decision</p>
+            <p className="text-xs text-muted-foreground">Awaiting Executive Decision</p>
             <p className="text-2xl font-bold">{vpQueue.length}</p>
           </div>
           {activeDisbursed.length > 0 && (
@@ -332,7 +332,7 @@ export function VPPanel({
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto p-0">
           <DialogHeader className="px-6 pt-6 pb-0">
             <DialogTitle className="text-lg">
-              {selectedLoan?.status === 'pending_manager' ? 'Direct CEO Review' : 'CEO Final Decision'}
+              {selectedLoan?.status === 'pending_manager' ? 'Direct Executive Review' : 'Executive Final Decision'}
             </DialogTitle>
             <DialogDescription>
               {selectedLoan?.status === 'pending_manager'

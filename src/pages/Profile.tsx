@@ -466,7 +466,7 @@ const Profile = () => {
       case "admin":
         return "Administrator";
       case "vp":
-        return "CEO";
+        return "Executive";
       case "supervisor":
         return "Supervisor";
       default:
