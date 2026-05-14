@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -26,141 +27,177 @@ export interface AdjustmentRequest {
   reviewer_comment: string | null;
   reviewed_at: string | null;
   created_at: string;
-  // original values (saved by trigger before first apply, used for revert)
   original_clock_in: string | null;
   original_clock_out: string | null;
   original_break_minutes: number | null;
   original_pause_minutes: number | null;
-  // override fields (CEO/Admin only)
   override_status: "approved" | "rejected" | null;
   override_by: string | null;
   override_comment: string | null;
   override_at: string | null;
-  // joined fields
   attendance_log?: AttendanceLogRecord | null;
   requester_profile?: { first_name: string; last_name: string } | null;
   reviewer_profile?: { first_name: string; last_name: string } | null;
   override_profile?: { first_name: string; last_name: string } | null;
 }
 
-// Table not yet in generated Database types — confine the cast here
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const adjTable = () => (supabase as unknown as any).from("attendance_adjustment_requests");
 
+const SELECT_COLS = [
+  "id","attendance_log_id","requested_by","reviewer_id",
+  "proposed_clock_in","proposed_clock_out","proposed_break_minutes","proposed_pause_minutes",
+  "reason","status","reviewer_comment","reviewed_at","created_at",
+  "original_clock_in","original_clock_out","original_break_minutes","original_pause_minutes",
+  "override_status","override_by","override_comment","override_at",
+].join(",");
+
+// Module-level realtime singleton — avoid duplicate subscriptions across consumers
+let realtimeRefCount = 0;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let realtimeChannel: any = null;
+
+function ensureRealtime(onChange: () => void) {
+  realtimeRefCount += 1;
+  if (!realtimeChannel) {
+    realtimeChannel = supabase
+      .channel("attendance-adjustments-shared")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_adjustment_requests" },
+        () => onChange(),
+      )
+      .subscribe();
+  }
+  return () => {
+    realtimeRefCount -= 1;
+    if (realtimeRefCount <= 0 && realtimeChannel) {
+      supabase.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+      realtimeRefCount = 0;
+    }
+  };
+}
+
+// Batch profile lookups (single .in() instead of N+1)
+async function fetchProfilesByUserIds(userIds: string[]) {
+  const unique = Array.from(new Set(userIds.filter(Boolean)));
+  if (unique.length === 0) return new Map<string, { first_name: string; last_name: string }>();
+  const { data } = await supabase
+    .from("profiles")
+    .select("user_id, first_name, last_name")
+    .in("user_id", unique);
+  const map = new Map<string, { first_name: string; last_name: string }>();
+  (data || []).forEach((p: { user_id: string; first_name: string; last_name: string }) => {
+    map.set(p.user_id, { first_name: p.first_name, last_name: p.last_name });
+  });
+  return map;
+}
+
+async function fetchAttendanceLogs(logIds: string[]) {
+  const unique = Array.from(new Set(logIds.filter(Boolean)));
+  if (unique.length === 0) return new Map<string, AttendanceLogRecord>();
+  const { data } = await supabase
+    .from("attendance_logs")
+    .select("id, clock_in, clock_out, total_break_minutes, total_pause_minutes, clock_type")
+    .in("id", unique);
+  const map = new Map<string, AttendanceLogRecord>();
+  (data || []).forEach((l: AttendanceLogRecord & { id: string }) => {
+    const { id, ...rest } = l;
+    map.set(id, rest);
+  });
+  return map;
+}
+
 export function useAttendanceAdjustments() {
   const { user, isManager, isVP, isAdmin, isLineManager } = useAuth();
-  const [myRequests, setMyRequests] = useState<AdjustmentRequest[]>([]);
-  const [teamRequests, setTeamRequests] = useState<AdjustmentRequest[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
 
-  /*
-   * NOTE: No applyAdjustment / revertAdjustment RPC calls needed!
-   * The database trigger `trg_apply_attendance_adjustment` automatically:
-   *   - Saves original values & applies proposed values when status → approved
-   *   - Reverts to original values when status approved → rejected (override)
-   * All we need to do is UPDATE the status column — the trigger does the rest.
-   */
+  const canSeeTeam = !!user && (isManager || isVP || isAdmin || isLineManager);
 
-  // Fetch requests the current user submitted
-  const fetchMyRequests = useCallback(async () => {
-    if (!user) return;
-    const { data, error } = await adjTable()
-      .select("*")
-      .eq("requested_by", user.id)
-      .order("created_at", { ascending: false });
+  // ── My Requests ───────────────────────────────────────────
+  const myQuery = useQuery({
+    queryKey: ["attendance-adjustments", "mine", user?.id],
+    enabled: !!user,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    queryFn: async (): Promise<AdjustmentRequest[]> => {
+      if (!user) return [];
+      const { data, error } = await adjTable()
+        .select(SELECT_COLS)
+        .eq("requested_by", user.id)
+        .order("created_at", { ascending: false });
+      if (error || !data) return [];
+      const rows = data as AdjustmentRequest[];
+      const profiles = await fetchProfilesByUserIds([
+        ...rows.map((r) => r.reviewer_id || ""),
+        ...rows.map((r) => r.override_by || ""),
+      ]);
+      return rows.map((r) => ({
+        ...r,
+        reviewer_profile: r.reviewer_id ? profiles.get(r.reviewer_id) || null : null,
+        override_profile: r.override_by ? profiles.get(r.override_by) || null : null,
+      }));
+    },
+  });
 
-    if (!error && data) {
-      const enriched = await Promise.all(
-        (data as AdjustmentRequest[]).map(async (req) => {
-          let reviewer_profile = null;
-          if (req.reviewer_id) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("first_name, last_name")
-              .eq("user_id", req.reviewer_id)
-              .single();
-            reviewer_profile = profile || null;
-          }
-          let override_profile = null;
-          if (req.override_by) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("first_name, last_name")
-              .eq("user_id", req.override_by)
-              .single();
-            override_profile = profile || null;
-          }
-          return { ...req, reviewer_profile, override_profile };
-        }),
-      );
-      setMyRequests(enriched);
-    }
-  }, [user]);
+  // ── Team Requests ─────────────────────────────────────────
+  const teamQuery = useQuery({
+    queryKey: ["attendance-adjustments", "team", user?.id, isVP, isAdmin, isManager, isLineManager],
+    enabled: canSeeTeam,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    queryFn: async (): Promise<AdjustmentRequest[]> => {
+      if (!user) return [];
 
-  // Fetch pending requests for team (line manager / VP / admin)
-  const fetchTeamRequests = useCallback(async () => {
-    if (!user) return;
-    if (!isManager && !isVP && !isAdmin && !isLineManager) return;
-
-    // For line managers / managers (non-VP, non-admin): scope to recursive team tree
-    let teamUserIds: string[] | null = null;
-    if (!isVP && !isAdmin) {
-      teamUserIds = await resolveTeamMemberUserIds(user.id);
-      console.debug("[hierarchy][attendance_adjustments] team user ids", {
-        managerUserId: user.id,
-        teamUserIdsCount: teamUserIds.length,
-        teamUserIds,
-      });
-      if (!teamUserIds || teamUserIds.length === 0) return;
-    }
-
-    // Fetch adjustment requests
-    const { data, error } = await adjTable().select("*").order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching team adjustment requests:", error.message);
-      return;
-    }
-
-    if (data) {
-      let filtered = (data as AdjustmentRequest[]).filter((r) => r.requested_by !== user.id);
-
-      // If scoped to team, only keep requests from direct reports
-      if (teamUserIds) {
-        filtered = filtered.filter((r) => teamUserIds!.includes(r.requested_by));
+      let teamUserIds: string[] | null = null;
+      if (!isVP && !isAdmin) {
+        teamUserIds = await resolveTeamMemberUserIds(user.id);
+        if (!teamUserIds || teamUserIds.length === 0) return [];
       }
 
-      // Enrich with requester profile, attendance log, reviewer profile, and override profile
-      const enriched = await Promise.all(
-        filtered.map(async (req) => {
-          const [profileRes, logRes, reviewerRes, overrideRes] = await Promise.all([
-            supabase.from("profiles").select("first_name, last_name").eq("user_id", req.requested_by).single(),
-            supabase
-              .from("attendance_logs")
-              .select("clock_in, clock_out, total_break_minutes, total_pause_minutes, clock_type")
-              .eq("id", req.attendance_log_id)
-              .single(),
-            req.reviewer_id
-              ? supabase.from("profiles").select("first_name, last_name").eq("user_id", req.reviewer_id).single()
-              : Promise.resolve({ data: null }),
-            req.override_by
-              ? supabase.from("profiles").select("first_name, last_name").eq("user_id", req.override_by).single()
-              : Promise.resolve({ data: null }),
-          ]);
-          return {
-            ...req,
-            requester_profile: profileRes.data || null,
-            attendance_log: logRes.data || null,
-            reviewer_profile: reviewerRes.data || null,
-            override_profile: overrideRes.data || null,
-          };
-        }),
-      );
-      setTeamRequests(enriched);
-    }
-  }, [user, isManager, isVP, isAdmin, isLineManager]);
+      const { data, error } = await adjTable()
+        .select(SELECT_COLS)
+        .order("created_at", { ascending: false });
+      if (error || !data) return [];
 
-  // Submit an adjustment request
+      let filtered = (data as AdjustmentRequest[]).filter((r) => r.requested_by !== user.id);
+      if (teamUserIds) {
+        const set = new Set(teamUserIds);
+        filtered = filtered.filter((r) => set.has(r.requested_by));
+      }
+
+      const [profiles, logs] = await Promise.all([
+        fetchProfilesByUserIds([
+          ...filtered.map((r) => r.requested_by),
+          ...filtered.map((r) => r.reviewer_id || ""),
+          ...filtered.map((r) => r.override_by || ""),
+        ]),
+        fetchAttendanceLogs(filtered.map((r) => r.attendance_log_id)),
+      ]);
+
+      return filtered.map((r) => ({
+        ...r,
+        requester_profile: profiles.get(r.requested_by) || null,
+        reviewer_profile: r.reviewer_id ? profiles.get(r.reviewer_id) || null : null,
+        override_profile: r.override_by ? profiles.get(r.override_by) || null : null,
+        attendance_log: logs.get(r.attendance_log_id) || null,
+      }));
+    },
+  });
+
+  // ── Realtime: invalidate shared cache (single subscription) ──
+  useEffect(() => {
+    if (!user) return;
+    const cleanup = ensureRealtime(() => {
+      queryClient.invalidateQueries({ queryKey: ["attendance-adjustments"] });
+    });
+    return cleanup;
+  }, [user, queryClient]);
+
+  const myRequests = myQuery.data || [];
+  const teamRequests = teamQuery.data || [];
+
   const submitRequest = async (data: {
     attendance_log_id: string;
     proposed_clock_in?: string;
@@ -170,7 +207,6 @@ export function useAttendanceAdjustments() {
     reason: string;
   }) => {
     if (!user) return;
-
     const { error } = await adjTable().insert({
       attendance_log_id: data.attendance_log_id,
       requested_by: user.id,
@@ -180,22 +216,17 @@ export function useAttendanceAdjustments() {
       proposed_pause_minutes: data.proposed_pause_minutes ?? null,
       reason: data.reason,
     });
-
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return false;
     }
-
     toast({ title: "Request Submitted", description: "Your adjustment request has been sent to your manager." });
-    await fetchMyRequests();
+    queryClient.invalidateQueries({ queryKey: ["attendance-adjustments", "mine", user.id] });
     return true;
   };
 
-  // Manager reviews a request
-  // The trigger automatically applies proposed values when status → approved
   const reviewRequest = async (requestId: string, decision: "approved" | "rejected", comment: string) => {
     if (!user) return;
-
     const { error } = await adjTable()
       .update({
         status: decision,
@@ -204,13 +235,10 @@ export function useAttendanceAdjustments() {
         reviewed_at: new Date().toISOString(),
       })
       .eq("id", requestId);
-
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return false;
     }
-
-    // Notify the requester
     try {
       const req = teamRequests.find((r) => r.id === requestId);
       if (req) {
@@ -228,7 +256,6 @@ export function useAttendanceAdjustments() {
     } catch (err) {
       console.error("Error sending adjustment notification:", err);
     }
-
     toast({
       title: decision === "approved" ? "Approved" : "Rejected",
       description:
@@ -236,35 +263,25 @@ export function useAttendanceAdjustments() {
           ? "The attendance record has been updated automatically."
           : "The request has been rejected.",
     });
-
-    await fetchTeamRequests();
+    queryClient.invalidateQueries({ queryKey: ["attendance-adjustments"] });
     return true;
   };
 
-  // CEO/Admin overrides a previously reviewed request
-  // The trigger automatically:
-  //   - Applies proposed values when status changes TO approved
-  //   - Reverts to original values when status changes FROM approved TO rejected
   const overrideRequest = async (requestId: string, decision: "approved" | "rejected", comment: string) => {
     if (!user) return false;
-
     const { error } = await adjTable()
       .update({
         override_status: decision,
         override_by: user.id,
         override_comment: comment,
         override_at: new Date().toISOString(),
-        // Update main status — this is what the trigger watches
         status: decision,
       })
       .eq("id", requestId);
-
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return false;
     }
-
-    // Notify the requester
     try {
       const existingReq = teamRequests.find((r) => r.id === requestId);
       if (existingReq) {
@@ -282,7 +299,6 @@ export function useAttendanceAdjustments() {
     } catch (err) {
       console.error("Error sending override notification:", err);
     }
-
     toast({
       title: "Override Applied",
       description:
@@ -290,45 +306,29 @@ export function useAttendanceAdjustments() {
           ? "Request approved — attendance record updated."
           : "Request rejected — attendance record reverted to original values.",
     });
-
-    await fetchTeamRequests();
+    queryClient.invalidateQueries({ queryKey: ["attendance-adjustments"] });
     return true;
   };
 
-  // Get the latest adjustment status for a specific attendance log
-  const getAdjustmentStatus = (logId: string): AdjustmentRequest | undefined => {
-    return myRequests.find((r) => r.attendance_log_id === logId);
-  };
+  const myRequestsByLog = useMemo(() => {
+    const m = new Map<string, AdjustmentRequest>();
+    myRequests.forEach((r) => {
+      if (!m.has(r.attendance_log_id)) m.set(r.attendance_log_id, r);
+    });
+    return m;
+  }, [myRequests]);
 
-  // Initial fetch + realtime
-  useEffect(() => {
-    fetchMyRequests();
-    fetchTeamRequests();
-  }, [fetchMyRequests, fetchTeamRequests]);
-
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel("attendance-adjustments")
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_adjustment_requests" }, () => {
-        fetchMyRequests();
-        fetchTeamRequests();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, fetchMyRequests, fetchTeamRequests]);
+  const getAdjustmentStatus = (logId: string): AdjustmentRequest | undefined =>
+    myRequestsByLog.get(logId);
 
   return {
     myRequests,
     teamRequests,
-    loading,
+    loading: myQuery.isLoading || teamQuery.isLoading,
     submitRequest,
     reviewRequest,
     overrideRequest,
     getAdjustmentStatus,
-    refetch: () => Promise.all([fetchMyRequests(), fetchTeamRequests()]),
+    refetch: () => Promise.all([myQuery.refetch(), teamQuery.refetch()]),
   };
 }
