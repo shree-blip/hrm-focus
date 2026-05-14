@@ -15,6 +15,7 @@ import { AdminLeaveDialog } from "@/components/leave/AdminLeaveDialog";
 import { LeaveConflictDialog } from "@/components/leave/LeaveConflictDialog";
 import { PromotionApprovalQueue } from "@/components/employees/PromotionApprovalQueue";
 import { LeaveReportsTab } from "@/components/approvals/LeaveReportsTab";
+import { AttendanceApprovalsTab } from "@/components/approvals/AttendanceApprovalsTab";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import {
   Check,
@@ -33,6 +34,7 @@ import {
   FileText,
   Plus,
   Shield,
+  ClipboardList,
 } from "lucide-react";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -76,7 +78,7 @@ const Approvals = () => {
   const { user, role, isVP, isAdmin, isLineManager, isSupervisor } = useAuth();
   const { requests, ownRequests, loading, approveRequest, rejectRequest, cancelRequest, createRequest, adminCreateLeave, refetch } = useLeaveRequests();
   const { pendingApprovals: pendingPromotions } = usePromotions();
-  const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports">(
+  const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports" | "attendance">(
     "approvals:section",
     "leave",
   );
@@ -487,7 +489,9 @@ const Approvals = () => {
       {/* Top-level section tabs */}
       <Tabs
         value={section}
-        onValueChange={(v) => setSection(v as "leave" | "promotions" | "leave-reports")}
+        onValueChange={(v) =>
+          setSection(v as "leave" | "promotions" | "leave-reports" | "attendance")
+        }
         className="mb-6"
       >
         <TabsList>
@@ -498,6 +502,10 @@ const Approvals = () => {
           <TabsTrigger value="promotions" className="gap-2">
             <TrendingUp className="h-4 w-4" />
             Promotions ({pendingPromotions.length})
+          </TabsTrigger>
+          <TabsTrigger value="attendance" className="gap-2">
+            <ClipboardList className="h-4 w-4" />
+            Attendance Approvals
           </TabsTrigger>
           <TabsTrigger value="leave-reports" className="gap-2">
             <FileText className="h-4 w-4" />
