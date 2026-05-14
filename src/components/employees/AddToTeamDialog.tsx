@@ -178,7 +178,7 @@ export function AddToTeamDialog({
 
         const assignerName = assignerProfile
           ? `${assignerProfile.first_name} ${assignerProfile.last_name}`
-          : "CEO";
+          : "Executive";
         const assignerEmail = assignerProfile?.email || "";
 
         // Send email notification to the employee being added

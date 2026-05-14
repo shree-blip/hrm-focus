@@ -203,7 +203,7 @@ export function useSubmitInvoice() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
-      toast.success("Invoice submitted to CEO for review");
+      toast.success("Invoice submitted to Executive for review");
     },
     onError: (e: any) => toast.error(e.message),
   });

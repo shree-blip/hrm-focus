@@ -71,7 +71,7 @@ export function DeactivateDialog({
                 </ul>
               </div>
               <p className="text-sm text-muted-foreground">
-                To restore access, an Admin or CEO must reactivate the employee from the Employees page.
+                To restore access, an Admin or Executive must reactivate the employee from the Employees page.
               </p>
             </div>
           </AlertDialogDescription>

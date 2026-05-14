@@ -995,7 +995,7 @@ export function useLeaveRequests() {
       if (!canCancel && !isOwnRequest) {
         toast({
           title: "Unauthorized",
-          description: "Only Admin, CEO, Line Manager, or Supervisor can cancel approved leave.",
+          description: "Only Admin, Executive, Line Manager, or Supervisor can cancel approved leave.",
           variant: "destructive",
         });
         return;
@@ -1004,7 +1004,7 @@ export function useLeaveRequests() {
       if (isOwnRequest && !isAdmin && !isVP && !isSupervisor && !isLineManager) {
         toast({
           title: "Unauthorized",
-          description: "Approved leave can only be cancelled by Admin, CEO, Line Manager, or Supervisor.",
+          description: "Approved leave can only be cancelled by Admin, Executive, Line Manager, or Supervisor.",
           variant: "destructive",
         });
         return;

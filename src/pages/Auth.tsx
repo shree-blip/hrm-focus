@@ -82,7 +82,7 @@ export default function Auth() {
       sessionStorage.removeItem("auth_rejected");
       toast({
         title: "Account Deactivated",
-        description: "Your account has been deactivated. Please contact your Admin or CEO to reactivate it.",
+        description: "Your account has been deactivated. Please contact your Admin or Executive to reactivate it.",
         variant: "destructive",
       });
     }
@@ -189,7 +189,7 @@ export default function Auth() {
       if (result && !result.active && result.reason === "deactivated") {
         toast({
           title: "Account Deactivated",
-          description: "Your account has been deactivated. Please contact your Admin or CEO to reactivate it.",
+          description: "Your account has been deactivated. Please contact your Admin or Executive to reactivate it.",
           variant: "destructive",
         });
         setIsLoading(false);

@@ -26,7 +26,7 @@ type AppRole = (typeof ROLES)[number];
 const PERMISSION_ROLES = ROLES;
 
 const ROLE_LABELS: Record<string, string> = {
-  vp: "CEO",
+  vp: "Executive",
   admin: "Admin",
   supervisor: "Supervisor",
   line_manager: "Line Manager",
@@ -345,7 +345,7 @@ export default function AccessControl() {
 
   const handleUserOverrideToggle = async (targetUserId: string, permission: string) => {
     if (!isCEO) {
-      toast({ title: "Access Denied", description: "Only CEO can modify individual permissions.", variant: "destructive" });
+      toast({ title: "Access Denied", description: "Only Executive can modify individual permissions.", variant: "destructive" });
       return;
     }
 
@@ -733,7 +733,7 @@ export default function AccessControl() {
                 {!isCEO && selectedUser && (
                   <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                     <Lock className="h-4 w-4" />
-                    <span>View only — only the CEO can modify individual permissions</span>
+                    <span>View only — only the Executive can modify individual permissions</span>
                   </div>
                 )}
               </CardHeader>

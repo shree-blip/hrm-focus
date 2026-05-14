@@ -396,7 +396,7 @@ export function useLoans() {
           .select("first_name, last_name")
           .eq("user_id", user.id)
           .single();
-        const vpName = vpProfile ? `${vpProfile.first_name} ${vpProfile.last_name}` : "CEO";
+        const vpName = vpProfile ? `${vpProfile.first_name} ${vpProfile.last_name}` : "Executive";
 
         // Notify employee (in-app)
         await supabase.rpc("create_notification", {

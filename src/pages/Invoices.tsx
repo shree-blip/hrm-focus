@@ -169,7 +169,7 @@ export default function Invoices() {
           </Button>
           {view === "create" && (
             <Button size="sm" onClick={handleSubmitToCEO} disabled={createMut.isPending || submitMut.isPending}>
-              <Send className="h-4 w-4 mr-1" /> Submit to CEO
+              <Send className="h-4 w-4 mr-1" /> Submit to Executive
             </Button>
           )}
         </div>
