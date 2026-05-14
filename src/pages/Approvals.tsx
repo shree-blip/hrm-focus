@@ -712,6 +712,8 @@ const Approvals = () => {
 
       {section === "promotions" && <PromotionApprovalQueue />}
 
+      {section === "attendance" && <AttendanceApprovalsTab />}
+
       {section === "leave-reports" && <LeaveReportsTab requests={requests} />}
 
       {/* Request Leave Dialog — available to all users */}
