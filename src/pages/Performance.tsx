@@ -861,13 +861,16 @@ const PerformanceMetrics = () => {
   }, [feedback, user]);
 
   const activeEmployees = useMemo(() => {
-    if (isLineManager || isSupervisor) {
+    // Admins and VPs always see all active employees, even if they also hold a
+    // line_manager/supervisor flag (which would otherwise scope the list to
+    // only their direct reports and produce empty "overall null" metrics).
+    if ((isLineManager || isSupervisor) && !isAdmin && !isVP) {
       // Only show assigned team for line managers/supervisors
       const teamIds = new Set(teamMembers.map((t) => t.id));
       return employees.filter((e) => e.status === "active" && teamIds.has(e.id));
     }
     return employees.filter((e) => e.status === "active");
-  }, [employees, isLineManager, isSupervisor, teamMembers]);
+  }, [employees, isLineManager, isSupervisor, isAdmin, isVP, teamMembers]);
   const activeEmployeesForDialog = useMemo(
     () => activeEmployees.map((e) => ({ id: e.id, first_name: e.first_name, last_name: e.last_name })),
     [activeEmployees],
