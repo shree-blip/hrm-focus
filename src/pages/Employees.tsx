@@ -192,6 +192,8 @@ const Employees = () => {
   const [clickedLeaveBalances, setClickedLeaveBalances] = useState<LeaveBalanceSummary[]>([]);
   const [loadingLeave, setLoadingLeave] = useState(false);
   const [leaveSummaryOpen, setLeaveSummaryOpen] = useState(false);
+  const [editLeave, setEditLeave] = useState<Record<string, { total: string; remaining: string }>>({});
+  const [savingLeaveType, setSavingLeaveType] = useState<string | null>(null);
 
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -374,6 +376,47 @@ const Employees = () => {
       setClickedLeaveBalances([]);
     }
     setLoadingLeave(false);
+  };
+
+  // Sync editable inputs whenever balances refresh
+  useEffect(() => {
+    const next: Record<string, { total: string; remaining: string }> = {};
+    clickedLeaveBalances.forEach((lb) => {
+      next[lb.leave_type] = {
+        total: String(lb.total_days),
+        remaining: String(lb.remaining_days),
+      };
+    });
+    setEditLeave(next);
+  }, [clickedLeaveBalances]);
+
+  const saveLeaveBalance = async (leaveType: string) => {
+    if (!clickedEmployee?.user_id) return;
+    const vals = editLeave[leaveType];
+    const total = parseFloat(vals?.total ?? "");
+    const remaining = parseFloat(vals?.remaining ?? "");
+    if (isNaN(total) || isNaN(remaining) || total < 0 || remaining < 0 || remaining > total) {
+      toast({ title: "Invalid values", description: "Total and Remaining must be valid; Remaining cannot exceed Total.", variant: "destructive" });
+      return;
+    }
+    setSavingLeaveType(leaveType);
+    const now = new Date();
+    const fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+    const year = fyStartYear + 1;
+    const used = Number((total - remaining).toFixed(2));
+    const { error } = await supabase
+      .from("leave_balances")
+      .upsert(
+        { user_id: clickedEmployee.user_id, leave_type: leaveType, year, total_days: total, used_days: used },
+        { onConflict: "user_id,leave_type,year" },
+      );
+    setSavingLeaveType(null);
+    if (error) {
+      toast({ title: "Failed to update leave balance", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Leave balance updated", description: `${leaveType} saved successfully.` });
+    await fetchClickedEmployeeLeave(clickedEmployee.user_id);
   };
 
   // Fetch managers that the clicked employee reports to
@@ -954,7 +997,7 @@ const Employees = () => {
 
                     <Button variant="outline" className="flex-col h-24 gap-2" onClick={() => setLeaveSummaryOpen(true)}>
                       <CalendarDays className="h-6 w-6" />
-                      <span className="text-sm font-medium">Leave Summary</span>
+                      <span className="text-sm font-medium">Leave</span>
                     </Button>
 
                     {clickedEmployee?.status === "inactive" ? (
@@ -1303,7 +1346,7 @@ const Employees = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-primary" />
-              Leave Summary — {clickedEmployee?.first_name} {clickedEmployee?.last_name}
+              Leave — {clickedEmployee?.first_name} {clickedEmployee?.last_name}
               <span className="text-xs font-normal text-muted-foreground ml-1">
                 (up to Jun 30, {new Date().getMonth() >= 6 ? new Date().getFullYear() + 1 : new Date().getFullYear()})
               </span>
@@ -1320,6 +1363,7 @@ const Employees = () => {
               <p className="text-sm">No leave data available</p>
             </div>
           ) : (
+            <>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 py-2">
               {clickedLeaveBalances.map((lb) => (
                 <div key={lb.leave_type} className="border rounded-lg p-3 space-y-1.5">
@@ -1352,6 +1396,57 @@ const Employees = () => {
                 </div>
               ))}
             </div>
+            {(isAdmin || isVP) && (
+              <div className="mt-4 border-t pt-4 space-y-3">
+                <p className="text-sm font-semibold">Manual Leave Balance Update</p>
+                <p className="text-xs text-muted-foreground">Adjust Total and Remaining for this employee. Saves to current fiscal year.</p>
+                <div className="space-y-2">
+                  {clickedLeaveBalances.map((lb) => {
+                    const v = editLeave[lb.leave_type] || { total: "", remaining: "" };
+                    return (
+                      <div key={`edit-${lb.leave_type}`} className="grid grid-cols-12 gap-2 items-end">
+                        <div className="col-span-4">
+                          <p className="text-xs text-muted-foreground mb-1 truncate">{lb.leave_type}</p>
+                        </div>
+                        <div className="col-span-3">
+                          <label className="text-[10px] text-muted-foreground">Total</label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={v.total}
+                            onChange={(e) => setEditLeave((p) => ({ ...p, [lb.leave_type]: { ...v, total: e.target.value } }))}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="col-span-3">
+                          <label className="text-[10px] text-muted-foreground">Remaining</label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={v.remaining}
+                            onChange={(e) => setEditLeave((p) => ({ ...p, [lb.leave_type]: { ...v, remaining: e.target.value } }))}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Button
+                            size="sm"
+                            className="w-full h-8"
+                            onClick={() => saveLeaveBalance(lb.leave_type)}
+                            disabled={savingLeaveType === lb.leave_type}
+                          >
+                            {savingLeaveType === lb.leave_type ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            </>
           )}
         </DialogContent>
       </Dialog>
