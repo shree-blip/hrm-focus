@@ -1411,6 +1411,42 @@ export type Database = {
           },
         ]
       }
+      hiring_posts: {
+        Row: {
+          attachment_name: string | null
+          attachment_url: string | null
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          org_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          org_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_name?: string | null
+          attachment_url?: string | null
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          org_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoice_comments: {
         Row: {
           content: string

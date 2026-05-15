@@ -73,6 +73,7 @@ const MyPayslips = lazyRetry(() => import("./pages/MyPayslips"));
 const MyOnboarding = lazyRetry(() => import("./pages/MyOnboarding"));
 const MyOffboarding = lazyRetry(() => import("./pages/MyOffboarding"));
 const TimezoneManagement = lazyRetry(() => import("./pages/TimezoneManagement"));
+const Hiring = lazyRetry(() => import("./pages/Hiring"));
 const NotFound = lazyRetry(() => import("./pages/NotFound"));
 
 // ─────────────────────────────────────────────────────────
@@ -109,6 +110,7 @@ const prefetchMap: Record<string, () => Promise<any>> = {
   "my-onboarding": () => import("./pages/MyOnboarding"),
   "my-offboarding": () => import("./pages/MyOffboarding"),
   "timezone-management": () => import("./pages/TimezoneManagement"),
+  hiring: () => import("./pages/Hiring"),
 };
 
 /**
@@ -386,6 +388,14 @@ const App = () => (
                     element={
                       <ProtectedRoute requiredPermission="manage_access">
                         <TimezoneManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/hiring"
+                    element={
+                      <ProtectedRoute>
+                        <Hiring />
                       </ProtectedRoute>
                     }
                   />

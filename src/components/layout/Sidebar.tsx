@@ -34,6 +34,7 @@ import { usePermissions, Permission } from "@/hooks/usePermissions";
 import { useSidebarBadges } from "@/hooks/useSidebarBadges";
 import focusLogo from "@/assets/focus-logo.png";
 import { useTheme } from "@/components/dashboard/ThemeContext";
+import { Briefcase } from "lucide-react";
 
 const HOVER_STYLES = "[@media(hover:hover)]:hover:bg-sidebar-accent [@media(hover:hover)]:hover:text-sidebar-foreground";
 
@@ -85,6 +86,7 @@ const ALL_MENU_ITEMS: MenuItem[] = [
     href: "/announcements",
     permissions: ["add_announcement", "edit_announcement", "delete_announcement", "view_announcements"],
   },
+  { icon: Briefcase, label: "Hiring", href: "/hiring", alwaysVisible: true },
   { icon: FileText, label: "Documents", href: "/documents", permissions: ["manage_documents", "view_documents"] },
   { icon: Receipt, label: "Invoices", href: "/invoices", permissions: ["view_invoices", "manage_invoices"] },
   { icon: UserPlus, label: "Onboarding", href: "/onboarding", permissions: ["manage_onboarding"] },
