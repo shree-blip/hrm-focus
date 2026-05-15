@@ -378,6 +378,47 @@ const Employees = () => {
     setLoadingLeave(false);
   };
 
+  // Sync editable inputs whenever balances refresh
+  useEffect(() => {
+    const next: Record<string, { total: string; remaining: string }> = {};
+    clickedLeaveBalances.forEach((lb) => {
+      next[lb.leave_type] = {
+        total: String(lb.total_days),
+        remaining: String(lb.remaining_days),
+      };
+    });
+    setEditLeave(next);
+  }, [clickedLeaveBalances]);
+
+  const saveLeaveBalance = async (leaveType: string) => {
+    if (!clickedEmployee?.user_id) return;
+    const vals = editLeave[leaveType];
+    const total = parseFloat(vals?.total ?? "");
+    const remaining = parseFloat(vals?.remaining ?? "");
+    if (isNaN(total) || isNaN(remaining) || total < 0 || remaining < 0 || remaining > total) {
+      toast({ title: "Invalid values", description: "Total and Remaining must be valid; Remaining cannot exceed Total.", variant: "destructive" });
+      return;
+    }
+    setSavingLeaveType(leaveType);
+    const now = new Date();
+    const fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+    const year = fyStartYear + 1;
+    const used = Number((total - remaining).toFixed(2));
+    const { error } = await supabase
+      .from("leave_balances")
+      .upsert(
+        { user_id: clickedEmployee.user_id, leave_type: leaveType, year, total_days: total, used_days: used },
+        { onConflict: "user_id,leave_type,year" },
+      );
+    setSavingLeaveType(null);
+    if (error) {
+      toast({ title: "Failed to update leave balance", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Leave balance updated", description: `${leaveType} saved successfully.` });
+    await fetchClickedEmployeeLeave(clickedEmployee.user_id);
+  };
+
   // Fetch managers that the clicked employee reports to
   const fetchClickedEmployeeManagers = async (employeeId: string) => {
     setLoadingClickedManagers(true);
