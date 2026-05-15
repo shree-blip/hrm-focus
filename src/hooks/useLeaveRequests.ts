@@ -1018,8 +1018,14 @@ export function useLeaveRequests() {
       return;
     }
 
-    // Update leave request status to cancelled
-    const { error } = await supabase.from("leave_requests").update({ status: "cancelled" }).eq("id", requestId);
+    // When management cancels an APPROVED leave, mark it as rejected so it shows
+    // up consistently as a non-approved leave everywhere. Self-cancelled pending
+    // requests stay as "cancelled".
+    const newStatus =
+      originalStatus === "approved" && (isAdmin || isVP || isSupervisor || isLineManager)
+        ? "rejected"
+        : "cancelled";
+    const { error } = await supabase.from("leave_requests").update({ status: newStatus }).eq("id", requestId);
 
     if (error) {
       toast({ title: "Error", description: "Failed to cancel leave request", variant: "destructive" });
