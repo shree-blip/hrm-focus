@@ -126,7 +126,7 @@ export function useAttendance(weekStart?: Date) {
       .is("clock_out", null)
       .order("clock_in", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!error && data) {
       const log = data as AttendanceLog;

@@ -117,6 +117,27 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case "clock_in": {
+        // Guard: if there's already an open log for this user, return it instead of creating a duplicate
+        const { data: existingOpen } = await supabaseAdmin
+          .from("attendance_logs")
+          .select("*")
+          .eq("user_id", userId)
+          .is("clock_out", null)
+          .order("clock_in", { ascending: false })
+          .limit(1);
+
+        if (existingOpen && existingOpen.length > 0) {
+          result = {
+            log: existingOpen[0],
+            utc: serverUtc,
+            local_time: localTimeStr,
+            timezone: employeeTimezone,
+            timezone_abbr: tzAbbr,
+            already_clocked_in: true,
+          };
+          break;
+        }
+
         const { data, error } = await supabaseAdmin
           .from("attendance_logs")
           .insert({
