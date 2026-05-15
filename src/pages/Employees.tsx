@@ -192,6 +192,8 @@ const Employees = () => {
   const [clickedLeaveBalances, setClickedLeaveBalances] = useState<LeaveBalanceSummary[]>([]);
   const [loadingLeave, setLoadingLeave] = useState(false);
   const [leaveSummaryOpen, setLeaveSummaryOpen] = useState(false);
+  const [editLeave, setEditLeave] = useState<Record<string, { total: string; remaining: string }>>({});
+  const [savingLeaveType, setSavingLeaveType] = useState<string | null>(null);
 
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
