@@ -956,7 +956,7 @@ const Employees = () => {
 
                     <Button variant="outline" className="flex-col h-24 gap-2" onClick={() => setLeaveSummaryOpen(true)}>
                       <CalendarDays className="h-6 w-6" />
-                      <span className="text-sm font-medium">Leave Summary</span>
+                      <span className="text-sm font-medium">Leave</span>
                     </Button>
 
                     {clickedEmployee?.status === "inactive" ? (
