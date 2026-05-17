@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { notifyUsers, getAllActiveUserIds } from "@/lib/notify";
 
 interface HiringPost {
   id: string;
@@ -106,6 +107,22 @@ export default function Hiring() {
       if (error) throw error;
 
       toast({ title: "Hiring post created" });
+      // Broadcast to all active users (in-app only)
+      try {
+        const all = await getAllActiveUserIds();
+        await notifyUsers(
+          all,
+          {
+            title: "💼 New Hiring Update",
+            message: "New hiring update from Focus Your Finance. Please check the Hiring section.",
+            link: "/hiring",
+            type: "info",
+          },
+          { excludeUserId: user?.id },
+        );
+      } catch (e) {
+        console.error("Failed to broadcast hiring notification:", e);
+      }
       setOpen(false);
       resetForm();
       fetchPosts();
