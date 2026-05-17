@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { calculateEMI, generateAmortizationSchedule, FIXED_ANNUAL_RATE, LoanPolicy } from "@/lib/loanCalculations";
+import { notifyUsers, getAdminAndVpUserIds } from "@/lib/notify";
 
 export function useLoans() {
   const { user, isAdmin, isVP, isLineManager } = useAuth();
@@ -338,10 +339,10 @@ export function useLoans() {
       if (loan) {
         await supabase.rpc("create_notification", {
           p_user_id: loan.user_id,
-          p_title: decision === "approved" ? "✅ Loan Forwarded to VP" : "❌ Loan Rejected",
+          p_title: decision === "approved" ? "✅ Loan Approved by Line Manager" : "❌ Loan Rejected",
           p_message: decision === "approved"
-            ? `Your loan request has been approved by your manager and forwarded to the VP. Comment: ${comment}`
-            : `Your loan request has been rejected by your manager. Reason: ${comment}`,
+            ? `Your loan request has been approved by your Line Manager and sent to VP or Executive for final review.${comment ? ` Comment: ${comment}` : ""}`
+            : `Your loan request has been rejected by your Line Manager. Reason: ${comment}`,
           p_type: "loan",
           p_link: "/loans",
         });
@@ -403,11 +404,28 @@ export function useLoans() {
           p_user_id: loan.user_id,
           p_title: decision === "approved" ? "✅ Loan Approved" : "❌ Loan Rejected",
           p_message: decision === "approved"
-            ? `Your loan request has been approved by the VP. Comment: ${comment}`
-            : `Your loan request has been rejected by the VP. Reason: ${comment}`,
+            ? `Your loan request has been approved by VP or Executive.${comment ? ` Comment: ${comment}` : ""}`
+            : `Your loan request has been rejected by VP or Executive.${comment ? ` Reason: ${comment}` : ""}`,
           p_type: "loan",
           p_link: "/loans",
         });
+
+        // Admin audit copy
+        try {
+          const adminVpIds = await getAdminAndVpUserIds();
+          await notifyUsers(
+            adminVpIds,
+            {
+              title: decision === "approved" ? "💰 Loan Approved (Audit)" : "💰 Loan Rejected (Audit)",
+              message: `Loan request from ${loan.employees?.first_name || ""} ${loan.employees?.last_name || ""} was ${decision} by VP/Executive.`,
+              link: "/loans",
+              type: "info",
+            },
+            { excludeUserId: user.id },
+          );
+        } catch (auditErr) {
+          console.error("Error sending admin audit notification:", auditErr);
+        }
 
         // Notify employee (email)
         const { data: employeeProfile } = await supabase
