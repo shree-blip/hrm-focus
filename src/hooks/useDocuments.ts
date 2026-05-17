@@ -10,6 +10,7 @@ import {
   getAdminAndVpUserIds,
   getDirectManagerUserIds,
   getUserIdForEmployee,
+  getEmployeeDisplayName,
 } from "@/lib/notify";
 
 // Private categories that only uploader and admin can see
@@ -291,7 +292,7 @@ export function useDocuments() {
             ? (await getUserIdForEmployee(employeeId)) || user.id
             : user.id;
         const subjectName =
-          subjectUserId === user.id ? uploaderName : await (await import("@/lib/notify")).getEmployeeDisplayName(subjectUserId);
+          subjectUserId === user.id ? uploaderName : await getEmployeeDisplayName(subjectUserId);
 
         const [managers, adminsVps] = await Promise.all([
           getDirectManagerUserIds(subjectUserId),
