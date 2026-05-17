@@ -11,6 +11,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import {
+  notifyUser,
+  notifyUsers,
+  getDirectManagerUserIds,
+  getAdminAndVpUserIds,
+  getEmployeeDisplayName,
+} from "@/lib/notify";
+import {
   User,
   Mail,
   Phone,
@@ -425,6 +432,32 @@ const Profile = () => {
       setIsEditing(false);
       if (refreshProfile) {
         await refreshProfile();
+      }
+      // In-app notifications: confirmation + management copy
+      try {
+        await notifyUser(user.id, {
+          title: "✅ Profile Updated",
+          message: "Your profile has been updated successfully.",
+          link: "/profile",
+          type: "success",
+        });
+        const [managers, adminsVps] = await Promise.all([
+          getDirectManagerUserIds(user.id),
+          getAdminAndVpUserIds(),
+        ]);
+        const empName = await getEmployeeDisplayName(user.id);
+        await notifyUsers(
+          [...managers, ...adminsVps],
+          {
+            title: "👤 Employee Profile Updated",
+            message: `${empName} has updated their profile. Please review if required.`,
+            link: "/employees",
+            type: "info",
+          },
+          { excludeUserId: user.id },
+        );
+      } catch (notifErr) {
+        console.error("Failed to send profile update notifications:", notifErr);
       }
     }
     setIsSaving(false);
