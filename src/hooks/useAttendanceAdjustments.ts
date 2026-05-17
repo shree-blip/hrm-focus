@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
+import { notifyUsers, getDirectManagerUserIds, getEmployeeDisplayName } from "@/lib/notify";
 
 export interface AttendanceLogRecord {
   clock_in: string;
@@ -219,6 +220,23 @@ export function useAttendanceAdjustments() {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return false;
+    }
+    // Notify line manager + supervisor about the new attendance edit request
+    try {
+      const managerIds = await getDirectManagerUserIds(user.id);
+      const empName = await getEmployeeDisplayName(user.id);
+      await notifyUsers(
+        managerIds,
+        {
+          title: "🕒 Attendance Edit Request",
+          message: `${empName} has submitted an attendance edit request. Please review it.`,
+          link: "/approvals",
+          type: "info",
+        },
+        { excludeUserId: user.id },
+      );
+    } catch (err) {
+      console.error("Error notifying managers of attendance edit request:", err);
     }
     toast({ title: "Request Submitted", description: "Your adjustment request has been sent to your manager." });
     queryClient.invalidateQueries({ queryKey: ["attendance-adjustments", "mine", user.id] });

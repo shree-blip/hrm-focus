@@ -2,6 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import {
+  notifyUser,
+  notifyUsers,
+  getDirectManagerUserIds,
+  getAdminAndVpUserIds,
+  getEmployeeDisplayName,
+} from "@/lib/notify";
 
 export interface AssetRequest {
   id: string;
@@ -148,6 +155,31 @@ export function useAssetRequests() {
         description: "Your request has been submitted for approval.",
       });
 
+      // In-app: notify line manager (or admin if no LM); confirmation to employee
+      try {
+        const empName = await getEmployeeDisplayName(user.id);
+        const managerIds = await getDirectManagerUserIds(user.id);
+        const recipients = managerIds.length > 0 ? managerIds : await getAdminAndVpUserIds();
+        await notifyUsers(
+          recipients,
+          {
+            title: "🛠️ New Asset Request",
+            message: `${empName} has submitted an asset request. Please review it.`,
+            link: "/support",
+            type: "info",
+          },
+          { excludeUserId: user.id },
+        );
+        await notifyUser(user.id, {
+          title: "✅ Asset Request Submitted",
+          message: "Your asset request has been submitted successfully.",
+          link: "/support",
+          type: "success",
+        });
+      } catch (notifErr) {
+        console.error("Error sending asset request notifications:", notifErr);
+      }
+
       await fetchAssetRequests();
       return { success: true };
     } catch (error: any) {
@@ -207,6 +239,30 @@ export function useAssetRequests() {
             approvalDate: new Date().toISOString(),
           },
         });
+
+        // In-app: notify employee that LM approved; notify admins to act next
+        try {
+          await notifyUser(request.user_id, {
+            title: "✅ Asset Request Approved by Line Manager",
+            message:
+              "Your asset request has been approved by your Line Manager and forwarded to Admin for final review.",
+            link: "/support",
+            type: "success",
+          });
+          const adminIds = await getAdminAndVpUserIds();
+          await notifyUsers(
+            adminIds,
+            {
+              title: "🛠️ Asset Request Awaiting Admin",
+              message: `${request.requester_name || "An employee"}'s asset request was approved by Line Manager. Please review.`,
+              link: "/support",
+              type: "info",
+            },
+            { excludeUserId: user.id },
+          );
+        } catch (notifErr) {
+          console.error("Error sending asset LM-approval notifications:", notifErr);
+        }
       }
 
       toast({
@@ -247,6 +303,20 @@ export function useAssetRequests() {
       if (error) throw error;
 
       toast({ title: "Request Approved", description: "The asset request has been fully approved." });
+      // In-app: notify the employee
+      try {
+        const request = assetRequests.find((r) => r.id === requestId);
+        if (request) {
+          await notifyUser(request.user_id, {
+            title: "✅ Asset Request Approved",
+            message: "Your asset request has been approved by Admin. You will receive an update soon.",
+            link: "/support",
+            type: "success",
+          });
+        }
+      } catch (notifErr) {
+        console.error("Error sending asset admin-approval notification:", notifErr);
+      }
       await fetchAssetRequests();
       return { success: true };
     } catch (error: any) {
@@ -275,6 +345,19 @@ export function useAssetRequests() {
       if (error) throw error;
 
       toast({ title: "Request Declined", description: "The request has been declined." });
+      // In-app: notify the employee
+      try {
+        if (request) {
+          await notifyUser(request.user_id, {
+            title: "❌ Asset Request Rejected",
+            message: `Your asset request has been rejected by Admin.${reason ? ` Reason: ${reason}` : ""}`,
+            link: "/support",
+            type: "error",
+          });
+        }
+      } catch (notifErr) {
+        console.error("Error sending asset rejection notification:", notifErr);
+      }
       await fetchAssetRequests();
       return { success: true };
     } catch (error: any) {

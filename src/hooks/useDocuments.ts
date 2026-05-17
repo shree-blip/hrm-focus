@@ -3,6 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "@/hooks/use-toast";
+import {
+  notifyUser,
+  notifyUsers,
+  getAllActiveUserIds,
+  getAdminAndVpUserIds,
+  getDirectManagerUserIds,
+  getUserIdForEmployee,
+  getEmployeeDisplayName,
+} from "@/lib/notify";
 
 // Private categories that only uploader and admin can see
 export const PRIVATE_CATEGORIES = ["Compliance", "Contracts"];
@@ -191,22 +200,30 @@ export function useDocuments() {
     const uploaderName = uploaderProfile ? `${uploaderProfile.first_name} ${uploaderProfile.last_name}` : "User";
     const uploaderEmail = uploaderProfile?.email || "";
 
-    // Determine if this is a manager uploading for an employee or an employee uploading
-    const isManagerUploadingForEmployee = employeeId && (isAdmin || isVP || isManager || isLineManager);
+    // ============================================================
+    // Email side-effect (unchanged): keep existing edge invocation
+    // ============================================================
+    const isManagerUploadingForEmployee = !!(employeeId && (isAdmin || isVP || isManager || isLineManager));
+    try {
+      // Resolve user's own employee id (used for employee_upload path)
+      const { data: userProfile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
+      let userEmployeeId: string | undefined;
+      if (userProfile) {
+        const { data: empRecord } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("profile_id", userProfile.id)
+          .maybeSingle();
+        userEmployeeId = empRecord?.id;
+      }
 
-    if (isManagerUploadingForEmployee && employeeId) {
-      // Manager/VP uploaded for employee → notify the employee
-      try {
-        // Get employee name
+      if (isManagerUploadingForEmployee && employeeId) {
         const { data: empData } = await supabase
           .from("employees")
-          .select("first_name, last_name, profile_id")
+          .select("first_name, last_name")
           .eq("id", employeeId)
-          .single();
-
+          .maybeSingle();
         const employeeName = empData ? `${empData.first_name} ${empData.last_name}` : "Employee";
-
-        // Send email notification
         await supabase.functions.invoke("send-document-upload-notification", {
           body: {
             uploader_name: uploaderName,
@@ -218,44 +235,7 @@ export function useDocuments() {
             notify_type: "manager_upload",
           },
         });
-
-        // Also send in-app notification to employee
-        if (empData?.profile_id) {
-          const { data: empProfile } = await supabase
-            .from("profiles")
-            .select("user_id")
-            .eq("id", empData.profile_id)
-            .single();
-
-          if (empProfile && empProfile.user_id !== user.id) {
-            await supabase.rpc("create_notification", {
-              p_user_id: empProfile.user_id,
-              p_title: "📄 New Document",
-              p_message: `A new ${category} document "${file.name}" has been uploaded for you by ${uploaderName}.`,
-              p_type: "document",
-              p_link: "/documents",
-            });
-          }
-        }
-      } catch (emailErr) {
-        console.error("Error sending document email notification:", emailErr);
-      }
-    } else {
-      // Employee uploaded → notify VP and line manager
-      try {
-        // Get the user's employee record to find their line manager
-        const { data: userProfile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
-
-        let userEmployeeId: string | undefined;
-        if (userProfile) {
-          const { data: empRecord } = await supabase
-            .from("employees")
-            .select("id")
-            .eq("profile_id", userProfile.id)
-            .maybeSingle();
-          userEmployeeId = empRecord?.id;
-        }
-
+      } else {
         await supabase.functions.invoke("send-document-upload-notification", {
           body: {
             uploader_name: uploaderName,
@@ -266,26 +246,122 @@ export function useDocuments() {
             notify_type: "employee_upload",
           },
         });
+      }
+    } catch (emailErr) {
+      console.error("Error sending document email notification:", emailErr);
+    }
 
-        // Send in-app notifications to VP/Admin
-        const { data: vpUsers } = await supabase.from("user_roles").select("user_id").in("role", ["vp", "admin"]);
+    // ============================================================
+    // In-app bell notifications — category-aware receiver routing
+    // ============================================================
+    try {
+      const normalized = (category || "").toLowerCase();
+      const link = "/documents";
 
-        if (vpUsers) {
-          for (const vp of vpUsers) {
-            if (vp.user_id !== user.id) {
-              await supabase.rpc("create_notification", {
-                p_user_id: vp.user_id,
-                p_title: "📄 Document Uploaded",
-                p_message: `${uploaderName} uploaded a ${category} document: "${file.name}"`,
-                p_type: "document",
-                p_link: "/documents",
-              });
-            }
+      if (normalized === "policies" || normalized === "policy") {
+        // #2 Policy upload → broadcast to all active users
+        const allUserIds = await getAllActiveUserIds();
+        await notifyUsers(
+          allUserIds,
+          {
+            title: "📘 New Policy Uploaded",
+            message: "A new company policy has been uploaded. Please review it in Documents > Policies.",
+            link,
+            type: "info",
+          },
+          { excludeUserId: user.id },
+        );
+      } else if (normalized === "contracts" || normalized === "contract") {
+        // #1 Contract → ONLY the selected employee
+        if (employeeId) {
+          const targetUserId = await getUserIdForEmployee(employeeId);
+          if (targetUserId && targetUserId !== user.id) {
+            await notifyUser(targetUserId, {
+              title: "📄 New Contract Uploaded",
+              message: "Your contract has been uploaded. Please check it in Documents > Contracts.",
+              link,
+              type: "info",
+            });
           }
         }
-      } catch (emailErr) {
-        console.error("Error sending document email notification:", emailErr);
+      } else if (normalized === "compliance") {
+        // #3 Compliance → uploader's LM + supervisor + admin + vp
+        // If a manager uploaded for an employee, target THAT employee's chain.
+        const subjectUserId =
+          isManagerUploadingForEmployee && employeeId
+            ? (await getUserIdForEmployee(employeeId)) || user.id
+            : user.id;
+        const subjectName =
+          subjectUserId === user.id ? uploaderName : await getEmployeeDisplayName(subjectUserId);
+
+        const [managers, adminsVps] = await Promise.all([
+          getDirectManagerUserIds(subjectUserId),
+          getAdminAndVpUserIds(),
+        ]);
+        await notifyUsers(
+          [...managers, ...adminsVps],
+          {
+            title: "📁 Compliance Document Uploaded",
+            message: `${subjectName} has uploaded a compliance document. Please review it.`,
+            link,
+            type: "info",
+          },
+          { excludeUserId: user.id },
+        );
+
+        // Confirmation to the subject (employee)
+        if (subjectUserId && subjectUserId !== user.id) {
+          await notifyUser(subjectUserId, {
+            title: "📁 Compliance Document Uploaded",
+            message: "A new compliance document has been uploaded for you. Please review it in Documents > Compliance.",
+            link,
+            type: "info",
+          });
+        } else {
+          await notifyUser(user.id, {
+            title: "✅ Compliance Document Uploaded",
+            message: "Your compliance document has been uploaded successfully.",
+            link,
+            type: "success",
+          });
+        }
+      } else if (normalized === "leave evidence") {
+        // #4 Leave evidence → uploader's LM + supervisor (admin/vp only if they manage docs)
+        const managers = await getDirectManagerUserIds(user.id);
+        await notifyUsers(
+          managers,
+          {
+            title: "📎 Leave Evidence Uploaded",
+            message: `${uploaderName} has uploaded leave evidence. Please review it.`,
+            link: "/approvals",
+            type: "info",
+          },
+          { excludeUserId: user.id },
+        );
+        // Confirmation to employee
+        await notifyUser(user.id, {
+          title: "✅ Leave Evidence Uploaded",
+          message: "Your leave evidence has been uploaded successfully.",
+          link,
+          type: "success",
+        });
+      } else {
+        // #10 Generic document → only the selected employee (no broadcast)
+        if (employeeId) {
+          const targetUserId = await getUserIdForEmployee(employeeId);
+          if (targetUserId && targetUserId !== user.id) {
+            await notifyUser(targetUserId, {
+              title: "📄 New Document Uploaded",
+              message: `A new document has been uploaded for you by ${uploaderName}. Please review it.`,
+              link,
+              type: "info",
+            });
+          }
+        }
+        // If employee uploaded a personal doc with no recipient, no fanout.
       }
+    } catch (notifyErr) {
+      console.error("Error sending document in-app notifications:", notifyErr);
     }
 
     fetchDocuments();

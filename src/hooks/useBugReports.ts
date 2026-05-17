@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { notifyUser, notifyUsers, getAdminAndVpUserIds, getEmployeeDisplayName } from "@/lib/notify";
 
 export interface BugReport {
   id: string;
@@ -108,6 +109,30 @@ export function useBugReports() {
         title: "Bug Report Submitted",
         description: "Your bug report has been submitted successfully.",
       });
+
+      // In-app: notify reporter + Admin/VP reviewers
+      try {
+        const empName = await getEmployeeDisplayName(user.id);
+        const adminIds = await getAdminAndVpUserIds();
+        await notifyUsers(
+          adminIds,
+          {
+            title: "🐞 New Bug Report Submitted",
+            message: `${empName} has submitted a bug report. Please review it.`,
+            link: "/support",
+            type: "info",
+          },
+          { excludeUserId: user.id },
+        );
+        await notifyUser(user.id, {
+          title: "✅ Bug Report Submitted",
+          message: "Your bug report has been submitted successfully.",
+          link: "/support",
+          type: "success",
+        });
+      } catch (notifErr) {
+        console.error("Error sending bug report notifications:", notifErr);
+      }
 
       await fetchBugReports();
       return { success: true };

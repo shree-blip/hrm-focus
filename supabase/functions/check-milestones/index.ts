@@ -337,8 +337,10 @@ Deno.serve(async (req) => {
             inAppMessage = `${fullName} celebrates ${yearsText} with the company today! Congratulations! 🎉`;
           }
 
-          // everyone except the milestone person
-          for (const userId of allUserIds) {
+          // In-app: notify the celebrant themself + Admin/CEO only.
+          // (Email broadcast to the whole team below is unchanged.)
+          await createInAppNotification(milestone.user_id, inAppTitle, inAppMessage);
+          for (const userId of privilegedUserIds) {
             if (userId === milestone.user_id) continue;
             await createInAppNotification(userId, inAppTitle, inAppMessage);
           }
