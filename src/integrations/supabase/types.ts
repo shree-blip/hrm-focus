@@ -166,6 +166,41 @@ export type Database = {
           },
         ]
       }
+      asset_request_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          request_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          request_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          request_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_request_comments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "asset_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_requests: {
         Row: {
           admin_approved_at: string | null
@@ -511,6 +546,41 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bug_report_comments: {
+        Row: {
+          bug_report_id: string
+          content: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bug_report_id: string
+          content: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bug_report_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bug_report_comments_bug_report_id_fkey"
+            columns: ["bug_report_id"]
+            isOneToOne: false
+            referencedRelation: "bug_reports"
             referencedColumns: ["id"]
           },
         ]
@@ -4582,6 +4652,14 @@ export type Database = {
       can_manage_announcements: { Args: { _user_id: string }; Returns: boolean }
       can_manage_task: {
         Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_view_asset_request: {
+        Args: { _request_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_view_bug_report: {
+        Args: { _report_id: string; _user_id: string }
         Returns: boolean
       }
       can_view_grievance: {

@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Plus, Package, Monitor, Check, X, Loader2, Clock, ShieldCheck, UserCheck, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
+import { CommentsThread } from "./CommentsThread";
 
 export function AssetRequestsSection() {
   const { assetRequests, loading, submitAssetRequest, lineManagerApprove, adminApprove, declineRequest } = useAssetRequests();
@@ -275,6 +276,14 @@ export function AssetRequestsSection() {
                         <X className="h-4 w-4 mr-1" />Decline
                       </Button>
                     </div>
+                  )}
+
+                  {request.approval_stage === "approved" && (
+                    <CommentsThread
+                      table="asset_request_comments"
+                      parentField="request_id"
+                      parentId={request.id}
+                    />
                   )}
                 </div>
               ))}

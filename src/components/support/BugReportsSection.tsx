@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Plus, Bug, ImagePlus, X, Loader2, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { CommentsThread } from "./CommentsThread";
 
 export function BugReportsSection() {
   const { bugReports, loading, submitBugReport, updateBugStatus, getScreenshotUrl } = useBugReports();
@@ -295,6 +296,11 @@ export function BugReportsSection() {
                       </Select>
                     )}
                   </div>
+                  <CommentsThread
+                    table="bug_report_comments"
+                    parentField="bug_report_id"
+                    parentId={report.id}
+                  />
                 </div>
               ))}
             </div>
