@@ -499,10 +499,10 @@ const Approvals = () => {
             <Calendar className="h-4 w-4" />
             Leave ({pendingRequests.length})
           </TabsTrigger>
-          <TabsTrigger value="promotions" className="gap-2">
+          {/* <TabsTrigger value="promotions" className="gap-2">
             <TrendingUp className="h-4 w-4" />
             Promotions ({pendingPromotions.length})
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger value="attendance" className="gap-2">
             <ClipboardList className="h-4 w-4" />
             Attendance Approvals
