@@ -228,11 +228,27 @@ export function useOnboarding() {
     }
 
     try {
-      // Step 1: Check if employee already exists by email
+      const normalizedEmail = hireData.email.toLowerCase().trim();
+
+      // Step 1a: Cross-system email check (auth users, profiles, employees)
+      const { data: emailCheck, error: emailCheckError } = await supabase.rpc(
+        "check_email_registration",
+        { _email: normalizedEmail }
+      );
+
+      if (emailCheckError) {
+        console.error("Email registration check failed:", emailCheckError);
+      }
+
+      const check = (emailCheck as any) || {};
+      const existsInAuth = !!check.exists_in_auth;
+      const existsInProfiles = !!check.exists_in_profiles;
+
+      // Step 1b: Check if employee already exists by email
       const { data: existingEmployee } = await supabase
         .from("employees")
         .select("id, first_name, last_name")
-        .eq("email", hireData.email.toLowerCase())
+        .eq("email", normalizedEmail)
         .maybeSingle();
 
       let employeeId: string;
@@ -257,13 +273,31 @@ export function useOnboarding() {
         }
         employeeId = existingEmployee.id;
         employeeName = `${existingEmployee.first_name} ${existingEmployee.last_name}`;
+        if (existsInAuth || existsInProfiles) {
+          toast({
+            title: "Linked to Existing Account",
+            description:
+              "This email already exists. Onboarding has been linked to the existing user.",
+          });
+        }
       } else {
+        // Block creating a duplicate account if email exists in auth or profiles
+        if (existsInAuth || existsInProfiles) {
+          toast({
+            title: "Email Already Registered",
+            description:
+              "This email already exists. Onboarding has been linked to the existing user.",
+            variant: "destructive",
+          });
+          return null;
+        }
+
         // Step 2: Create new employee record
         // Match the actual employees table schema
         const employeeData = {
           first_name: hireData.firstName.trim(),
           last_name: hireData.lastName.trim(),
-          email: hireData.email.toLowerCase().trim(),
+          email: normalizedEmail,
           job_title: hireData.role.trim(),
           department: hireData.department,
           location: hireData.location || "US", // US or Nepal
