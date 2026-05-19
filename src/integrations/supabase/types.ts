@@ -4677,6 +4677,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_email_registration: { Args: { _email: string }; Returns: Json }
       check_employee_active: { Args: { check_email: string }; Returns: Json }
       check_rate_limit: {
         Args: {
