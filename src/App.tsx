@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { TimeTrackerProvider } from "@/contexts/TimeTrackerContext";
+import { NotificationBadgesProvider } from "@/contexts/NotificationBadgesContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
@@ -161,8 +162,9 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <AuthProvider>
-              <ActivityAlertsProvider />
-              <Suspense fallback={<PageLoader />}>
+              <NotificationBadgesProvider>
+                <ActivityAlertsProvider />
+                <Suspense fallback={<PageLoader />}>
                 <Routes>
                   {/* ── Public (eager) ── */}
                   <Route path="/auth" element={<Auth />} />
@@ -403,7 +405,8 @@ const App = () => (
                   {/* ── Catch-all ── */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
-              </Suspense>
+                </Suspense>
+              </NotificationBadgesProvider>
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>
