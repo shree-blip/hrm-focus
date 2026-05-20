@@ -42,6 +42,9 @@ const HREF_TO_MODULE: Record<string, BadgeModule> = {
   "/leave": "leave",
   "/tasks": "tasks",
   "/announcements": "announcements",
+  "/hiring": "hiring",
+  "/loans": "loans",
+  "/support": "support",
 };
 
 const HOVER_STYLES = "[@media(hover:hover)]:hover:bg-sidebar-accent [@media(hover:hover)]:hover:text-sidebar-foreground";
