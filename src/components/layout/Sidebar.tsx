@@ -94,7 +94,7 @@ const ALL_MENU_ITEMS: MenuItem[] = [
     href: "/announcements",
     permissions: ["add_announcement", "edit_announcement", "delete_announcement", "view_announcements"],
   },
-  { icon: Briefcase, label: "Hiring", href: "/hiring", alwaysVisible: true },
+  { icon: Briefcase, label: "Hiring", href: "/hiring", managerOnly: true },
   { icon: FileText, label: "Documents", href: "/documents", permissions: ["manage_documents", "view_documents"] },
   { icon: Receipt, label: "Invoices", href: "/invoices", permissions: ["view_invoices", "manage_invoices"] },
   { icon: UserPlus, label: "Onboarding", href: "/onboarding", permissions: ["manage_onboarding"] },
