@@ -2567,6 +2567,7 @@ export type Database = {
           is_read: boolean | null
           link: string | null
           message: string
+          module: string | null
           org_id: string | null
           read_at: string | null
           title: string
@@ -2579,6 +2580,7 @@ export type Database = {
           is_read?: boolean | null
           link?: string | null
           message: string
+          module?: string | null
           org_id?: string | null
           read_at?: string | null
           title: string
@@ -2591,6 +2593,7 @@ export type Database = {
           is_read?: boolean | null
           link?: string | null
           message?: string
+          module?: string | null
           org_id?: string | null
           read_at?: string | null
           title?: string
