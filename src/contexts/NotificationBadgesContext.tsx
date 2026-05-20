@@ -2,11 +2,26 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode,
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-export type BadgeModule = "approvals" | "leave" | "tasks" | "announcements";
+export type BadgeModule =
+  | "approvals"
+  | "leave"
+  | "tasks"
+  | "announcements"
+  | "hiring"
+  | "loans"
+  | "support";
 
 type BadgeState = Record<BadgeModule, boolean>;
 
-const EMPTY: BadgeState = { approvals: false, leave: false, tasks: false, announcements: false };
+const EMPTY: BadgeState = {
+  approvals: false,
+  leave: false,
+  tasks: false,
+  announcements: false,
+  hiring: false,
+  loans: false,
+  support: false,
+};
 
 interface Ctx {
   badges: BadgeState;
