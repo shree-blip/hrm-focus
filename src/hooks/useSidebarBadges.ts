@@ -10,13 +10,8 @@ export type BadgeCounts = Record<string, number>;
 /** Map sidebar hrefs to badge keys returned by the edge function */
 const HREF_TO_BADGE_KEY: Record<string, string> = {
   "/attendance": "attendance",
-  "/approvals": "approvals",
-  "/tasks": "tasks",
-  "/announcements": "announcements",
   "/documents": "documents",
   "/invoices": "invoices",
-  "/loans": "loans",
-  "/support": "support",
 };
 
 export function useSidebarBadges() {
