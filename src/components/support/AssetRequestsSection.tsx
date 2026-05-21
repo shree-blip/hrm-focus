@@ -88,7 +88,7 @@ export function AssetRequestsSection() {
       case "pending_line_manager":
         return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400"><Clock className="h-3 w-3 mr-1" />Pending Line Manager</Badge>;
       case "pending_admin":
-        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"><ShieldCheck className="h-3 w-3 mr-1" />Pending Admin</Badge>;
+        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"><Check className="h-3 w-3 mr-1" />Approved by Line Manager · Pending Admin</Badge>;
       case "approved":
         return <Badge className="bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400"><Check className="h-3 w-3 mr-1" />Approved</Badge>;
       case "declined":
