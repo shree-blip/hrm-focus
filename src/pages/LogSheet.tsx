@@ -166,6 +166,7 @@ const DEPARTMENTS: DepartmentItem[] = [
       { label: "Sales Tax Notice Resolution", value: "Sales_Tax_Notice_Resolution" },
       { label: "Ad Hoc Request", value: "Ad_hoc_requests" },
       { label: "Client Communication", value: "Client_communications" },
+      { label: "Reporting", value: "Reporting" },
     ],
   },
   { label: "Marketing", value: "Marketing" },
