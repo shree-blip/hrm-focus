@@ -243,9 +243,9 @@ export function useAssetRequests() {
         // In-app: notify employee that LM approved; notify admins to act next
         try {
           await notifyUser(request.user_id, {
-            title: "✅ Asset Request Approved by Line Manager",
+            title: "✅ Asset Request Approved by Line Manager/Supervisor",
             message:
-              "Your asset request has been approved by your Line Manager and forwarded to Admin for final review.",
+              "Your asset request has been approved by your Line Manager/Supervisor and is now pending Admin approval.",
             link: "/support",
             type: "success",
           });
@@ -266,8 +266,8 @@ export function useAssetRequests() {
       }
 
       toast({
-        title: "Request Approved",
-        description: "The request has been forwarded to Admin for final review.",
+        title: "Approved from your side",
+        description: "Now pending Admin approval.",
       });
 
       await fetchAssetRequests();
