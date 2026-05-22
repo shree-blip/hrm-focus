@@ -23,6 +23,11 @@ Deno.serve(async (req) => {
       .from("notification_logs")
       .select("*")
       .eq("status", "pending")
+      // Only leave-request events are supported by the retry email template below.
+      // Other event types (e.g. attendance_8hr_reminder, attendance_edit, milestone_*)
+      // have different payload shapes and must NOT be retried here, otherwise we
+      // send out emails with "undefined" values in the leave template.
+      .in("event_type", ["submitted", "approved", "rejected", "cancelled", "admin_assigned"])
       .lt("next_retry_at", new Date().toISOString())
       .lt("attempts", 3)
       .order("next_retry_at", { ascending: true })
