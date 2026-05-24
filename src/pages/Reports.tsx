@@ -746,26 +746,10 @@ const Reports = () => {
       });
 
       // Build public holiday date set within range from static + dynamic sources.
-      const fmtKey = (d: Date) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const dd = String(d.getDate()).padStart(2, "0");
-        return `${y}-${m}-${dd}`;
-      };
-      const holidayDateSet = new Set<string>();
-      calendarEntries.forEach((entry) => {
-        if (entry.type !== "holiday") return;
-        if (entry.date >= rangeStart && entry.date <= rangeEnd) {
-          holidayDateSet.add(fmtKey(entry.date));
-        }
-      });
-      (calendarEvents || []).forEach((ev) => {
-        if (ev.event_type !== "holiday") return;
-        const ed = new Date(ev.event_date + "T00:00:00");
-        if (ed >= rangeStart && ed <= rangeEnd) {
-          holidayDateSet.add(fmtKey(ed));
-        }
-      });
+      // Reuse the same exclusion set used for working-day calc so holidays and
+      // company-leave entries are also kept out of the Absent Dates column.
+      const fmtKey = fmtKeyLocal;
+      const holidayDateSet = workingDayExclusionSet;
 
       // Per-employee worked dates (from dailyAttendance — only days with a clock_in).
       const workedDatesMap: Record<string, Set<string>> = {};
@@ -783,9 +767,12 @@ const Reports = () => {
       {
         const cur = new Date(rangeStart);
         while (cur <= rangeEnd) {
-          const dow = cur.getDay();
-          if (dow !== 0 && dow !== 6) weekdayKeysInRange.push(fmtKey(cur));
-          cur.setDate(cur.getDate() + 1);
+          const dow = cur.getUTCDay();
+          const k = fmtKeyUTC(cur);
+          if (dow !== 0 && dow !== 6 && !holidayDateSet.has(k)) {
+            weekdayKeysInRange.push(k);
+          }
+          cur.setUTCDate(cur.getUTCDate() + 1);
         }
       }
 
