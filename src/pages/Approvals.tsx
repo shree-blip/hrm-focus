@@ -32,7 +32,7 @@ import {
   Search,
   FilterX,
   Download,
-  FileText,
+  // FileText,
   Plus,
   Shield,
   ClipboardList,
