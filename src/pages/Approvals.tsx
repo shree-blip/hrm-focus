@@ -15,7 +15,7 @@ import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
 import { AdminLeaveDialog } from "@/components/leave/AdminLeaveDialog";
 import { LeaveConflictDialog } from "@/components/leave/LeaveConflictDialog";
 import { PromotionApprovalQueue } from "@/components/employees/PromotionApprovalQueue";
-import { LeaveReportsTab } from "@/components/approvals/LeaveReportsTab";
+// import { LeaveReportsTab } from "@/components/approvals/LeaveReportsTab";
 import { AttendanceApprovalsTab } from "@/components/approvals/AttendanceApprovalsTab";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import {
