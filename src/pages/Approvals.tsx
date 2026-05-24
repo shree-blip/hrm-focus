@@ -720,7 +720,7 @@ const Approvals = () => {
 
       {section === "attendance" && <AttendanceApprovalsTab />}
 
-      {section === "leave-reports" && <LeaveReportsTab requests={requests} />}
+      {/* {section === "leave-reports" && <LeaveReportsTab requests={requests} />} */}
 
       {/* Request Leave Dialog — available to all users */}
       <RequestLeaveDialog
