@@ -513,10 +513,10 @@ const Approvals = () => {
             <ClipboardList className="h-4 w-4" />
             Attendance Approvals ({pendingAttendanceAdjustments})
           </TabsTrigger>
-          <TabsTrigger value="leave-reports" className="gap-2">
+          {/* <TabsTrigger value="leave-reports" className="gap-2">
             <FileText className="h-4 w-4" />
             Leave Reports
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
       </Tabs>
 
