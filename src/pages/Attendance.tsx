@@ -1161,30 +1161,6 @@ const Attendance = () => {
         </CardContent>
       </Card>
 
-      {/* Manager: Team Adjustment Requests */}
-      {(isManager || isLineManager) && teamRequests.length > 0 && (
-        <ManagerAdjustmentPanel
-          requests={teamRequests}
-          onReview={async (id, decision, comment) => {
-            const success = await reviewRequest(id, decision, comment);
-            if (success && decision === "approved") {
-              clearBreakCache();
-              refetch();
-            }
-            return success;
-          }}
-          canOverride={isAdmin || isVP}
-          onOverride={async (id, decision, comment) => {
-            const success = await overrideRequest(id, decision, comment);
-            if (success) {
-              clearBreakCache();
-              refetch();
-            }
-            return success;
-          }}
-        />
-      )}
-
       {/* Adjustment Request Dialog */}
       {adjustmentLog && (
         <AdjustmentRequestDialog

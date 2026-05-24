@@ -285,28 +285,28 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Attendance: pending adjustment requests
+    // Approvals: pending attendance adjustment requests (merged into approvals badge)
     if (has("view_attendance_all") || has("edit_attendance")) {
       if (isAdmin) {
         queries.push(
           supabase.from("attendance_adjustment_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
-            .then(({ count }) => { badges.attendance = count || 0; })
+            .then(({ count }) => { badges.approvals = (badges.approvals || 0) + (count || 0); })
         );
       } else if (isTeamScoped) {
         if (teamScopedEmpty) {
-          badges.attendance = 0;
+          badges.approvals = badges.approvals || 0;
         } else {
           // adjustment requests link to attendance_logs which have employee_id; filter via requested_by user ids
           queries.push(
             supabase.from("attendance_adjustment_requests").select("id", { count: "exact", head: true })
               .eq("status", "pending").in("requested_by", teamUserIds)
-              .then(({ count }) => { badges.attendance = count || 0; })
+              .then(({ count }) => { badges.approvals = (badges.approvals || 0) + (count || 0); })
           );
         }
       } else {
         queries.push(
           supabase.from("attendance_adjustment_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
-            .then(({ count }) => { badges.attendance = count || 0; })
+            .then(({ count }) => { badges.approvals = (badges.approvals || 0) + (count || 0); })
         );
       }
     }
