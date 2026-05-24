@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { usePromotions } from "@/hooks/usePromotions";
+import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
 import { useAuth } from "@/contexts/AuthContext";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
@@ -78,6 +79,11 @@ const Approvals = () => {
   const { user, role, isVP, isAdmin, isLineManager, isSupervisor } = useAuth();
   const { requests, ownRequests, loading, approveRequest, rejectRequest, cancelRequest, createRequest, adminCreateLeave, refetch } = useLeaveRequests();
   const { pendingApprovals: pendingPromotions } = usePromotions();
+  const { teamRequests: attendanceAdjustmentRequests } = useAttendanceAdjustments();
+  const pendingAttendanceAdjustments = useMemo(
+    () => attendanceAdjustmentRequests.filter((r) => r.status === "pending").length,
+    [attendanceAdjustmentRequests],
+  );
   const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports" | "attendance">(
     "approvals:section",
     "leave",
@@ -505,7 +511,7 @@ const Approvals = () => {
           </TabsTrigger> */}
           <TabsTrigger value="attendance" className="gap-2">
             <ClipboardList className="h-4 w-4" />
-            Attendance Approvals
+            Attendance Approvals ({pendingAttendanceAdjustments})
           </TabsTrigger>
           <TabsTrigger value="leave-reports" className="gap-2">
             <FileText className="h-4 w-4" />
