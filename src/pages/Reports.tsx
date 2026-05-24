@@ -629,36 +629,51 @@ const Reports = () => {
       const { start: rangeStart, end: rangeEnd } = getDateRangeFromType(dateRange);
       // Build holiday/company-leave date set from Company Calendar (static + dynamic)
       // so working-days calculation excludes them.
-      const fmtKeyEarly = (dt: Date) => {
+      // NOTE: rangeStart/rangeEnd are produced via Date.UTC, but calendarEntries
+      // dates are constructed in local time. Comparing the raw Date objects can
+      // mis-classify entries near the boundary, so we compare on YYYY-MM-DD keys
+      // derived using LOCAL methods on the entry date and UTC methods on the
+      // iteration date (which is anchored to UTC midnight).
+      const fmtKeyLocal = (dt: Date) => {
         const y = dt.getFullYear();
         const m = String(dt.getMonth() + 1).padStart(2, "0");
         const dd = String(dt.getDate()).padStart(2, "0");
         return `${y}-${m}-${dd}`;
       };
+      const fmtKeyUTC = (dt: Date) => {
+        const y = dt.getUTCFullYear();
+        const m = String(dt.getUTCMonth() + 1).padStart(2, "0");
+        const dd = String(dt.getUTCDate()).padStart(2, "0");
+        return `${y}-${m}-${dd}`;
+      };
+      const rangeStartKey = fmtKeyUTC(rangeStart);
+      const rangeEndKey = fmtKeyUTC(rangeEnd);
       const nonWorkingTypes = new Set(["holiday", "company_leave", "non_working", "leave"]);
       const workingDayExclusionSet = new Set<string>();
       calendarEntries.forEach((entry) => {
         if (!nonWorkingTypes.has(entry.type)) return;
-        if (entry.date >= rangeStart && entry.date <= rangeEnd) {
-          workingDayExclusionSet.add(fmtKeyEarly(entry.date));
+        const k = fmtKeyLocal(entry.date);
+        if (k >= rangeStartKey && k <= rangeEndKey) {
+          workingDayExclusionSet.add(k);
         }
       });
       (calendarEvents || []).forEach((ev) => {
         if (!nonWorkingTypes.has(ev.event_type)) return;
-        const ed = new Date(ev.event_date + "T00:00:00");
-        if (ed >= rangeStart && ed <= rangeEnd) {
-          workingDayExclusionSet.add(fmtKeyEarly(ed));
+        // event_date is already YYYY-MM-DD
+        const k = ev.event_date;
+        if (k >= rangeStartKey && k <= rangeEndKey) {
+          workingDayExclusionSet.add(k);
         }
       });
 
       let totalWorkingDays = 0;
       const d = new Date(rangeStart);
       while (d <= rangeEnd) {
-        const day = d.getDay();
-        if (day !== 0 && day !== 6 && !workingDayExclusionSet.has(fmtKeyEarly(d))) {
+        const day = d.getUTCDay();
+        if (day !== 0 && day !== 6 && !workingDayExclusionSet.has(fmtKeyUTC(d))) {
           totalWorkingDays++;
         }
-        d.setDate(d.getDate() + 1);
+        d.setUTCDate(d.getUTCDate() + 1);
       }
 
       // Build a map of approved leave days + dates per employee
