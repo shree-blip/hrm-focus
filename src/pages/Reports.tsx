@@ -627,11 +627,35 @@ const Reports = () => {
       filename = `leave-report-${dateStr}.csv`;
     } else if (type === "attendance") {
       const { start: rangeStart, end: rangeEnd } = getDateRangeFromType(dateRange);
+      // Build holiday/company-leave date set from Company Calendar (static + dynamic)
+      // so working-days calculation excludes them.
+      const fmtKeyEarly = (dt: Date) => {
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, "0");
+        const dd = String(dt.getDate()).padStart(2, "0");
+        return `${y}-${m}-${dd}`;
+      };
+      const nonWorkingTypes = new Set(["holiday", "company_leave", "non_working", "leave"]);
+      const workingDayExclusionSet = new Set<string>();
+      calendarEntries.forEach((entry) => {
+        if (!nonWorkingTypes.has(entry.type)) return;
+        if (entry.date >= rangeStart && entry.date <= rangeEnd) {
+          workingDayExclusionSet.add(fmtKeyEarly(entry.date));
+        }
+      });
+      (calendarEvents || []).forEach((ev) => {
+        if (!nonWorkingTypes.has(ev.event_type)) return;
+        const ed = new Date(ev.event_date + "T00:00:00");
+        if (ed >= rangeStart && ed <= rangeEnd) {
+          workingDayExclusionSet.add(fmtKeyEarly(ed));
+        }
+      });
+
       let totalWorkingDays = 0;
       const d = new Date(rangeStart);
       while (d <= rangeEnd) {
         const day = d.getDay();
-        if (day !== 0 && day !== 6) {
+        if (day !== 0 && day !== 6 && !workingDayExclusionSet.has(fmtKeyEarly(d))) {
           totalWorkingDays++;
         }
         d.setDate(d.getDate() + 1);
