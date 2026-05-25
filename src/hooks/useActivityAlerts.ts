@@ -116,18 +116,22 @@ function enqueue(event: QueuedEvent) {
 
 function resolveEventType(newLog: any, eventType: string): AttendanceEventType | null {
   if (!newLog) return null;
-  
+
   if (eventType === "INSERT") return "clock_in";
-  
+
   // For UPDATE events, determine the most recent action by checking which fields are set
   // Order matters: check the most specific/latest state first
-  if (newLog.clock_out) return "clock_out";
+  if (newLog.clock_out) {
+    // Skip clock_out activity alert for edited logs (direct edit or approved adjustment)
+    if (newLog.is_edited) return null;
+    return "clock_out";
+  }
   if (newLog.pause_end && newLog.pause_start) return "pause_end";
   if (newLog.pause_start && !newLog.pause_end) return "pause_start";
   if (newLog.break_end && newLog.break_start) return "break_end";
   if (newLog.break_start && !newLog.break_end) return "break_start";
   if (newLog.clock_in && !newLog.clock_out) return "clock_in";
-  
+
   return null;
 }
 
