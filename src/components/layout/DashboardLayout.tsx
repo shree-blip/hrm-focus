@@ -39,7 +39,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <Header
           isMobile
           mobileMenuSlot={
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <Sheet modal={false} open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="lg:hidden mr-1 shrink-0">
                   <Menu className="h-5 w-5" />
