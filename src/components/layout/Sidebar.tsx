@@ -184,9 +184,15 @@ export const Sidebar = memo(function Sidebar({
 
   const handleNavClick = useCallback(
     (href: string) => {
-      clearBadge(href);
-      const mod = HREF_TO_MODULE[href];
-      if (mod) markModuleRead(mod);
+      // For Approvals and Support, badge must persist until the underlying
+      // pending request is actually approved/rejected/closed. Do not clear
+      // optimistically on navigation — let the polled count drive it.
+      const persistOnNav = href === "/approvals" || href === "/support";
+      if (!persistOnNav) {
+        clearBadge(href);
+        const mod = HREF_TO_MODULE[href];
+        if (mod) markModuleRead(mod);
+      }
       onNavigate?.();
     },
     [clearBadge, onNavigate, markModuleRead],
