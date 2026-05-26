@@ -39,7 +39,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <Header
           isMobile
           mobileMenuSlot={
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <Sheet modal={false} open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="lg:hidden mr-1 shrink-0">
                   <Menu className="h-5 w-5" />
@@ -55,12 +55,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <Sidebar
                   embedded
-                  onNavigate={() => {
-                    // Defer close until after react-router commits the
-                    // navigation, so Radix doesn't toggle body pointer-events
-                    // mid-tap and swallow the first click on mobile.
-                    setTimeout(() => setMobileMenuOpen(false), 0);
-                  }}
+                  onNavigate={() => setMobileMenuOpen(false)}
                 />
               </SheetContent>
             </Sheet>
