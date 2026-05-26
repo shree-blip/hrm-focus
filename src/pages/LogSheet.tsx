@@ -240,8 +240,13 @@ function DepartmentSelect({ value, onChange, compact = false }: DepartmentSelect
           <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start">
-        <div className="max-h-[200px] overflow-y-auto p-1" onWheel={(e) => e.stopPropagation()}>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[280px] p-0" align="start">
+        <div
+          className="max-h-[50vh] sm:max-h-[260px] overflow-y-auto overscroll-contain touch-pan-y p-1"
+          style={{ WebkitOverflowScrolling: "touch" }}
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
           {DEPARTMENTS.map((dept) => {
             const hasChildren = dept.children && dept.children.length > 0;
             const isExpanded = expandedGroups.has(dept.value);
@@ -372,10 +377,15 @@ function ClientCombobox({
             <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start">
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[280px] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput placeholder="Search name or ID..." value={query} onValueChange={setQuery} />
-            <div className="max-h-[200px] overflow-y-auto p-1" onWheel={(e) => e.stopPropagation()}>
+            <div
+              className="max-h-[50vh] sm:max-h-[260px] overflow-y-auto overscroll-contain touch-pan-y p-1"
+              style={{ WebkitOverflowScrolling: "touch" }}
+              onWheel={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
+            >
               <CommandList className="max-h-none overflow-visible">
                 <CommandEmpty>
                   <div className="py-3 text-center text-sm">
@@ -1351,7 +1361,10 @@ export default function LogSheet() {
             }
           }}
         >
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            className="max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain touch-pan-y"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
             <DialogHeader>
               <DialogTitle className="text-lg">{editingLog ? "Edit Work Log" : "New Work Log"}</DialogTitle>
             </DialogHeader>
