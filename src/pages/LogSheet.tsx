@@ -1361,7 +1361,10 @@ export default function LogSheet() {
             }
           }}
         >
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            className="max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain touch-pan-y"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
             <DialogHeader>
               <DialogTitle className="text-lg">{editingLog ? "Edit Work Log" : "New Work Log"}</DialogTitle>
             </DialogHeader>
