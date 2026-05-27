@@ -188,6 +188,7 @@ export function LeaveWidget() {
         )}
 
         {/* Leave Warning Banner - Show when approaching 21 days without leave */}
+        {/* Temporarily disabled per request
         {!loading && showLeaveWarning && (
           <div
             className={`mt-4 p-3 rounded-lg border ${
@@ -220,6 +221,7 @@ export function LeaveWidget() {
             </div>
           </div>
         )}
+        */}
       </CardContent>
     </Card>
   );
