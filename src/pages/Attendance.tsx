@@ -9,6 +9,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
   Clock,
   Play,
   Square,
@@ -35,7 +51,18 @@ import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { AdjustmentRequestDialog } from "@/components/attendance/AdjustmentRequestDialog";
 import { ManagerAdjustmentPanel } from "@/components/attendance/ManagerAdjustmentPanel";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from "date-fns";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  addWeeks,
+  subWeeks,
+  eachDayOfInterval,
+  isToday,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+} from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, X } from "lucide-react";
 import {
@@ -91,6 +118,10 @@ const Attendance = () => {
     clock_type: string;
     status: string;
   } | null>(null);
+  const [showCustomRangeDialog, setShowCustomRangeDialog] = useState(false);
+  const [customStart, setCustomStart] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [customEnd, setCustomEnd] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [isExporting, setIsExporting] = useState(false);
 
   const {
     currentLog,
@@ -394,7 +425,13 @@ const Attendance = () => {
     const mins = minutes % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
-  const handleExport = async () => {
+  const handleExport = async (
+    rangeStart: Date = currentWeekStart,
+    rangeEnd: Date = endOfWeek(currentWeekStart, { weekStartsOn: 1 }),
+    rangeLabel: string = "Current Week",
+  ) => {
+    setIsExporting(true);
+    try {
     const formatDateLocal = (ts: string | null) => {
       if (!ts) return "-";
       return getWorkDateDisplay(ts, tz);
@@ -405,8 +442,32 @@ const Attendance = () => {
       return f.localTime;
     };
 
-    // Fetch all break/pause sessions for the weekly logs
-    const logIds = weeklyLogs.map((l: any) => l.id).filter(Boolean);
+    // Fetch logs for the selected range (server-side, period-scoped)
+    const startISO = new Date(
+      rangeStart.getFullYear(),
+      rangeStart.getMonth(),
+      rangeStart.getDate(),
+      0, 0, 0, 0,
+    ).toISOString();
+    const endISO = new Date(
+      rangeEnd.getFullYear(),
+      rangeEnd.getMonth(),
+      rangeEnd.getDate(),
+      23, 59, 59, 999,
+    ).toISOString();
+
+    const { data: rangeLogs } = await supabase
+      .from("attendance_logs")
+      .select("*")
+      .eq("user_id", user?.id || "")
+      .gte("clock_in", startISO)
+      .lte("clock_in", endISO)
+      .order("clock_in", { ascending: true });
+
+    const logsForExport: any[] = rangeLogs || [];
+
+    // Fetch all break/pause sessions for the range logs
+    const logIds = logsForExport.map((l: any) => l.id).filter(Boolean);
     const sessionsMap = new Map<string, any[]>();
     if (logIds.length > 0) {
       const { data: sessions } = await supabase
@@ -426,18 +487,100 @@ const Attendance = () => {
     // Determine max break/pause counts for dynamic columns
     const maxBreaks = Math.max(
       1,
-      weeklyLogs.reduce((max: number, log: any) => {
+      logsForExport.reduce((max: number, log: any) => {
         const s = sessionsMap.get(log.id) || [];
         return Math.max(max, s.filter((x: any) => x.session_type === "break").length);
       }, 0),
     );
     const maxPauses = Math.max(
       1,
-      weeklyLogs.reduce((max: number, log: any) => {
+      logsForExport.reduce((max: number, log: any) => {
         const s = sessionsMap.get(log.id) || [];
         return Math.max(max, s.filter((x: any) => x.session_type === "pause").length);
       }, 0),
     );
+
+    // ----- Summary calculations -----
+    const daysInRange = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
+    let weekendCount = 0;
+    let holidayCount = 0;
+    let workingDays = 0;
+    daysInRange.forEach((d) => {
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) {
+        weekendCount += 1;
+        return;
+      }
+      const key = format(d, "yyyy-MM-dd");
+      const entry = approvedLeaveHoursByDate.get(key);
+      if (entry?.type === "holiday") {
+        holidayCount += 1;
+      } else {
+        workingDays += 1;
+      }
+    });
+    const expectedHours = workingDays * STANDARD_HOURS_PER_DAY;
+
+    // Worked hours + attendance day set
+    let totalWorkedMinutes = 0;
+    const attendanceDaySet = new Set<string>();
+    logsForExport.forEach((log: any) => {
+      if (!log.clock_in) return;
+      const dayKey = getWorkDate(log.clock_in, tz);
+      const start = new Date(log.clock_in);
+      const end = log.clock_out ? new Date(log.clock_out) : new Date();
+      const breakMinutes = log.total_break_minutes || 0;
+      const pauseMinutes = log.total_pause_minutes || 0;
+      const netMs = end.getTime() - start.getTime() - (breakMinutes + pauseMinutes) * 60 * 1000;
+      const netMin = Math.max(0, netMs / (1000 * 60));
+      totalWorkedMinutes += netMin;
+      if (netMin > 0) attendanceDaySet.add(dayKey);
+    });
+    const totalWorkedHours = Math.round((totalWorkedMinutes / 60) * 100) / 100;
+    const remainingHours = Math.max(0, Math.round((expectedHours - totalWorkedHours) * 100) / 100);
+
+    // Leave days within range (count only "leave" type, weekdays)
+    let leaveDays = 0;
+    daysInRange.forEach((d) => {
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) return;
+      const key = format(d, "yyyy-MM-dd");
+      const entry = approvedLeaveHoursByDate.get(key);
+      if (entry?.type === "leave") {
+        leaveDays += entry.hours / STANDARD_HOURS_PER_DAY;
+      }
+    });
+
+    const employeeName =
+      ((user as any)?.user_metadata?.full_name as string) ||
+      ((user as any)?.user_metadata?.name as string) ||
+      (user?.email ?? "Employee");
+
+    const periodStr = `${format(rangeStart, "yyyy-MM-dd")} to ${format(rangeEnd, "yyyy-MM-dd")}`;
+    const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+
+    let csvContent = "";
+    csvContent += "Company Working Summary\n";
+    csvContent += `Report Period,${esc(`${rangeLabel} (${periodStr})`)}\n`;
+    csvContent += `Total Working Days,${workingDays}\n`;
+    csvContent += `Total Holidays,${holidayCount}\n`;
+    csvContent += `Total Weekends,${weekendCount}\n`;
+    csvContent += `Company Expected Working Hours,${expectedHours}\n`;
+    csvContent += `Company Total Worked Hours,${totalWorkedHours}\n`;
+    csvContent += `Company Remaining Hours,${remainingHours}\n`;
+    csvContent += "\n";
+    csvContent += "Employee Summary\n";
+    csvContent += "Employee Name,Expected Working Hours,Total Worked Hours,Remaining Hours,Attendance Days,Leave Days\n";
+    csvContent += [
+      esc(employeeName),
+      expectedHours,
+      totalWorkedHours,
+      remainingHours,
+      attendanceDaySet.size,
+      Math.round(leaveDays * 10) / 10,
+    ].join(",") + "\n";
+    csvContent += "\n";
+    csvContent += "Attendance Details\n";
 
     // Build dynamic header matching Reports page format
     let header = "Date,Clock In";
@@ -451,9 +594,9 @@ const Attendance = () => {
     header += ",Total Pauses Count,Total Pause Time (min)";
     header += ",Clock Out,Total Hours (excl. breaks & pauses),Status\n";
 
-    let csvContent = header;
+    csvContent += header;
 
-    weeklyLogs.forEach((log: any) => {
+    logsForExport.forEach((log: any) => {
       const clockInTime = new Date(log.clock_in);
       const clockOutTime = log.clock_out ? new Date(log.clock_out) : null;
       const allSessions = sessionsMap.get(log.id) || [];
@@ -514,13 +657,45 @@ const Attendance = () => {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.href = url;
-    link.download = `attendance-${format(currentWeekStart, "yyyy-MM-dd")}.csv`;
+    const safeLabel = rangeLabel.toLowerCase().replace(/\s+/g, "-");
+    link.download = `attendance-${safeLabel}-${format(rangeStart, "yyyy-MM-dd")}_to_${format(rangeEnd, "yyyy-MM-dd")}.csv`;
     link.click();
 
     toast({
       title: "Export Complete",
-      description: "Attendance report downloaded with detailed break & pause sessions.",
+      description: `Attendance report for ${rangeLabel} downloaded.`,
     });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportPreset = (preset: "week" | "month" | "prev-month") => {
+    const now = new Date();
+    if (preset === "week") {
+      const start = startOfWeek(now, { weekStartsOn: 1 });
+      const end = endOfWeek(now, { weekStartsOn: 1 });
+      handleExport(start, end, "Current Week");
+    } else if (preset === "month") {
+      handleExport(startOfMonth(now), endOfMonth(now), "Current Month");
+    } else {
+      const prev = subMonths(now, 1);
+      handleExport(startOfMonth(prev), endOfMonth(prev), "Previous Month");
+    }
+  };
+
+  const handleExportCustom = () => {
+    if (!customStart || !customEnd) return;
+    const [ys, ms, ds] = customStart.split("-").map(Number);
+    const [ye, me, de] = customEnd.split("-").map(Number);
+    const s = new Date(ys, ms - 1, ds);
+    const e = new Date(ye, me - 1, de);
+    if (e < s) {
+      toast({ title: "Invalid range", description: "End date must be after start date.", variant: "destructive" });
+      return;
+    }
+    setShowCustomRangeDialog(false);
+    handleExport(s, e, "Custom Range");
   };
 
   // Weekly totals use actual worked hours, while approved leave reduces the target for the week.
@@ -569,10 +744,55 @@ const Attendance = () => {
           <h1 className="heading-page font-display font-bold text-foreground">Attendance</h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">Track time and manage attendance records</p>
         </div>
-        <Button variant="outline" className="gap-2 shrink-0 w-full sm:w-auto" onClick={handleExport}>
-          <Download className="h-4 w-4" />
-          Export Report
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2 shrink-0 w-full sm:w-auto" disabled={isExporting}>
+              <Download className="h-4 w-4" />
+              {isExporting ? "Exporting..." : "Export Report"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => handleExportPreset("week")}>Current Week</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportPreset("month")}>Current Month</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportPreset("prev-month")}>Previous Month</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setShowCustomRangeDialog(true)}>Custom Date Range…</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Dialog open={showCustomRangeDialog} onOpenChange={setShowCustomRangeDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Custom Date Range</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="custom-start">Start date</Label>
+                <Input
+                  id="custom-start"
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="custom-end">End date</Label>
+                <Input
+                  id="custom-end"
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCustomRangeDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleExportCustom}>Export</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
