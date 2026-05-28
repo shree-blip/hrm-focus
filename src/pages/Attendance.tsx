@@ -744,10 +744,55 @@ const Attendance = () => {
           <h1 className="heading-page font-display font-bold text-foreground">Attendance</h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">Track time and manage attendance records</p>
         </div>
-        <Button variant="outline" className="gap-2 shrink-0 w-full sm:w-auto" onClick={handleExport}>
-          <Download className="h-4 w-4" />
-          Export Report
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2 shrink-0 w-full sm:w-auto" disabled={isExporting}>
+              <Download className="h-4 w-4" />
+              {isExporting ? "Exporting..." : "Export Report"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => handleExportPreset("week")}>Current Week</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportPreset("month")}>Current Month</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportPreset("prev-month")}>Previous Month</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setShowCustomRangeDialog(true)}>Custom Date Range…</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Dialog open={showCustomRangeDialog} onOpenChange={setShowCustomRangeDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Custom Date Range</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="custom-start">Start date</Label>
+                <Input
+                  id="custom-start"
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="custom-end">End date</Label>
+                <Input
+                  id="custom-end"
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCustomRangeDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleExportCustom}>Export</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
