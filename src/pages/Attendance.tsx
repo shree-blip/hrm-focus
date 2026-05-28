@@ -118,6 +118,10 @@ const Attendance = () => {
     clock_type: string;
     status: string;
   } | null>(null);
+  const [showCustomRangeDialog, setShowCustomRangeDialog] = useState(false);
+  const [customStart, setCustomStart] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [customEnd, setCustomEnd] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [isExporting, setIsExporting] = useState(false);
 
   const {
     currentLog,
