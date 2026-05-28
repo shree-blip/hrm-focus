@@ -537,7 +537,6 @@ const Attendance = () => {
       if (netMin > 0) attendanceDaySet.add(dayKey);
     });
     const totalWorkedHours = Math.round((totalWorkedMinutes / 60) * 100) / 100;
-    const remainingHours = Math.max(0, Math.round((expectedHours - totalWorkedHours) * 100) / 100);
 
     // Leave days within range (count only "leave" type, weekdays)
     let leaveDays = 0;
@@ -550,6 +549,12 @@ const Attendance = () => {
         leaveDays += entry.hours / STANDARD_HOURS_PER_DAY;
       }
     });
+
+    // Adjusted expected: deduct employee leave days and holidays from working days
+    const adjustedWorkingDays = Math.max(0, workingDays - leaveDays);
+    const adjustedExpectedHours = Math.round(adjustedWorkingDays * STANDARD_HOURS_PER_DAY * 100) / 100;
+    const remainingHours = Math.max(0, Math.round((adjustedExpectedHours - totalWorkedHours) * 100) / 100);
+    const additionalHoursWorked = Math.max(0, Math.round((totalWorkedHours - adjustedExpectedHours) * 100) / 100);
 
     const employeeName =
       ((user as any)?.user_metadata?.full_name as string) ||
@@ -565,15 +570,18 @@ const Attendance = () => {
     csvContent += `Total Working Days,${workingDays}\n`;
     csvContent += `Total Holidays,${holidayCount}\n`;
     csvContent += `Total Weekends,${weekendCount}\n`;
+    csvContent += `Employee Leave Days,${Math.round(leaveDays * 10) / 10}\n`;
     csvContent += `Company Expected Working Hours,${expectedHours}\n`;
+    csvContent += `Adjusted Expected Working Hours (after leaves & holidays),${adjustedExpectedHours}\n`;
     csvContent += `Company Total Worked Hours,${totalWorkedHours}\n`;
     csvContent += `Company Remaining Hours,${remainingHours}\n`;
+    csvContent += `Additional Hours Worked,${additionalHoursWorked}\n`;
     csvContent += "\n";
     csvContent += "Employee Summary\n";
     csvContent += "Employee Name,Expected Working Hours,Total Worked Hours,Remaining Hours,Attendance Days,Leave Days\n";
     csvContent += [
       esc(employeeName),
-      expectedHours,
+      adjustedExpectedHours,
       totalWorkedHours,
       remainingHours,
       attendanceDaySet.size,
