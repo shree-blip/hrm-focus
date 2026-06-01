@@ -962,7 +962,6 @@ const Employees = () => {
                   className="flex-col h-24 gap-2"
                   onClick={() => {
                     handleViewProfile(clickedEmployee);
-                    setClickedEmployee(null);
                   }}
                 >
                   <User className="h-6 w-6" />
@@ -976,7 +975,6 @@ const Employees = () => {
                       className="flex-col h-24 gap-2"
                       onClick={() => {
                         handleEditDetails(clickedEmployee);
-                        setClickedEmployee(null);
                       }}
                     >
                       <Edit className="h-6 w-6" />
@@ -988,7 +986,6 @@ const Employees = () => {
                       className="flex-col h-24 gap-2"
                       onClick={() => {
                         handleViewTimesheet(clickedEmployee);
-                        setClickedEmployee(null);
                       }}
                     >
                       <Clock className="h-6 w-6" />
@@ -1018,7 +1015,6 @@ const Employees = () => {
                         className="flex-col h-24 gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
                         onClick={() => {
                           handleDeactivate(clickedEmployee);
-                          setClickedEmployee(null);
                         }}
                       >
                         <UserX className="h-6 w-6" />
