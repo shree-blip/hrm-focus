@@ -118,6 +118,9 @@ const Reports = () => {
     return { start, end };
   }, [customStart, customEnd]);
 
+  const formatRangeDate = (date: Date) =>
+    date.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
+
   // Pass dateRange (or the manual custom range) to the hook so it fetches data for the selected period
   const {
     teamAttendance,
