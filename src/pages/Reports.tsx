@@ -1181,7 +1181,27 @@ const Reports = () => {
                   placeholder="Filter by date"
                   className="w-[180px]"
                 />
-                {(searchDate || selectedEmployee !== "all") && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CalendarRange className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={customStart}
+                    max={customEnd || undefined}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    aria-label="Range start date"
+                    className="w-[170px]"
+                  />
+                  <span className="text-muted-foreground text-sm">to</span>
+                  <Input
+                    type="date"
+                    value={customEnd}
+                    min={customStart || undefined}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    aria-label="Range end date"
+                    className="w-[170px]"
+                  />
+                </div>
+                {(searchDate || selectedEmployee !== "all" || customStart || customEnd) && (
                   <Button variant="outline" onClick={clearFilters}>
                     Clear All Filters
                   </Button>
