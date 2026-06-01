@@ -928,8 +928,8 @@ const Employees = () => {
         </>
       )}
 
-      {/* Action Popup Overlay */}
-      {clickedEmployee && (
+      {/* Action Popup Overlay (hidden while a sub-view dialog is open so closing it returns here) */}
+      {clickedEmployee && !profileOpen && !editOpen && !timesheetOpen && !deactivateOpen && !leaveSummaryOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in duration-200"
           onClick={() => setClickedEmployee(null)}
