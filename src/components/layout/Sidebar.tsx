@@ -115,14 +115,14 @@ const ALL_MENU_ITEMS: MenuItem[] = [
     permissions: ["view_onboarding"],
     hideIfHas: ["manage_onboarding"],
   },
-  { icon: Wallet, label: "Payroll", href: "/payroll", permissions: ["manage_payroll", "view_payroll"] },
-  {
-    icon: Wallet,
-    label: "Payroll",
-    href: "/my-payslips",
-    permissions: ["view_payslips"],
-    hideIfHas: ["manage_payroll", "view_payroll"],
-  },
+  // { icon: Wallet, label: "Payroll", href: "/payroll", permissions: ["manage_payroll", "view_payroll"] },
+  // {
+  //   icon: Wallet,
+  //   label: "Payroll",
+  //   href: "/my-payslips",
+  //   permissions: ["view_payslips"],
+  //   hideIfHas: ["manage_payroll", "view_payroll"],
+  // },
   { icon: Landmark, label: "Loans", href: "/loans", permissions: ["manage_loans", "view_loans"] },
   { icon: Bug, label: "Support", href: "/support", permissions: ["manage_support", "view_support"] },
   {
