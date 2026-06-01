@@ -992,7 +992,9 @@ const Reports = () => {
             </Select>
           </div>
           <Badge variant="outline" className="text-xs whitespace-nowrap hidden sm:inline-flex">
-            {getDateRangeLabel(dateRange)}
+            {customRange
+              ? `${formatRangeDate(customRange.start)} - ${formatRangeDate(customRange.end)}`
+              : getDateRangeLabel(dateRange)}
           </Badge>
         </div>
       </div>
