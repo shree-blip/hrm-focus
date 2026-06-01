@@ -1030,11 +1030,6 @@ const Reports = () => {
               className="w-[150px] sm:w-[160px]"
             />
           </div>
-          <Badge variant="outline" className="text-xs whitespace-nowrap hidden sm:inline-flex">
-            {customRange
-              ? `${formatRangeDate(customRange.start)} - ${formatRangeDate(customRange.end)}`
-              : getDateRangeLabel(dateRange)}
-          </Badge>
         </div>
       </div>
 
