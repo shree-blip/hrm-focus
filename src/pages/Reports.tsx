@@ -106,13 +106,25 @@ const Reports = () => {
   const canEditAttendance = isVP || hasPermission("edit_attendance");
   const [dateRange, setDateRange] = useState<DateRangeType>("this-month");
 
-  // Pass dateRange to the hook so it fetches data for the selected period
+  // Custom date range (manual From/To selection). When set it overrides the preset period.
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  const customRange = useMemo(() => {
+    if (!customStart || !customEnd) return null;
+    const start = new Date(`${customStart}T00:00:00.000Z`);
+    const end = new Date(`${customEnd}T23:59:59.999Z`);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return null;
+    return { start, end };
+  }, [customStart, customEnd]);
+
+  // Pass dateRange (or the manual custom range) to the hook so it fetches data for the selected period
   const {
     teamAttendance,
     dailyAttendance,
     loading: attendanceLoading,
     refetch: refetchAttendance,
-  } = useTeamAttendance(dateRange);
+  } = useTeamAttendance(dateRange, customRange);
 
   const [activeTab, setActiveTab] = usePersistentState("reports:activeTab", "daily");
   const [searchDate, setSearchDate] = useState("");
