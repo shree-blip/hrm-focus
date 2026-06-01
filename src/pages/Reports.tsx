@@ -1404,7 +1404,11 @@ const Reports = () => {
                 <p className="text-center py-8 text-slate-600">
                   {searchDate || selectedEmployee !== "all"
                     ? "No records found for the selected filters"
-                    : `No daily attendance records available for ${getDateRangeLabel(dateRange)}`}
+                    : `No daily attendance records available for ${
+                        customRange
+                          ? `${formatRangeDate(customRange.start)} - ${formatRangeDate(customRange.end)}`
+                          : getDateRangeLabel(dateRange)
+                      }`}
                 </p>
               ) : (
                 <div className="overflow-x-auto -mx-3 sm:-mx-6 px-3 sm:px-6">
