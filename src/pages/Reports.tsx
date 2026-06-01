@@ -555,6 +555,8 @@ const Reports = () => {
   const clearFilters = () => {
     setSearchDate("");
     setSelectedEmployee("all");
+    setCustomStart("");
+    setCustomEnd("");
   };
 
   const exportToCSV = (type: "leave" | "attendance" | "daily") => {
