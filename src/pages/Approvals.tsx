@@ -17,6 +17,7 @@ import { LeaveConflictDialog } from "@/components/leave/LeaveConflictDialog";
 import { PromotionApprovalQueue } from "@/components/employees/PromotionApprovalQueue";
 // import { LeaveReportsTab } from "@/components/approvals/LeaveReportsTab";
 import { AttendanceApprovalsTab } from "@/components/approvals/AttendanceApprovalsTab";
+import { AssetRequestsSection } from "@/components/support/AssetRequestsSection";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import {
   Check,
@@ -36,6 +37,7 @@ import {
   Plus,
   Shield,
   ClipboardList,
+  Package,
 } from "lucide-react";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -84,7 +86,7 @@ const Approvals = () => {
     () => attendanceAdjustmentRequests.filter((r) => r.status === "pending").length,
     [attendanceAdjustmentRequests],
   );
-  const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports" | "attendance">(
+  const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports" | "attendance" | "assets">(
     "approvals:section",
     "leave",
   );
@@ -496,7 +498,7 @@ const Approvals = () => {
       <Tabs
         value={section}
         onValueChange={(v) =>
-          setSection(v as "leave" | "promotions" | "leave-reports" | "attendance")
+          setSection(v as "leave" | "promotions" | "leave-reports" | "attendance" | "assets")
         }
         className="mb-6"
       >
@@ -512,6 +514,10 @@ const Approvals = () => {
           <TabsTrigger value="attendance" className="gap-2">
             <ClipboardList className="h-4 w-4" />
             Attendance Approvals ({pendingAttendanceAdjustments})
+          </TabsTrigger>
+          <TabsTrigger value="assets" className="gap-2">
+            <Package className="h-4 w-4" />
+            Request Assets
           </TabsTrigger>
           {/* <TabsTrigger value="leave-reports" className="gap-2">
             <FileText className="h-4 w-4" />
@@ -719,6 +725,8 @@ const Approvals = () => {
       {section === "promotions" && <PromotionApprovalQueue />}
 
       {section === "attendance" && <AttendanceApprovalsTab />}
+
+      {section === "assets" && <AssetRequestsSection />}
 
       {/* {section === "leave-reports" && <LeaveReportsTab requests={requests} />} */}
 
