@@ -34,7 +34,7 @@ interface UploadDocumentDialogProps {
 const CATEGORY_INFO: Record<string, string> = {
   Contracts: "Private - Visible to you, your line manager, VP, and admins.",
   Policies: "Public - Visible to all employees",
-  Compliance: "Private - Only you and admins can view. Requires employee selection.",
+  Compliance: "Private - Visible only to the uploader, the assigned employee, admins, and CEO.",
   "Leave Evidence": "Restricted - Visible to you, managers, line managers, VPs, and admins",
 };
 
