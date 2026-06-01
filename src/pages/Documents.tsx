@@ -306,7 +306,7 @@ const Documents = () => {
       return "Restricted - Visible to uploader, manager, line manager, VP, and admins";
     }
     if (isPrivateCategory(category)) {
-      return "Private - Only visible to uploader and admins";
+      return "Private - Visible only to the uploader, the assigned employee, admins, and CEO";
     }
     return null;
   };
