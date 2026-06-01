@@ -928,8 +928,8 @@ const Employees = () => {
         </>
       )}
 
-      {/* Action Popup Overlay */}
-      {clickedEmployee && (
+      {/* Action Popup Overlay (hidden while a sub-view dialog is open so closing it returns here) */}
+      {clickedEmployee && !profileOpen && !editOpen && !timesheetOpen && !deactivateOpen && !leaveSummaryOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in duration-200"
           onClick={() => setClickedEmployee(null)}
@@ -962,7 +962,6 @@ const Employees = () => {
                   className="flex-col h-24 gap-2"
                   onClick={() => {
                     handleViewProfile(clickedEmployee);
-                    setClickedEmployee(null);
                   }}
                 >
                   <User className="h-6 w-6" />
@@ -976,7 +975,6 @@ const Employees = () => {
                       className="flex-col h-24 gap-2"
                       onClick={() => {
                         handleEditDetails(clickedEmployee);
-                        setClickedEmployee(null);
                       }}
                     >
                       <Edit className="h-6 w-6" />
@@ -988,7 +986,6 @@ const Employees = () => {
                       className="flex-col h-24 gap-2"
                       onClick={() => {
                         handleViewTimesheet(clickedEmployee);
-                        setClickedEmployee(null);
                       }}
                     >
                       <Clock className="h-6 w-6" />
@@ -1018,7 +1015,6 @@ const Employees = () => {
                         className="flex-col h-24 gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
                         onClick={() => {
                           handleDeactivate(clickedEmployee);
-                          setClickedEmployee(null);
                         }}
                       >
                         <UserX className="h-6 w-6" />
