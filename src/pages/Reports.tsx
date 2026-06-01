@@ -106,13 +106,28 @@ const Reports = () => {
   const canEditAttendance = isVP || hasPermission("edit_attendance");
   const [dateRange, setDateRange] = useState<DateRangeType>("this-month");
 
-  // Pass dateRange to the hook so it fetches data for the selected period
+  // Custom date range (manual From/To selection). When set it overrides the preset period.
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  const customRange = useMemo(() => {
+    if (!customStart || !customEnd) return null;
+    const start = new Date(`${customStart}T00:00:00.000Z`);
+    const end = new Date(`${customEnd}T23:59:59.999Z`);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return null;
+    return { start, end };
+  }, [customStart, customEnd]);
+
+  const formatRangeDate = (date: Date) =>
+    date.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
+
+  // Pass dateRange (or the manual custom range) to the hook so it fetches data for the selected period
   const {
     teamAttendance,
     dailyAttendance,
     loading: attendanceLoading,
     refetch: refetchAttendance,
-  } = useTeamAttendance(dateRange);
+  } = useTeamAttendance(dateRange, customRange);
 
   const [activeTab, setActiveTab] = usePersistentState("reports:activeTab", "daily");
   const [searchDate, setSearchDate] = useState("");
@@ -543,6 +558,8 @@ const Reports = () => {
   const clearFilters = () => {
     setSearchDate("");
     setSelectedEmployee("all");
+    setCustomStart("");
+    setCustomEnd("");
   };
 
   const exportToCSV = (type: "leave" | "attendance" | "daily") => {
@@ -975,7 +992,9 @@ const Reports = () => {
             </Select>
           </div>
           <Badge variant="outline" className="text-xs whitespace-nowrap hidden sm:inline-flex">
-            {getDateRangeLabel(dateRange)}
+            {customRange
+              ? `${formatRangeDate(customRange.start)} - ${formatRangeDate(customRange.end)}`
+              : getDateRangeLabel(dateRange)}
           </Badge>
         </div>
       </div>
@@ -1167,7 +1186,27 @@ const Reports = () => {
                   placeholder="Filter by date"
                   className="w-[180px]"
                 />
-                {(searchDate || selectedEmployee !== "all") && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CalendarRange className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={customStart}
+                    max={customEnd || undefined}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    aria-label="Range start date"
+                    className="w-[170px]"
+                  />
+                  <span className="text-muted-foreground text-sm">to</span>
+                  <Input
+                    type="date"
+                    value={customEnd}
+                    min={customStart || undefined}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    aria-label="Range end date"
+                    className="w-[170px]"
+                  />
+                </div>
+                {(searchDate || selectedEmployee !== "all" || customStart || customEnd) && (
                   <Button variant="outline" onClick={clearFilters}>
                     Clear All Filters
                   </Button>
@@ -1343,7 +1382,10 @@ const Reports = () => {
                 <div>
                   <CardTitle className="text-lg">Daily Attendance Records</CardTitle>
                   <CardDescription>
-                    Detailed time tracking for {getDateRangeLabel(dateRange)}
+                    Detailed time tracking for{" "}
+                    {customRange
+                      ? `${formatRangeDate(customRange.start)} - ${formatRangeDate(customRange.end)}`
+                      : getDateRangeLabel(dateRange)}
                     {selectedEmployee !== "all" && selectedEmployeeSummary && (
                       <span className="ml-2 text-blue-600">
                         — Showing {selectedEmployeeSummary.employee_name}'s records
@@ -1362,7 +1404,11 @@ const Reports = () => {
                 <p className="text-center py-8 text-slate-600">
                   {searchDate || selectedEmployee !== "all"
                     ? "No records found for the selected filters"
-                    : `No daily attendance records available for ${getDateRangeLabel(dateRange)}`}
+                    : `No daily attendance records available for ${
+                        customRange
+                          ? `${formatRangeDate(customRange.start)} - ${formatRangeDate(customRange.end)}`
+                          : getDateRangeLabel(dateRange)
+                      }`}
                 </p>
               ) : (
                 <div className="overflow-x-auto -mx-3 sm:-mx-6 px-3 sm:px-6">

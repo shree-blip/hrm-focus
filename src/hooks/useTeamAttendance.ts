@@ -95,7 +95,7 @@ async function getTeamUserIds(userId: string): Promise<string[]> {
   return resolveTeamMemberUserIds(userId);
 }
 
-export function useTeamAttendance(dateRangeType?: DateRangeType) {
+export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: { start: Date; end: Date } | null) {
   const { user, isManager, isVP, isAdmin, role, isLineManager, isSupervisor } = useAuth();
   const [teamAttendance, setTeamAttendance] = useState<EmployeeAttendance[]>([]);
   const [dailyAttendance, setDailyAttendance] = useState<DailyAttendanceRecord[]>([]);
@@ -107,7 +107,10 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
       return;
     }
 
-    const { start: startDate, end: endDate } = getDateRangeFromType(dateRangeType || "this-month");
+    const { start: startDate, end: endDate } =
+      customRange && customRange.start && customRange.end
+        ? customRange
+        : getDateRangeFromType(dateRangeType || "this-month");
 
     // Determine if we need to scope to team only
     // VP and Admin get org-wide access; all other manager types are scoped to their team
@@ -309,7 +312,18 @@ export function useTeamAttendance(dateRangeType?: DateRangeType) {
     setTeamAttendance(result.sort((a, b) => b.total_hours - a.total_hours));
     setDailyAttendance(dailyRecords.sort((a, b) => new Date(b.clock_in).getTime() - new Date(a.clock_in).getTime()));
     setLoading(false);
-  }, [user, isManager, isVP, isAdmin, role, isLineManager, isSupervisor, dateRangeType]);
+  }, [
+    user,
+    isManager,
+    isVP,
+    isAdmin,
+    role,
+    isLineManager,
+    isSupervisor,
+    dateRangeType,
+    customRange?.start?.getTime(),
+    customRange?.end?.getTime(),
+  ]);
 
   // Debounce realtime to prevent cascading re-fetches
   const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
