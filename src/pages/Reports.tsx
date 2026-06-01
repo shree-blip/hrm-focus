@@ -991,6 +991,26 @@ const Reports = () => {
               </SelectContent>
             </Select>
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <CalendarRange className="h-4 w-4 text-muted-foreground hidden sm:block" />
+            <Input
+              type="date"
+              value={customStart}
+              max={customEnd || undefined}
+              onChange={(e) => setCustomStart(e.target.value)}
+              aria-label="Range start date"
+              className="w-[150px] sm:w-[160px]"
+            />
+            <span className="text-muted-foreground text-sm">to</span>
+            <Input
+              type="date"
+              value={customEnd}
+              min={customStart || undefined}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              aria-label="Range end date"
+              className="w-[150px] sm:w-[160px]"
+            />
+          </div>
           <Badge variant="outline" className="text-xs whitespace-nowrap hidden sm:inline-flex">
             {customRange
               ? `${formatRangeDate(customRange.start)} - ${formatRangeDate(customRange.end)}`
