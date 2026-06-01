@@ -110,6 +110,8 @@ const Reports = () => {
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
 
+  const [searchDate, setSearchDate] = useState("");
+
   const customRange = useMemo(() => {
     if (!customStart || !customEnd) return null;
     const start = new Date(`${customStart}T00:00:00.000Z`);
@@ -117,6 +119,24 @@ const Reports = () => {
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return null;
     return { start, end };
   }, [customStart, customEnd]);
+
+  // Effective fetch range: prefer the manual From/To range, otherwise if a single
+  // "Filter by date" day is chosen, fetch that day (± 1 day buffer for timezones)
+  // so data outside the preset period (e.g. a previous month) is still loaded.
+  const effectiveRange = useMemo(() => {
+    if (customRange) return customRange;
+    if (searchDate) {
+      const day = new Date(`${searchDate}T00:00:00.000Z`);
+      if (isNaN(day.getTime())) return null;
+      const start = new Date(day);
+      start.setUTCDate(start.getUTCDate() - 1);
+      const end = new Date(day);
+      end.setUTCDate(end.getUTCDate() + 1);
+      end.setUTCHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    return null;
+  }, [customRange, searchDate]);
 
   const formatRangeDate = (date: Date) =>
     date.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
@@ -127,10 +147,9 @@ const Reports = () => {
     dailyAttendance,
     loading: attendanceLoading,
     refetch: refetchAttendance,
-  } = useTeamAttendance(dateRange, customRange);
+  } = useTeamAttendance(dateRange, effectiveRange);
 
   const [activeTab, setActiveTab] = usePersistentState("reports:activeTab", "daily");
-  const [searchDate, setSearchDate] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
