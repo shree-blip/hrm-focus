@@ -107,8 +107,16 @@ const Reports = () => {
   const [dateRange, setDateRange] = useState<DateRangeType>("this-month");
 
   // Custom date range (manual From/To selection). When set it overrides the preset period.
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
+  // Default to the current month's start and end dates.
+  const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
+  const monthDefaults = (() => {
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+    return { start: toDateInput(start), end: toDateInput(end) };
+  })();
+  const [customStart, setCustomStart] = useState(monthDefaults.start);
+  const [customEnd, setCustomEnd] = useState(monthDefaults.end);
 
   const [searchDate, setSearchDate] = useState("");
 
