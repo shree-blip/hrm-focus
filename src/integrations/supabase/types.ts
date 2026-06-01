@@ -4669,6 +4669,10 @@ export type Database = {
         Args: { _grievance_id: string; _user_id: string }
         Returns: boolean
       }
+      can_view_leave_evidence: {
+        Args: { _uploader: string; _viewer: string }
+        Returns: boolean
+      }
       can_view_salary: {
         Args: { _employee_id: string; _user_id: string }
         Returns: boolean
