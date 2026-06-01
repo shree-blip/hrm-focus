@@ -1382,7 +1382,10 @@ const Reports = () => {
                 <div>
                   <CardTitle className="text-lg">Daily Attendance Records</CardTitle>
                   <CardDescription>
-                    Detailed time tracking for {getDateRangeLabel(dateRange)}
+                    Detailed time tracking for{" "}
+                    {customRange
+                      ? `${formatRangeDate(customRange.start)} - ${formatRangeDate(customRange.end)}`
+                      : getDateRangeLabel(dateRange)}
                     {selectedEmployee !== "all" && selectedEmployeeSummary && (
                       <span className="ml-2 text-blue-600">
                         — Showing {selectedEmployeeSummary.employee_name}'s records
