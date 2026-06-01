@@ -691,7 +691,7 @@ const Reports = () => {
         if (leaveEnd < rangeStart || leaveStart > rangeEnd) return;
 
         const empKey = r.user_id;
-        leaveDaysMap[empKey] = (leaveDaysMap[empKey] || 0) + r.days;
+        if (leaveDaysMap[empKey] === undefined) leaveDaysMap[empKey] = 0;
 
         // Collect individual leave dates (only weekdays within the range)
         if (!leaveDatesMap[empKey]) leaveDatesMap[empKey] = [];
@@ -716,6 +716,10 @@ const Reports = () => {
             const dateKey = `${yyyy}-${mm}-${dd}`;
             leaveDatesMap[empKey].push(dateKey);
             leaveTypeDetailsMap[empKey][typeLabel].push(dateKey);
+            // Count only leave days that fall within the selected report period
+            // (a leave request spilling into the next/previous month must not
+            // inflate this period's total). Half-day leave counts as 0.5.
+            leaveDaysMap[empKey] += r.is_half_day ? 0.5 : 1;
             if (workedDate) {
               lieuWorkedDatesMap[empKey][dateKey] = workedDate;
             }
