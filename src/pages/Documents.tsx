@@ -152,7 +152,7 @@ interface DisplayDocument {
 const Documents = () => {
   const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
   const { hasPermission } = usePermissions();
-  const canManageDocs = isAdmin || isVP || isManager || hasPermission('manage_documents');
+  const canManageDocs = isAdmin || isVP || isManager || hasPermission("manage_documents");
   const { employees } = useEmployees();
   const {
     documents: realDocuments,
@@ -182,14 +182,11 @@ const Documents = () => {
   const documents: DisplayDocument[] = realDocuments;
 
   // Check if current category uses employee-first view
-  const isEmployeeFirstCategory = selectedCategory === "Contracts" || selectedCategory === "Compliance" || selectedCategory === "All Documents";
-
+  const isEmployeeFirstCategory = selectedCategory === "Contracts" || selectedCategory === "Compliance";
   // Get employees that have documents in the selected category
   const employeesWithDocs = useMemo(() => {
     if (!isEmployeeFirstCategory) return [];
-    const categoryDocs = selectedCategory === "All Documents"
-      ? documents.filter((doc) => doc.employee_id)
-      : documents.filter((doc) => doc.category === selectedCategory && doc.employee_id);
+    const categoryDocs = documents.filter((doc) => doc.category === selectedCategory && doc.employee_id);
     const empIds = [...new Set(categoryDocs.map((d) => d.employee_id).filter(Boolean))];
     return employees
       .filter((emp) => empIds.includes(emp.id))
@@ -517,7 +514,7 @@ const Documents = () => {
                                   </Tooltip>
                                 )}
                               </div>
-              {selectedEmployee && (
+                              {selectedEmployee && (
                                 <span className="text-xs text-muted-foreground ml-8">
                                   Uploaded by {uploaderName} for {selectedEmployee.first_name}{" "}
                                   {selectedEmployee.last_name}
