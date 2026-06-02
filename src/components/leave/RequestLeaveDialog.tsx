@@ -143,6 +143,7 @@ export function RequestLeaveDialog({
   onSubmit,
   isOnLeave = false,
   currentLeave = null,
+  annualRemaining,
 }: RequestLeaveDialogProps) {
   const [leaveType, setLeaveType] = useState<LeaveType | "">("Other Leave");
   const [specialLeaveSubtype, setSpecialLeaveSubtype] = useState<SpecialLeaveSubtype | "">("");
@@ -153,6 +154,17 @@ export function RequestLeaveDialog({
   const [isHalfDay, setIsHalfDay] = useState(false);
   const [halfDayPeriod, setHalfDayPeriod] = useState<string>("first_half");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentOption, setPaymentOption] = useState<"payroll" | "paid_leave" | "">("");
+
+  // When the user has no remaining paid-leave balance, only Payroll is allowed.
+  const noPaidLeaveBalance = typeof annualRemaining === "number" && annualRemaining <= 0;
+
+  // Auto-select Payroll when there's no remaining paid leave balance.
+  useEffect(() => {
+    if (noPaidLeaveBalance) {
+      setPaymentOption("payroll");
+    }
+  }, [noPaidLeaveBalance, open]);
 
   // Leave in Lieu specific fields
   const [dateWorked, setDateWorked] = useState<Date>(); // The date they worked on a holiday/leave
