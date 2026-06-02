@@ -108,15 +108,8 @@ const Reports = () => {
 
   // Custom date range (manual From/To selection). When set it overrides the preset period.
   // Default to the current month's start and end dates.
-  const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
-  const monthDefaults = (() => {
-    const now = new Date();
-    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
-    return { start: toDateInput(start), end: toDateInput(end) };
-  })();
-  const [customStart, setCustomStart] = useState(monthDefaults.start);
-  const [customEnd, setCustomEnd] = useState(monthDefaults.end);
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
 
   const [searchDate, setSearchDate] = useState("");
 
@@ -521,7 +514,7 @@ const Reports = () => {
         employeeRecords.map((att) => {
           const t = att as DailyAttendanceRecord;
           return formatDateLocal(t.clock_in, t.employee_timezone);
-        })
+        }),
       ).size,
       totalHoursWorked: totalHoursWorked.toFixed(1),
       avgHoursPerDay: completedRecords.length > 0 ? (totalHoursWorked / completedRecords.length).toFixed(1) : "0",
@@ -745,7 +738,7 @@ const Reports = () => {
         // Detect Leave in Lieu and extract the worked date from the type string
         // Accepts legacy "Leave on Lieu" stored values for backward compatibility.
         const lieuMatch = /^Leave (?:in|on) Lieu\s*-\s*(\d{4}-\d{2}-\d{2})/i.exec(r.leave_type || "");
-        const typeLabel = lieuMatch ? "Leave in Lieu" : (r.leave_type || "Unknown");
+        const typeLabel = lieuMatch ? "Leave in Lieu" : r.leave_type || "Unknown";
         const workedDate = lieuMatch ? lieuMatch[1] : null;
         if (!leaveTypeDetailsMap[empKey][typeLabel]) leaveTypeDetailsMap[empKey][typeLabel] = [];
 
