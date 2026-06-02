@@ -366,6 +366,38 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
             </div>
           </div>
 
+          {/* Milestones */}
+          {(milestone.dob || milestone.joining) && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Milestones</h4>
+                <div className="space-y-2">
+                  {formatMilestoneDate(milestone.dob) && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Cake className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        Birthday: <span className="font-medium">{formatMilestoneDate(milestone.dob)}</span>
+                      </span>
+                    </div>
+                  )}
+                  {formatMilestoneDate(milestone.joining) && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <CalendarHeart className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        Work Anniversary:{" "}
+                        <span className="font-medium">{formatMilestoneDate(milestone.joining)}</span>
+                        {yearsOfService !== null && (
+                          <span className="text-muted-foreground"> · {yearsOfService} yr{yearsOfService !== 1 ? "s" : ""}</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Team Section */}
           {canRequestPromotionInTeamTab && !loadingTeam && teamMembers.length === 0 && (
             <>
