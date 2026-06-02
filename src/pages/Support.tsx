@@ -52,7 +52,7 @@ const Support = () => {
       <div className="space-y-6">
         <div>
           <h1 className="heading-page font-display font-bold text-foreground">Support & Requests</h1>
-          <p className="text-muted-foreground mt-1">Report bugs or request assets and IT support</p>
+          <p className="text-muted-foreground mt-1">Report bugs and IT support</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
