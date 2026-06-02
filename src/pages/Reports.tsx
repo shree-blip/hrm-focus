@@ -588,6 +588,13 @@ const Reports = () => {
     const today = new Date();
     const dateStr = formatDateLocal(today.toISOString());
 
+    // Extract the payment status ("Payroll" / "Paid Leave") prefixed to a leave reason.
+    const extractPaymentType = (reason: string | null | undefined): string => {
+      if (!reason) return "";
+      const m = /^\s*\[(Payroll|Paid Leave)\]/i.exec(reason);
+      return m ? (m[1].toLowerCase() === "payroll" ? "Payroll" : "Paid Leave") : "";
+    };
+
     if (type === "leave") {
       // Group leave requests by employee and month
       const employeeMonthlyLeave: Record<string, Record<string, number>> = {};
@@ -619,10 +626,10 @@ const Reports = () => {
 
       // Build CSV - First section: Detailed leave requests
       csvContent = "=== DETAILED LEAVE REQUESTS ===\n";
-      csvContent += "Employee,Leave Type,Start Date,End Date,Days,Status,Reason\n";
+      csvContent += "Employee,Leave Type,Start Date,End Date,Days,Status,Payment Type,Reason\n";
       requests.forEach((r) => {
         const name = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown";
-        csvContent += `"${name}","${r.leave_type}","${r.start_date}","${r.end_date}",${r.days},"${r.status}","${r.reason || ""}"\n`;
+        csvContent += `"${name}","${r.leave_type}","${r.start_date}","${r.end_date}",${r.days},"${r.status}","${extractPaymentType(r.reason)}","${r.reason || ""}"\n`;
       });
 
       // Build CSV - Second section: Monthly summary per employee
@@ -721,6 +728,8 @@ const Reports = () => {
       const leaveTypeDetailsMap: Record<string, Record<string, string[]>> = {};
       // Per-employee map of lieu leave date -> worked date (extracted from "Leave in Lieu - YYYY-MM-DD")
       const lieuWorkedDatesMap: Record<string, Record<string, string>> = {};
+      // Per-employee set of payment statuses ("Payroll" / "Paid Leave") from approved leaves.
+      const paymentTypesMap: Record<string, Set<string>> = {};
       requests.forEach((r) => {
         if (r.status !== "approved") return;
         const leaveStart = new Date(r.start_date);
@@ -729,6 +738,12 @@ const Reports = () => {
 
         const empKey = r.user_id;
         if (leaveDaysMap[empKey] === undefined) leaveDaysMap[empKey] = 0;
+
+        const paymentType = extractPaymentType(r.reason);
+        if (paymentType) {
+          if (!paymentTypesMap[empKey]) paymentTypesMap[empKey] = new Set();
+          paymentTypesMap[empKey].add(paymentType);
+        }
 
         // Collect individual leave dates (only weekdays within the range)
         if (!leaveDatesMap[empKey]) leaveDatesMap[empKey] = [];
@@ -818,10 +833,13 @@ const Reports = () => {
       }
 
       csvContent =
-        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
+        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Payment Type,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
       derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
+        const paymentType = paymentTypesMap[emp.user_id]
+          ? Array.from(paymentTypesMap[emp.user_id]).sort().join(" | ")
+          : "-";
 
         // Build "leaveDate => workedDate" pairs for lieu entries
         const lieuMap = lieuWorkedDatesMap[emp.user_id];
@@ -850,7 +868,7 @@ const Reports = () => {
         });
         const offDayStr = offDayWork.length > 0 ? offDayWork.sort().join(" | ") : "None";
 
-        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${emp.days_worked},${emp.total_hours},${leaveDays},"${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
+        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${emp.days_worked},${emp.total_hours},${leaveDays},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {

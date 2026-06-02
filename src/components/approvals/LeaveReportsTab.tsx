@@ -257,6 +257,12 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
         .replace(/\s+/g, " ")
         .trim();
     };
+    // Extract the payment status ("Payroll" / "Paid Leave") prefixed to the reason.
+    const extractPaymentType = (reason: string | null): string => {
+      if (!reason) return "";
+      const m = /^\s*\[(Payroll|Paid Leave)\]/i.exec(reason);
+      return m ? (m[1].toLowerCase() === "payroll" ? "Payroll" : "Paid Leave") : "";
+    };
     const header = [
       "Employee",
       "Leave Type",
@@ -265,6 +271,7 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
       "Days",
       "Half Day",
       "Status",
+      "Payment Type",
       "Reason",
       "Rejection Reason",
     ];
@@ -276,6 +283,7 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
       r.days,
       r.is_half_day ? `Yes (${r.half_day_period || ""})` : "No",
       r.status || "",
+      extractPaymentType(r.reason),
       cleanText(r.reason),
       cleanText(r.rejection_reason),
     ]);
