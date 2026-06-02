@@ -87,7 +87,14 @@ interface CurrentLeave {
 interface RequestLeaveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (request: { type: string; startDate: Date; endDate: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => Promise<boolean>;
+  onSubmit: (request: {
+    type: string;
+    startDate: Date;
+    endDate: Date;
+    reason: string;
+    is_half_day?: boolean;
+    half_day_period?: string | null;
+  }) => Promise<boolean>;
   isOnLeave?: boolean;
   currentLeave?: CurrentLeave | null;
   annualRemaining?: number;
@@ -328,7 +335,8 @@ export function RequestLeaveDialog({
       if (businessDays === 0) {
         toast({
           title: "Invalid Date Range",
-          description: "Your selected dates fall entirely on weekends. Please select dates that include at least one working day.",
+          description:
+            "Your selected dates fall entirely on weekends. Please select dates that include at least one working day.",
           variant: "destructive",
         });
         return;
@@ -751,18 +759,24 @@ export function RequestLeaveDialog({
                   Half-Day Leave
                 </Label>
                 {isHalfDay && (
-                  <Badge variant="secondary" className="text-xs">0.5 day</Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    0.5 day
+                  </Badge>
                 )}
               </div>
               {isHalfDay && (
                 <RadioGroup value={halfDayPeriod} onValueChange={setHalfDayPeriod} className="flex gap-4 mt-2">
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="first_half" id="first-half" />
-                    <Label htmlFor="first-half" className="cursor-pointer text-sm">First Half (Morning)</Label>
+                    <Label htmlFor="first-half" className="cursor-pointer text-sm">
+                      First Half (Morning)
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="second_half" id="second-half" />
-                    <Label htmlFor="second-half" className="cursor-pointer text-sm">Second Half (Afternoon)</Label>
+                    <Label htmlFor="second-half" className="cursor-pointer text-sm">
+                      Second Half (Afternoon)
+                    </Label>
                   </div>
                 </RadioGroup>
               )}
@@ -848,7 +862,7 @@ export function RequestLeaveDialog({
           {!isLeaveOnLieu && (
             <div className="space-y-3 p-3 rounded-lg border border-border bg-accent/30">
               <Label className="flex items-center gap-2">
-                Payment Option
+                Select
                 <Badge variant="outline" className="text-xs bg-red-500/10 text-red-600 border-red-500/30">
                   Required
                 </Badge>
@@ -930,12 +944,16 @@ export function RequestLeaveDialog({
                   variant="secondary"
                   className={cn(isOtherLeave && "bg-violet-500/20 text-violet-600 dark:text-violet-400")}
                 >
-                  {isHalfDay ? "0.5" : getCalculatedDays()} {isHalfDay ? "day" : `working day${getCalculatedDays() !== 1 ? "s" : ""}`}
+                  {isHalfDay ? "0.5" : getCalculatedDays()}{" "}
+                  {isHalfDay ? "day" : `working day${getCalculatedDays() !== 1 ? "s" : ""}`}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {isHalfDay ? (
-                  <>{format(startDate, "MMM d, yyyy")} — {halfDayPeriod === "first_half" ? "First Half (Morning)" : "Second Half (Afternoon)"}</>
+                  <>
+                    {format(startDate, "MMM d, yyyy")} —{" "}
+                    {halfDayPeriod === "first_half" ? "First Half (Morning)" : "Second Half (Afternoon)"}
+                  </>
                 ) : endDate ? (
                   <>
                     From {format(startDate, "MMM d, yyyy")} to {format(endDate, "MMM d, yyyy")}
@@ -944,7 +962,9 @@ export function RequestLeaveDialog({
                         Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
                       const businessDays = getCalculatedDays() || 0;
                       const weekendDays = totalCalendarDays - businessDays;
-                      return weekendDays > 0 ? ` (${weekendDays} weekend day${weekendDays !== 1 ? "s" : ""} excluded)` : "";
+                      return weekendDays > 0
+                        ? ` (${weekendDays} weekend day${weekendDays !== 1 ? "s" : ""} excluded)`
+                        : "";
                     })()}
                   </>
                 ) : null}
@@ -1005,7 +1025,13 @@ export function RequestLeaveDialog({
                   "bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white",
               )}
             >
-              {isSubmitting ? "Submitting..." : isLeaveOnLieu ? "Submit Lieu Request" : isOtherLeave ? "Submit Other Leave" : "Submit Request"}
+              {isSubmitting
+                ? "Submitting..."
+                : isLeaveOnLieu
+                  ? "Submit Lieu Request"
+                  : isOtherLeave
+                    ? "Submit Other Leave"
+                    : "Submit Request"}
             </Button>
           </div>
         </form>
