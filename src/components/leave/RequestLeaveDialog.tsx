@@ -844,6 +844,68 @@ export function RequestLeaveDialog({
             </div>
           )}
 
+          {/* Payment Option - required, shown for all leave types except Leave in Lieu */}
+          {!isLeaveOnLieu && (
+            <div className="space-y-3 p-3 rounded-lg border border-border bg-accent/30">
+              <Label className="flex items-center gap-2">
+                Payment Option
+                <Badge variant="outline" className="text-xs bg-red-500/10 text-red-600 border-red-500/30">
+                  Required
+                </Badge>
+              </Label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:gap-6">
+                {/* Payroll */}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="payment-payroll"
+                    checked={paymentOption === "payroll"}
+                    onCheckedChange={(checked) => {
+                      if (checked) setPaymentOption("payroll");
+                      else if (!noPaidLeaveBalance) setPaymentOption("");
+                    }}
+                  />
+                  <Label htmlFor="payment-payroll" className="cursor-pointer text-sm font-medium">
+                    Payroll
+                  </Label>
+                </div>
+
+                {/* Paid Leave */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="payment-paid-leave"
+                          checked={paymentOption === "paid_leave"}
+                          disabled={noPaidLeaveBalance}
+                          onCheckedChange={(checked) => {
+                            if (noPaidLeaveBalance) return;
+                            if (checked) setPaymentOption("paid_leave");
+                            else setPaymentOption("");
+                          }}
+                        />
+                        <Label
+                          htmlFor="payment-paid-leave"
+                          className={cn(
+                            "text-sm font-medium",
+                            noPaidLeaveBalance ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+                          )}
+                        >
+                          Paid Leave
+                        </Label>
+                      </div>
+                    </TooltipTrigger>
+                    {noPaidLeaveBalance && (
+                      <TooltipContent>
+                        <p className="text-xs">No paid leave balance remaining. Please choose Payroll.</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+          )}
+
           {/* Weekend notice - not for Leave in Lieu */}
           {!isLeaveOnLieu && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
