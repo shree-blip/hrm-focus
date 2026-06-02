@@ -354,6 +354,8 @@ const Employees = () => {
 
       const summaries: LeaveBalanceSummary[] = [];
       balanceMap.forEach((val, type) => {
+        // Only show the company's defined leave types; hide legacy Sick/Personal/Comp Time
+        if (["Sick Leave", "Personal Leave", "Comp Time"].includes(type)) return;
         summaries.push({
           leave_type: type,
           total_days: val.total,
@@ -363,7 +365,7 @@ const Employees = () => {
       });
 
       // Sort: main types first
-      const order = ["Annual Leave", "Sick Leave", "Personal Leave"];
+      const order = ["Annual Leave", "Leave in Lieu"];
       summaries.sort((a, b) => {
         const ai = order.indexOf(a.leave_type);
         const bi = order.indexOf(b.leave_type);
