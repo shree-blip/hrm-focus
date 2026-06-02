@@ -16,6 +16,8 @@ import {
   TrendingUp,
   ChevronRight,
   ArrowLeft,
+  Cake,
+  CalendarHeart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +39,8 @@ interface Employee {
   status: string;
   initials: string;
   phone: string;
+  user_id?: string | null;
+  profile_id?: string | null;
 }
 
 interface TeamMember {
@@ -142,6 +146,12 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
   const [loadingTeam, setLoadingTeam] = useState(false);
   const [promotionOpen, setPromotionOpen] = useState(false);
 
+  // --- Milestone info (birthday / work anniversary) from profile ---
+  const [milestone, setMilestone] = useState<{ dob: string | null; joining: string | null }>({
+    dob: null,
+    joining: null,
+  });
+
   // --- Sub-team drill-down state ---
   const [subTeamDialogOpen, setSubTeamDialogOpen] = useState(false);
   const [subTeamMembers, setSubTeamMembers] = useState<TeamMember[]>([]);
@@ -168,6 +178,41 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
       setManagerIds(new Set());
     }
   }, [open, employee?.id]);
+
+  useEffect(() => {
+    const fetchMilestone = async () => {
+      setMilestone({ dob: null, joining: null });
+      if (!open || !employee) return;
+      let query = supabase.from("profiles").select("date_of_birth, joining_date").limit(1);
+      if (employee.user_id) {
+        query = query.eq("user_id", employee.user_id);
+      } else if (employee.profile_id) {
+        query = query.eq("id", employee.profile_id);
+      } else {
+        return;
+      }
+      const { data } = await query.maybeSingle();
+      if (data) {
+        setMilestone({ dob: data.date_of_birth ?? null, joining: data.joining_date ?? null });
+      }
+    };
+    fetchMilestone();
+  }, [open, employee?.user_id, employee?.profile_id]);
+
+  const formatMilestoneDate = (value: string | null) => {
+    if (!value) return null;
+    const d = new Date(value + "T00:00:00");
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  };
+
+  const yearsOfService = (() => {
+    if (!milestone.joining) return null;
+    const d = new Date(milestone.joining + "T00:00:00");
+    if (isNaN(d.getTime())) return null;
+    const years = new Date().getFullYear() - d.getFullYear();
+    return years > 0 ? years : null;
+  })();
 
   const fetchTeamForEmployee = async (employeeId: string) => {
     setLoadingTeam(true);
