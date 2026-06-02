@@ -24,10 +24,6 @@ const Support = () => {
     if (isSuperUser || hasPermission("view_bug_reports") || hasPermission("submit_bug_reports") || hasPermission("manage_support") || hasPermission("view_support")) {
       tabs.push({ value: "bugs", label: "Bug Reports", icon: Bug, permission: "view_bug_reports" });
     }
-    if (isSuperUser || hasPermission("view_asset_requests") || hasPermission("submit_asset_requests") || hasPermission("manage_support") || hasPermission("view_support")) {
-      tabs.push({ value: "assets", label: "Request Assets", icon: Package, permission: "view_asset_requests" });
-    }
-
     return tabs;
   }, [isSuperUser, hasPermission]);
 
