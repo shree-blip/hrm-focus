@@ -1,9 +1,8 @@
 import { useMemo, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bug, Package, MessageSquareWarning } from "lucide-react";
+import { Bug, MessageSquareWarning } from "lucide-react";
 import { BugReportsSection } from "@/components/support/BugReportsSection";
-import { AssetRequestsSection } from "@/components/support/AssetRequestsSection";
 import { GrievanceSection } from "@/components/support/GrievanceSection";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/contexts/AuthContext";
