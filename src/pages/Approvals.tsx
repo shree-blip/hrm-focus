@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { usePromotions } from "@/hooks/usePromotions";
 import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
+import { useAssetRequests } from "@/hooks/useAssetRequests";
 import { useAuth } from "@/contexts/AuthContext";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
@@ -85,6 +86,14 @@ const Approvals = () => {
   const pendingAttendanceAdjustments = useMemo(
     () => attendanceAdjustmentRequests.filter((r) => r.status === "pending").length,
     [attendanceAdjustmentRequests],
+  );
+  const { assetRequests } = useAssetRequests();
+  const pendingAssetRequests = useMemo(
+    () =>
+      assetRequests.filter(
+        (r) => r.status !== "approved" && r.status !== "declined",
+      ).length,
+    [assetRequests],
   );
   const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports" | "attendance" | "assets">(
     "approvals:section",
@@ -517,7 +526,7 @@ const Approvals = () => {
           </TabsTrigger>
           <TabsTrigger value="assets" className="gap-2">
             <Package className="h-4 w-4" />
-            Request Assets
+            Request Assets ({pendingAssetRequests})
           </TabsTrigger>
           {/* <TabsTrigger value="leave-reports" className="gap-2">
             <FileText className="h-4 w-4" />
