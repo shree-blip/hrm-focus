@@ -526,7 +526,7 @@ const Approvals = () => {
           </TabsTrigger>
           <TabsTrigger value="assets" className="gap-2">
             <Package className="h-4 w-4" />
-            Request Assets
+            Request Assets ({pendingAssetRequests})
           </TabsTrigger>
           {/* <TabsTrigger value="leave-reports" className="gap-2">
             <FileText className="h-4 w-4" />
