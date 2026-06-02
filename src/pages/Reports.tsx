@@ -818,19 +818,10 @@ const Reports = () => {
       }
 
       csvContent =
-        "Employee,Email,Days Worked,Total Hours,Total Working Days,Leave Days,Leave Dates,Leave Type Breakdown,Lieu Worked Dates,Absent Dates (excl. approved leave),Off-Day Work Dates\n";
+        "Employee,Email,Total Working Days,Days Worked,Leave Days,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
       derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
-
-        // Build "Type: date1, date2 ; Type2: date3" string
-        const typeMap = leaveTypeDetailsMap[emp.user_id];
-        let typeBreakdown = "-";
-        if (typeMap && Object.keys(typeMap).length > 0) {
-          typeBreakdown = Object.entries(typeMap)
-            .map(([t, dates]) => `${t}: ${[...dates].sort().join(", ")}`)
-            .join(" ; ");
-        }
 
         // Build "leaveDate => workedDate" pairs for lieu entries
         const lieuMap = lieuWorkedDatesMap[emp.user_id];
@@ -859,7 +850,7 @@ const Reports = () => {
         });
         const offDayStr = offDayWork.length > 0 ? offDayWork.sort().join(" | ") : "None";
 
-        csvContent += `"${emp.employee_name}","${emp.email}",${emp.days_worked},${emp.total_hours},${totalWorkingDays},${leaveDays},"${leaveDates}","${typeBreakdown}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
+        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${emp.days_worked},${leaveDays},"${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
