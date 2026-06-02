@@ -246,7 +246,7 @@ Deno.serve(async (req) => {
     }
 
     // Support: aggregate (scope to team for line manager/supervisor)
-    if (has("manage_support") || has("view_support") || has("view_bug_reports") || has("view_grievances") || has("view_asset_requests")) {
+    if (has("manage_support") || has("view_support") || has("view_bug_reports") || has("view_grievances")) {
       const supportCounts: PromiseLike<number>[] = [];
       const scopeUserFilter = (q: any) => isTeamScoped ? q.in("user_id", teamUserIds) : q;
 
@@ -268,21 +268,37 @@ Deno.serve(async (req) => {
           supportCounts.push(q.then(({ count }: any) => count || 0));
         }
       }
-      if (has("manage_support") || has("view_asset_requests")) {
-        if (isTeamScoped && teamScopedEmpty) {
-          supportCounts.push(Promise.resolve(0));
-        } else {
-          let q: any = supabase.from("asset_requests").select("id", { count: "exact", head: true }).eq("status", "pending");
-          q = scopeUserFilter(q);
-          supportCounts.push(q.then(({ count }: any) => count || 0));
-        }
-      }
 
       queries.push(
         Promise.all(supportCounts).then((counts) => {
           badges.support = counts.reduce((a, b) => a + b, 0);
         })
       );
+    }
+
+    // Asset requests: merged into approvals badge
+    if (has("manage_support") || has("view_asset_requests")) {
+      if (isAdmin) {
+        queries.push(
+          supabase.from("asset_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+            .then(({ count }) => { badges.approvals = (badges.approvals || 0) + (count || 0); })
+        );
+      } else if (isTeamScoped) {
+        if (teamScopedEmpty) {
+          badges.approvals = badges.approvals || 0;
+        } else {
+          queries.push(
+            supabase.from("asset_requests").select("id", { count: "exact", head: true })
+              .eq("status", "pending").in("user_id", teamUserIds)
+              .then(({ count }) => { badges.approvals = (badges.approvals || 0) + (count || 0); })
+          );
+        }
+      } else {
+        queries.push(
+          supabase.from("asset_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+            .then(({ count }) => { badges.approvals = (badges.approvals || 0) + (count || 0); })
+        );
+      }
     }
 
     // Approvals: pending attendance adjustment requests (merged into approvals badge)
