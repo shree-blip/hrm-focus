@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { usePromotions } from "@/hooks/usePromotions";
 import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
+import { useAssetRequests } from "@/hooks/useAssetRequests";
 import { useAuth } from "@/contexts/AuthContext";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
