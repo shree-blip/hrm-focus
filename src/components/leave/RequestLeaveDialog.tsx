@@ -203,6 +203,7 @@ export function RequestLeaveDialog({
     }
   }, [open]);
 
+
   const resetForm = () => {
     setLeaveType("Other Leave");
     setSpecialLeaveSubtype("");
