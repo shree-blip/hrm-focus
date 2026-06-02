@@ -818,7 +818,7 @@ const Reports = () => {
       }
 
       csvContent =
-        "Employee,Email,Total Working Days,Days Worked,Leave Days,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
+        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
       derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
