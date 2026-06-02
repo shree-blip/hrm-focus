@@ -999,7 +999,14 @@ const Reports = () => {
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-muted-foreground hidden sm:block" />
-            <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRangeType)}>
+            <Select
+              value={dateRange}
+              onValueChange={(value) => {
+                setDateRange(value as DateRangeType);
+                setCustomStart("");
+                setCustomEnd("");
+              }}
+            >
               <SelectTrigger className="w-[150px] sm:w-[180px]">
                 <SelectValue placeholder="Select period" />
               </SelectTrigger>
