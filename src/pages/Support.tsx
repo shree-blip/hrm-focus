@@ -1,9 +1,8 @@
 import { useMemo, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bug, Package, MessageSquareWarning } from "lucide-react";
+import { Bug, MessageSquareWarning } from "lucide-react";
 import { BugReportsSection } from "@/components/support/BugReportsSection";
-import { AssetRequestsSection } from "@/components/support/AssetRequestsSection";
 import { GrievanceSection } from "@/components/support/GrievanceSection";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,10 +24,6 @@ const Support = () => {
     if (isSuperUser || hasPermission("view_bug_reports") || hasPermission("submit_bug_reports") || hasPermission("manage_support") || hasPermission("view_support")) {
       tabs.push({ value: "bugs", label: "Bug Reports", icon: Bug, permission: "view_bug_reports" });
     }
-    if (isSuperUser || hasPermission("view_asset_requests") || hasPermission("submit_asset_requests") || hasPermission("manage_support") || hasPermission("view_support")) {
-      tabs.push({ value: "assets", label: "Request Assets", icon: Package, permission: "view_asset_requests" });
-    }
-
     return tabs;
   }, [isSuperUser, hasPermission]);
 
@@ -57,7 +52,7 @@ const Support = () => {
       <div className="space-y-6">
         <div>
           <h1 className="heading-page font-display font-bold text-foreground">Support & Requests</h1>
-          <p className="text-muted-foreground mt-1">Report bugs or request assets and IT support</p>
+          <p className="text-muted-foreground mt-1">Report bugs and IT support</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -76,11 +71,6 @@ const Support = () => {
             </TabsContent>
           )}
 
-          {visibleTabs.some(t => t.value === "assets") && (
-            <TabsContent value="assets" className="space-y-6">
-              <AssetRequestsSection />
-            </TabsContent>
-          )}
 
           {visibleTabs.some(t => t.value === "grievances") && (
             <TabsContent value="grievances" className="space-y-6">
