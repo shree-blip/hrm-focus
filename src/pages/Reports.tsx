@@ -833,10 +833,13 @@ const Reports = () => {
       }
 
       csvContent =
-        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
+        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Payment Type,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
       derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
+        const paymentType = paymentTypesMap[emp.user_id]
+          ? Array.from(paymentTypesMap[emp.user_id]).sort().join(" | ")
+          : "-";
 
         // Build "leaveDate => workedDate" pairs for lieu entries
         const lieuMap = lieuWorkedDatesMap[emp.user_id];
@@ -865,7 +868,7 @@ const Reports = () => {
         });
         const offDayStr = offDayWork.length > 0 ? offDayWork.sort().join(" | ") : "None";
 
-        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${emp.days_worked},${emp.total_hours},${leaveDays},"${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
+        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${emp.days_worked},${emp.total_hours},${leaveDays},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
