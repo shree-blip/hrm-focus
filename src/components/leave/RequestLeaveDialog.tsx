@@ -203,7 +203,6 @@ export function RequestLeaveDialog({
     }
   }, [open]);
 
-
   const resetForm = () => {
     setLeaveType("Other Leave");
     setSpecialLeaveSubtype("");
@@ -215,6 +214,7 @@ export function RequestLeaveDialog({
     setLieuLeaveDate(undefined);
     setIsHalfDay(false);
     setHalfDayPeriod("first_half");
+    setPaymentOption(noPaidLeaveBalance ? "payroll" : "");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
