@@ -728,6 +728,8 @@ const Reports = () => {
       const leaveTypeDetailsMap: Record<string, Record<string, string[]>> = {};
       // Per-employee map of lieu leave date -> worked date (extracted from "Leave in Lieu - YYYY-MM-DD")
       const lieuWorkedDatesMap: Record<string, Record<string, string>> = {};
+      // Per-employee set of payment statuses ("Payroll" / "Paid Leave") from approved leaves.
+      const paymentTypesMap: Record<string, Set<string>> = {};
       requests.forEach((r) => {
         if (r.status !== "approved") return;
         const leaveStart = new Date(r.start_date);
@@ -736,6 +738,12 @@ const Reports = () => {
 
         const empKey = r.user_id;
         if (leaveDaysMap[empKey] === undefined) leaveDaysMap[empKey] = 0;
+
+        const paymentType = extractPaymentType(r.reason);
+        if (paymentType) {
+          if (!paymentTypesMap[empKey]) paymentTypesMap[empKey] = new Set();
+          paymentTypesMap[empKey].add(paymentType);
+        }
 
         // Collect individual leave dates (only weekdays within the range)
         if (!leaveDatesMap[empKey]) leaveDatesMap[empKey] = [];
