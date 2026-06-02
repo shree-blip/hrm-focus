@@ -90,6 +90,7 @@ interface RequestLeaveDialogProps {
   onSubmit: (request: { type: string; startDate: Date; endDate: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => Promise<boolean>;
   isOnLeave?: boolean;
   currentLeave?: CurrentLeave | null;
+  annualRemaining?: number;
 }
 
 /**
