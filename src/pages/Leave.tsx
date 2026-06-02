@@ -898,6 +898,7 @@ const Leave = () => {
       <RequestLeaveDialog
         open={requestDialogOpen}
         onOpenChange={setRequestDialogOpen}
+        annualRemaining={getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()}
         onSubmit={async (request) => {
           const submitted = await createRequest({
             leave_type: request.type,
