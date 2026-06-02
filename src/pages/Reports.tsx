@@ -588,6 +588,13 @@ const Reports = () => {
     const today = new Date();
     const dateStr = formatDateLocal(today.toISOString());
 
+    // Extract the payment status ("Payroll" / "Paid Leave") prefixed to a leave reason.
+    const extractPaymentType = (reason: string | null | undefined): string => {
+      if (!reason) return "";
+      const m = /^\s*\[(Payroll|Paid Leave)\]/i.exec(reason);
+      return m ? (m[1].toLowerCase() === "payroll" ? "Payroll" : "Paid Leave") : "";
+    };
+
     if (type === "leave") {
       // Group leave requests by employee and month
       const employeeMonthlyLeave: Record<string, Record<string, number>> = {};
