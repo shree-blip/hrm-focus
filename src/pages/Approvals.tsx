@@ -87,6 +87,14 @@ const Approvals = () => {
     () => attendanceAdjustmentRequests.filter((r) => r.status === "pending").length,
     [attendanceAdjustmentRequests],
   );
+  const { assetRequests } = useAssetRequests();
+  const pendingAssetRequests = useMemo(
+    () =>
+      assetRequests.filter(
+        (r) => r.status !== "approved" && r.status !== "declined",
+      ).length,
+    [assetRequests],
+  );
   const [section, setSection] = usePersistentState<"leave" | "promotions" | "leave-reports" | "attendance" | "assets">(
     "approvals:section",
     "leave",
