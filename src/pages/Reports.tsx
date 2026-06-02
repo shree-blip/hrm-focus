@@ -1201,13 +1201,6 @@ const Reports = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <Input
-                  type="date"
-                  value={searchDate}
-                  onChange={(e) => setSearchDate(e.target.value)}
-                  placeholder="Filter by date"
-                  className="w-[180px]"
-                />
                 <div className="flex items-center gap-2">
                   <CalendarRange className="h-4 w-4 text-muted-foreground hidden sm:block" />
                   <Input
