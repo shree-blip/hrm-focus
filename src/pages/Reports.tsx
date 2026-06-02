@@ -1018,6 +1018,12 @@ const Reports = () => {
               </SelectContent>
             </Select>
           </div>
+          <Badge variant="secondary" className="gap-1.5 whitespace-nowrap">
+            <CalendarRange className="h-3.5 w-3.5" />
+            {customRange
+              ? `${formatRangeDate(customRange.start)} - ${formatRangeDate(customRange.end)}`
+              : getDateRangeLabel(dateRange)}
+          </Badge>
         </div>
       </div>
 
