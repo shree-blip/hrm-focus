@@ -1004,6 +1004,26 @@ const Reports = () => {
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">View and export HR reports</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <CalendarRange className="h-4 w-4 text-muted-foreground hidden sm:block" />
+            <Input
+              type="date"
+              value={customStart}
+              max={customEnd || undefined}
+              onChange={(e) => setCustomStart(e.target.value)}
+              aria-label="Range start date"
+              className="w-[150px] sm:w-[160px]"
+            />
+            <span className="text-muted-foreground text-sm">to</span>
+            <Input
+              type="date"
+              value={customEnd}
+              min={customStart || undefined}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              aria-label="Range end date"
+              className="w-[150px] sm:w-[160px]"
+            />
+          </div>
           <div className="flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-muted-foreground hidden sm:block" />
             <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRangeType)}>
