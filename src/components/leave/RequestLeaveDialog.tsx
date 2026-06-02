@@ -305,6 +305,15 @@ export function RequestLeaveDialog({
       return;
     }
 
+    if (!paymentOption) {
+      toast({
+        title: "Selection Required",
+        description: "Please select either Payroll or Paid Leave before applying.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!isHalfDay && endDate && endDate < startDate) {
       toast({
         title: "Invalid Dates",
@@ -339,6 +348,9 @@ export function RequestLeaveDialog({
       actualLeaveType = `Other Leave - ${otherLeaveSubtype}`;
     }
 
+    const paymentLabel = paymentOption === "payroll" ? "Payroll" : "Paid Leave";
+    const reasonWithPayment = `[${paymentLabel}] ${reason}`;
+
     setIsSubmitting(true);
 
     try {
@@ -346,7 +358,7 @@ export function RequestLeaveDialog({
         type: actualLeaveType,
         startDate: adjustedStartDate,
         endDate: adjustedEndDate,
-        reason,
+        reason: reasonWithPayment,
         is_half_day: isHalfDay,
         half_day_period: isHalfDay ? halfDayPeriod : null,
       });
