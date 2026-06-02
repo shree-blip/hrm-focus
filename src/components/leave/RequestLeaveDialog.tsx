@@ -14,6 +14,8 @@ import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Main Leave type configurations
 const LEAVE_TYPES = {
@@ -88,6 +90,7 @@ interface RequestLeaveDialogProps {
   onSubmit: (request: { type: string; startDate: Date; endDate: Date; reason: string; is_half_day?: boolean; half_day_period?: string | null }) => Promise<boolean>;
   isOnLeave?: boolean;
   currentLeave?: CurrentLeave | null;
+  annualRemaining?: number;
 }
 
 /**
@@ -140,6 +143,7 @@ export function RequestLeaveDialog({
   onSubmit,
   isOnLeave = false,
   currentLeave = null,
+  annualRemaining,
 }: RequestLeaveDialogProps) {
   const [leaveType, setLeaveType] = useState<LeaveType | "">("Other Leave");
   const [specialLeaveSubtype, setSpecialLeaveSubtype] = useState<SpecialLeaveSubtype | "">("");
@@ -150,6 +154,17 @@ export function RequestLeaveDialog({
   const [isHalfDay, setIsHalfDay] = useState(false);
   const [halfDayPeriod, setHalfDayPeriod] = useState<string>("first_half");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentOption, setPaymentOption] = useState<"payroll" | "paid_leave" | "">("");
+
+  // When the user has no remaining paid-leave balance, only Payroll is allowed.
+  const noPaidLeaveBalance = typeof annualRemaining === "number" && annualRemaining <= 0;
+
+  // Auto-select Payroll when there's no remaining paid leave balance.
+  useEffect(() => {
+    if (noPaidLeaveBalance) {
+      setPaymentOption("payroll");
+    }
+  }, [noPaidLeaveBalance, open]);
 
   // Leave in Lieu specific fields
   const [dateWorked, setDateWorked] = useState<Date>(); // The date they worked on a holiday/leave
@@ -199,6 +214,7 @@ export function RequestLeaveDialog({
     setLieuLeaveDate(undefined);
     setIsHalfDay(false);
     setHalfDayPeriod("first_half");
+    setPaymentOption(noPaidLeaveBalance ? "payroll" : "");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -289,6 +305,15 @@ export function RequestLeaveDialog({
       return;
     }
 
+    if (!paymentOption) {
+      toast({
+        title: "Selection Required",
+        description: "Please select either Payroll or Paid Leave before applying.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!isHalfDay && endDate && endDate < startDate) {
       toast({
         title: "Invalid Dates",
@@ -323,6 +348,9 @@ export function RequestLeaveDialog({
       actualLeaveType = `Other Leave - ${otherLeaveSubtype}`;
     }
 
+    const paymentLabel = paymentOption === "payroll" ? "Payroll" : "Paid Leave";
+    const reasonWithPayment = `[${paymentLabel}] ${reason}`;
+
     setIsSubmitting(true);
 
     try {
@@ -330,7 +358,7 @@ export function RequestLeaveDialog({
         type: actualLeaveType,
         startDate: adjustedStartDate,
         endDate: adjustedEndDate,
-        reason,
+        reason: reasonWithPayment,
         is_half_day: isHalfDay,
         half_day_period: isHalfDay ? halfDayPeriod : null,
       });
@@ -813,6 +841,68 @@ export function RequestLeaveDialog({
                   </Popover>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Payment Option - required, shown for all leave types except Leave in Lieu */}
+          {!isLeaveOnLieu && (
+            <div className="space-y-3 p-3 rounded-lg border border-border bg-accent/30">
+              <Label className="flex items-center gap-2">
+                Payment Option
+                <Badge variant="outline" className="text-xs bg-red-500/10 text-red-600 border-red-500/30">
+                  Required
+                </Badge>
+              </Label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:gap-6">
+                {/* Payroll */}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="payment-payroll"
+                    checked={paymentOption === "payroll"}
+                    onCheckedChange={(checked) => {
+                      if (checked) setPaymentOption("payroll");
+                      else if (!noPaidLeaveBalance) setPaymentOption("");
+                    }}
+                  />
+                  <Label htmlFor="payment-payroll" className="cursor-pointer text-sm font-medium">
+                    Payroll
+                  </Label>
+                </div>
+
+                {/* Paid Leave */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="payment-paid-leave"
+                          checked={paymentOption === "paid_leave"}
+                          disabled={noPaidLeaveBalance}
+                          onCheckedChange={(checked) => {
+                            if (noPaidLeaveBalance) return;
+                            if (checked) setPaymentOption("paid_leave");
+                            else setPaymentOption("");
+                          }}
+                        />
+                        <Label
+                          htmlFor="payment-paid-leave"
+                          className={cn(
+                            "text-sm font-medium",
+                            noPaidLeaveBalance ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+                          )}
+                        >
+                          Paid Leave
+                        </Label>
+                      </div>
+                    </TooltipTrigger>
+                    {noPaidLeaveBalance && (
+                      <TooltipContent>
+                        <p className="text-xs">No paid leave balance remaining. Please choose Payroll.</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
           )}
 
