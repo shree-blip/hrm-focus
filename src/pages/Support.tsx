@@ -71,11 +71,6 @@ const Support = () => {
             </TabsContent>
           )}
 
-          {visibleTabs.some(t => t.value === "assets") && (
-            <TabsContent value="assets" className="space-y-6">
-              <AssetRequestsSection />
-            </TabsContent>
-          )}
 
           {visibleTabs.some(t => t.value === "grievances") && (
             <TabsContent value="grievances" className="space-y-6">
