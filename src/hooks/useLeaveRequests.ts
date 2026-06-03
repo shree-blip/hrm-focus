@@ -722,7 +722,6 @@ export function useLeaveRequests() {
         }
       }
 
-      Email notifications disabled per request
       await sendLeaveNotification({
         leave_request_id: requestId,
         event_type: "approved",
@@ -843,7 +842,6 @@ export function useLeaveRequests() {
         }
       }
 
-      Email notifications disabled per request
       await sendLeaveNotification({
         leave_request_id: requestId,
         event_type: "rejected",
