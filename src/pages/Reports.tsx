@@ -626,7 +626,7 @@ const Reports = () => {
 
       // Build CSV - First section: Detailed leave requests
       csvContent = "=== DETAILED LEAVE REQUESTS ===\n";
-      csvContent += "Employee,Leave Type,Start Date,End Date,Days,Status,Payment Type,Reason\n";
+      csvContent += "Employee,Leave Type,Start Date,End Date,Days,Status,Deduction Type,Reason\n";
       requests.forEach((r) => {
         const name = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown";
         csvContent += `"${name}","${r.leave_type}","${r.start_date}","${r.end_date}",${r.days},"${r.status}","${extractPaymentType(r.reason)}","${r.reason || ""}"\n`;
@@ -833,7 +833,7 @@ const Reports = () => {
       }
 
       csvContent =
-        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Payment Type,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
+        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Deduction Type,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
       derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
