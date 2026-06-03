@@ -119,8 +119,7 @@ export function EditEmployeeDialog({
         <DialogHeader>
           <DialogTitle className="font-display">Edit Employee</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          {/* scrollable body */}
+        <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-1">
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
             <Input
