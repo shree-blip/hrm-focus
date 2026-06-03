@@ -852,6 +852,13 @@ const Reports = () => {
           ? Array.from(paymentTypesMap[emp.user_id]).sort().join(" | ")
           : "-";
 
+        // Adjusted Days Worked: paid leave is treated as worked time, while
+        // payroll-deduction leave is not added back. Actual clock-in days
+        // (emp.days_worked) already exclude leave days (no clock-in), so we add
+        // back only the Paid Leave days for this period.
+        const paidLeaveDays = paidLeaveDaysMap[emp.user_id] || 0;
+        const adjustedDaysWorked = emp.days_worked + paidLeaveDays;
+
         // Build "leaveDate => workedDate" pairs for lieu entries
         const lieuMap = lieuWorkedDatesMap[emp.user_id];
         let lieuPairs = "-";
@@ -879,7 +886,7 @@ const Reports = () => {
         });
         const offDayStr = offDayWork.length > 0 ? offDayWork.sort().join(" | ") : "None";
 
-        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${emp.days_worked},${emp.total_hours},${leaveDays},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
+        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${adjustedDaysWorked},${emp.total_hours},${leaveDays},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
