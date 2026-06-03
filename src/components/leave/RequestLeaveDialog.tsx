@@ -862,7 +862,7 @@ export function RequestLeaveDialog({
           {!isLeaveOnLieu && (
             <div className="space-y-3 p-3 rounded-lg border border-border bg-accent/30">
               <Label className="flex items-center gap-2">
-                Select
+                Deduction Type
                 <Badge variant="outline" className="text-xs bg-red-500/10 text-red-600 border-red-500/30">
                   Required
                 </Badge>
