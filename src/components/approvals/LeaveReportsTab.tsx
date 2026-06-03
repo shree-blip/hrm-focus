@@ -271,7 +271,7 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
       "Days",
       "Half Day",
       "Status",
-      "Payment Type",
+      "Deduction Type",
       "Reason",
       "Rejection Reason",
     ];
