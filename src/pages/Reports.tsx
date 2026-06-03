@@ -730,6 +730,10 @@ const Reports = () => {
       const lieuWorkedDatesMap: Record<string, Record<string, string>> = {};
       // Per-employee set of payment statuses ("Payroll" / "Paid Leave") from approved leaves.
       const paymentTypesMap: Record<string, Set<string>> = {};
+      // Per-employee approved leave days split by deduction type within the range.
+      // Paid Leave days count as worked; Payroll (deduction) days do not.
+      const paidLeaveDaysMap: Record<string, number> = {};
+      const payrollLeaveDaysMap: Record<string, number> = {};
       requests.forEach((r) => {
         if (r.status !== "approved") return;
         const leaveStart = new Date(r.start_date);
@@ -771,7 +775,14 @@ const Reports = () => {
             // Count only leave days that fall within the selected report period
             // (a leave request spilling into the next/previous month must not
             // inflate this period's total). Half-day leave counts as 0.5.
-            leaveDaysMap[empKey] += r.is_half_day ? 0.5 : 1;
+            const dayWeight = r.is_half_day ? 0.5 : 1;
+            leaveDaysMap[empKey] += dayWeight;
+            // Split by deduction type so worked-days can be adjusted accordingly.
+            if (paymentType === "Paid Leave") {
+              paidLeaveDaysMap[empKey] = (paidLeaveDaysMap[empKey] || 0) + dayWeight;
+            } else if (paymentType === "Payroll") {
+              payrollLeaveDaysMap[empKey] = (payrollLeaveDaysMap[empKey] || 0) + dayWeight;
+            }
             if (workedDate) {
               lieuWorkedDatesMap[empKey][dateKey] = workedDate;
             }
