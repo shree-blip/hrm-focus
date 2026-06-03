@@ -843,22 +843,22 @@ export function useLeaveRequests() {
         }
       }
 
-      // Email notifications disabled per request
-      // await sendLeaveNotification({
-      //   leave_request_id: requestId,
-      //   event_type: "rejected",
-      //   employee_name: userName,
-      //   employee_email: requestProfile?.email || undefined,
-      //   leave_type: requestData.leave_type,
-      //   start_date: requestData.start_date,
-      //   end_date: requestData.end_date,
-      //   days: requestData.days,
-      //   rejection_reason: rejectionReason,
-      //   approver_name: managerName,
-      //   target_user_ids: rejectNotifyIds,
-      //   target_emails: rejectEmails,
-      //   requesting_user_id: user.id,
-      // });
+      Email notifications disabled per request
+      await sendLeaveNotification({
+        leave_request_id: requestId,
+        event_type: "rejected",
+        employee_name: userName,
+        employee_email: requestProfile?.email || undefined,
+        leave_type: requestData.leave_type,
+        start_date: requestData.start_date,
+        end_date: requestData.end_date,
+        days: requestData.days,
+        rejection_reason: rejectionReason,
+        approver_name: managerName,
+        target_user_ids: rejectNotifyIds,
+        target_emails: rejectEmails,
+        requesting_user_id: user.id,
+      });
 
       await loadAllData();
     }
