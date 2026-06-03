@@ -563,6 +563,8 @@ const Employees = () => {
       location: employee.location || "US",
       status: employee.status || "active",
       initials: getInitials(employee.first_name, employee.last_name),
+      profile_id: employee.profile_id || null,
+      user_id: employee.user_id || null,
     });
     setEditOpen(true);
   };
