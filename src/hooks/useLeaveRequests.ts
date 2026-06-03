@@ -113,34 +113,34 @@ export function useLeaveRequests() {
     }
   };
 
-  // // Send leave notification via edge function (email + in-app for managers/admin)
-  // const sendLeaveNotification = async (payload: {
-  //   leave_request_id: string;
-  //   event_type: "submitted" | "approved" | "rejected";
-  //   employee_name: string;
-  //   employee_email?: string;
-  //   leave_type: string;
-  //   start_date: string;
-  //   end_date: string;
-  //   days: number;
-  //   reason?: string;
-  //   rejection_reason?: string;
-  //   approver_name?: string;
-  //   target_user_ids: string[];
-  //   target_emails?: string[];
-  //   requesting_user_id: string;
-  // }) => {
-  //   try {
-  //     const { error } = await supabase.functions.invoke("send-leave-notification", {
-  //       body: payload,
-  //     });
-  //     if (error) {
-  //       console.error("send-leave-notification failed:", error);
-  //     }
-  //   } catch (err) {
-  //     console.error("Failed to call send-leave-notification:", err);
-  //   }
-  // };
+  // Send leave notification via edge function (email + in-app for managers/admin)
+  const sendLeaveNotification = async (payload: {
+    leave_request_id: string;
+    event_type: "submitted" | "approved" | "rejected";
+    employee_name: string;
+    employee_email?: string;
+    leave_type: string;
+    start_date: string;
+    end_date: string;
+    days: number;
+    reason?: string;
+    rejection_reason?: string;
+    approver_name?: string;
+    target_user_ids: string[];
+    target_emails?: string[];
+    requesting_user_id: string;
+  }) => {
+    try {
+      const { error } = await supabase.functions.invoke("send-leave-notification", {
+        body: payload,
+      });
+      if (error) {
+        console.error("send-leave-notification failed:", error);
+      }
+    } catch (err) {
+      console.error("Failed to call send-leave-notification:", err);
+    }
+  };
 
   // Fetch user's own requests
   const fetchOwnRequests = useCallback(async () => {
