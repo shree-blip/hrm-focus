@@ -596,7 +596,6 @@ export function useLeaveRequests() {
         if (mgrProfile?.email) managerEmails.push(mgrProfile.email);
       }
 
-      Email notifications disabled per request
       await sendLeaveNotification({
         leave_request_id: newRequest.id,
         event_type: "submitted",
