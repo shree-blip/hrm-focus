@@ -730,6 +730,10 @@ const Reports = () => {
       const lieuWorkedDatesMap: Record<string, Record<string, string>> = {};
       // Per-employee set of payment statuses ("Payroll" / "Paid Leave") from approved leaves.
       const paymentTypesMap: Record<string, Set<string>> = {};
+      // Per-employee approved leave days split by deduction type within the range.
+      // Paid Leave days count as worked; Payroll (deduction) days do not.
+      const paidLeaveDaysMap: Record<string, number> = {};
+      const payrollLeaveDaysMap: Record<string, number> = {};
       requests.forEach((r) => {
         if (r.status !== "approved") return;
         const leaveStart = new Date(r.start_date);
@@ -771,7 +775,14 @@ const Reports = () => {
             // Count only leave days that fall within the selected report period
             // (a leave request spilling into the next/previous month must not
             // inflate this period's total). Half-day leave counts as 0.5.
-            leaveDaysMap[empKey] += r.is_half_day ? 0.5 : 1;
+            const dayWeight = r.is_half_day ? 0.5 : 1;
+            leaveDaysMap[empKey] += dayWeight;
+            // Split by deduction type so worked-days can be adjusted accordingly.
+            if (paymentType === "Paid Leave") {
+              paidLeaveDaysMap[empKey] = (paidLeaveDaysMap[empKey] || 0) + dayWeight;
+            } else if (paymentType === "Payroll") {
+              payrollLeaveDaysMap[empKey] = (payrollLeaveDaysMap[empKey] || 0) + dayWeight;
+            }
             if (workedDate) {
               lieuWorkedDatesMap[empKey][dateKey] = workedDate;
             }
@@ -841,6 +852,13 @@ const Reports = () => {
           ? Array.from(paymentTypesMap[emp.user_id]).sort().join(" | ")
           : "-";
 
+        // Adjusted Days Worked: paid leave is treated as worked time, while
+        // payroll-deduction leave is not added back. Actual clock-in days
+        // (emp.days_worked) already exclude leave days (no clock-in), so we add
+        // back only the Paid Leave days for this period.
+        const paidLeaveDays = paidLeaveDaysMap[emp.user_id] || 0;
+        const adjustedDaysWorked = emp.days_worked + paidLeaveDays;
+
         // Build "leaveDate => workedDate" pairs for lieu entries
         const lieuMap = lieuWorkedDatesMap[emp.user_id];
         let lieuPairs = "-";
@@ -868,7 +886,7 @@ const Reports = () => {
         });
         const offDayStr = offDayWork.length > 0 ? offDayWork.sort().join(" | ") : "None";
 
-        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${emp.days_worked},${emp.total_hours},${leaveDays},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
+        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${adjustedDaysWorked},${emp.total_hours},${leaveDays},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
