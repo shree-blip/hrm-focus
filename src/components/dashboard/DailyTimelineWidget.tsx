@@ -247,6 +247,7 @@ interface DailyTimelineWidgetProps {
 
 export function DailyTimelineWidget({ maxItemsPerSection = 3, onViewAll }: DailyTimelineWidgetProps) {
   const { upcomingMilestones } = useMilestones();
+  const { events } = useCalendarEvents();
 
   const { milestones, upcoming, holidays } = useMemo(() => {
     const today = new Date();
@@ -270,8 +271,20 @@ export function DailyTimelineWidget({ maxItemsPerSection = 3, onViewAll }: Daily
       .sort((a, b) => a.days - b.days)
       .slice(0, maxItemsPerSection);
 
-    // Process calendar entries
-    const calendarItems = calendarEntries
+    // Map DB calendar events into the same shape as static entries
+    const dbEntries: CalendarEntry[] = events.map((e) => ({
+      date: new Date(e.event_date + "T00:00:00"),
+      name: e.title,
+      type:
+        e.event_type === "holiday"
+          ? "holiday"
+          : e.event_type === "deadline"
+            ? "deadline"
+            : "optional",
+    }));
+
+    // Process calendar entries (static holidays + events created in the calendar)
+    const calendarItems = [...calendarEntries, ...dbEntries]
       .filter((e) => {
         const days = getDaysUntil(e.date);
         return days >= 0 && days <= 14;
@@ -300,7 +313,7 @@ export function DailyTimelineWidget({ maxItemsPerSection = 3, onViewAll }: Daily
       upcoming: upcomingItems,
       holidays: holidayItems,
     };
-  }, [upcomingMilestones, maxItemsPerSection]);
+  }, [upcomingMilestones, events, maxItemsPerSection]);
 
   const todayFormatted = new Date().toLocaleDateString("en-US", {
     weekday: "long",
