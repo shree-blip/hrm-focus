@@ -58,7 +58,6 @@ const SPECIAL_LEAVE_TYPES: Record<string, number> = {
   "Paternity Leave": 22,
 };
 
-
 // Helper to check if a leave type is "Leave in Lieu" (date-based)
 // Accepts legacy "Leave on Lieu" stored values for backward compatibility.
 const isLeaveOnLieuType = (leaveType: string) => {
@@ -72,7 +71,11 @@ const isOtherLeaveType = (leaveType: string) => {
 
 // Legacy support: old "Leave on Leave" prefix
 const isLeaveOnLeaveType = (leaveType: string) => {
-  return leaveType.startsWith("Leave on Leave") || leaveType.startsWith("Leave in Lieu") || leaveType.startsWith("Leave on Lieu");
+  return (
+    leaveType.startsWith("Leave on Leave") ||
+    leaveType.startsWith("Leave in Lieu") ||
+    leaveType.startsWith("Leave on Lieu")
+  );
 };
 
 export function useLeaveRequests() {
@@ -110,34 +113,34 @@ export function useLeaveRequests() {
     }
   };
 
-  // Send leave notification via edge function (email + in-app for managers/admin)
-  const sendLeaveNotification = async (payload: {
-    leave_request_id: string;
-    event_type: "submitted" | "approved" | "rejected";
-    employee_name: string;
-    employee_email?: string;
-    leave_type: string;
-    start_date: string;
-    end_date: string;
-    days: number;
-    reason?: string;
-    rejection_reason?: string;
-    approver_name?: string;
-    target_user_ids: string[];
-    target_emails?: string[];
-    requesting_user_id: string;
-  }) => {
-    try {
-      const { error } = await supabase.functions.invoke("send-leave-notification", {
-        body: payload,
-      });
-      if (error) {
-        console.error("send-leave-notification failed:", error);
-      }
-    } catch (err) {
-      console.error("Failed to call send-leave-notification:", err);
-    }
-  };
+  // // Send leave notification via edge function (email + in-app for managers/admin)
+  // const sendLeaveNotification = async (payload: {
+  //   leave_request_id: string;
+  //   event_type: "submitted" | "approved" | "rejected";
+  //   employee_name: string;
+  //   employee_email?: string;
+  //   leave_type: string;
+  //   start_date: string;
+  //   end_date: string;
+  //   days: number;
+  //   reason?: string;
+  //   rejection_reason?: string;
+  //   approver_name?: string;
+  //   target_user_ids: string[];
+  //   target_emails?: string[];
+  //   requesting_user_id: string;
+  // }) => {
+  //   try {
+  //     const { error } = await supabase.functions.invoke("send-leave-notification", {
+  //       body: payload,
+  //     });
+  //     if (error) {
+  //       console.error("send-leave-notification failed:", error);
+  //     }
+  //   } catch (err) {
+  //     console.error("Failed to call send-leave-notification:", err);
+  //   }
+  // };
 
   // Fetch user's own requests
   const fetchOwnRequests = useCallback(async () => {
@@ -145,7 +148,9 @@ export function useLeaveRequests() {
 
     const { data, error } = await supabase
       .from("leave_requests")
-      .select("id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at")
+      .select(
+        "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
+      )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -182,7 +187,9 @@ export function useLeaveRequests() {
 
     const { data, error } = await supabase
       .from("leave_requests")
-      .select("id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at")
+      .select(
+        "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
+      )
       .eq("status", "approved")
       .order("start_date", { ascending: true });
 
@@ -214,7 +221,9 @@ export function useLeaveRequests() {
 
     const { data, error } = await supabase
       .from("leave_requests")
-      .select("id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at")
+      .select(
+        "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
+      )
       .eq("status", "pending")
       .neq("user_id", user.id)
       .order("created_at", { ascending: false });
@@ -248,7 +257,8 @@ export function useLeaveRequests() {
   const fetchAllTeamRequests = useCallback(async () => {
     if (!user || !isManager) return [];
 
-    const cols = "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at";
+    const cols =
+      "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at";
     if (role === "admin" || role === "vp") {
       const { data, error } = await supabase
         .from("leave_requests")
@@ -290,7 +300,9 @@ export function useLeaveRequests() {
 
     const { data, error } = await supabase
       .from("leave_requests")
-      .select("id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at")
+      .select(
+        "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
+      )
       .eq("status", "approved")
       .gte("end_date", todayStr)
       .order("start_date", { ascending: true });
@@ -1022,9 +1034,7 @@ export function useLeaveRequests() {
     // up consistently as a non-approved leave everywhere. Self-cancelled pending
     // requests stay as "cancelled".
     const newStatus =
-      originalStatus === "approved" && (isAdmin || isVP || isSupervisor || isLineManager)
-        ? "rejected"
-        : "cancelled";
+      originalStatus === "approved" && (isAdmin || isVP || isSupervisor || isLineManager) ? "rejected" : "cancelled";
     const { error } = await supabase.from("leave_requests").update({ status: newStatus }).eq("id", requestId);
 
     if (error) {
