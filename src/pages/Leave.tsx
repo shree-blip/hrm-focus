@@ -100,18 +100,90 @@ const Leave = () => {
   // Each user_id is mapped deterministically to one color from this palette,
   // so the same person always gets the same dot/highlight color.
   const LEAVE_USER_PALETTE: { bg: string; border: string; dot: string; text: string; hex: string }[] = [
-    { bg: "bg-rose-400/60", border: "border-rose-500", dot: "bg-rose-500", text: "text-rose-700 dark:text-rose-300", hex: "#f43f5e" },
-    { bg: "bg-amber-400/60", border: "border-amber-500", dot: "bg-amber-500", text: "text-amber-700 dark:text-amber-300", hex: "#f59e0b" },
-    { bg: "bg-emerald-400/60", border: "border-emerald-500", dot: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300", hex: "#10b981" },
-    { bg: "bg-sky-400/60", border: "border-sky-500", dot: "bg-sky-500", text: "text-sky-700 dark:text-sky-300", hex: "#0ea5e9" },
-    { bg: "bg-violet-400/60", border: "border-violet-500", dot: "bg-violet-500", text: "text-violet-700 dark:text-violet-300", hex: "#8b5cf6" },
-    { bg: "bg-pink-400/60", border: "border-pink-500", dot: "bg-pink-500", text: "text-pink-700 dark:text-pink-300", hex: "#ec4899" },
-    { bg: "bg-teal-400/60", border: "border-teal-500", dot: "bg-teal-500", text: "text-teal-700 dark:text-teal-300", hex: "#14b8a6" },
-    { bg: "bg-orange-400/60", border: "border-orange-500", dot: "bg-orange-500", text: "text-orange-700 dark:text-orange-300", hex: "#f97316" },
-    { bg: "bg-indigo-400/60", border: "border-indigo-500", dot: "bg-indigo-500", text: "text-indigo-700 dark:text-indigo-300", hex: "#6366f1" },
-    { bg: "bg-lime-400/60", border: "border-lime-500", dot: "bg-lime-500", text: "text-lime-700 dark:text-lime-300", hex: "#84cc16" },
-    { bg: "bg-fuchsia-400/60", border: "border-fuchsia-500", dot: "bg-fuchsia-500", text: "text-fuchsia-700 dark:text-fuchsia-300", hex: "#d946ef" },
-    { bg: "bg-cyan-400/60", border: "border-cyan-500", dot: "bg-cyan-500", text: "text-cyan-700 dark:text-cyan-300", hex: "#06b6d4" },
+    {
+      bg: "bg-rose-400/60",
+      border: "border-rose-500",
+      dot: "bg-rose-500",
+      text: "text-rose-700 dark:text-rose-300",
+      hex: "#f43f5e",
+    },
+    {
+      bg: "bg-amber-400/60",
+      border: "border-amber-500",
+      dot: "bg-amber-500",
+      text: "text-amber-700 dark:text-amber-300",
+      hex: "#f59e0b",
+    },
+    {
+      bg: "bg-emerald-400/60",
+      border: "border-emerald-500",
+      dot: "bg-emerald-500",
+      text: "text-emerald-700 dark:text-emerald-300",
+      hex: "#10b981",
+    },
+    {
+      bg: "bg-sky-400/60",
+      border: "border-sky-500",
+      dot: "bg-sky-500",
+      text: "text-sky-700 dark:text-sky-300",
+      hex: "#0ea5e9",
+    },
+    {
+      bg: "bg-violet-400/60",
+      border: "border-violet-500",
+      dot: "bg-violet-500",
+      text: "text-violet-700 dark:text-violet-300",
+      hex: "#8b5cf6",
+    },
+    {
+      bg: "bg-pink-400/60",
+      border: "border-pink-500",
+      dot: "bg-pink-500",
+      text: "text-pink-700 dark:text-pink-300",
+      hex: "#ec4899",
+    },
+    {
+      bg: "bg-teal-400/60",
+      border: "border-teal-500",
+      dot: "bg-teal-500",
+      text: "text-teal-700 dark:text-teal-300",
+      hex: "#14b8a6",
+    },
+    {
+      bg: "bg-orange-400/60",
+      border: "border-orange-500",
+      dot: "bg-orange-500",
+      text: "text-orange-700 dark:text-orange-300",
+      hex: "#f97316",
+    },
+    {
+      bg: "bg-indigo-400/60",
+      border: "border-indigo-500",
+      dot: "bg-indigo-500",
+      text: "text-indigo-700 dark:text-indigo-300",
+      hex: "#6366f1",
+    },
+    {
+      bg: "bg-lime-400/60",
+      border: "border-lime-500",
+      dot: "bg-lime-500",
+      text: "text-lime-700 dark:text-lime-300",
+      hex: "#84cc16",
+    },
+    {
+      bg: "bg-fuchsia-400/60",
+      border: "border-fuchsia-500",
+      dot: "bg-fuchsia-500",
+      text: "text-fuchsia-700 dark:text-fuchsia-300",
+      hex: "#d946ef",
+    },
+    {
+      bg: "bg-cyan-400/60",
+      border: "border-cyan-500",
+      dot: "bg-cyan-500",
+      text: "text-cyan-700 dark:text-cyan-300",
+      hex: "#06b6d4",
+    },
   ];
 
   const getColorForUser = (userId: string) => {
@@ -354,9 +426,7 @@ const Leave = () => {
                     return (
                       <p className="text-2xl font-bold mt-1">
                         {Math.max(0, remaining)} days
-                        {over > 0 && (
-                          <span className="ml-1 text-sm font-semibold text-destructive">+{over} over</span>
-                        )}
+                        {over > 0 && <span className="ml-1 text-sm font-semibold text-destructive">+{over} over</span>}
                       </p>
                     );
                   })()}
@@ -436,9 +506,7 @@ const Leave = () => {
               </div>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-display font-bold">
-                    {getAnnualLeaveUsedTotal()}
-                  </span>
+                  <span className="text-3xl font-display font-bold">{getAnnualLeaveUsedTotal()}</span>
                   <span className="text-muted-foreground">/ {getAnnualLeaveTotalDays()} days used</span>
                   {getAnnualLeaveUsedTotal() > getAnnualLeaveTotalDays() && (
                     <span className="ml-2 text-sm font-semibold text-destructive">
@@ -655,7 +723,7 @@ const Leave = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="font-display text-lg flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
-                    Team Calendar
+                    Leave Calendar
                   </CardTitle>
                   <div className="flex items-center gap-1">
                     <Button
@@ -751,8 +819,7 @@ const Leave = () => {
                         {leavesOnDay.length > 0 && !isToday && (
                           <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5">
                             {leavesOnDay.slice(0, 4).map((r) => {
-                              const c =
-                                r.user_id === user?.id ? { dot: "bg-success" } : getColorForUser(r.user_id);
+                              const c = r.user_id === user?.id ? { dot: "bg-success" } : getColorForUser(r.user_id);
                               return <div key={r.id} className={cn("h-1 w-1 rounded-full", c.dot)} />;
                             })}
                             {leavesOnDay.length > 4 && (
@@ -813,17 +880,9 @@ const Leave = () => {
                           <div key={r.id} className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2">
                               <div
-                                className={cn(
-                                  "h-2.5 w-2.5 rounded-full",
-                                  isCurrentUser ? "bg-success" : color?.dot,
-                                )}
+                                className={cn("h-2.5 w-2.5 rounded-full", isCurrentUser ? "bg-success" : color?.dot)}
                               />
-                              <span
-                                className={cn(
-                                  "font-medium",
-                                  isCurrentUser ? "text-success" : color?.text,
-                                )}
-                              >
+                              <span className={cn("font-medium", isCurrentUser ? "text-success" : color?.text)}>
                                 {employeeName}
                               </span>
                               <Badge variant="outline" className="text-xs">
@@ -866,17 +925,9 @@ const Leave = () => {
                           <div key={r.id} className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2">
                               <div
-                                className={cn(
-                                  "h-2.5 w-2.5 rounded-full",
-                                  isCurrentUser ? "bg-success" : color?.dot,
-                                )}
+                                className={cn("h-2.5 w-2.5 rounded-full", isCurrentUser ? "bg-success" : color?.dot)}
                               />
-                              <span
-                                className={cn(
-                                  "font-medium",
-                                  isCurrentUser ? "text-success" : color?.text,
-                                )}
-                              >
+                              <span className={cn("font-medium", isCurrentUser ? "text-success" : color?.text)}>
                                 {employeeName}
                               </span>
                             </div>
