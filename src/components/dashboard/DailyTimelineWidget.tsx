@@ -80,6 +80,76 @@ const calendarEntries: CalendarEntry[] = [
   { date: new Date(2026, 4, 1), name: "Labor Day", type: "holiday" },
   { date: new Date(2026, 4, 15), name: "Texas FTB PIF Filing", type: "deadline" },
   { date: new Date(2026, 4, 25), name: "Q2 1st Pre-Payment", type: "deadline" },
+
+  // ── June 2026 ──
+  { date: new Date(2026, 5, 9), name: "Check Payroll Automation", type: "deadline" },
+  { date: new Date(2026, 5, 13), name: "Monthly Books Review", type: "deadline" },
+  { date: new Date(2026, 5, 15), name: "Q2 Estimated Tax Payment", type: "deadline" },
+  { date: new Date(2026, 5, 19), name: "Juneteenth (US)", type: "holiday" },
+  { date: new Date(2026, 5, 30), name: "Venture23 Payroll Day", type: "deadline" },
+
+  // ── July 2026 ──
+  { date: new Date(2026, 6, 4), name: "Independence Day (US)", type: "holiday" },
+  { date: new Date(2026, 6, 9), name: "Check Payroll Automation", type: "deadline" },
+  { date: new Date(2026, 6, 13), name: "Monthly Books Review", type: "deadline" },
+  { date: new Date(2026, 6, 30), name: "Q2 Sales Tax Filing", type: "deadline" },
+
+  // ── August 2026 ──
+  { date: new Date(2026, 7, 9), name: "Check Payroll Automation", type: "deadline" },
+  { date: new Date(2026, 7, 13), name: "Monthly Books Review", type: "deadline" },
+  { date: new Date(2026, 7, 25), name: "Q3 1st Pre-Payment (CDTFA)", type: "deadline" },
+  { date: new Date(2026, 7, 28), name: "Gai Jatra", type: "holiday" },
+
+  // ── September 2026 ──
+  { date: new Date(2026, 8, 5), name: "Krishna Janmashtami", type: "holiday" },
+  { date: new Date(2026, 8, 7), name: "Labor Day (US)", type: "holiday" },
+  { date: new Date(2026, 8, 9), name: "Check Payroll Automation", type: "deadline" },
+  { date: new Date(2026, 8, 15), name: "S Corp & 1065 Extended Deadline", type: "deadline" },
+  { date: new Date(2026, 8, 17), name: "Teej", type: "holiday" },
+
+  // ── October 2026 ──
+  { date: new Date(2026, 9, 9), name: "Check Payroll Automation", type: "deadline" },
+  { date: new Date(2026, 9, 13), name: "Monthly Books Review", type: "deadline" },
+  { date: new Date(2026, 9, 15), name: "Individual Tax Extension Deadline", type: "deadline" },
+  { date: new Date(2026, 9, 20), name: "Dashain", type: "holiday" },
+  { date: new Date(2026, 9, 30), name: "Q3 Sales Tax Filing", type: "deadline" },
+
+  // ── November 2026 ──
+  { date: new Date(2026, 10, 8), name: "Tihar", type: "holiday" },
+  { date: new Date(2026, 10, 9), name: "Check Payroll Automation", type: "deadline" },
+  { date: new Date(2026, 10, 13), name: "Monthly Books Review", type: "deadline" },
+  { date: new Date(2026, 10, 26), name: "Thanksgiving (US)", type: "holiday" },
+
+  // ── December 2026 ──
+  { date: new Date(2026, 11, 9), name: "Check Payroll Automation", type: "deadline" },
+  { date: new Date(2026, 11, 13), name: "Monthly Books Review", type: "deadline" },
+  { date: new Date(2026, 11, 25), name: "Christmas Day", type: "holiday" },
+  { date: new Date(2026, 11, 31), name: "Year-end Books Closure", type: "deadline" },
+
+  // ── January 2027 ──
+  { date: new Date(2027, 0, 1), name: "New Year's Day", type: "holiday" },
+  { date: new Date(2027, 0, 9), name: "Check Payroll Automation", type: "deadline" },
+  { date: new Date(2027, 0, 13), name: "Monthly Books Review", type: "deadline" },
+  { date: new Date(2027, 0, 30), name: "Q4 Sales Tax Filing", type: "deadline" },
+
+  // ── February 2027 ──
+  { date: new Date(2027, 1, 9), name: "Check Payroll Automation", type: "deadline" },
+  { date: new Date(2027, 1, 13), name: "Monthly Books Review", type: "deadline" },
+  { date: new Date(2027, 1, 14), name: "Valentine's Day", type: "optional" },
+
+  // ── March 2027 ──
+  { date: new Date(2027, 2, 8), name: "Women's Day", type: "optional" },
+  { date: new Date(2027, 2, 9), name: "Check Payroll Automation", type: "deadline" },
+  { date: new Date(2027, 2, 15), name: "S Corp & 1065 Deadline", type: "deadline" },
+
+  // ── April 2027 ──
+  { date: new Date(2027, 3, 14), name: "Nepali New Year", type: "holiday" },
+  { date: new Date(2027, 3, 15), name: "Tax Day", type: "deadline" },
+  { date: new Date(2027, 3, 30), name: "Q1 Sales Tax Filing", type: "deadline" },
+
+  // ── May 2027 ──
+  { date: new Date(2027, 4, 1), name: "Labor Day", type: "holiday" },
+  { date: new Date(2027, 4, 25), name: "Q2 1st Pre-Payment", type: "deadline" },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
