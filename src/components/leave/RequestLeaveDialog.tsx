@@ -361,24 +361,24 @@ export function RequestLeaveDialog({
 
     setIsSubmitting(true);
 
-    try {
-      const submitted = await onSubmit({
-        type: actualLeaveType,
-        startDate: adjustedStartDate,
-        endDate: adjustedEndDate,
-        reason: reasonWithPayment,
-        is_half_day: isHalfDay,
-        half_day_period: isHalfDay ? halfDayPeriod : null,
-      });
+  //   try {
+  //     const submitted = await onSubmit({
+  //       type: actualLeaveType,
+  //       startDate: adjustedStartDate,
+  //       endDate: adjustedEndDate,
+  //       reason: reasonWithPayment,
+  //       is_half_day: isHalfDay,
+  //       half_day_period: isHalfDay ? halfDayPeriod : null,
+  //     });
 
-      if (submitted) {
-        resetForm();
-        onOpenChange(false);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  //     if (submitted) {
+  //       resetForm();
+  //       onOpenChange(false);
+  //     }
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
 
   // Calculate business days between dates
   const getCalculatedDays = () => {
