@@ -596,21 +596,21 @@ export function useLeaveRequests() {
         if (mgrProfile?.email) managerEmails.push(mgrProfile.email);
       }
 
-      // Email notifications disabled per request
-      // await sendLeaveNotification({
-      //   leave_request_id: newRequest.id,
-      //   event_type: "submitted",
-      //   employee_name: userName,
-      //   employee_email: user.email || undefined,
-      //   leave_type: request.leave_type,
-      //   start_date: formatLocalDate(request.start_date),
-      //   end_date: formatLocalDate(request.end_date),
-      //   days,
-      //   reason: request.reason,
-      //   target_user_ids: Array.from(notifySet),
-      //   target_emails: managerEmails,
-      //   requesting_user_id: user.id,
-      // });
+      Email notifications disabled per request
+      await sendLeaveNotification({
+        leave_request_id: newRequest.id,
+        event_type: "submitted",
+        employee_name: userName,
+        employee_email: user.email || undefined,
+        leave_type: request.leave_type,
+        start_date: formatLocalDate(request.start_date),
+        end_date: formatLocalDate(request.end_date),
+        days,
+        reason: request.reason,
+        target_user_ids: Array.from(notifySet),
+        target_emails: managerEmails,
+        requesting_user_id: user.id,
+      });
 
       await loadAllData();
       return true;
@@ -722,21 +722,21 @@ export function useLeaveRequests() {
         }
       }
 
-      // Email notifications disabled per request
-      // await sendLeaveNotification({
-      //   leave_request_id: requestId,
-      //   event_type: "approved",
-      //   employee_name: userName,
-      //   employee_email: requestProfile?.email || undefined,
-      //   leave_type: requestData.leave_type,
-      //   start_date: requestData.start_date,
-      //   end_date: requestData.end_date,
-      //   days: requestData.days,
-      //   approver_name: managerName,
-      //   target_user_ids: approveNotifyIds,
-      //   target_emails: approveEmails,
-      //   requesting_user_id: user.id,
-      // });
+      Email notifications disabled per request
+      await sendLeaveNotification({
+        leave_request_id: requestId,
+        event_type: "approved",
+        employee_name: userName,
+        employee_email: requestProfile?.email || undefined,
+        leave_type: requestData.leave_type,
+        start_date: requestData.start_date,
+        end_date: requestData.end_date,
+        days: requestData.days,
+        approver_name: managerName,
+        target_user_ids: approveNotifyIds,
+        target_emails: approveEmails,
+        requesting_user_id: user.id,
+      });
 
       await loadAllData();
     }
