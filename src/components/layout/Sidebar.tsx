@@ -92,7 +92,7 @@ const ALL_MENU_ITEMS: MenuItem[] = [
     href: "/employees",
     permissions: ["manage_employees", "view_employees_all", "view_employees_reports_only"],
   },
-  { icon: Award, label: "Performance", href: "/performance", permissions: ["view_performance"] },
+  // { icon: Award, label: "Performance", href: "/performance", permissions: ["view_performance"] },
   {
     icon: Megaphone,
     label: "Announcements",
