@@ -120,16 +120,20 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
         return;
       }
 
-      // Sum all leave types per user
+      // Only count the Annual Leave bucket. Leave in Lieu (comp-off for working
+      // on holidays/weekends) is tracked in a separate balance bucket and must
+      // NOT be lumped into the annual leave used/total counts.
       const userMap = new Map<string, { totalDays: number; usedDays: number }>();
-      relevantBalances.forEach((b) => {
-        if (!userMap.has(b.user_id)) {
-          userMap.set(b.user_id, { totalDays: 0, usedDays: 0 });
-        }
-        const entry = userMap.get(b.user_id)!;
-        entry.totalDays += Number(b.total_days);
-        entry.usedDays += Number(b.used_days);
-      });
+      relevantBalances
+        .filter((b) => b.leave_type === "Annual Leave")
+        .forEach((b) => {
+          if (!userMap.has(b.user_id)) {
+            userMap.set(b.user_id, { totalDays: 0, usedDays: 0 });
+          }
+          const entry = userMap.get(b.user_id)!;
+          entry.totalDays += Number(b.total_days);
+          entry.usedDays += Number(b.used_days);
+        });
 
       // Resolve names: always query profiles for the exact user_ids we have balances for
       const balanceUserIds = Array.from(userMap.keys());
