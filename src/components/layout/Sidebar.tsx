@@ -47,7 +47,8 @@ const HREF_TO_MODULE: Record<string, BadgeModule> = {
   "/support": "support",
 };
 
-const HOVER_STYLES = "[@media(hover:hover)]:hover:bg-sidebar-accent [@media(hover:hover)]:hover:text-sidebar-foreground";
+const HOVER_STYLES =
+  "[@media(hover:hover)]:hover:bg-sidebar-accent [@media(hover:hover)]:hover:text-sidebar-foreground";
 
 interface MenuItem {
   icon: typeof LayoutDashboard;
@@ -87,9 +88,10 @@ const ALL_MENU_ITEMS: MenuItem[] = [
   },
 
   { icon: Calendar, label: "Leave", href: "/leave", permissions: ["view_leave", "approve_leave"] },
-  { icon: CheckSquare, label: "Tasks", href: "/tasks", permissions: ["manage_tasks", "view_tasks"] },
+  { icon: FileText, label: "Documents", href: "/documents", permissions: ["manage_documents", "view_documents"] },
 
   { icon: TrendingUp, label: "Reports", href: "/reports", permissions: ["view_reports"] },
+  { icon: Bug, label: "Support", href: "/support", permissions: ["manage_support", "view_support"] },
   { icon: Award, label: "Performance", href: "/performance", permissions: ["view_performance"] },
   {
     icon: Megaphone,
@@ -98,7 +100,7 @@ const ALL_MENU_ITEMS: MenuItem[] = [
     permissions: ["add_announcement", "edit_announcement", "delete_announcement", "view_announcements"],
   },
   { icon: Briefcase, label: "Hiring", href: "/hiring", alwaysVisible: true },
-  { icon: FileText, label: "Documents", href: "/documents", permissions: ["manage_documents", "view_documents"] },
+  { icon: CheckSquare, label: "Tasks", href: "/tasks", permissions: ["manage_tasks", "view_tasks"] },
   { icon: Receipt, label: "Invoices", href: "/invoices", permissions: ["view_invoices", "manage_invoices"] },
   { icon: UserPlus, label: "Onboarding", href: "/onboarding", permissions: ["manage_onboarding"] },
   {
@@ -124,7 +126,7 @@ const ALL_MENU_ITEMS: MenuItem[] = [
   //   hideIfHas: ["manage_payroll", "view_payroll"],
   // },
   { icon: Landmark, label: "Loans", href: "/loans", permissions: ["manage_loans", "view_loans"] },
-  { icon: Bug, label: "Support", href: "/support", permissions: ["manage_support", "view_support"] },
+
   {
     icon: Users,
     label: "Profile",
@@ -154,7 +156,7 @@ export const Sidebar = memo(function Sidebar({
 }: SidebarProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const collapsed = controlledCollapsed ?? internalCollapsed;
-  const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
+  const isTouchDevice = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
   const setCollapsed = (v: boolean) => {
     setInternalCollapsed(v);
     onCollapsedChange?.(v);
@@ -177,10 +179,7 @@ export const Sidebar = memo(function Sidebar({
     return false;
   };
 
-  const visibleMenuItems = useMemo(
-    () => ALL_MENU_ITEMS.filter(isItemVisible),
-    [hasPermission, isManager],
-  );
+  const visibleMenuItems = useMemo(() => ALL_MENU_ITEMS.filter(isItemVisible), [hasPermission, isManager]);
 
   const handleNavClick = useCallback(
     (href: string) => {
@@ -270,9 +269,7 @@ export const Sidebar = memo(function Sidebar({
             );
 
             return (
-              <li
-                key={item.href + item.label}
-              >
+              <li key={item.href + item.label}>
                 {collapsed && !isTouchDevice ? (
                   <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
@@ -301,9 +298,7 @@ export const Sidebar = memo(function Sidebar({
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 touch-manipulation",
                 HOVER_STYLES,
-                isActive
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/80",
+                isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/80",
               )}
             >
               <Icon className={cn("h-5 w-5 shrink-0", collapsed && "mx-auto")} />
