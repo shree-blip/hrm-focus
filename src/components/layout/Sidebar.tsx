@@ -79,6 +79,12 @@ const ALL_MENU_ITEMS: MenuItem[] = [
     href: "/attendance",
     permissions: ["view_attendance_all", "view_attendance_reports_only", "view_own_attendance"],
   },
+
+  { icon: Calendar, label: "Leave", href: "/leave", permissions: ["view_leave", "approve_leave"] },
+  { icon: FileText, label: "Documents", href: "/documents", permissions: ["manage_documents", "view_documents"] },
+
+  { icon: Bug, label: "Support", href: "/support", permissions: ["manage_support", "view_support"] },
+  { icon: TrendingUp, label: "Reports", href: "/reports", permissions: ["view_reports"] },
   { icon: CheckSquare, label: "Approvals", href: "/approvals", permissions: ["approve_leave"] },
   {
     icon: Users,
@@ -86,12 +92,6 @@ const ALL_MENU_ITEMS: MenuItem[] = [
     href: "/employees",
     permissions: ["manage_employees", "view_employees_all", "view_employees_reports_only"],
   },
-
-  { icon: Calendar, label: "Leave", href: "/leave", permissions: ["view_leave", "approve_leave"] },
-  { icon: FileText, label: "Documents", href: "/documents", permissions: ["manage_documents", "view_documents"] },
-
-  { icon: TrendingUp, label: "Reports", href: "/reports", permissions: ["view_reports"] },
-  { icon: Bug, label: "Support", href: "/support", permissions: ["manage_support", "view_support"] },
   { icon: Award, label: "Performance", href: "/performance", permissions: ["view_performance"] },
   {
     icon: Megaphone,
