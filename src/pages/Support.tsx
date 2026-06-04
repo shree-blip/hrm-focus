@@ -19,13 +19,36 @@ const Support = () => {
   const visibleTabs = useMemo(() => {
     const tabs: { value: string; label: string; icon: typeof Bug; permission: string }[] = [];
 
-    if (isSuperUser || hasPermission("view_grievances") || hasPermission("submit_grievances") || hasPermission("manage_support") || hasPermission("view_support")) {
-      tabs.push({ value: "grievances", label: "Grievances", icon: MessageSquareWarning, permission: "view_grievances" });
+    if (
+      isSuperUser ||
+      hasPermission("view_grievances") ||
+      hasPermission("submit_grievances") ||
+      hasPermission("manage_support") ||
+      hasPermission("view_support")
+    ) {
+      tabs.push({
+        value: "grievances",
+        label: "Grievances",
+        icon: MessageSquareWarning,
+        permission: "view_grievances",
+      });
     }
-    if (isSuperUser || hasPermission("view_bug_reports") || hasPermission("submit_bug_reports") || hasPermission("manage_support") || hasPermission("view_support")) {
+    if (
+      isSuperUser ||
+      hasPermission("view_bug_reports") ||
+      hasPermission("submit_bug_reports") ||
+      hasPermission("manage_support") ||
+      hasPermission("view_support")
+    ) {
       tabs.push({ value: "bugs", label: "Bug Reports", icon: Bug, permission: "view_bug_reports" });
     }
-    if (isSuperUser || hasPermission("view_asset_requests") || hasPermission("submit_asset_requests") || hasPermission("manage_support") || hasPermission("view_support")) {
+    if (
+      isSuperUser ||
+      hasPermission("view_asset_requests") ||
+      hasPermission("submit_asset_requests") ||
+      hasPermission("manage_support") ||
+      hasPermission("view_support")
+    ) {
       tabs.push({ value: "assets", label: "IT Assets", icon: Package, permission: "view_asset_requests" });
     }
     return tabs;
@@ -56,7 +79,7 @@ const Support = () => {
       <div className="space-y-6">
         <div>
           <h1 className="heading-page font-display font-bold text-foreground">Support & Requests</h1>
-          <p className="text-muted-foreground mt-1">Report bugs and IT support</p>
+          <p className="text-muted-foreground mt-1">Raise a Request: Bug, IT Support & Grievance</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -69,19 +92,19 @@ const Support = () => {
             ))}
           </TabsList>
 
-          {visibleTabs.some(t => t.value === "bugs") && (
+          {visibleTabs.some((t) => t.value === "bugs") && (
             <TabsContent value="bugs" className="space-y-6">
               <BugReportsSection />
             </TabsContent>
           )}
 
-          {visibleTabs.some(t => t.value === "assets") && (
+          {visibleTabs.some((t) => t.value === "assets") && (
             <TabsContent value="assets" className="space-y-6">
               <AssetRequestsSection />
             </TabsContent>
           )}
 
-          {visibleTabs.some(t => t.value === "grievances") && (
+          {visibleTabs.some((t) => t.value === "grievances") && (
             <TabsContent value="grievances" className="space-y-6">
               <GrievanceSection />
             </TabsContent>
