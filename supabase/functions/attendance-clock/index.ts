@@ -354,11 +354,16 @@ Deno.serve(async (req) => {
 
         const { data: currentLog } = await supabaseAdmin
           .from("attendance_logs")
-          .select("break_start, total_break_minutes")
+          .select("break_start, break_end, total_break_minutes")
           .eq("id", log_id)
           .single();
 
-        if (!currentLog?.break_start) throw new Error("No active break");
+        // Only finalize when a break is genuinely OPEN (break_start set AND not yet ended).
+        // Without this guard, a repeated end_break call would re-add the full elapsed
+        // time from break_start again, double-counting total_break_minutes.
+        if (!currentLog?.break_start || currentLog.break_end) {
+          throw new Error("No active break");
+        }
 
         const breakStart = new Date(currentLog.break_start);
         const breakMinutes = Math.round((serverNow.getTime() - breakStart.getTime()) / 60000);
@@ -487,11 +492,15 @@ Deno.serve(async (req) => {
 
         const { data: currentLog } = await supabaseAdmin
           .from("attendance_logs")
-          .select("pause_start, total_pause_minutes")
+          .select("pause_start, pause_end, total_pause_minutes")
           .eq("id", log_id)
           .single();
 
-        if (!currentLog?.pause_start) throw new Error("No active pause");
+        // Only finalize when a pause is genuinely OPEN (pause_start set AND not yet ended).
+        // Prevents a repeated end_pause call from re-adding elapsed time and double-counting.
+        if (!currentLog?.pause_start || currentLog.pause_end) {
+          throw new Error("No active pause");
+        }
 
         const pauseStart = new Date(currentLog.pause_start);
         const pauseMinutes = Math.round((serverNow.getTime() - pauseStart.getTime()) / 60000);
