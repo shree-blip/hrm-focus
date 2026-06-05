@@ -623,6 +623,18 @@ const Employees = () => {
 
       if (res?.error) throw res.error;
 
+      // Mirror the line manager assignment into the team_members junction table
+      // so the new employee appears under the manager's "My Team" section.
+      if (res?.id && data.lineManagerId) {
+        const { error: teamLinkError } = await supabase.from("team_members").insert({
+          manager_employee_id: data.lineManagerId,
+          member_employee_id: res.id,
+        });
+        if (teamLinkError) {
+          console.error("Failed to link employee to manager's team:", teamLinkError);
+        }
+      }
+
       // Auto-whitelist the email for signup
       if (res?.id) {
         const { error: whitelistError } = await supabase.from("allowed_signups").upsert(
