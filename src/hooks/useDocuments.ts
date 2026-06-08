@@ -105,6 +105,8 @@ export function useDocuments() {
         // Leave Evidence - visible to uploader, admin, VP, manager, or line manager
         if (doc.category === LEAVE_EVIDENCE_CATEGORY) {
           if (doc.uploaded_by === user.id) return true;
+          // Custom Override strictly decides access for this section
+          if (manageDocsOverridden) return canManageRestrictedDocs;
           if (canManageDocs || isLineManager) return true;
           return false;
         }
@@ -119,10 +121,19 @@ export function useDocuments() {
         // Compliance - visible to uploader, admin, VP, assigned employee, and their line manager
         if (doc.category === "Compliance") {
           if (doc.uploaded_by === user.id) return true;
-          if (canManageDocs) return true;
           if (doc.employee_id && userEmployeeId && doc.employee_id === userEmployeeId) return true;
+          // Custom Override strictly decides management access for this section
+          if (manageDocsOverridden) return canManageRestrictedDocs;
+          if (canManageDocs) return true;
           if (isLineManager && doc.employee_id && managedEmployeeRecordIds.includes(doc.employee_id)) return true;
           return false;
+        }
+
+        // Policies - public by default, but a Custom Override strictly decides access
+        if (doc.category === "Policies") {
+          if (doc.uploaded_by === user.id) return true;
+          if (manageDocsOverridden) return canManageRestrictedDocs;
+          return true;
         }
 
         // All other documents are visible to everyone
