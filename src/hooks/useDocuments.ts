@@ -164,7 +164,7 @@ export function useDocuments() {
     } finally {
       setLoading(false);
     }
-  }, [user, canManageDocs, isLineManager]);
+  }, [user, canManageDocs, canManageRestrictedDocs, manageDocsOverridden, isLineManager]);
 
   useEffect(() => {
     fetchDocuments();
