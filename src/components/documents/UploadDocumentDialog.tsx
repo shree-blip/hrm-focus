@@ -9,7 +9,6 @@ import { toast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePermissions } from "@/hooks/usePermissions";
 
 interface UploadDocumentDialogProps {
   open: boolean;
@@ -49,12 +48,6 @@ interface EmployeeOption {
 
 export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDocumentDialogProps) {
   const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
-  const { hasPermission, hasExplicitOverride } = usePermissions();
-  // A Custom Override on "manage_documents" strictly controls whether the user
-  // can manage (upload to) Compliance, Policies, and Leave Evidence — even for
-  // Admins. Contracts is intentionally excluded from this rule.
-  const restrictedSectionsDenied =
-    hasExplicitOverride("manage_documents") && !hasPermission("manage_documents");
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
@@ -121,12 +114,11 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
       cats.push({ value: "Contracts", label: "Contracts" });
     }
 
-    // Policies, Compliance, Leave Evidence — hidden when a Custom Override denies access
-    if (!restrictedSectionsDenied) {
-      cats.push({ value: "Policies", label: "Policies" });
-      cats.push({ value: "Compliance", label: "Compliance" });
-      cats.push({ value: "Leave Evidence", label: "Leave Evidence" });
-    }
+    // Policies, Compliance, Leave Evidence — always available for upload,
+    // even when a Custom Override is present on "manage_documents".
+    cats.push({ value: "Policies", label: "Policies" });
+    cats.push({ value: "Compliance", label: "Compliance" });
+    cats.push({ value: "Leave Evidence", label: "Leave Evidence" });
 
     return cats;
   };
