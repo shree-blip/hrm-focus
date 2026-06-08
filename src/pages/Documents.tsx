@@ -34,7 +34,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useDocuments, Document, PRIVATE_CATEGORIES, LEAVE_EVIDENCE_CATEGORY } from "@/hooks/useDocuments";
-import { toast } from "@/hooks/use-toast";
 import { UploadDocumentDialog, DriveDocItem } from "@/components/documents/UploadDocumentDialog";
 import { DocumentViewDialog } from "@/components/documents/DocumentViewDialog";
 import { EditLinkDialog } from "@/components/documents/EditLinkDialog";
