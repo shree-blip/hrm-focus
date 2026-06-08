@@ -465,8 +465,11 @@ export function useDocuments() {
     const previousDocuments = documents;
     setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
 
-    const { error: storageError } = await supabase.storage.from("documents").remove([doc.file_path]);
-    if (storageError) console.error("Storage delete error:", storageError);
+    // Legacy documents may still have a stored file; clean it up if present.
+    if (doc.file_path) {
+      const { error: storageError } = await supabase.storage.from("documents").remove([doc.file_path]);
+      if (storageError) console.error("Storage delete error:", storageError);
+    }
 
     const { error } = await supabase.from("documents").delete().eq("id", doc.id);
 
