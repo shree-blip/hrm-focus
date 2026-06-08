@@ -145,6 +145,7 @@ interface DisplayDocument {
   status: string | null;
   uploaded_by: string;
   employee_id: string | null;
+  drive_link?: string | null;
 }
 
 const Documents = () => {
