@@ -121,12 +121,11 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
       cats.push({ value: "Contracts", label: "Contracts" });
     }
 
-    // Policies, Compliance, Leave Evidence — hidden when a Custom Override denies access
-    if (!restrictedSectionsDenied) {
-      cats.push({ value: "Policies", label: "Policies" });
-      cats.push({ value: "Compliance", label: "Compliance" });
-      cats.push({ value: "Leave Evidence", label: "Leave Evidence" });
-    }
+    // Policies, Compliance, Leave Evidence — always available for upload,
+    // even when a Custom Override is present on "manage_documents".
+    cats.push({ value: "Policies", label: "Policies" });
+    cats.push({ value: "Compliance", label: "Compliance" });
+    cats.push({ value: "Leave Evidence", label: "Leave Evidence" });
 
     return cats;
   };
