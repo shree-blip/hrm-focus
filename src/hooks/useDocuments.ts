@@ -172,43 +172,12 @@ export function useDocuments() {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  const uploadDocument = async (file: File, category: string, employeeId?: string) => {
-    if (!user) return { error: new Error("Not authenticated") };
-
-    const fileName = `${user.id}/${Date.now()}-${file.name}`;
-    const fileExt = file.name.split(".").pop();
-
-    // Upload to storage
-    const { error: uploadError } = await supabase.storage.from("documents").upload(fileName, file);
-
-    if (uploadError) {
-      toast({ title: "Upload Failed", description: uploadError.message, variant: "destructive" });
-      return { error: uploadError };
-    }
-
-    // Create document record
-    const insertData: any = {
-      name: file.name,
-      file_path: fileName,
-      file_type: fileExt || null,
-      file_size: file.size,
-      category,
-      status: "active",
-      uploaded_by: user.id,
-    };
-
-    if (employeeId) {
-      insertData.employee_id = employeeId;
-    }
-
-    const { error: insertError } = await supabase.from("documents").insert(insertData);
-
-    if (insertError) {
-      toast({ title: "Error", description: "Failed to save document record", variant: "destructive" });
-      return { error: insertError };
-    }
-
-    toast({ title: "Document Uploaded", description: `${file.name} uploaded successfully` });
+  // ============================================================
+  // Notification side-effects (email + in-app). Extracted so it can be
+  // fired once per logical action (e.g. once for a bulk policy upload).
+  // ============================================================
+  const sendDocumentNotifications = async (name: string, category: string, employeeId?: string) => {
+    if (!user) return;
 
     // Get uploader info for email notifications
     const { data: uploaderProfile } = await supabase
@@ -248,7 +217,7 @@ export function useDocuments() {
           body: {
             uploader_name: uploaderName,
             uploader_email: uploaderEmail,
-            document_name: file.name,
+            document_name: name,
             document_category: category,
             employee_id: employeeId,
             employee_name: employeeName,
@@ -260,7 +229,7 @@ export function useDocuments() {
           body: {
             uploader_name: uploaderName,
             uploader_email: uploaderEmail,
-            document_name: file.name,
+            document_name: name,
             document_category: category,
             employee_id: userEmployeeId,
             notify_type: "employee_upload",
@@ -383,53 +352,111 @@ export function useDocuments() {
     } catch (notifyErr) {
       console.error("Error sending document in-app notifications:", notifyErr);
     }
+  };
+
+  // ============================================================
+  // Create a document that references a Google Drive link (no file storage).
+  // ============================================================
+  const createDriveDocument = async (
+    params: { name: string; category: string; driveLink: string; employeeId?: string; leaveRequestId?: string },
+    opts: { silent?: boolean } = {},
+  ) => {
+    if (!user) return { error: new Error("Not authenticated") };
+
+    const insertData: any = {
+      name: params.name,
+      file_path: null,
+      file_type: "drive",
+      file_size: null,
+      category: params.category,
+      status: "active",
+      uploaded_by: user.id,
+      drive_link: params.driveLink.trim(),
+    };
+
+    if (params.employeeId) insertData.employee_id = params.employeeId;
+    if (params.leaveRequestId) insertData.leave_request_id = params.leaveRequestId;
+
+    const { error: insertError } = await supabase.from("documents").insert(insertData);
+
+    if (insertError) {
+      toast({ title: "Error", description: "Failed to save document link", variant: "destructive" });
+      return { error: insertError };
+    }
+
+    if (!opts.silent) {
+      toast({ title: "Document Saved", description: `${params.name} link saved successfully` });
+      await sendDocumentNotifications(params.name, params.category, params.employeeId);
+      fetchDocuments();
+    }
+
+    return { error: null };
+  };
+
+  // Bulk create multiple Drive-link documents, then notify once per category/employee.
+  const createDriveDocumentsBulk = async (
+    items: { name: string; category: string; driveLink: string; employeeId?: string; leaveRequestId?: string }[],
+  ) => {
+    if (!user) return { error: new Error("Not authenticated") };
+    if (items.length === 0) return { error: new Error("No documents to save") };
+
+    let firstError: any = null;
+    for (const item of items) {
+      const { error } = await createDriveDocument(item, { silent: true });
+      if (error && !firstError) firstError = error;
+    }
+
+    if (firstError) {
+      toast({ title: "Error", description: "Some document links failed to save", variant: "destructive" });
+      fetchDocuments();
+      return { error: firstError };
+    }
+
+    toast({ title: "Documents Saved", description: `${items.length} document link(s) saved successfully` });
+
+    // Notify once per unique (category + employee) combination
+    const seen = new Set<string>();
+    for (const item of items) {
+      const key = `${item.category}::${item.employeeId || ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      await sendDocumentNotifications(item.name, item.category, item.employeeId);
+    }
 
     fetchDocuments();
     return { error: null };
   };
 
-  const uploadComplianceDocuments = async (
-    employeeId: string,
-    data: {
-      bankAccountNumber?: string;
-      citizenshipPhoto?: File;
-      panCardPhoto?: File;
-      otherDocument?: File;
-    },
-  ) => {
-    if (!user) return { error: new Error("Not authenticated") };
+  // Update the Drive link (Edit Link / Replace Link) for an existing document.
+  const updateDocumentLink = async (doc: Document, newLink: string) => {
+    const { error } = await supabase
+      .from("documents")
+      .update({ drive_link: newLink.trim(), updated_at: new Date().toISOString() })
+      .eq("id", doc.id);
 
-    const uploads: Promise<any>[] = [];
-
-    // Upload each compliance file
-    if (data.citizenshipPhoto) {
-      uploads.push(
-        uploadDocument(data.citizenshipPhoto, "Compliance", employeeId).then((res) => {
-          if (!res.error) {
-            // Rename to indicate it's a citizenship photo
-            return null;
-          }
-          return res;
-        }),
-      );
+    if (error) {
+      toast({ title: "Error", description: "Failed to update document link", variant: "destructive" });
+      return { error };
     }
 
-    if (data.panCardPhoto) {
-      uploads.push(uploadDocument(data.panCardPhoto, "Compliance", employeeId));
+    toast({ title: "Link Updated", description: `${doc.name} link has been updated` });
+    fetchDocuments();
+    return { error: null };
+  };
+
+  // Archive a document (keeps the record but marks it archived).
+  const archiveDocument = async (doc: Document) => {
+    const { error } = await supabase
+      .from("documents")
+      .update({ status: "archived", updated_at: new Date().toISOString() })
+      .eq("id", doc.id);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to archive document", variant: "destructive" });
+      return { error };
     }
 
-    if (data.otherDocument) {
-      uploads.push(uploadDocument(data.otherDocument, "Compliance", employeeId));
-    }
-
-    // If bank account number is provided, store it as a text-based note document
-    if (data.bankAccountNumber) {
-      const blob = new Blob([`Bank Account Number: ${data.bankAccountNumber}`], { type: "text/plain" });
-      const bankFile = new File([blob], `bank-account-${employeeId}.txt`, { type: "text/plain" });
-      uploads.push(uploadDocument(bankFile, "Compliance", employeeId));
-    }
-
-    await Promise.all(uploads);
+    toast({ title: "Document Archived", description: `${doc.name} has been archived` });
     fetchDocuments();
     return { error: null };
   };
