@@ -159,8 +159,6 @@ const Documents = () => {
     createDriveDocumentsBulk,
     updateDocumentLink,
     archiveDocument,
-    deleteDocument,
-    renameDocument,
     downloadDocument,
     getUploaderName,
     isPrivateCategory,
