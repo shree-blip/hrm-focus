@@ -519,7 +519,7 @@ const Documents = () => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => handleDownload(doc)}
+                                onClick={() => handleOpenInDrive(doc)}
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </Button>
@@ -531,14 +531,21 @@ const Documents = () => {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => handleView(doc)}>View</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleOpenInDrive(doc)}>
+                                    Open in Drive
+                                  </DropdownMenuItem>
                                   {(doc.category !== "Contracts" || isVP) && (
-                                    <DropdownMenuItem onClick={() => setRenameDoc(doc)}>Rename</DropdownMenuItem>
-                                  )}
-                                  <DropdownMenuItem onClick={() => handleShare(doc)}>Share</DropdownMenuItem>
-                                  {(doc.category !== "Contracts" || isVP) && (
-                                    <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDoc(doc)}>
-                                      Delete
-                                    </DropdownMenuItem>
+                                    <>
+                                      <DropdownMenuItem onClick={() => handleEditLink(doc, "edit")}>
+                                        Edit Link
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleEditLink(doc, "replace")}>
+                                        Replace Link
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem className="text-destructive" onClick={() => handleArchive(doc)}>
+                                        Archive
+                                      </DropdownMenuItem>
+                                    </>
                                   )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -562,28 +569,18 @@ const Documents = () => {
         document={viewDocument}
         open={!!viewDocument}
         onOpenChange={(open) => !open && setViewDocument(null)}
-        onDownload={() => viewDocument && handleDownload(viewDocument)}
+        onDownload={() => viewDocument && handleOpenInDrive(viewDocument)}
       />
 
-      <RenameDocumentDialog
-        document={renameDoc}
-        open={!!renameDoc}
-        onOpenChange={(open) => !open && setRenameDoc(null)}
-        onRename={(doc, newName) => handleRename(renameDoc, newName)}
-      />
-
-      <DeleteDocumentDialog
-        document={deleteDoc}
-        open={!!deleteDoc}
-        onOpenChange={(open) => !open && setDeleteDoc(null)}
-        onConfirm={() => handleDelete(deleteDoc)}
-      />
-
-      <ShareDocumentDialog
-        document={shareDoc}
-        open={!!shareDoc}
-        onOpenChange={(open) => !open && setShareDoc(null)}
-        shareUrl={shareUrl}
+      <EditLinkDialog
+        open={!!editLinkDoc}
+        onOpenChange={(open) => !open && setEditLinkDoc(null)}
+        documentName={editLinkDoc?.name || ""}
+        currentLink={editLinkDoc?.drive_link || ""}
+        mode={editLinkMode}
+        onSave={async (newLink) => {
+          if (editLinkDoc) await updateDocumentLink(editLinkDoc as Document, newLink);
+        }}
       />
     </DashboardLayout>
   );
