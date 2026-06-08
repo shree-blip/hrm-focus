@@ -507,10 +507,20 @@ export function useDocuments() {
 
   const downloadDocument = async (doc: Document) => {
     try {
-      const url = await getDownloadUrl(doc.file_path);
-      // Open document in a new tab
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast({ title: "Document Opened", description: `${doc.name} opened in a new tab` });
+      // Drive-linked documents open the share link directly.
+      if (doc.drive_link) {
+        window.open(doc.drive_link, "_blank", "noopener,noreferrer");
+        toast({ title: "Opening in Drive", description: `${doc.name} opened in a new tab` });
+        return;
+      }
+      // Legacy stored documents fall back to a signed storage URL.
+      if (doc.file_path) {
+        const url = await getDownloadUrl(doc.file_path);
+        window.open(url, "_blank", "noopener,noreferrer");
+        toast({ title: "Document Opened", description: `${doc.name} opened in a new tab` });
+        return;
+      }
+      toast({ title: "No Link", description: "This document has no link to open", variant: "destructive" });
     } catch (err) {
       console.error("Download error:", err);
       toast({ title: "Error", description: "Failed to open document", variant: "destructive" });
@@ -528,8 +538,10 @@ export function useDocuments() {
   return {
     documents,
     loading,
-    uploadDocument,
-    uploadComplianceDocuments,
+    createDriveDocument,
+    createDriveDocumentsBulk,
+    updateDocumentLink,
+    archiveDocument,
     deleteDocument,
     renameDocument,
     downloadDocument,
