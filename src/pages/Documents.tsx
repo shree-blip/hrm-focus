@@ -564,7 +564,7 @@ const Documents = () => {
       </div>
 
       {/* Dialogs */}
-      <UploadDocumentDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen} onUpload={handleUpload} />
+      <UploadDocumentDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen} onSubmit={handleUpload} />
 
       <DocumentViewDialog
         document={viewDocument}
