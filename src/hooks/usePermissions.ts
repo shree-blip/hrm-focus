@@ -267,6 +267,15 @@ export function usePermissions() {
   }, [permissions]);
 
   /**
+   * Returns true when the user has an explicit Custom Override row for this
+   * permission (regardless of whether it is enabled or disabled). Used to let
+   * a Custom Override strictly take precedence over role-based defaults.
+   */
+  const hasExplicitOverride = useCallback((permission: Permission): boolean => {
+    return permission in userOverrides;
+  }, [userOverrides]);
+
+  /**
    * Check if user has access to a route based on any matching permission
    */
   const hasRouteAccess = useCallback((route: string): boolean => {
@@ -293,6 +302,7 @@ export function usePermissions() {
     rolePermissions,
     loading,
     hasPermission,
+    hasExplicitOverride,
     hasRouteAccess,
     updateRolePermission,
     refetch: fetchRolePermissions,
