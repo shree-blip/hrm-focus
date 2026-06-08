@@ -645,14 +645,15 @@ export default function AccessControl() {
                         const isProtected =
                           ((role === "vp" || role === "admin") && permission === "manage_access") ||
                           (permission === "manage_salaries_all" && role !== "vp" && role !== "admin");
+                        const lockedForNonCEO = permission === "manage_access" && !isCEO;
 
                         return (
                           <TableCell key={role} className="text-center">
                             <Switch
                               checked={enabled}
                               onCheckedChange={() => handlePermissionToggle(role, permission, enabled)}
-                              disabled={isProtected && enabled}
-                              className={cn(isProtected && enabled && "opacity-50")}
+                              disabled={(isProtected && enabled) || lockedForNonCEO}
+                              className={cn(((isProtected && enabled) || lockedForNonCEO) && "opacity-50")}
                             />
                           </TableCell>
                         );
