@@ -9,9 +9,7 @@ import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
 import { NotificationPermissionBanner } from "@/components/NotificationPermissionBanner";
 
 // Lazy-load ChatWidget — not needed for initial render
-const ChatWidget = lazy(() =>
-  import("@/components/chat/ChatWidget").then((m) => ({ default: m.ChatWidget }))
-);
+const ChatWidget = lazy(() => import("@/components/chat/ChatWidget").then((m) => ({ default: m.ChatWidget })));
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -29,7 +27,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className={cn("flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out", sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-64")}>
+      <div
+        className={cn(
+          "flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out",
+          sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-64",
+        )}
+      >
         {/* Announcement Banner - Above header, inside content area */}
         <div className="sticky top-0 z-40">
           <AnnouncementBanner />
@@ -53,10 +56,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 onCloseAutoFocus={(e) => e.preventDefault()}
               >
-                <Sidebar
-                  embedded
-                  onNavigate={() => setMobileMenuOpen(false)}
-                />
+                <Sidebar embedded onNavigate={() => setMobileMenuOpen(false)} />
               </SheetContent>
             </Sheet>
           }
@@ -69,9 +69,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Chat Widget (lazy-loaded) */}
-      <Suspense fallback={null}>
+      {/* <Suspense fallback={null}>
         <ChatWidget />
-      </Suspense>
+      </Suspense> */}
     </div>
   );
 }
