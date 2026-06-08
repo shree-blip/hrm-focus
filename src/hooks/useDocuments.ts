@@ -40,8 +40,15 @@ export interface UploaderInfo {
 
 export function useDocuments() {
   const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, hasExplicitOverride } = usePermissions();
   const canManageDocs = isAdmin || isVP || isManager || hasPermission("manage_documents");
+  // When a Custom Override exists for "manage_documents", it STRICTLY controls
+  // view/manage access to Compliance, Policies, and Leave Evidence — even for
+  // Admins/VP/Managers. Contracts behavior is intentionally untouched.
+  const manageDocsOverridden = hasExplicitOverride("manage_documents");
+  const canManageRestrictedDocs = manageDocsOverridden
+    ? hasPermission("manage_documents")
+    : canManageDocs;
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploaderNames, setUploaderNames] = useState<UploaderInfo>({});
   const [loading, setLoading] = useState(true);
