@@ -129,10 +129,10 @@ export function useDocuments() {
           return false;
         }
 
-        // Policies - public by default, but a Custom Override strictly decides access
+        // Policies - company-wide and always viewable. Even when a Custom
+        // Override blocks the restricted sections (Compliance / Leave Evidence),
+        // the user can still view Policies and their own uploaded documents.
         if (doc.category === "Policies") {
-          if (doc.uploaded_by === user.id) return true;
-          if (manageDocsOverridden) return canManageRestrictedDocs;
           return true;
         }
 
