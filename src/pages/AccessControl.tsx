@@ -301,6 +301,15 @@ export default function AccessControl() {
   };
 
   const handlePermissionToggle = async (role: string, permission: string, currentEnabled: boolean) => {
+    if (permission === "manage_access" && !isCEO) {
+      toast({
+        title: "Access Denied",
+        description: "Only the Executive can allow Manage Access Control.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if ((role === "vp" || role === "admin") && permission === "manage_access") {
       toast({
         title: "Protected Permission",
