@@ -1014,11 +1014,13 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string
+          drive_link: string | null
           employee_id: string | null
-          file_path: string
+          file_path: string | null
           file_size: number | null
           file_type: string | null
           id: string
+          leave_request_id: string | null
           name: string
           org_id: string | null
           requires_signature: boolean | null
@@ -1031,11 +1033,13 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string
+          drive_link?: string | null
           employee_id?: string | null
-          file_path: string
+          file_path?: string | null
           file_size?: number | null
           file_type?: string | null
           id?: string
+          leave_request_id?: string | null
           name: string
           org_id?: string | null
           requires_signature?: boolean | null
@@ -1048,11 +1052,13 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string
+          drive_link?: string | null
           employee_id?: string | null
-          file_path?: string
+          file_path?: string | null
           file_size?: number | null
           file_type?: string | null
           id?: string
+          leave_request_id?: string | null
           name?: string
           org_id?: string | null
           requires_signature?: boolean | null
