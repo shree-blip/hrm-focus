@@ -1,38 +1,32 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, File, X, Info } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, X, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { DRIVE_LINK_HELPER_TEXT, isValidDriveLink } from "@/lib/driveLinks";
+
+export interface DriveDocItem {
+  name: string;
+  category: string;
+  driveLink: string;
+  employeeId?: string;
+}
 
 interface UploadDocumentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpload: (document: {
-    name: string;
-    type: string;
-    category: string;
-    size: string;
-    date: string;
-    status: string;
-    file?: File;
-    employeeId?: string;
-    complianceData?: {
-      bankAccountNumber?: string;
-      citizenshipPhoto?: File;
-      panCardPhoto?: File;
-      otherDocument?: File;
-    };
-  }) => void;
+  onSubmit: (items: DriveDocItem[]) => Promise<void> | void;
 }
 
 const CATEGORY_INFO: Record<string, string> = {
-  Contracts: "Private - Visible to you, your line manager, VP, and admins.",
+  Contracts: "Private - Visible to you, the assigned employee, VP, and admins.",
   Policies: "Public - Visible to all employees",
   Compliance: "Private - Visible only to the uploader, the assigned employee, admins, and CEO.",
   "Leave Evidence": "Restricted - Visible to you, managers, line managers, VPs, and admins",
@@ -46,50 +40,57 @@ interface EmployeeOption {
   employee_id: string | null;
 }
 
-export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDocumentDialogProps) {
+interface LinkRow {
+  name: string;
+  link: string;
+}
+
+const emptyRow = (): LinkRow => ({ name: "", link: "" });
+
+const DriveHelper = () => <p className="text-xs text-muted-foreground">{DRIVE_LINK_HELPER_TEXT}</p>;
+
+export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDocumentDialogProps) {
   const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
-  const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState("");
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [currentUserEmployeeId, setCurrentUserEmployeeId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Compliance-specific fields
-  const [bankAccountNumber, setBankAccountNumber] = useState("");
-  const [citizenshipPhoto, setCitizenshipPhoto] = useState<File | null>(null);
-  const [panCardPhoto, setPanCardPhoto] = useState<File | null>(null);
-  const [otherDocument, setOtherDocument] = useState<File | null>(null);
+  // Contracts
+  const [contractEmployeeId, setContractEmployeeId] = useState("");
+  const [contractName, setContractName] = useState("");
+  const [contractLink, setContractLink] = useState("");
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const citizenshipRef = useRef<HTMLInputElement>(null);
-  const panCardRef = useRef<HTMLInputElement>(null);
-  const otherDocRef = useRef<HTMLInputElement>(null);
+  // Policies (bulk)
+  const [policyRows, setPolicyRows] = useState<LinkRow[]>([emptyRow()]);
 
-  const allowedTypes = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png"];
+  // Compliance (multi-select employees + multiple links)
+  const [complianceEmployeeIds, setComplianceEmployeeIds] = useState<string[]>([]);
+  const [complianceRows, setComplianceRows] = useState<LinkRow[]>([emptyRow()]);
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
-  // Fetch employees when dialog opens
+  // Leave Evidence
+  const [leaveName, setLeaveName] = useState("");
+  const [leaveLink, setLeaveLink] = useState("");
+
+  const isManagerOrAbove = isAdmin || isVP || isManager || isLineManager;
+
   useEffect(() => {
-    if (open) {
-      fetchEmployees();
-    }
+    if (open) fetchEmployees();
   }, [open]);
 
   useEffect(() => {
-    if (!user || isAdmin || isVP || isManager || isLineManager) return;
-
+    if (!user) return;
     const fetchOwnEmployeeId = async () => {
       const { data: profile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
-
       if (profile) {
         const { data: emp } = await supabase.from("employees").select("id").eq("profile_id", profile.id).maybeSingle();
-
         if (emp) setCurrentUserEmployeeId(emp.id);
       }
     };
-
     fetchOwnEmployeeId();
-  }, [user, isAdmin, isVP, isManager, isLineManager]);
+  }, [user]);
 
   const fetchEmployees = async () => {
     setLoadingEmployees(true);
@@ -98,156 +99,30 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
       .select("id, profile_id, first_name, last_name, employee_id")
       .eq("status", "active")
       .order("first_name");
-
-    if (!error && data) {
-      setEmployees(data);
-    }
+    if (!error && data) setEmployees(data);
     setLoadingEmployees(false);
   };
 
-  // Determine which categories user can see
   const getAvailableCategories = () => {
     const cats: { value: string; label: string }[] = [];
-
-    // Contracts - VP only
-    if (isVP) {
-      cats.push({ value: "Contracts", label: "Contracts" });
-    }
-
-    // Policies, Compliance, Leave Evidence — always available for upload,
-    // even when a Custom Override is present on "manage_documents".
+    if (isVP) cats.push({ value: "Contracts", label: "Contracts" });
     cats.push({ value: "Policies", label: "Policies" });
     cats.push({ value: "Compliance", label: "Compliance" });
     cats.push({ value: "Leave Evidence", label: "Leave Evidence" });
-
     return cats;
   };
 
-  const isManagerOrAbove = isAdmin || isVP || isManager || isLineManager;
-  const requiresEmployeeSelection = (category === "Compliance" && isManagerOrAbove) || category === "Contracts";
-  const isComplianceCategory = category === "Compliance";
-
-  const validateFile = (selectedFile: File): boolean => {
-    const ext = "." + selectedFile.name.split(".").pop()?.toLowerCase();
-    if (!allowedTypes.includes(ext)) {
-      toast({
-        title: "Invalid File Type",
-        description: "Only PDF, DOC, DOCX, XLS, XLSX, JPG, and PNG files are allowed.",
-        variant: "destructive",
-      });
-      return false;
-    }
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      toast({
-        title: "File Too Large",
-        description: "File size must be less than 10MB.",
-        variant: "destructive",
-      });
-      return false;
-    }
-    return true;
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      if (validateFile(selectedFile)) {
-        setFile(selectedFile);
-      } else {
-        e.target.value = "";
-      }
-    }
-  };
-
-  const handleComplianceFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (f: File | null) => void) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      if (validateFile(selectedFile)) {
-        setter(selectedFile);
-      } else {
-        e.target.value = "";
-      }
-    }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  };
-
-  const getFileType = (filename: string) => {
-    return filename.split(".").pop()?.toLowerCase() || "file";
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!category) {
-      toast({ title: "Missing Information", description: "Please select a category.", variant: "destructive" });
-      return;
-    }
-
-    if (requiresEmployeeSelection && !selectedEmployeeId) {
-      toast({
-        title: "Employee Required",
-        description: "Please select an employee for this category.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // For compliance, we need at least one file
-    if (isComplianceCategory) {
-      if (!file && !citizenshipPhoto && !panCardPhoto && !otherDocument) {
-        toast({ title: "Missing Files", description: "Please upload at least one document.", variant: "destructive" });
-        return;
-      }
-    } else if (!file) {
-      toast({ title: "Missing File", description: "Please select a file.", variant: "destructive" });
-      return;
-    }
-
-    const today = new Date();
-    const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-
-    const mainFile = file || citizenshipPhoto || panCardPhoto || otherDocument;
-
-    onUpload({
-      name: mainFile?.name || "Compliance Documents",
-      type: mainFile ? getFileType(mainFile.name) : "pdf",
-      category,
-      size: mainFile ? formatFileSize(mainFile.size) : "0 B",
-      date: dateStr,
-      status: "active",
-      file: mainFile || undefined,
-      employeeId: requiresEmployeeSelection
-        ? selectedEmployeeId
-        : category === "Compliance"
-          ? currentUserEmployeeId || undefined
-          : undefined,
-      complianceData: isComplianceCategory
-        ? {
-            bankAccountNumber: bankAccountNumber || undefined,
-            citizenshipPhoto: citizenshipPhoto || undefined,
-            panCardPhoto: panCardPhoto || undefined,
-            otherDocument: otherDocument || undefined,
-          }
-        : undefined,
-    });
-
-    resetForm();
-    onOpenChange(false);
-  };
-
   const resetForm = () => {
-    setFile(null);
     setCategory("");
-    setSelectedEmployeeId("");
-    setBankAccountNumber("");
-    setCitizenshipPhoto(null);
-    setPanCardPhoto(null);
-    setOtherDocument(null);
+    setContractEmployeeId("");
+    setContractName("");
+    setContractLink("");
+    setPolicyRows([emptyRow()]);
+    setComplianceEmployeeIds([]);
+    setComplianceRows([emptyRow()]);
+    setEmployeeSearch("");
+    setLeaveName("");
+    setLeaveLink("");
   };
 
   const handleClose = () => {
@@ -255,26 +130,137 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
     onOpenChange(false);
   };
 
+  const toggleComplianceEmployee = (id: string) => {
+    setComplianceEmployeeIds((prev) => (prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]));
+  };
+
+  const buildItems = (): DriveDocItem[] | null => {
+    if (category === "Contracts") {
+      if (!contractEmployeeId) {
+        toast({ title: "Employee Required", description: "Please select an employee.", variant: "destructive" });
+        return null;
+      }
+      if (!contractName.trim()) {
+        toast({ title: "Name Required", description: "Please enter a contract name.", variant: "destructive" });
+        return null;
+      }
+      if (!isValidDriveLink(contractLink)) {
+        toast({ title: "Invalid Link", description: "Please paste a valid Google Drive link.", variant: "destructive" });
+        return null;
+      }
+      return [
+        { name: contractName.trim(), category: "Contracts", driveLink: contractLink.trim(), employeeId: contractEmployeeId },
+      ];
+    }
+
+    if (category === "Policies") {
+      const valid = policyRows.filter((r) => r.name.trim() && r.link.trim());
+      if (valid.length === 0) {
+        toast({ title: "Missing Information", description: "Add at least one policy name and link.", variant: "destructive" });
+        return null;
+      }
+      for (const r of valid) {
+        if (!isValidDriveLink(r.link)) {
+          toast({ title: "Invalid Link", description: `"${r.name}" has an invalid Google Drive link.`, variant: "destructive" });
+          return null;
+        }
+      }
+      return valid.map((r) => ({ name: r.name.trim(), category: "Policies", driveLink: r.link.trim() }));
+    }
+
+    if (category === "Compliance") {
+      const valid = complianceRows.filter((r) => r.name.trim() && r.link.trim());
+      if (valid.length === 0) {
+        toast({ title: "Missing Information", description: "Add at least one document name and link.", variant: "destructive" });
+        return null;
+      }
+      for (const r of valid) {
+        if (!isValidDriveLink(r.link)) {
+          toast({ title: "Invalid Link", description: `"${r.name}" has an invalid Google Drive link.`, variant: "destructive" });
+          return null;
+        }
+      }
+
+      // Admins/managers can target multiple employees; others target themselves.
+      const targetEmployeeIds = isManagerOrAbove
+        ? complianceEmployeeIds
+        : currentUserEmployeeId
+          ? [currentUserEmployeeId]
+          : [];
+
+      if (targetEmployeeIds.length === 0) {
+        toast({
+          title: "Employee Required",
+          description: isManagerOrAbove ? "Select at least one employee." : "No employee record found.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      const items: DriveDocItem[] = [];
+      for (const empId of targetEmployeeIds) {
+        for (const r of valid) {
+          items.push({ name: r.name.trim(), category: "Compliance", driveLink: r.link.trim(), employeeId: empId });
+        }
+      }
+      return items;
+    }
+
+    if (category === "Leave Evidence") {
+      if (!leaveName.trim()) {
+        toast({ title: "Name Required", description: "Please enter a document name.", variant: "destructive" });
+        return null;
+      }
+      if (!isValidDriveLink(leaveLink)) {
+        toast({ title: "Invalid Link", description: "Please paste a valid Google Drive link.", variant: "destructive" });
+        return null;
+      }
+      return [
+        {
+          name: leaveName.trim(),
+          category: "Leave Evidence",
+          driveLink: leaveLink.trim(),
+          employeeId: currentUserEmployeeId || undefined,
+        },
+      ];
+    }
+
+    toast({ title: "Missing Information", description: "Please select a category.", variant: "destructive" });
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const items = buildItems();
+    if (!items) return;
+    setSubmitting(true);
+    try {
+      await onSubmit(items);
+      resetForm();
+      onOpenChange(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const filteredEmployees = employees.filter((emp) =>
+    `${emp.first_name} ${emp.last_name} ${emp.employee_id || ""}`.toLowerCase().includes(employeeSearch.toLowerCase()),
+  );
+
   const availableCategories = getAvailableCategories();
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Upload Document</DialogTitle>
-          <DialogDescription>Upload a new document to the system.</DialogDescription>
+          <DialogTitle className="font-display text-xl">Add Document Link</DialogTitle>
+          <DialogDescription>Save a Google Drive link and document details to the system.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           {/* Category Selection */}
           <div className="space-y-2">
             <Label>Document Category *</Label>
-            <Select
-              value={category}
-              onValueChange={(val) => {
-                setCategory(val);
-                setSelectedEmployeeId("");
-              }}
-            >
+            <Select value={category} onValueChange={(val) => setCategory(val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
@@ -288,7 +274,6 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
             </Select>
           </div>
 
-          {/* Category Info Alert */}
           {category && (
             <Alert>
               <Info className="h-4 w-4" />
@@ -296,168 +281,171 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
             </Alert>
           )}
 
-          {/* Employee Selection - for Compliance and Contracts */}
-          {requiresEmployeeSelection && (
-            <div className="space-y-2">
-              <Label>Select Employee *</Label>
-              <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingEmployees ? "Loading employees..." : "Select an employee"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      {emp.first_name} {emp.last_name} {emp.employee_id ? `(${emp.employee_id})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Compliance-specific fields */}
-          {isComplianceCategory && (
-            <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-              <h4 className="font-medium text-sm">Compliance Documents</h4>
-
-              {/* Bank Account Number */}
+          {/* Contracts */}
+          {category === "Contracts" && (
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Bank Account Number</Label>
-                <Input
-                  value={bankAccountNumber}
-                  onChange={(e) => setBankAccountNumber(e.target.value)}
-                  placeholder="Enter bank account number"
-                />
+                <Label>Select Employee *</Label>
+                <Select value={contractEmployeeId} onValueChange={setContractEmployeeId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingEmployees ? "Loading employees..." : "Select an employee"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name} {emp.employee_id ? `(${emp.employee_id})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-
-              {/* Citizenship Photo */}
               <div className="space-y-2">
-                <Label>Citizenship Photo</Label>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => citizenshipRef.current?.click()}>
-                    {citizenshipPhoto ? citizenshipPhoto.name : "Choose file"}
-                  </Button>
-                  {citizenshipPhoto && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => setCitizenshipPhoto(null)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                  <input
-                    ref={citizenshipRef}
-                    type="file"
-                    className="hidden"
-                    accept=".jpg,.jpeg,.png,.pdf"
-                    onChange={(e) => handleComplianceFileChange(e, setCitizenshipPhoto)}
-                  />
-                </div>
+                <Label>Contract Name *</Label>
+                <Input value={contractName} onChange={(e) => setContractName(e.target.value)} placeholder="e.g. Employment Contract 2026" />
               </div>
-
-              {/* PAN Card Photo */}
               <div className="space-y-2">
-                <Label>PAN Card Photo</Label>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => panCardRef.current?.click()}>
-                    {panCardPhoto ? panCardPhoto.name : "Choose file"}
-                  </Button>
-                  {panCardPhoto && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => setPanCardPhoto(null)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                  <input
-                    ref={panCardRef}
-                    type="file"
-                    className="hidden"
-                    accept=".jpg,.jpeg,.png,.pdf"
-                    onChange={(e) => handleComplianceFileChange(e, setPanCardPhoto)}
-                  />
-                </div>
-              </div>
-
-              {/* Other Document */}
-              <div className="space-y-2">
-                <Label>Other Document</Label>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => otherDocRef.current?.click()}>
-                    {otherDocument ? otherDocument.name : "Choose file"}
-                  </Button>
-                  {otherDocument && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => setOtherDocument(null)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                  <input
-                    ref={otherDocRef}
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                    onChange={(e) => handleComplianceFileChange(e, setOtherDocument)}
-                  />
-                </div>
+                <Label>Google Drive Link *</Label>
+                <Input value={contractLink} onChange={(e) => setContractLink(e.target.value)} placeholder="https://drive.google.com/..." />
+                <DriveHelper />
               </div>
             </div>
           )}
 
-          {/* Main File Upload Zone - not shown for Compliance (has its own fields) */}
-          {!isComplianceCategory && (
-            <div className="space-y-2">
-              <Label>Document File *</Label>
-              <div
-                className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                />
-                {file ? (
-                  <div className="flex items-center justify-center gap-3">
-                    <File className="h-10 w-10 text-primary" />
-                    <div className="text-left">
-                      <p className="font-medium">{file.name}</p>
-                      <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFile(null);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+          {/* Policies (bulk) */}
+          {category === "Policies" && (
+            <div className="space-y-3">
+              <Label>Policies *</Label>
+              {policyRows.map((row, idx) => (
+                <div key={idx} className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">Policy {idx + 1}</span>
+                    {policyRows.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => setPolicyRows((prev) => prev.filter((_, i) => i !== idx))}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
-                    <p className="font-medium">Click to upload a file</p>
-                    <p className="text-sm text-muted-foreground mt-1">PDF, DOC, DOCX, XLS, XLSX, JPG, PNG up to 10MB</p>
-                  </>
-                )}
+                  <Input
+                    placeholder="Policy name"
+                    value={row.name}
+                    onChange={(e) =>
+                      setPolicyRows((prev) => prev.map((r, i) => (i === idx ? { ...r, name: e.target.value } : r)))
+                    }
+                  />
+                  <Input
+                    placeholder="https://drive.google.com/..."
+                    value={row.link}
+                    onChange={(e) =>
+                      setPolicyRows((prev) => prev.map((r, i) => (i === idx ? { ...r, link: e.target.value } : r)))
+                    }
+                  />
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setPolicyRows((prev) => [...prev, emptyRow()])}>
+                <Plus className="h-4 w-4" /> Add another policy
+              </Button>
+              <DriveHelper />
+            </div>
+          )}
+
+          {/* Compliance */}
+          {category === "Compliance" && (
+            <div className="space-y-4">
+              {isManagerOrAbove && (
+                <div className="space-y-2">
+                  <Label>Select Employees *</Label>
+                  <Input
+                    placeholder="Search employees..."
+                    value={employeeSearch}
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                  />
+                  <div className="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-1">
+                    {filteredEmployees.map((emp) => (
+                      <label key={emp.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-accent cursor-pointer text-sm">
+                        <Checkbox
+                          checked={complianceEmployeeIds.includes(emp.id)}
+                          onCheckedChange={() => toggleComplianceEmployee(emp.id)}
+                        />
+                        <span>
+                          {emp.first_name} {emp.last_name} {emp.employee_id ? `(${emp.employee_id})` : ""}
+                        </span>
+                      </label>
+                    ))}
+                    {filteredEmployees.length === 0 && (
+                      <p className="text-xs text-muted-foreground p-2">No employees found</p>
+                    )}
+                  </div>
+                  {complianceEmployeeIds.length > 0 && (
+                    <p className="text-xs text-muted-foreground">{complianceEmployeeIds.length} employee(s) selected</p>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <Label>Compliance Documents *</Label>
+                {complianceRows.map((row, idx) => (
+                  <div key={idx} className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Document {idx + 1}</span>
+                      {complianceRows.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => setComplianceRows((prev) => prev.filter((_, i) => i !== idx))}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                    <Input
+                      placeholder="Document name"
+                      value={row.name}
+                      onChange={(e) =>
+                        setComplianceRows((prev) => prev.map((r, i) => (i === idx ? { ...r, name: e.target.value } : r)))
+                      }
+                    />
+                    <Input
+                      placeholder="https://drive.google.com/..."
+                      value={row.link}
+                      onChange={(e) =>
+                        setComplianceRows((prev) => prev.map((r, i) => (i === idx ? { ...r, link: e.target.value } : r)))
+                      }
+                    />
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setComplianceRows((prev) => [...prev, emptyRow()])}
+                >
+                  <Plus className="h-4 w-4" /> Add another link
+                </Button>
+                <DriveHelper />
+              </div>
+            </div>
+          )}
+
+          {/* Leave Evidence */}
+          {category === "Leave Evidence" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Document Name *</Label>
+                <Input value={leaveName} onChange={(e) => setLeaveName(e.target.value)} placeholder="e.g. Medical Certificate" />
+              </div>
+              <div className="space-y-2">
+                <Label>Google Drive Link *</Label>
+                <Input value={leaveLink} onChange={(e) => setLeaveLink(e.target.value)} placeholder="https://drive.google.com/..." />
+                <DriveHelper />
               </div>
             </div>
           )}
@@ -466,7 +454,9 @@ export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDoc
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="submit">Upload Document</Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Saving..." : "Save Link"}
+            </Button>
           </div>
         </form>
       </DialogContent>

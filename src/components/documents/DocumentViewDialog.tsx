@@ -1,8 +1,9 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, FileSpreadsheet, File, Download, Clock } from "lucide-react";
+import { FileText, FileSpreadsheet, File, ExternalLink, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getDriveOpenUrl, getDrivePreviewUrl } from "@/lib/driveLinks";
 
 interface Document {
   id: string;
@@ -16,6 +17,7 @@ interface Document {
   status: string | null;
   uploaded_by: string;
   employee_id: string | null;
+  drive_link?: string | null;
 }
 
 interface DocumentViewDialogProps {
@@ -50,9 +52,12 @@ const formatFileSize = (bytes: number | null) => {
 export function DocumentViewDialog({ document, open, onOpenChange, onDownload }: DocumentViewDialogProps) {
   if (!document) return null;
 
+  const driveLink = document.drive_link || "";
+  const previewUrl = driveLink ? getDrivePreviewUrl(driveLink) : "";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">Document Preview</DialogTitle>
           <DialogDescription>View document details</DialogDescription>
@@ -60,13 +65,24 @@ export function DocumentViewDialog({ document, open, onOpenChange, onDownload }:
 
         <div className="space-y-6 mt-4">
           {/* File Preview */}
-          <div className="flex flex-col items-center justify-center p-8 bg-secondary/50 rounded-lg">
-            {getFileIcon(document.file_type)}
-            <p className="font-medium mt-4 text-center">{document.name}</p>
-            <Badge variant="secondary" className="mt-2">
-              {(document.file_type || "FILE").toUpperCase()}
-            </Badge>
-          </div>
+          {previewUrl ? (
+            <div className="rounded-lg overflow-hidden border border-border bg-secondary/30">
+              <iframe
+                title={document.name}
+                src={previewUrl}
+                className="w-full h-[360px]"
+                allow="autoplay"
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-8 bg-secondary/50 rounded-lg">
+              {getFileIcon(document.file_type)}
+              <p className="font-medium mt-4 text-center">{document.name}</p>
+              <Badge variant="secondary" className="mt-2">
+                {(document.file_type || "FILE").toUpperCase()}
+              </Badge>
+            </div>
+          )}
 
           {/* Details Grid */}
           <div className="grid grid-cols-2 gap-4">
@@ -75,8 +91,8 @@ export function DocumentViewDialog({ document, open, onOpenChange, onDownload }:
               <p className="text-sm font-medium">{document.category || "Uncategorized"}</p>
             </div>
             <div className="p-3 rounded-lg bg-secondary/50">
-              <p className="text-xs text-muted-foreground mb-1">Size</p>
-              <p className="text-sm font-medium">{formatFileSize(document.file_size)}</p>
+              <p className="text-xs text-muted-foreground mb-1">Source</p>
+              <p className="text-sm font-medium">{driveLink ? "Google Drive" : formatFileSize(document.file_size)}</p>
             </div>
             <div className="p-3 rounded-lg bg-secondary/50">
               <p className="text-xs text-muted-foreground mb-1">Modified</p>
@@ -108,8 +124,8 @@ export function DocumentViewDialog({ document, open, onOpenChange, onDownload }:
               Close
             </Button>
             <Button className="gap-2" onClick={() => onDownload(document)}>
-              <Download className="h-4 w-4" />
-              Download
+              <ExternalLink className="h-4 w-4" />
+              Open in Drive
             </Button>
           </div>
         </div>

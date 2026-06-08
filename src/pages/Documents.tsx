@@ -34,12 +34,9 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useDocuments, Document, PRIVATE_CATEGORIES, LEAVE_EVIDENCE_CATEGORY } from "@/hooks/useDocuments";
-import { toast } from "@/hooks/use-toast";
-import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
+import { UploadDocumentDialog, DriveDocItem } from "@/components/documents/UploadDocumentDialog";
 import { DocumentViewDialog } from "@/components/documents/DocumentViewDialog";
-import { RenameDocumentDialog } from "@/components/documents/RenameDocumentDialog";
-import { DeleteDocumentDialog } from "@/components/documents/DeleteDocumentDialog";
-import { ShareDocumentDialog } from "@/components/documents/ShareDocumentDialog";
+import { EditLinkDialog } from "@/components/documents/EditLinkDialog";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -147,6 +144,7 @@ interface DisplayDocument {
   status: string | null;
   uploaded_by: string;
   employee_id: string | null;
+  drive_link?: string | null;
 }
 
 const Documents = () => {
@@ -157,25 +155,21 @@ const Documents = () => {
   const {
     documents: realDocuments,
     loading,
-    uploadDocument,
-    deleteDocument,
-    renameDocument,
+    createDriveDocumentsBulk,
+    updateDocumentLink,
+    archiveDocument,
     downloadDocument,
-    getDownloadUrl,
     getUploaderName,
     isPrivateCategory,
     isLeaveEvidenceCategory,
     isRestrictedCategory,
-    uploadComplianceDocuments,
   } = useDocuments();
   const [selectedCategory, setSelectedCategory] = useState("All Documents");
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [viewDocument, setViewDocument] = useState<DisplayDocument | null>(null);
-  const [renameDoc, setRenameDoc] = useState<DisplayDocument | null>(null);
-  const [deleteDoc, setDeleteDoc] = useState<DisplayDocument | null>(null);
-  const [shareDoc, setShareDoc] = useState<DisplayDocument | null>(null);
-  const [shareUrl, setShareUrl] = useState("");
+  const [editLinkDoc, setEditLinkDoc] = useState<DisplayDocument | null>(null);
+  const [editLinkMode, setEditLinkMode] = useState<"edit" | "replace">("edit");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   // Use real documents if available, otherwise use mock data
@@ -234,64 +228,28 @@ const Documents = () => {
     return counts;
   }, [documents]);
 
-  const handleUpload = async (docData: {
-    name: string;
-    type: string;
-    category: string;
-    size: string;
-    date: string;
-    status: string;
-    file?: File;
-    employeeId?: string;
-    complianceData?: {
-      bankAccountNumber?: string;
-      citizenshipPhoto?: File;
-      panCardPhoto?: File;
-      otherDocument?: File;
-    };
-  }) => {
-    // Handle compliance category with multiple files
-    if (docData.category === "Compliance" && docData.complianceData && docData.employeeId) {
-      await uploadComplianceDocuments(docData.employeeId, docData.complianceData);
-      toast({ title: "Compliance Documents Uploaded", description: "All compliance documents have been uploaded." });
-    } else if (docData.file) {
-      await uploadDocument(docData.file, docData.category, docData.employeeId);
-    }
+  const handleUpload = async (items: DriveDocItem[]) => {
+    if (items.length === 0) return;
+    await createDriveDocumentsBulk(items);
     setUploadDialogOpen(false);
   };
 
-  const handleDownload = async (doc: DisplayDocument) => {
-    if (doc.file_path) {
-      await downloadDocument(doc as Document);
-    }
+  // Open the Drive link (or legacy stored file) in a new tab.
+  const handleOpenInDrive = async (doc: DisplayDocument) => {
+    await downloadDocument(doc as Document);
   };
 
   const handleView = (doc: DisplayDocument) => {
     setViewDocument(doc);
   };
 
-  const handleRename = async (doc: any, newName: string) => {
-    if (doc.file_path) {
-      await renameDocument(doc as Document, newName);
-    }
-    setRenameDoc(null);
+  const handleEditLink = (doc: DisplayDocument, mode: "edit" | "replace") => {
+    setEditLinkMode(mode);
+    setEditLinkDoc(doc);
   };
 
-  const handleDelete = async (doc: any) => {
-    if (doc.file_path) {
-      await deleteDocument(doc as Document);
-    }
-    setDeleteDoc(null);
-  };
-
-  const handleShare = async (doc: DisplayDocument) => {
-    if (doc.file_path) {
-      const url = await getDownloadUrl(doc.file_path);
-      setShareUrl(url);
-    } else {
-      setShareUrl(`${window.location.origin}/documents/${doc.id}`);
-    }
-    setShareDoc(doc);
+  const handleArchive = async (doc: DisplayDocument) => {
+    await archiveDocument(doc as Document);
   };
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -559,7 +517,7 @@ const Documents = () => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => handleDownload(doc)}
+                                onClick={() => handleOpenInDrive(doc)}
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </Button>
@@ -571,14 +529,21 @@ const Documents = () => {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => handleView(doc)}>View</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleOpenInDrive(doc)}>
+                                    Open in Drive
+                                  </DropdownMenuItem>
                                   {(doc.category !== "Contracts" || isVP) && (
-                                    <DropdownMenuItem onClick={() => setRenameDoc(doc)}>Rename</DropdownMenuItem>
-                                  )}
-                                  <DropdownMenuItem onClick={() => handleShare(doc)}>Share</DropdownMenuItem>
-                                  {(doc.category !== "Contracts" || isVP) && (
-                                    <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDoc(doc)}>
-                                      Delete
-                                    </DropdownMenuItem>
+                                    <>
+                                      <DropdownMenuItem onClick={() => handleEditLink(doc, "edit")}>
+                                        Edit Link
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleEditLink(doc, "replace")}>
+                                        Replace Link
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem className="text-destructive" onClick={() => handleArchive(doc)}>
+                                        Archive
+                                      </DropdownMenuItem>
+                                    </>
                                   )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -596,34 +561,24 @@ const Documents = () => {
       </div>
 
       {/* Dialogs */}
-      <UploadDocumentDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen} onUpload={handleUpload} />
+      <UploadDocumentDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen} onSubmit={handleUpload} />
 
       <DocumentViewDialog
         document={viewDocument}
         open={!!viewDocument}
         onOpenChange={(open) => !open && setViewDocument(null)}
-        onDownload={() => viewDocument && handleDownload(viewDocument)}
+        onDownload={() => viewDocument && handleOpenInDrive(viewDocument)}
       />
 
-      <RenameDocumentDialog
-        document={renameDoc}
-        open={!!renameDoc}
-        onOpenChange={(open) => !open && setRenameDoc(null)}
-        onRename={(doc, newName) => handleRename(renameDoc, newName)}
-      />
-
-      <DeleteDocumentDialog
-        document={deleteDoc}
-        open={!!deleteDoc}
-        onOpenChange={(open) => !open && setDeleteDoc(null)}
-        onConfirm={() => handleDelete(deleteDoc)}
-      />
-
-      <ShareDocumentDialog
-        document={shareDoc}
-        open={!!shareDoc}
-        onOpenChange={(open) => !open && setShareDoc(null)}
-        shareUrl={shareUrl}
+      <EditLinkDialog
+        open={!!editLinkDoc}
+        onOpenChange={(open) => !open && setEditLinkDoc(null)}
+        documentName={editLinkDoc?.name || ""}
+        currentLink={editLinkDoc?.drive_link || ""}
+        mode={editLinkMode}
+        onSave={async (newLink) => {
+          if (editLinkDoc) await updateDocumentLink(editLinkDoc as Document, newLink);
+        }}
       />
     </DashboardLayout>
   );
