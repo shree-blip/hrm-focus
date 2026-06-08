@@ -35,11 +35,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useDocuments, Document, PRIVATE_CATEGORIES, LEAVE_EVIDENCE_CATEGORY } from "@/hooks/useDocuments";
 import { toast } from "@/hooks/use-toast";
-import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
+import { UploadDocumentDialog, DriveDocItem } from "@/components/documents/UploadDocumentDialog";
 import { DocumentViewDialog } from "@/components/documents/DocumentViewDialog";
-import { RenameDocumentDialog } from "@/components/documents/RenameDocumentDialog";
-import { DeleteDocumentDialog } from "@/components/documents/DeleteDocumentDialog";
-import { ShareDocumentDialog } from "@/components/documents/ShareDocumentDialog";
+import { EditLinkDialog } from "@/components/documents/EditLinkDialog";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -157,25 +155,23 @@ const Documents = () => {
   const {
     documents: realDocuments,
     loading,
-    uploadDocument,
+    createDriveDocumentsBulk,
+    updateDocumentLink,
+    archiveDocument,
     deleteDocument,
     renameDocument,
     downloadDocument,
-    getDownloadUrl,
     getUploaderName,
     isPrivateCategory,
     isLeaveEvidenceCategory,
     isRestrictedCategory,
-    uploadComplianceDocuments,
   } = useDocuments();
   const [selectedCategory, setSelectedCategory] = useState("All Documents");
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [viewDocument, setViewDocument] = useState<DisplayDocument | null>(null);
-  const [renameDoc, setRenameDoc] = useState<DisplayDocument | null>(null);
-  const [deleteDoc, setDeleteDoc] = useState<DisplayDocument | null>(null);
-  const [shareDoc, setShareDoc] = useState<DisplayDocument | null>(null);
-  const [shareUrl, setShareUrl] = useState("");
+  const [editLinkDoc, setEditLinkDoc] = useState<DisplayDocument | null>(null);
+  const [editLinkMode, setEditLinkMode] = useState<"edit" | "replace">("edit");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   // Use real documents if available, otherwise use mock data
