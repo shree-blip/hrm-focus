@@ -230,64 +230,28 @@ const Documents = () => {
     return counts;
   }, [documents]);
 
-  const handleUpload = async (docData: {
-    name: string;
-    type: string;
-    category: string;
-    size: string;
-    date: string;
-    status: string;
-    file?: File;
-    employeeId?: string;
-    complianceData?: {
-      bankAccountNumber?: string;
-      citizenshipPhoto?: File;
-      panCardPhoto?: File;
-      otherDocument?: File;
-    };
-  }) => {
-    // Handle compliance category with multiple files
-    if (docData.category === "Compliance" && docData.complianceData && docData.employeeId) {
-      await uploadComplianceDocuments(docData.employeeId, docData.complianceData);
-      toast({ title: "Compliance Documents Uploaded", description: "All compliance documents have been uploaded." });
-    } else if (docData.file) {
-      await uploadDocument(docData.file, docData.category, docData.employeeId);
-    }
+  const handleUpload = async (items: DriveDocItem[]) => {
+    if (items.length === 0) return;
+    await createDriveDocumentsBulk(items);
     setUploadDialogOpen(false);
   };
 
-  const handleDownload = async (doc: DisplayDocument) => {
-    if (doc.file_path) {
-      await downloadDocument(doc as Document);
-    }
+  // Open the Drive link (or legacy stored file) in a new tab.
+  const handleOpenInDrive = async (doc: DisplayDocument) => {
+    await downloadDocument(doc as Document);
   };
 
   const handleView = (doc: DisplayDocument) => {
     setViewDocument(doc);
   };
 
-  const handleRename = async (doc: any, newName: string) => {
-    if (doc.file_path) {
-      await renameDocument(doc as Document, newName);
-    }
-    setRenameDoc(null);
+  const handleEditLink = (doc: DisplayDocument, mode: "edit" | "replace") => {
+    setEditLinkMode(mode);
+    setEditLinkDoc(doc);
   };
 
-  const handleDelete = async (doc: any) => {
-    if (doc.file_path) {
-      await deleteDocument(doc as Document);
-    }
-    setDeleteDoc(null);
-  };
-
-  const handleShare = async (doc: DisplayDocument) => {
-    if (doc.file_path) {
-      const url = await getDownloadUrl(doc.file_path);
-      setShareUrl(url);
-    } else {
-      setShareUrl(`${window.location.origin}/documents/${doc.id}`);
-    }
-    setShareDoc(doc);
+  const handleArchive = async (doc: DisplayDocument) => {
+    await archiveDocument(doc as Document);
   };
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
