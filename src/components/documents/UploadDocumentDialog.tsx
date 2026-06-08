@@ -49,12 +49,6 @@ interface EmployeeOption {
 
 export function UploadDocumentDialog({ open, onOpenChange, onUpload }: UploadDocumentDialogProps) {
   const { user, isAdmin, isVP, isManager, isLineManager } = useAuth();
-  const { hasPermission, hasExplicitOverride } = usePermissions();
-  // A Custom Override on "manage_documents" strictly controls whether the user
-  // can manage (upload to) Compliance, Policies, and Leave Evidence — even for
-  // Admins. Contracts is intentionally excluded from this rule.
-  const restrictedSectionsDenied =
-    hasExplicitOverride("manage_documents") && !hasPermission("manage_documents");
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
