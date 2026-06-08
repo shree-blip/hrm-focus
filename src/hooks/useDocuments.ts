@@ -31,6 +31,8 @@ export interface Document {
   updated_at: string;
   uploaded_by: string;
   employee_id: string | null;
+  drive_link?: string | null;
+  leave_request_id?: string | null;
   uploader_name?: string;
 }
 
