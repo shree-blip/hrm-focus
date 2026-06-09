@@ -92,7 +92,7 @@ export default function AnnouncementBanner() {
         <Megaphone className="h-4 w-4 flex-shrink-0" />
 
         <div className="relative flex-1 min-w-0 overflow-hidden">
-          <div className="absolute inset-y-0 left-0 flex items-center whitespace-nowrap animate-marquee hover:[animation-play-state:paused] will-change-transform">
+          <div className="absolute inset-y-0 left-0 flex items-center whitespace-nowrap animate-marquee hover:[animation-play-state:paused] will-change-transform style={{ animationDuration: "60s" }}">
             <span className="text-sm font-medium px-4">{marqueeText}</span>
             <span className="text-sm font-medium px-4">{marqueeText}</span>
             <span className="text-sm font-medium px-4">{marqueeText}</span>
