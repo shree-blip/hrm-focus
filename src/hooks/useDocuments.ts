@@ -433,14 +433,25 @@ export function useDocuments() {
 
   // Update the Drive link (Edit Link / Replace Link) for an existing document.
   const updateDocumentLink = async (doc: Document, newLink: string) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("documents")
       .update({ drive_link: newLink.trim(), updated_at: new Date().toISOString() })
-      .eq("id", doc.id);
+      .eq("id", doc.id)
+      .select("id");
 
     if (error) {
       toast({ title: "Error", description: "Failed to update document link", variant: "destructive" });
       return { error };
+    }
+
+    // RLS can silently block an update (returns no error but 0 rows). Detect that here.
+    if (!data || data.length === 0) {
+      toast({
+        title: "Not Allowed",
+        description: "You don't have permission to update this document link.",
+        variant: "destructive",
+      });
+      return { error: new Error("No rows updated") };
     }
 
     toast({ title: "Link Updated", description: `${doc.name} link has been updated` });
@@ -475,7 +486,7 @@ export function useDocuments() {
       if (storageError) console.error("Storage delete error:", storageError);
     }
 
-    const { error } = await supabase.from("documents").delete().eq("id", doc.id);
+    const { data, error } = await supabase.from("documents").delete().eq("id", doc.id).select("id");
 
     if (error) {
       setDocuments(previousDocuments);
@@ -483,7 +494,18 @@ export function useDocuments() {
       return { error };
     }
 
-    toast({ title: "Document Deleted", description: `${doc.name} has been deleted` });
+    // RLS can silently block a delete (returns no error but 0 rows). Detect that here.
+    if (!data || data.length === 0) {
+      setDocuments(previousDocuments);
+      toast({
+        title: "Not Allowed",
+        description: "You don't have permission to delete this document.",
+        variant: "destructive",
+      });
+      return { error: new Error("No rows deleted") };
+    }
+
+    toast({ title: "Document Deleted", description: `${doc.name} has been deleted permanently` });
     return { error: null };
   };
 
