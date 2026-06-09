@@ -540,11 +540,8 @@ const Documents = () => {
                                       <DropdownMenuItem onClick={() => handleEditLink(doc, "edit")}>
                                         Edit Link
                                       </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleEditLink(doc, "replace")}>
-                                        Replace Link
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem className="text-destructive" onClick={() => handleArchive(doc)}>
-                                        Archive
+                                      <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDoc(doc)}>
+                                        Delete
                                       </DropdownMenuItem>
                                     </>
                                   )}
