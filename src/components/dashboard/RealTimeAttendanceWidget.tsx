@@ -1252,6 +1252,8 @@ export function RealTimeAttendanceWidget() {
               <option value="last3">Last 3 Days</option>
               <option value="week">This Week</option>
               <option value="month">This Month</option>
+              <option value="lastMonth">Last Month</option>
+              <option value="quarter">This Quarter</option>
             </select>
             <select
               value={activityEmployeeFilter}
