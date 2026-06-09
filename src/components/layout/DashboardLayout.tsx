@@ -33,8 +33,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-64",
         )}
       >
-        {/* Announcement Banner - Above header, inside content area */}
-        <div className="sticky top-0 z-40">
+        {/* Announcement Banner - Above header, inside content area.
+            Left padding keeps it clearly separated from the sidebar so it
+            starts after the sidebar instead of attaching to its right edge. */}
+        <div className="sticky top-0 z-30 lg:pl-3">
           <AnnouncementBanner />
         </div>
 
