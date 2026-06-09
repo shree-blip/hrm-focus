@@ -35,7 +35,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Sticky top region — announcement banner + header pin together as one unit.
             bg-background gives a solid backdrop so page content can't show through. */}
         <div className="sticky top-0 z-40 bg-background">
-          <div className="lg:pl-3">
+          <div className="lg:pl-3 lg:pr-[420px]">
             <AnnouncementBanner />
           </div>
 
