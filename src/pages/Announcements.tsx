@@ -74,20 +74,19 @@ const Announcements = () => {
   useEffect(() => {
     if (!user) return;
     const checkPublisher = async () => {
-      const { data } = await supabase
-        .from("announcement_publishers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const { data } = await supabase.from("announcement_publishers").select("id").eq("user_id", user.id).maybeSingle();
       setIsPublisher(!!data);
     };
     checkPublisher();
   }, [user]);
 
   // Use effective permissions for access control
-  const canAdd = hasPermission("add_announcement") || role === "admin" || role === "vp" || role === "supervisor" || isPublisher;
-  const canEdit = hasPermission("edit_announcement") || role === "admin" || role === "vp" || role === "supervisor" || isPublisher;
-  const canDelete = hasPermission("delete_announcement") || role === "admin" || role === "vp" || role === "supervisor" || isPublisher;
+  const canAdd =
+    hasPermission("add_announcement") || role === "admin" || role === "vp" || role === "supervisor" || isPublisher;
+  const canEdit =
+    hasPermission("edit_announcement") || role === "admin" || role === "vp" || role === "supervisor" || isPublisher;
+  const canDelete =
+    hasPermission("delete_announcement") || role === "admin" || role === "vp" || role === "supervisor" || isPublisher;
   const canManage = canAdd || canEdit || canDelete;
 
   const stats = useMemo(() => {
@@ -171,9 +170,7 @@ const Announcements = () => {
 
     // Notify all org users about the new announcement
     try {
-      const { data: allProfiles } = await supabase
-        .from("profiles")
-        .select("user_id");
+      const { data: allProfiles } = await supabase.from("profiles").select("user_id");
 
       if (allProfiles) {
         const { data: creatorProfile } = await supabase
@@ -589,7 +586,7 @@ const Announcements = () => {
                         )}
                       </div>
 
-                      <p className="text-sm text-muted-foreground">{a.content}</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line break-words">{a.content}</p>
 
                       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
