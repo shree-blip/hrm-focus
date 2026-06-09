@@ -380,16 +380,22 @@ const Employees = () => {
     setLoadingLeave(false);
   };
 
-  // Sync editable inputs whenever balances refresh
+  // Seed editable inputs from balances, but NEVER clobber a value the admin is
+  // currently typing. Only initialise fields that don't have a value yet — this
+  // stops the inputs from "randomly" snapping back after each save/refetch.
   useEffect(() => {
-    const next: Record<string, { total: string; remaining: string }> = {};
-    clickedLeaveBalances.forEach((lb) => {
-      next[lb.leave_type] = {
-        total: String(lb.total_days),
-        remaining: String(lb.remaining_days),
-      };
+    setEditLeave((prev) => {
+      const next = { ...prev };
+      clickedLeaveBalances.forEach((lb) => {
+        if (next[lb.leave_type] === undefined) {
+          next[lb.leave_type] = {
+            total: String(lb.total_days),
+            remaining: String(lb.remaining_days),
+          };
+        }
+      });
+      return next;
     });
-    setEditLeave(next);
   }, [clickedLeaveBalances]);
 
   const saveLeaveBalance = async (leaveType: string) => {
