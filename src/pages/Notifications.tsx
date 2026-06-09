@@ -190,7 +190,7 @@ const Notifications = () => {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+                        <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-line break-words">
                           {notification.publisher_name && (
                             <span className="font-medium text-foreground/80">By {notification.publisher_name}: </span>
                           )}
