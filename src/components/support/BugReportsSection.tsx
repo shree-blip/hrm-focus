@@ -287,10 +287,14 @@ export function BugReportsSection() {
                   </div>
                   <p className="text-sm">{report.description}</p>
                   <div className="flex items-center gap-2">
-                    {report.screenshot_url && (
-                      <Button variant="outline" size="sm" onClick={() => handleViewScreenshot(report.screenshot_url!)}>
+                    {report.screenshot_urls && report.screenshot_urls.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewScreenshots(report.screenshot_urls)}
+                      >
                         <Eye className="h-4 w-4 mr-1" />
-                        View Screenshot
+                        View Screenshot{report.screenshot_urls.length > 1 ? `s (${report.screenshot_urls.length})` : ""}
                       </Button>
                     )}
                     {canViewAll && (
@@ -320,12 +324,18 @@ export function BugReportsSection() {
       </Card>
 
       {/* Screenshot Viewer Dialog */}
-      <Dialog open={!!viewingScreenshot} onOpenChange={() => setViewingScreenshot(null)}>
-        <DialogContent className="sm:max-w-[800px]">
+      <Dialog open={!!viewingScreenshots} onOpenChange={() => setViewingScreenshots(null)}>
+        <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Screenshot</DialogTitle>
+            <DialogTitle>
+              Screenshot{viewingScreenshots && viewingScreenshots.length > 1 ? "s" : ""}
+            </DialogTitle>
           </DialogHeader>
-          {viewingScreenshot && <img src={viewingScreenshot} alt="Bug screenshot" className="w-full rounded-lg" />}
+          <div className="space-y-4">
+            {viewingScreenshots?.map((url, index) => (
+              <img key={index} src={url} alt={`Bug screenshot ${index + 1}`} className="w-full rounded-lg" />
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
