@@ -21,22 +21,26 @@ export function BugReportsSection() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [screenshot, setScreenshot] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [screenshots, setScreenshots] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [viewingScreenshot, setViewingScreenshot] = useState<string | null>(null);
+  const [viewingScreenshots, setViewingScreenshots] = useState<string[] | null>(null);
   const [isDragging, setIsDragging] = useState(false); // <-- NEW
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canViewAll = hasPermission("view_bug_reports") || hasPermission("manage_support");
 
+  const addFiles = (files: File[]) => {
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) return;
+    setScreenshots((prev) => [...prev, ...images]);
+    setPreviewUrls((prev) => [...prev, ...images.map((f) => URL.createObjectURL(f))]);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setScreenshot(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-    }
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    addFiles(files);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   // -- NEW: Drag and drop handlers --
@@ -53,63 +57,63 @@ export function BugReportsSection() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      setScreenshot(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-    }
+    const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+    addFiles(files);
   };
 
   // -- NEW: Paste handler --
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
+    const pasted: File[] = [];
     for (const item of Array.from(items)) {
       if (item.type.startsWith("image/")) {
         e.preventDefault();
         const file = item.getAsFile();
-        if (file) {
-          setScreenshot(file);
-          const url = URL.createObjectURL(file);
-          setPreviewUrl(url);
-        }
-        break;
+        if (file) pasted.push(file);
       }
     }
+    if (pasted.length > 0) addFiles(pasted);
   };
   // -- END NEW --
 
-  const removeScreenshot = () => {
-    setScreenshot(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+  const removeScreenshotAt = (index: number) => {
+    setPreviewUrls((prev) => {
+      const url = prev[index];
+      if (url) URL.revokeObjectURL(url);
+      return prev.filter((_, i) => i !== index);
+    });
+    setScreenshots((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const clearScreenshots = () => {
+    previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    setPreviewUrls([]);
+    setScreenshots([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) return;
 
     setSubmitting(true);
-    const result = await submitBugReport(title, description, screenshot || undefined);
+    const result = await submitBugReport(title, description, screenshots);
     setSubmitting(false);
 
     if (result.success) {
       setTitle("");
       setDescription("");
-      removeScreenshot();
+      clearScreenshots();
       setIsDialogOpen(false);
     }
   };
 
-  const handleViewScreenshot = async (path: string) => {
-    const url = await getScreenshotUrl(path);
-    if (url) {
-      setViewingScreenshot(url);
+  const handleViewScreenshots = async (paths: string[]) => {
+    const urls = (await Promise.all(paths.map((p) => getScreenshotUrl(p)))).filter(
+      (u): u is string => !!u,
+    );
+    if (urls.length > 0) {
+      setViewingScreenshots(urls);
     }
   };
 
@@ -171,51 +175,58 @@ export function BugReportsSection() {
 
                 {/* -- UPDATED: Screenshot section with drag & drop -- */}
                 <div className="space-y-2">
-                  <Label>Screenshot (optional)</Label>
+                  <Label>Screenshots (optional)</Label>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleFileSelect}
                     className="hidden"
                   />
-                  {previewUrl ? (
-                    <div className="relative">
-                      <img
-                        src={previewUrl}
-                        alt="Screenshot preview"
-                        className="w-full h-52 object-cover rounded-lg border"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 h-6 w-6"
-                        onClick={removeScreenshot}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      onPaste={handlePaste} // <-- NEW
-                      tabIndex={0} // <-- NEW: makes div focusable for paste
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`w-full h-44 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors outline-none focus:ring-2 focus:ring-primary/30 ${
-                        isDragging
-                          ? "border-primary bg-primary/5"
-                          : "border-muted-foreground/25 hover:border-muted-foreground/50"
-                      }`}
-                    >
-                      <ImagePlus className={`h-8 w-8 mb-2 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
-                      <span className="text-sm text-muted-foreground">
-                        {isDragging ? "Drop image here" : "Drag & drop, paste, or click to upload"}{" "}
-                        {/* <-- UPDATED text */}
-                      </span>
+                  {previewUrls.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {previewUrls.map((url, index) => (
+                        <div key={url} className="relative">
+                          <img
+                            src={url}
+                            alt={`Screenshot preview ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg border"
+                          />
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 h-5 w-5"
+                            onClick={() => removeScreenshotAt(index)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
                   )}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onPaste={handlePaste}
+                    tabIndex={0}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-full ${previewUrls.length > 0 ? "h-24" : "h-44"} border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors outline-none focus:ring-2 focus:ring-primary/30 ${
+                      isDragging
+                        ? "border-primary bg-primary/5"
+                        : "border-muted-foreground/25 hover:border-muted-foreground/50"
+                    }`}
+                  >
+                    <ImagePlus className={`h-8 w-8 mb-2 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+                    <span className="text-sm text-muted-foreground">
+                      {isDragging
+                        ? "Drop images here"
+                        : previewUrls.length > 0
+                        ? "Add more — drag & drop, paste, or click"
+                        : "Drag & drop, paste, or click to upload (multiple allowed)"}
+                    </span>
+                  </div>
                 </div>
                 {/* -- END UPDATED -- */}
 
@@ -276,10 +287,14 @@ export function BugReportsSection() {
                   </div>
                   <p className="text-sm">{report.description}</p>
                   <div className="flex items-center gap-2">
-                    {report.screenshot_url && (
-                      <Button variant="outline" size="sm" onClick={() => handleViewScreenshot(report.screenshot_url!)}>
+                    {report.screenshot_urls && report.screenshot_urls.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewScreenshots(report.screenshot_urls)}
+                      >
                         <Eye className="h-4 w-4 mr-1" />
-                        View Screenshot
+                        View Screenshot{report.screenshot_urls.length > 1 ? `s (${report.screenshot_urls.length})` : ""}
                       </Button>
                     )}
                     {canViewAll && (
@@ -309,12 +324,18 @@ export function BugReportsSection() {
       </Card>
 
       {/* Screenshot Viewer Dialog */}
-      <Dialog open={!!viewingScreenshot} onOpenChange={() => setViewingScreenshot(null)}>
-        <DialogContent className="sm:max-w-[800px]">
+      <Dialog open={!!viewingScreenshots} onOpenChange={() => setViewingScreenshots(null)}>
+        <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Screenshot</DialogTitle>
+            <DialogTitle>
+              Screenshot{viewingScreenshots && viewingScreenshots.length > 1 ? "s" : ""}
+            </DialogTitle>
           </DialogHeader>
-          {viewingScreenshot && <img src={viewingScreenshot} alt="Bug screenshot" className="w-full rounded-lg" />}
+          <div className="space-y-4">
+            {viewingScreenshots?.map((url, index) => (
+              <img key={index} src={url} alt={`Bug screenshot ${index + 1}`} className="w-full rounded-lg" />
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

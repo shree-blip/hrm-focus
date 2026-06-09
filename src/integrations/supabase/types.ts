@@ -592,6 +592,7 @@ export type Database = {
           id: string
           org_id: string | null
           screenshot_url: string | null
+          screenshot_urls: string[]
           status: string | null
           title: string
           updated_at: string
@@ -603,6 +604,7 @@ export type Database = {
           id?: string
           org_id?: string | null
           screenshot_url?: string | null
+          screenshot_urls?: string[]
           status?: string | null
           title: string
           updated_at?: string
@@ -614,6 +616,7 @@ export type Database = {
           id?: string
           org_id?: string | null
           screenshot_url?: string | null
+          screenshot_urls?: string[]
           status?: string | null
           title?: string
           updated_at?: string
