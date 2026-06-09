@@ -682,12 +682,18 @@ export function RealTimeAttendanceWidget() {
     const weekDiff = utcDay === 0 ? -6 : 1 - utcDay;
     const weekStart = Date.UTC(y, m, d + weekDiff, 0, 0, 0, 0);
     const monthStart = Date.UTC(y, m, 1, 0, 0, 0, 0);
+    const lastMonthStart = Date.UTC(y, m - 1, 1, 0, 0, 0, 0);
+    const lastMonthEnd = monthStart; // exclusive upper bound = start of this month
+    const quarterStartMonth = Math.floor(m / 3) * 3;
+    const quarterStart = Date.UTC(y, quarterStartMonth, 1, 0, 0, 0, 0);
 
     const isInDateRange = (isoTime: string) => {
       const ts = new Date(isoTime).getTime();
       if (activityDateRange === "today") return ts >= todayStart;
       if (activityDateRange === "last3") return ts >= last3Start;
       if (activityDateRange === "month") return ts >= monthStart;
+      if (activityDateRange === "lastMonth") return ts >= lastMonthStart && ts < lastMonthEnd;
+      if (activityDateRange === "quarter") return ts >= quarterStart;
       return ts >= weekStart;
     };
 
