@@ -37,6 +37,7 @@ import { useDocuments, Document, PRIVATE_CATEGORIES, LEAVE_EVIDENCE_CATEGORY } f
 import { UploadDocumentDialog, DriveDocItem } from "@/components/documents/UploadDocumentDialog";
 import { DocumentViewDialog } from "@/components/documents/DocumentViewDialog";
 import { EditLinkDialog } from "@/components/documents/EditLinkDialog";
+import { DeleteDocumentDialog } from "@/components/documents/DeleteDocumentDialog";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -157,7 +158,7 @@ const Documents = () => {
     loading,
     createDriveDocumentsBulk,
     updateDocumentLink,
-    archiveDocument,
+    deleteDocument,
     downloadDocument,
     getUploaderName,
     isPrivateCategory,
@@ -170,6 +171,7 @@ const Documents = () => {
   const [viewDocument, setViewDocument] = useState<DisplayDocument | null>(null);
   const [editLinkDoc, setEditLinkDoc] = useState<DisplayDocument | null>(null);
   const [editLinkMode, setEditLinkMode] = useState<"edit" | "replace">("edit");
+  const [deleteDoc, setDeleteDoc] = useState<DisplayDocument | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   // Use real documents if available, otherwise use mock data
@@ -248,8 +250,9 @@ const Documents = () => {
     setEditLinkDoc(doc);
   };
 
-  const handleArchive = async (doc: DisplayDocument) => {
-    await archiveDocument(doc as Document);
+  const handleDelete = async (doc: DisplayDocument) => {
+    await deleteDocument(doc as Document);
+    setDeleteDoc(null);
   };
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
