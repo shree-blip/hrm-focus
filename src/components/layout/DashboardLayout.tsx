@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
 import { NotificationPermissionBanner } from "@/components/NotificationPermissionBanner";
 
-// Lazy-load ChatWidget — not needed for initial render
 const ChatWidget = lazy(() => import("@/components/chat/ChatWidget").then((m) => ({ default: m.ChatWidget })));
 
 interface DashboardLayoutProps {
@@ -33,36 +32,34 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-64",
         )}
       >
-        {/* Announcement Banner - Above header, inside content area.
-            Left padding keeps it clearly separated from the sidebar so it
-            starts after the sidebar instead of attaching to its right edge. */}
-        <div className="sticky top-0 z-30 lg:pl-3 rounded-md">
-          <AnnouncementBanner />
-        </div>
+        {/* Sticky top region — announcement banner + header pin together as one unit.
+            bg-background gives a solid backdrop so page content can't show through. */}
+        <div className="sticky top-0 z-40 bg-background">
+          <div className="lg:pl-3">
+            <AnnouncementBanner />
+          </div>
 
-        {/* Unified Header (mobile gets a hamburger trigger via slot) */}
-        <Header
-          isMobile
-          mobileMenuSlot={
-            <Sheet modal={false} open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden mr-1 shrink-0">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side="left"
-                className="w-64 max-w-[85vw] overflow-hidden p-0"
-                // Prevent Radix from focus-trapping into body and blocking the
-                // first tap on a nav Link (mobile Safari/Chrome quirk).
-                onOpenAutoFocus={(e) => e.preventDefault()}
-                onCloseAutoFocus={(e) => e.preventDefault()}
-              >
-                <Sidebar embedded onNavigate={() => setMobileMenuOpen(false)} />
-              </SheetContent>
-            </Sheet>
-          }
-        />
+          <Header
+            isMobile
+            mobileMenuSlot={
+              <Sheet modal={false} open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="lg:hidden mr-1 shrink-0">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="left"
+                  className="w-64 max-w-[85vw] overflow-hidden p-0"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  onCloseAutoFocus={(e) => e.preventDefault()}
+                >
+                  <Sidebar embedded onNavigate={() => setMobileMenuOpen(false)} />
+                </SheetContent>
+              </Sheet>
+            }
+          />
+        </div>
 
         {/* Notification permission banner */}
         <NotificationPermissionBanner />
