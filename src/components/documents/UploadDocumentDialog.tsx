@@ -68,6 +68,8 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
   // Compliance (multi-select employees + multiple links)
   const [complianceEmployeeIds, setComplianceEmployeeIds] = useState<string[]>([]);
   const [complianceRows, setComplianceRows] = useState<LinkRow[]>([emptyRow()]);
+  // Per-employee document fields for managers (employeeId -> { name, link })
+  const [complianceDocsByEmployee, setComplianceDocsByEmployee] = useState<Record<string, LinkRow>>({});
   const [employeeSearch, setEmployeeSearch] = useState("");
 
   // Leave Evidence
