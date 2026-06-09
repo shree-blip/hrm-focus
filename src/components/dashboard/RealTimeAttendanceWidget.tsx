@@ -989,7 +989,9 @@ export function RealTimeAttendanceWidget() {
                   defaultValue=""
                   onChange={(e) => {
                     if (e.target.value) {
-                      exportHistoricalCSV(e.target.value as "today" | "week" | "month");
+                      exportHistoricalCSV(
+                        e.target.value as "today" | "week" | "month" | "lastMonth" | "quarter",
+                      );
                       e.target.value = "";
                     }
                   }}
@@ -1001,6 +1003,8 @@ export function RealTimeAttendanceWidget() {
                   <option value="today">Today's Data</option>
                   <option value="week">This Week's Data</option>
                   <option value="month">This Month's Data</option>
+                  <option value="lastMonth">Last Month's Data</option>
+                  <option value="quarter">This Quarter's Data</option>
                 </select>
 
                 {/* Icon positioning inside the select */}
