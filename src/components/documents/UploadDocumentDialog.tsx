@@ -122,6 +122,7 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
     setPolicyRows([emptyRow()]);
     setComplianceEmployeeIds([]);
     setComplianceRows([emptyRow()]);
+    setComplianceDocsByEmployee({});
     setEmployeeSearch("");
     setLeaveName("");
     setLeaveLink("");
