@@ -67,7 +67,9 @@ export default function AnnouncementBanner() {
       setActiveAnnouncements(
         active.map((a) => {
           const publisher = a.publisher_name ? ` — ${a.publisher_name}` : "";
-          return `📢 ${a.title}: ${a.content}${publisher}`;
+          const clean = a.content.replace(/\s+/g, " ").trim();
+          const excerpt = clean.length > 120 ? `${clean.slice(0, 120)}…` : clean;
+          return `📢 ${a.title}: ${excerpt}${publisher}`;
         }),
       );
     }, delay);
