@@ -313,15 +313,20 @@ export function RealTimeAttendanceWidget() {
     // Fetch logs from the current month for popup date-range filtering
     const nowUtcDay = now.getUTCDay();
     const weekDiff = nowUtcDay === 0 ? -6 : 1 - nowUtcDay;
-    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0)).toISOString();
     const weekStart = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + weekDiff, 0, 0, 0, 0),
     ).toISOString();
 
+    // Fetch range covers last month and current quarter (whichever starts earliest)
+    const lastMonthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0, 0);
+    const quarterStartMonth = Math.floor(now.getUTCMonth() / 3) * 3;
+    const quarterStart = Date.UTC(now.getUTCFullYear(), quarterStartMonth, 1, 0, 0, 0, 0);
+    const rangeStart = new Date(Math.min(lastMonthStart, quarterStart)).toISOString();
+
     const { data: monthLogs } = await supabase
       .from("attendance_logs")
       .select("*")
-      .gte("clock_in", monthStart)
+      .gte("clock_in", rangeStart)
       .lte("clock_in", dayEnd)
       .order("clock_in", { ascending: false })
       .limit(20000);
