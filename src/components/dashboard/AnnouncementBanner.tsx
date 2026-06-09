@@ -87,7 +87,7 @@ export default function AnnouncementBanner() {
   const marqueeText = activeAnnouncements.join("      •      ");
 
   return (
-    <div className="bg-primary text-primary-foreground py-2 px-4 relative w-full max-w-full overflow-x-clip rounded-md">
+    <div className="bg-primary text-primary-foreground py-2 px-4 relative w-full max-w-full overflow-x-clip rounded-xl">
       <div className="flex items-center gap-3 w-full max-w-full">
         <Megaphone className="h-4 w-4 flex-shrink-0" />
 
