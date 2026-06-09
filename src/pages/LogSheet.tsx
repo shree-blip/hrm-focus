@@ -561,7 +561,7 @@ export default function LogSheet() {
       notes: "",
       client_id: "",
       department: userDepartment || "",
-      start_time: getCurrentTime(),
+      start_time: nowInTz(),
       end_time: "",
       status: "in_progress",
     });
