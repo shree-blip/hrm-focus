@@ -10,6 +10,7 @@ export interface BugReport {
   title: string;
   description: string;
   screenshot_url: string | null;
+  screenshot_urls: string[];
   status: string;
   org_id: string | null;
   created_at: string;
@@ -51,13 +52,19 @@ export function useBugReports() {
           ])
         );
 
-        const enrichedData = data.map((report) => ({
+        const enrichedData = data.map((report: any) => ({
           ...report,
+          screenshot_urls:
+            report.screenshot_urls && report.screenshot_urls.length > 0
+              ? report.screenshot_urls
+              : report.screenshot_url
+              ? [report.screenshot_url]
+              : [],
           reporter_name: profileMap.get(report.user_id)?.name || "Unknown",
           reporter_email: profileMap.get(report.user_id)?.email || "",
         }));
 
-        setBugReports(enrichedData);
+        setBugReports(enrichedData as BugReport[]);
       } else {
         setBugReports([]);
       }
@@ -75,33 +82,37 @@ export function useBugReports() {
   const submitBugReport = async (
     title: string,
     description: string,
-    screenshotFile?: File
+    screenshotFiles?: File[]
   ) => {
     if (!user) return { success: false, error: "Not authenticated" };
 
     try {
-      let screenshotUrl = null;
+      const screenshotPaths: string[] = [];
 
-      // Upload screenshot if provided
-      if (screenshotFile) {
-        const fileExt = screenshotFile.name.split(".").pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      // Upload screenshots if provided
+      if (screenshotFiles && screenshotFiles.length > 0) {
+        for (let i = 0; i < screenshotFiles.length; i++) {
+          const file = screenshotFiles[i];
+          const fileExt = file.name.split(".").pop();
+          const fileName = `${user.id}/${Date.now()}-${i}.${fileExt}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from("bug-screenshots")
-          .upload(fileName, screenshotFile);
+          const { error: uploadError } = await supabase.storage
+            .from("bug-screenshots")
+            .upload(fileName, file);
 
-        if (uploadError) throw uploadError;
-        screenshotUrl = fileName;
+          if (uploadError) throw uploadError;
+          screenshotPaths.push(fileName);
+        }
       }
 
       const { error } = await supabase.from("bug_reports").insert({
         user_id: user.id,
         title,
         description,
-        screenshot_url: screenshotUrl,
+        screenshot_url: screenshotPaths[0] ?? null,
+        screenshot_urls: screenshotPaths,
         status: "open",
-      });
+      } as any);
 
       if (error) throw error;
 
