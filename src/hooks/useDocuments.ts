@@ -213,28 +213,28 @@ export function useDocuments() {
           .eq("id", employeeId)
           .maybeSingle();
         const employeeName = empData ? `${empData.first_name} ${empData.last_name}` : "Employee";
-        await supabase.functions.invoke("send-document-upload-notification", {
-          body: {
-            uploader_name: uploaderName,
-            uploader_email: uploaderEmail,
-            document_name: name,
-            document_category: category,
-            employee_id: employeeId,
-            employee_name: employeeName,
-            notify_type: "manager_upload",
-          },
-        });
+        // await supabase.functions.invoke("send-document-upload-notification", {
+        //   body: {
+        //     uploader_name: uploaderName,
+        //     uploader_email: uploaderEmail,
+        //     document_name: name,
+        //     document_category: category,
+        //     employee_id: employeeId,
+        //     employee_name: employeeName,
+        //     notify_type: "manager_upload",
+        //   },
+        // });
       } else {
-        await supabase.functions.invoke("send-document-upload-notification", {
-          body: {
-            uploader_name: uploaderName,
-            uploader_email: uploaderEmail,
-            document_name: name,
-            document_category: category,
-            employee_id: userEmployeeId,
-            notify_type: "employee_upload",
-          },
-        });
+        // await supabase.functions.invoke("send-document-upload-notification", {
+        //   body: {
+        //     uploader_name: uploaderName,
+        //     uploader_email: uploaderEmail,
+        //     document_name: name,
+        //     document_category: category,
+        //     employee_id: userEmployeeId,
+        //     notify_type: "employee_upload",
+        //   },
+        // });
       }
     } catch (emailErr) {
       console.error("Error sending document email notification:", emailErr);
