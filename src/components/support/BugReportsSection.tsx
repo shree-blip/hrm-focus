@@ -21,22 +21,26 @@ export function BugReportsSection() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [screenshot, setScreenshot] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [screenshots, setScreenshots] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [viewingScreenshot, setViewingScreenshot] = useState<string | null>(null);
+  const [viewingScreenshots, setViewingScreenshots] = useState<string[] | null>(null);
   const [isDragging, setIsDragging] = useState(false); // <-- NEW
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canViewAll = hasPermission("view_bug_reports") || hasPermission("manage_support");
 
+  const addFiles = (files: File[]) => {
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) return;
+    setScreenshots((prev) => [...prev, ...images]);
+    setPreviewUrls((prev) => [...prev, ...images.map((f) => URL.createObjectURL(f))]);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setScreenshot(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-    }
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    addFiles(files);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   // -- NEW: Drag and drop handlers --
@@ -53,63 +57,63 @@ export function BugReportsSection() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      setScreenshot(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-    }
+    const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+    addFiles(files);
   };
 
   // -- NEW: Paste handler --
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
+    const pasted: File[] = [];
     for (const item of Array.from(items)) {
       if (item.type.startsWith("image/")) {
         e.preventDefault();
         const file = item.getAsFile();
-        if (file) {
-          setScreenshot(file);
-          const url = URL.createObjectURL(file);
-          setPreviewUrl(url);
-        }
-        break;
+        if (file) pasted.push(file);
       }
     }
+    if (pasted.length > 0) addFiles(pasted);
   };
   // -- END NEW --
 
-  const removeScreenshot = () => {
-    setScreenshot(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+  const removeScreenshotAt = (index: number) => {
+    setPreviewUrls((prev) => {
+      const url = prev[index];
+      if (url) URL.revokeObjectURL(url);
+      return prev.filter((_, i) => i !== index);
+    });
+    setScreenshots((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const clearScreenshots = () => {
+    previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    setPreviewUrls([]);
+    setScreenshots([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) return;
 
     setSubmitting(true);
-    const result = await submitBugReport(title, description, screenshot || undefined);
+    const result = await submitBugReport(title, description, screenshots);
     setSubmitting(false);
 
     if (result.success) {
       setTitle("");
       setDescription("");
-      removeScreenshot();
+      clearScreenshots();
       setIsDialogOpen(false);
     }
   };
 
-  const handleViewScreenshot = async (path: string) => {
-    const url = await getScreenshotUrl(path);
-    if (url) {
-      setViewingScreenshot(url);
+  const handleViewScreenshots = async (paths: string[]) => {
+    const urls = (await Promise.all(paths.map((p) => getScreenshotUrl(p)))).filter(
+      (u): u is string => !!u,
+    );
+    if (urls.length > 0) {
+      setViewingScreenshots(urls);
     }
   };
 
