@@ -160,6 +160,7 @@ export function useWorkLogs() {
     org_id: string;
     department: string | null;
   } | null>(null);
+  const [employeeTimezone, setEmployeeTimezone] = useState<string>(DEFAULT_TIMEZONE);
   const { user, isManager, isVP, isLineManager } = useAuth();
   const { toast } = useToast();
 
@@ -169,7 +170,7 @@ export function useWorkLogs() {
     try {
       const { data, error } = await supabase
         .from("employees")
-        .select("id, org_id, department")
+        .select("id, org_id, department, timezone")
         .eq("email", user.email)
         .single();
       if (error) {
@@ -179,6 +180,7 @@ export function useWorkLogs() {
       if (data) {
         setEmployeeInfo({ id: data.id, org_id: data.org_id, department: data.department });
         setUserDepartment(data.department || null);
+        if ((data as any).timezone) setEmployeeTimezone((data as any).timezone);
       }
     } catch (err) {
       console.error("Error fetching employee info:", err);
