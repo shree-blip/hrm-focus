@@ -30,7 +30,7 @@ import {
 // Types
 type Status = "IN" | "OUT" | "BRS" | "BRE" | "PAUSE" | "CONT" | "—";
 type FilterType = "all" | "working" | "break" | "paused" | "out" | "wfo" | "wfh";
-type PopupDateRange = "today" | "last3" | "week" | "month";
+type PopupDateRange = "today" | "last3" | "week" | "month" | "lastMonth" | "quarter";
 
 interface Employee {
   id: string;
@@ -313,15 +313,20 @@ export function RealTimeAttendanceWidget() {
     // Fetch logs from the current month for popup date-range filtering
     const nowUtcDay = now.getUTCDay();
     const weekDiff = nowUtcDay === 0 ? -6 : 1 - nowUtcDay;
-    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0)).toISOString();
     const weekStart = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + weekDiff, 0, 0, 0, 0),
     ).toISOString();
 
+    // Fetch range covers last month and current quarter (whichever starts earliest)
+    const lastMonthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0, 0);
+    const quarterStartMonth = Math.floor(now.getUTCMonth() / 3) * 3;
+    const quarterStart = Date.UTC(now.getUTCFullYear(), quarterStartMonth, 1, 0, 0, 0, 0);
+    const rangeStart = new Date(Math.min(lastMonthStart, quarterStart)).toISOString();
+
     const { data: monthLogs } = await supabase
       .from("attendance_logs")
       .select("*")
-      .gte("clock_in", monthStart)
+      .gte("clock_in", rangeStart)
       .lte("clock_in", dayEnd)
       .order("clock_in", { ascending: false })
       .limit(20000);
@@ -677,12 +682,18 @@ export function RealTimeAttendanceWidget() {
     const weekDiff = utcDay === 0 ? -6 : 1 - utcDay;
     const weekStart = Date.UTC(y, m, d + weekDiff, 0, 0, 0, 0);
     const monthStart = Date.UTC(y, m, 1, 0, 0, 0, 0);
+    const lastMonthStart = Date.UTC(y, m - 1, 1, 0, 0, 0, 0);
+    const lastMonthEnd = monthStart; // exclusive upper bound = start of this month
+    const quarterStartMonth = Math.floor(m / 3) * 3;
+    const quarterStart = Date.UTC(y, quarterStartMonth, 1, 0, 0, 0, 0);
 
     const isInDateRange = (isoTime: string) => {
       const ts = new Date(isoTime).getTime();
       if (activityDateRange === "today") return ts >= todayStart;
       if (activityDateRange === "last3") return ts >= last3Start;
       if (activityDateRange === "month") return ts >= monthStart;
+      if (activityDateRange === "lastMonth") return ts >= lastMonthStart && ts < lastMonthEnd;
+      if (activityDateRange === "quarter") return ts >= quarterStart;
       return ts >= weekStart;
     };
 
@@ -1241,6 +1252,8 @@ export function RealTimeAttendanceWidget() {
               <option value="last3">Last 3 Days</option>
               <option value="week">This Week</option>
               <option value="month">This Month</option>
+              <option value="lastMonth">Last Month</option>
+              <option value="quarter">This Quarter</option>
             </select>
             <select
               value={activityEmployeeFilter}
