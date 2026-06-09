@@ -400,8 +400,7 @@ export function useWorkLogs() {
 
       // Auto-set end time when marking as completed
       if (fields.status === "completed" && !fields.end_time && !currentLog?.end_time) {
-        const now = new Date();
-        updateData.end_time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        updateData.end_time = getCurrentTime24hInTz(employeeTimezone);
       }
 
       // Auto-recalculate time (subtract pause minutes)
