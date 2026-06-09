@@ -432,51 +432,83 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
                 </div>
               )}
 
-              <div className="space-y-3">
-                <Label>Compliance Documents *</Label>
-                {complianceRows.map((row, idx) => (
-                  <div key={idx} className="space-y-2 border rounded-lg p-3 bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">Document {idx + 1}</span>
-                      {complianceRows.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => setComplianceRows((prev) => prev.filter((_, i) => i !== idx))}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
+              {isManagerOrAbove ? (
+                <div className="space-y-3">
+                  <Label>Compliance Documents *</Label>
+                  {complianceEmployeeIds.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Select one or more employees above to add a document for each.
+                    </p>
+                  )}
+                  {complianceEmployeeIds.map((empId, idx) => {
+                    const row = complianceDocsByEmployee[empId] || emptyRow();
+                    return (
+                      <div key={empId} className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Document {idx + 1} for {getEmployeeLabel(empId)}
+                        </span>
+                        <Input
+                          placeholder="Document name"
+                          value={row.name}
+                          onChange={(e) => setComplianceDocField(empId, "name", e.target.value)}
+                        />
+                        <Input
+                          placeholder="https://drive.google.com/..."
+                          value={row.link}
+                          onChange={(e) => setComplianceDocField(empId, "link", e.target.value)}
+                        />
+                      </div>
+                    );
+                  })}
+                  <DriveHelper />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Label>Compliance Documents *</Label>
+                  {complianceRows.map((row, idx) => (
+                    <div key={idx} className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">Document {idx + 1}</span>
+                        {complianceRows.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => setComplianceRows((prev) => prev.filter((_, i) => i !== idx))}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      <Input
+                        placeholder="Document name"
+                        value={row.name}
+                        onChange={(e) =>
+                          setComplianceRows((prev) => prev.map((r, i) => (i === idx ? { ...r, name: e.target.value } : r)))
+                        }
+                      />
+                      <Input
+                        placeholder="https://drive.google.com/..."
+                        value={row.link}
+                        onChange={(e) =>
+                          setComplianceRows((prev) => prev.map((r, i) => (i === idx ? { ...r, link: e.target.value } : r)))
+                        }
+                      />
                     </div>
-                    <Input
-                      placeholder="Document name"
-                      value={row.name}
-                      onChange={(e) =>
-                        setComplianceRows((prev) => prev.map((r, i) => (i === idx ? { ...r, name: e.target.value } : r)))
-                      }
-                    />
-                    <Input
-                      placeholder="https://drive.google.com/..."
-                      value={row.link}
-                      onChange={(e) =>
-                        setComplianceRows((prev) => prev.map((r, i) => (i === idx ? { ...r, link: e.target.value } : r)))
-                      }
-                    />
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => setComplianceRows((prev) => [...prev, emptyRow()])}
-                >
-                  <Plus className="h-4 w-4" /> Add another link
-                </Button>
-                <DriveHelper />
-              </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setComplianceRows((prev) => [...prev, emptyRow()])}
+                  >
+                    <Plus className="h-4 w-4" /> Add another link
+                  </Button>
+                  <DriveHelper />
+                </div>
+              )}
             </div>
           )}
 
