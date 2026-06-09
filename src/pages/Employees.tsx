@@ -424,7 +424,19 @@ const Employees = () => {
       return;
     }
     toast({ title: "Leave balance updated", description: `${leaveType} saved successfully.` });
-    await fetchClickedEmployeeLeave(clickedEmployee.user_id);
+    // Update the saved row in place so the display reflects the new values
+    // without a full refetch wiping other rows the admin may still be editing.
+    setClickedLeaveBalances((prev) =>
+      prev.map((lb) =>
+        lb.leave_type === leaveType
+          ? { ...lb, total_days: total, used_days: used, remaining_days: Math.max(0, total - used) }
+          : lb,
+      ),
+    );
+    setEditLeave((p) => ({
+      ...p,
+      [leaveType]: { total: String(total), remaining: String(remaining) },
+    }));
   };
 
   // Fetch managers that the clicked employee reports to
