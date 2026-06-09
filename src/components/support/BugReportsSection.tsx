@@ -175,51 +175,58 @@ export function BugReportsSection() {
 
                 {/* -- UPDATED: Screenshot section with drag & drop -- */}
                 <div className="space-y-2">
-                  <Label>Screenshot (optional)</Label>
+                  <Label>Screenshots (optional)</Label>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleFileSelect}
                     className="hidden"
                   />
-                  {previewUrl ? (
-                    <div className="relative">
-                      <img
-                        src={previewUrl}
-                        alt="Screenshot preview"
-                        className="w-full h-52 object-cover rounded-lg border"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 h-6 w-6"
-                        onClick={removeScreenshot}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      onPaste={handlePaste} // <-- NEW
-                      tabIndex={0} // <-- NEW: makes div focusable for paste
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`w-full h-44 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors outline-none focus:ring-2 focus:ring-primary/30 ${
-                        isDragging
-                          ? "border-primary bg-primary/5"
-                          : "border-muted-foreground/25 hover:border-muted-foreground/50"
-                      }`}
-                    >
-                      <ImagePlus className={`h-8 w-8 mb-2 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
-                      <span className="text-sm text-muted-foreground">
-                        {isDragging ? "Drop image here" : "Drag & drop, paste, or click to upload"}{" "}
-                        {/* <-- UPDATED text */}
-                      </span>
+                  {previewUrls.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {previewUrls.map((url, index) => (
+                        <div key={url} className="relative">
+                          <img
+                            src={url}
+                            alt={`Screenshot preview ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg border"
+                          />
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 h-5 w-5"
+                            onClick={() => removeScreenshotAt(index)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
                   )}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onPaste={handlePaste}
+                    tabIndex={0}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-full ${previewUrls.length > 0 ? "h-24" : "h-44"} border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors outline-none focus:ring-2 focus:ring-primary/30 ${
+                      isDragging
+                        ? "border-primary bg-primary/5"
+                        : "border-muted-foreground/25 hover:border-muted-foreground/50"
+                    }`}
+                  >
+                    <ImagePlus className={`h-8 w-8 mb-2 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+                    <span className="text-sm text-muted-foreground">
+                      {isDragging
+                        ? "Drop images here"
+                        : previewUrls.length > 0
+                        ? "Add more — drag & drop, paste, or click"
+                        : "Drag & drop, paste, or click to upload (multiple allowed)"}
+                    </span>
+                  </div>
                 </div>
                 {/* -- END UPDATED -- */}
 
