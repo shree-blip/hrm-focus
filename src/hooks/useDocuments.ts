@@ -177,9 +177,6 @@ export function useDocuments() {
   // fired once per logical action (e.g. once for a bulk policy upload).
   // ============================================================
   const sendDocumentNotifications = async (_name: string, _category: string, _employeeId?: string) => {
-    // Temporarily disabled — document notifications are paused until further notice.
-    return;
-    /*
     if (!user) return;
 
     // Get uploader info for email notifications
@@ -216,28 +213,28 @@ export function useDocuments() {
           .eq("id", _employeeId)
           .maybeSingle();
         const employeeName = empData ? `${empData.first_name} ${empData.last_name}` : "Employee";
-        // await supabase.functions.invoke("send-document-upload-notification", {
-        //   body: {
-        //     uploader_name: uploaderName,
-        //     uploader_email: uploaderEmail,
-        //     document_name: _name,
-        //     document_category: _category,
-        //     employee_id: _employeeId,
-        //     employee_name: employeeName,
-        //     notify_type: "manager_upload",
-        //   },
-        // });
+        await supabase.functions.invoke("send-document-upload-notification", {
+          body: {
+            uploader_name: uploaderName,
+            uploader_email: uploaderEmail,
+            document_name: _name,
+            document_category: _category,
+            employee_id: _employeeId,
+            employee_name: employeeName,
+            notify_type: "manager_upload",
+          },
+        });
       } else {
-        // await supabase.functions.invoke("send-document-upload-notification", {
-        //   body: {
-        //     uploader_name: uploaderName,
-        //     uploader_email: uploaderEmail,
-        //     document_name: _name,
-        //     document_category: _category,
-        //     employee_id: userEmployeeId,
-        //     notify_type: "employee_upload",
-        //   },
-        // });
+        await supabase.functions.invoke("send-document-upload-notification", {
+          body: {
+            uploader_name: uploaderName,
+            uploader_email: uploaderEmail,
+            document_name: _name,
+            document_category: _category,
+            employee_id: userEmployeeId,
+            notify_type: "employee_upload",
+          },
+        });
       }
     } catch (emailErr) {
       console.error("Error sending document email notification:", emailErr);
@@ -355,7 +352,6 @@ export function useDocuments() {
     } catch (notifyErr) {
       console.error("Error sending document in-app notifications:", notifyErr);
     }
-    */
   };
 
   // ============================================================
