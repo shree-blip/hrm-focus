@@ -535,6 +535,7 @@ export function useWorkLogs() {
     selectedDate,
     setSelectedDate,
     userDepartment,
+    employeeTimezone,
     addLog,
     updateLog,
     quickUpdate,
