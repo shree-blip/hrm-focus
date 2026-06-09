@@ -659,7 +659,9 @@ const Announcements = () => {
                           </Badge>
                         </div>
 
-                        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{a.content}</p>
+                        <p className="text-xs text-muted-foreground whitespace-pre-line break-words mb-2">
+                          {a.content}
+                        </p>
 
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
