@@ -1447,7 +1447,12 @@ const Employees = () => {
                             step="0.5"
                             min="0"
                             value={v.total}
-                            onChange={(e) => setEditLeave((p) => ({ ...p, [lb.leave_type]: { ...v, total: e.target.value } }))}
+                            onChange={(e) =>
+                              setEditLeave((p) => ({
+                                ...p,
+                                [lb.leave_type]: { ...(p[lb.leave_type] ?? v), total: e.target.value },
+                              }))
+                            }
                             className="h-8"
                           />
                         </div>
@@ -1458,7 +1463,12 @@ const Employees = () => {
                             step="0.5"
                             min="0"
                             value={v.remaining}
-                            onChange={(e) => setEditLeave((p) => ({ ...p, [lb.leave_type]: { ...v, remaining: e.target.value } }))}
+                            onChange={(e) =>
+                              setEditLeave((p) => ({
+                                ...p,
+                                [lb.leave_type]: { ...(p[lb.leave_type] ?? v), remaining: e.target.value },
+                              }))
+                            }
                             className="h-8"
                           />
                         </div>
