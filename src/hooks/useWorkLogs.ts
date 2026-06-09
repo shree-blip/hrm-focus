@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
+import { getCurrentTime24hInTz, DEFAULT_TIMEZONE } from "@/utils/timezoneUtils";
 
 export interface WorkLog {
   id: string;
