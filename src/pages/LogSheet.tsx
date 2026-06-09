@@ -471,6 +471,7 @@ export default function LogSheet() {
     selectedDate,
     setSelectedDate,
     userDepartment,
+    employeeTimezone,
     addLog,
     updateLog,
     quickUpdate,
@@ -478,6 +479,8 @@ export default function LogSheet() {
     pauseLog,
     resumeLog,
   } = useWorkLogs();
+  // Always compute "now" in the employee's assigned timezone, never the device clock
+  const nowInTz = () => getCurrentTime24hInTz(employeeTimezone);
   const { clients, loading: clientsLoading, refetch: refetchClients } = useClients();
   const { fetchAlertsForClient } = useClientAlerts();
   const { isManager, isVP, isLineManager, isAdmin, user } = useAuth();
