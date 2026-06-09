@@ -380,16 +380,22 @@ const Employees = () => {
     setLoadingLeave(false);
   };
 
-  // Sync editable inputs whenever balances refresh
+  // Seed editable inputs from balances, but NEVER clobber a value the admin is
+  // currently typing. Only initialise fields that don't have a value yet — this
+  // stops the inputs from "randomly" snapping back after each save/refetch.
   useEffect(() => {
-    const next: Record<string, { total: string; remaining: string }> = {};
-    clickedLeaveBalances.forEach((lb) => {
-      next[lb.leave_type] = {
-        total: String(lb.total_days),
-        remaining: String(lb.remaining_days),
-      };
+    setEditLeave((prev) => {
+      const next = { ...prev };
+      clickedLeaveBalances.forEach((lb) => {
+        if (next[lb.leave_type] === undefined) {
+          next[lb.leave_type] = {
+            total: String(lb.total_days),
+            remaining: String(lb.remaining_days),
+          };
+        }
+      });
+      return next;
     });
-    setEditLeave(next);
   }, [clickedLeaveBalances]);
 
   const saveLeaveBalance = async (leaveType: string) => {
@@ -418,7 +424,19 @@ const Employees = () => {
       return;
     }
     toast({ title: "Leave balance updated", description: `${leaveType} saved successfully.` });
-    await fetchClickedEmployeeLeave(clickedEmployee.user_id);
+    // Update the saved row in place so the display reflects the new values
+    // without a full refetch wiping other rows the admin may still be editing.
+    setClickedLeaveBalances((prev) =>
+      prev.map((lb) =>
+        lb.leave_type === leaveType
+          ? { ...lb, total_days: total, used_days: used, remaining_days: Math.max(0, total - used) }
+          : lb,
+      ),
+    );
+    setEditLeave((p) => ({
+      ...p,
+      [leaveType]: { total: String(total), remaining: String(remaining) },
+    }));
   };
 
   // Fetch managers that the clicked employee reports to
@@ -452,6 +470,8 @@ const Employees = () => {
 
   // When clicked employee changes, fetch their team and leave
   useEffect(() => {
+    // Reset any in-progress leave edits when switching to a different employee
+    setEditLeave({});
     if (clickedEmployee?.id) {
       fetchClickedEmployeeTeam(String(clickedEmployee.id));
       fetchClickedEmployeeManagers(String(clickedEmployee.id));
@@ -1427,7 +1447,12 @@ const Employees = () => {
                             step="0.5"
                             min="0"
                             value={v.total}
-                            onChange={(e) => setEditLeave((p) => ({ ...p, [lb.leave_type]: { ...v, total: e.target.value } }))}
+                            onChange={(e) =>
+                              setEditLeave((p) => ({
+                                ...p,
+                                [lb.leave_type]: { ...(p[lb.leave_type] ?? v), total: e.target.value },
+                              }))
+                            }
                             className="h-8"
                           />
                         </div>
@@ -1438,7 +1463,12 @@ const Employees = () => {
                             step="0.5"
                             min="0"
                             value={v.remaining}
-                            onChange={(e) => setEditLeave((p) => ({ ...p, [lb.leave_type]: { ...v, remaining: e.target.value } }))}
+                            onChange={(e) =>
+                              setEditLeave((p) => ({
+                                ...p,
+                                [lb.leave_type]: { ...(p[lb.leave_type] ?? v), remaining: e.target.value },
+                              }))
+                            }
                             className="h-8"
                           />
                         </div>
