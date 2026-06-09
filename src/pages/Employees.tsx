@@ -458,6 +458,8 @@ const Employees = () => {
 
   // When clicked employee changes, fetch their team and leave
   useEffect(() => {
+    // Reset any in-progress leave edits when switching to a different employee
+    setEditLeave({});
     if (clickedEmployee?.id) {
       fetchClickedEmployeeTeam(String(clickedEmployee.id));
       fetchClickedEmployeeManagers(String(clickedEmployee.id));
