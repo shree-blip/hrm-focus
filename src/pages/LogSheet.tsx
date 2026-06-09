@@ -648,7 +648,7 @@ export default function LogSheet() {
     if (!inlineEditId) return;
     const finalStatus = inlineData.end_time && inlineData.status !== "completed" ? "completed" : inlineData.status;
     // Auto-set end time when completing
-    const finalEndTime = finalStatus === "completed" && !inlineData.end_time ? getCurrentTime() : inlineData.end_time;
+    const finalEndTime = finalStatus === "completed" && !inlineData.end_time ? nowInTz() : inlineData.end_time;
     await quickUpdate(inlineEditId, {
       task_description: inlineData.task_description,
       start_time: inlineData.start_time,
@@ -663,7 +663,7 @@ export default function LogSheet() {
 
   const handleEndNow = async (logId: string) => {
     await quickUpdate(logId, {
-      end_time: getCurrentTime(),
+      end_time: nowInTz(),
       status: "completed",
     });
   };
