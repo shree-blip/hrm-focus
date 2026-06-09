@@ -68,6 +68,8 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
   // Compliance (multi-select employees + multiple links)
   const [complianceEmployeeIds, setComplianceEmployeeIds] = useState<string[]>([]);
   const [complianceRows, setComplianceRows] = useState<LinkRow[]>([emptyRow()]);
+  // Per-employee document fields for managers (employeeId -> { name, link })
+  const [complianceDocsByEmployee, setComplianceDocsByEmployee] = useState<Record<string, LinkRow>>({});
   const [employeeSearch, setEmployeeSearch] = useState("");
 
   // Leave Evidence
@@ -120,6 +122,7 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
     setPolicyRows([emptyRow()]);
     setComplianceEmployeeIds([]);
     setComplianceRows([emptyRow()]);
+    setComplianceDocsByEmployee({});
     setEmployeeSearch("");
     setLeaveName("");
     setLeaveLink("");
@@ -132,6 +135,28 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
 
   const toggleComplianceEmployee = (id: string) => {
     setComplianceEmployeeIds((prev) => (prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]));
+    setComplianceDocsByEmployee((prev) => {
+      const next = { ...prev };
+      if (next[id]) {
+        delete next[id];
+      } else {
+        next[id] = emptyRow();
+      }
+      return next;
+    });
+  };
+
+  const setComplianceDocField = (empId: string, field: keyof LinkRow, value: string) => {
+    setComplianceDocsByEmployee((prev) => ({
+      ...prev,
+      [empId]: { ...(prev[empId] || emptyRow()), [field]: value },
+    }));
+  };
+
+  const getEmployeeLabel = (empId: string) => {
+    const emp = employees.find((e) => e.id === empId);
+    if (!emp) return "Employee";
+    return `${emp.first_name} ${emp.last_name}${emp.employee_id ? ` (${emp.employee_id})` : ""}`;
   };
 
   const buildItems = (): DriveDocItem[] | null => {
@@ -169,6 +194,40 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
     }
 
     if (category === "Compliance") {
+      if (isManagerOrAbove) {
+        // Each selected employee has their own document name + link.
+        if (complianceEmployeeIds.length === 0) {
+          toast({ title: "Employee Required", description: "Select at least one employee.", variant: "destructive" });
+          return null;
+        }
+
+        const items: DriveDocItem[] = [];
+        for (const empId of complianceEmployeeIds) {
+          const row = complianceDocsByEmployee[empId] || emptyRow();
+          const name = row.name.trim();
+          const link = row.link.trim();
+          if (!name || !link) {
+            toast({
+              title: "Missing Information",
+              description: `Enter a document name and link for ${getEmployeeLabel(empId)}.`,
+              variant: "destructive",
+            });
+            return null;
+          }
+          if (!isValidDriveLink(link)) {
+            toast({
+              title: "Invalid Link",
+              description: `${getEmployeeLabel(empId)} has an invalid Google Drive link.`,
+              variant: "destructive",
+            });
+            return null;
+          }
+          items.push({ name, category: "Compliance", driveLink: link, employeeId: empId });
+        }
+        return items;
+      }
+
+      // Regular employees target themselves.
       const valid = complianceRows.filter((r) => r.name.trim() && r.link.trim());
       if (valid.length === 0) {
         toast({ title: "Missing Information", description: "Add at least one document name and link.", variant: "destructive" });
@@ -180,30 +239,16 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
           return null;
         }
       }
-
-      // Admins/managers can target multiple employees; others target themselves.
-      const targetEmployeeIds = isManagerOrAbove
-        ? complianceEmployeeIds
-        : currentUserEmployeeId
-          ? [currentUserEmployeeId]
-          : [];
-
-      if (targetEmployeeIds.length === 0) {
-        toast({
-          title: "Employee Required",
-          description: isManagerOrAbove ? "Select at least one employee." : "No employee record found.",
-          variant: "destructive",
-        });
+      if (!currentUserEmployeeId) {
+        toast({ title: "Employee Required", description: "No employee record found.", variant: "destructive" });
         return null;
       }
-
-      const items: DriveDocItem[] = [];
-      for (const empId of targetEmployeeIds) {
-        for (const r of valid) {
-          items.push({ name: r.name.trim(), category: "Compliance", driveLink: r.link.trim(), employeeId: empId });
-        }
-      }
-      return items;
+      return valid.map((r) => ({
+        name: r.name.trim(),
+        category: "Compliance",
+        driveLink: r.link.trim(),
+        employeeId: currentUserEmployeeId,
+      }));
     }
 
     if (category === "Leave Evidence") {
@@ -387,51 +432,83 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
                 </div>
               )}
 
-              <div className="space-y-3">
-                <Label>Compliance Documents *</Label>
-                {complianceRows.map((row, idx) => (
-                  <div key={idx} className="space-y-2 border rounded-lg p-3 bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">Document {idx + 1}</span>
-                      {complianceRows.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => setComplianceRows((prev) => prev.filter((_, i) => i !== idx))}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
+              {isManagerOrAbove ? (
+                <div className="space-y-3">
+                  <Label>Compliance Documents *</Label>
+                  {complianceEmployeeIds.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Select one or more employees above to add a document for each.
+                    </p>
+                  )}
+                  {complianceEmployeeIds.map((empId, idx) => {
+                    const row = complianceDocsByEmployee[empId] || emptyRow();
+                    return (
+                      <div key={empId} className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Document {idx + 1} for {getEmployeeLabel(empId)}
+                        </span>
+                        <Input
+                          placeholder="Document name"
+                          value={row.name}
+                          onChange={(e) => setComplianceDocField(empId, "name", e.target.value)}
+                        />
+                        <Input
+                          placeholder="https://drive.google.com/..."
+                          value={row.link}
+                          onChange={(e) => setComplianceDocField(empId, "link", e.target.value)}
+                        />
+                      </div>
+                    );
+                  })}
+                  <DriveHelper />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Label>Compliance Documents *</Label>
+                  {complianceRows.map((row, idx) => (
+                    <div key={idx} className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">Document {idx + 1}</span>
+                        {complianceRows.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => setComplianceRows((prev) => prev.filter((_, i) => i !== idx))}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      <Input
+                        placeholder="Document name"
+                        value={row.name}
+                        onChange={(e) =>
+                          setComplianceRows((prev) => prev.map((r, i) => (i === idx ? { ...r, name: e.target.value } : r)))
+                        }
+                      />
+                      <Input
+                        placeholder="https://drive.google.com/..."
+                        value={row.link}
+                        onChange={(e) =>
+                          setComplianceRows((prev) => prev.map((r, i) => (i === idx ? { ...r, link: e.target.value } : r)))
+                        }
+                      />
                     </div>
-                    <Input
-                      placeholder="Document name"
-                      value={row.name}
-                      onChange={(e) =>
-                        setComplianceRows((prev) => prev.map((r, i) => (i === idx ? { ...r, name: e.target.value } : r)))
-                      }
-                    />
-                    <Input
-                      placeholder="https://drive.google.com/..."
-                      value={row.link}
-                      onChange={(e) =>
-                        setComplianceRows((prev) => prev.map((r, i) => (i === idx ? { ...r, link: e.target.value } : r)))
-                      }
-                    />
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => setComplianceRows((prev) => [...prev, emptyRow()])}
-                >
-                  <Plus className="h-4 w-4" /> Add another link
-                </Button>
-                <DriveHelper />
-              </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setComplianceRows((prev) => [...prev, emptyRow()])}
+                  >
+                    <Plus className="h-4 w-4" /> Add another link
+                  </Button>
+                  <DriveHelper />
+                </div>
+              )}
             </div>
           )}
 
