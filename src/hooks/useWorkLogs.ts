@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { resolveTeamMemberUserIds } from "@/utils/teamResolver";
+import { getCurrentTime24hInTz, DEFAULT_TIMEZONE } from "@/utils/timezoneUtils";
 
 export interface WorkLog {
   id: string;
@@ -159,6 +160,7 @@ export function useWorkLogs() {
     org_id: string;
     department: string | null;
   } | null>(null);
+  const [employeeTimezone, setEmployeeTimezone] = useState<string>(DEFAULT_TIMEZONE);
   const { user, isManager, isVP, isLineManager } = useAuth();
   const { toast } = useToast();
 
@@ -168,7 +170,7 @@ export function useWorkLogs() {
     try {
       const { data, error } = await supabase
         .from("employees")
-        .select("id, org_id, department")
+        .select("id, org_id, department, timezone")
         .eq("email", user.email)
         .single();
       if (error) {
@@ -178,6 +180,7 @@ export function useWorkLogs() {
       if (data) {
         setEmployeeInfo({ id: data.id, org_id: data.org_id, department: data.department });
         setUserDepartment(data.department || null);
+        if ((data as any).timezone) setEmployeeTimezone((data as any).timezone);
       }
     } catch (err) {
       console.error("Error fetching employee info:", err);
@@ -343,8 +346,7 @@ export function useWorkLogs() {
 
       // Auto-set end time when marking as completed
       if (input.status === "completed" && !input.end_time && !currentLog.end_time) {
-        const now = new Date();
-        updateData.end_time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        updateData.end_time = getCurrentTime24hInTz(employeeTimezone);
       }
 
       // Auto-recalculate time (subtract pause minutes)
@@ -398,8 +400,7 @@ export function useWorkLogs() {
 
       // Auto-set end time when marking as completed
       if (fields.status === "completed" && !fields.end_time && !currentLog?.end_time) {
-        const now = new Date();
-        updateData.end_time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        updateData.end_time = getCurrentTime24hInTz(employeeTimezone);
       }
 
       // Auto-recalculate time (subtract pause minutes)
@@ -534,6 +535,7 @@ export function useWorkLogs() {
     selectedDate,
     setSelectedDate,
     userDepartment,
+    employeeTimezone,
     addLog,
     updateLog,
     quickUpdate,

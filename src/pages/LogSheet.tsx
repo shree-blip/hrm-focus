@@ -194,11 +194,9 @@ function getDepartmentDisplayLabel(value: string): string | null {
   return null;
 }
 
-import { formatTime12h, getCurrentTime24h, formatDuration } from "@/lib/timeFormat";
+import { formatTime12h, formatDuration } from "@/lib/timeFormat";
 import { supabase } from "@/integrations/supabase/client";
-
-/** Get current time as HH:mm */
-const getCurrentTime = getCurrentTime24h;
+import { getCurrentTime24hInTz } from "@/utils/timezoneUtils";
 
 /** Format total minutes to human readable */
 const formatTime = formatDuration;
@@ -471,6 +469,7 @@ export default function LogSheet() {
     selectedDate,
     setSelectedDate,
     userDepartment,
+    employeeTimezone,
     addLog,
     updateLog,
     quickUpdate,
@@ -478,6 +477,8 @@ export default function LogSheet() {
     pauseLog,
     resumeLog,
   } = useWorkLogs();
+  // Always compute "now" in the employee's assigned timezone, never the device clock
+  const nowInTz = () => getCurrentTime24hInTz(employeeTimezone);
   const { clients, loading: clientsLoading, refetch: refetchClients } = useClients();
   const { fetchAlertsForClient } = useClientAlerts();
   const { isManager, isVP, isLineManager, isAdmin, user } = useAuth();
@@ -557,7 +558,7 @@ export default function LogSheet() {
       notes: "",
       client_id: "",
       department: userDepartment || "",
-      start_time: getCurrentTime(),
+      start_time: nowInTz(),
       end_time: "",
       status: "in_progress",
     });
@@ -644,7 +645,7 @@ export default function LogSheet() {
     if (!inlineEditId) return;
     const finalStatus = inlineData.end_time && inlineData.status !== "completed" ? "completed" : inlineData.status;
     // Auto-set end time when completing
-    const finalEndTime = finalStatus === "completed" && !inlineData.end_time ? getCurrentTime() : inlineData.end_time;
+    const finalEndTime = finalStatus === "completed" && !inlineData.end_time ? nowInTz() : inlineData.end_time;
     await quickUpdate(inlineEditId, {
       task_description: inlineData.task_description,
       start_time: inlineData.start_time,
@@ -659,7 +660,7 @@ export default function LogSheet() {
 
   const handleEndNow = async (logId: string) => {
     await quickUpdate(logId, {
-      end_time: getCurrentTime(),
+      end_time: nowInTz(),
       status: "completed",
     });
   };

@@ -133,3 +133,39 @@ export function getTimezoneOffsetMinutes(timezone: string, date: Date): number {
 
 /** Default timezone used when employee has no explicit timezone set */
 export const DEFAULT_TIMEZONE = "Asia/Kathmandu";
+
+/**
+ * Get the current time as HH:mm (24-hour) in a specific IANA timezone.
+ * Use this instead of the device clock so the value reflects the employee's
+ * assigned location, not whatever timezone their PC/laptop happens to be set to.
+ */
+export function getCurrentTime24hInTz(timezone: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(new Date());
+    let hour = parts.find((p) => p.type === "hour")?.value ?? "00";
+    const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
+    if (hour === "24") hour = "00";
+    return `${hour}:${minute}`;
+  } catch {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  }
+}
+
+/**
+ * Get today's date as YYYY-MM-DD in a specific IANA timezone.
+ * Ensures the log_date matches the employee's location, regardless of device tz.
+ */
+export function getTodayInTz(timezone: string): string {
+  try {
+    return new Date().toLocaleDateString("en-CA", { timeZone: timezone });
+  } catch {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }
+}
