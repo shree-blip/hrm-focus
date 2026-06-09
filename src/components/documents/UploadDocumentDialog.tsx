@@ -135,6 +135,28 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
 
   const toggleComplianceEmployee = (id: string) => {
     setComplianceEmployeeIds((prev) => (prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]));
+    setComplianceDocsByEmployee((prev) => {
+      const next = { ...prev };
+      if (next[id]) {
+        delete next[id];
+      } else {
+        next[id] = emptyRow();
+      }
+      return next;
+    });
+  };
+
+  const setComplianceDocField = (empId: string, field: keyof LinkRow, value: string) => {
+    setComplianceDocsByEmployee((prev) => ({
+      ...prev,
+      [empId]: { ...(prev[empId] || emptyRow()), [field]: value },
+    }));
+  };
+
+  const getEmployeeLabel = (empId: string) => {
+    const emp = employees.find((e) => e.id === empId);
+    if (!emp) return "Employee";
+    return `${emp.first_name} ${emp.last_name}${emp.employee_id ? ` (${emp.employee_id})` : ""}`;
   };
 
   const buildItems = (): DriveDocItem[] | null => {
