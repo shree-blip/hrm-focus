@@ -36,7 +36,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Announcement Banner - Above header, inside content area.
             Left padding keeps it clearly separated from the sidebar so it
             starts after the sidebar instead of attaching to its right edge. */}
-        <div className="sticky top-0 z-30 lg:pl-3">
+        <div className="sticky top-0 z-30 lg:pl-3 rounded-md">
           <AnnouncementBanner />
         </div>
 
