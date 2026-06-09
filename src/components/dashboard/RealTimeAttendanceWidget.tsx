@@ -754,7 +754,9 @@ export function RealTimeAttendanceWidget() {
     setActiveFilter(activeFilter === filter ? null : filter);
   };
 
-  const exportHistoricalCSV = async (timeframe: "today" | "week" | "month") => {
+  const exportHistoricalCSV = async (
+    timeframe: "today" | "week" | "month" | "lastMonth" | "quarter",
+  ) => {
     setIsExporting(true);
     try {
       const now = new Date();
@@ -771,6 +773,13 @@ export function RealTimeAttendanceWidget() {
         const utcDay = now.getUTCDay();
         const diff = utcDay === 0 ? -6 : 1 - utcDay;
         start = new Date(Date.UTC(y, m, d + diff, 0, 0, 0, 0));
+        end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
+      } else if (timeframe === "lastMonth") {
+        start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
+        end = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999)); // last day of previous month
+      } else if (timeframe === "quarter") {
+        const quarterStartMonth = Math.floor(m / 3) * 3;
+        start = new Date(Date.UTC(y, quarterStartMonth, 1, 0, 0, 0, 0));
         end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
       } else {
         start = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0));
@@ -980,7 +989,9 @@ export function RealTimeAttendanceWidget() {
                   defaultValue=""
                   onChange={(e) => {
                     if (e.target.value) {
-                      exportHistoricalCSV(e.target.value as "today" | "week" | "month");
+                      exportHistoricalCSV(
+                        e.target.value as "today" | "week" | "month" | "lastMonth" | "quarter",
+                      );
                       e.target.value = "";
                     }
                   }}
@@ -992,6 +1003,8 @@ export function RealTimeAttendanceWidget() {
                   <option value="today">Today's Data</option>
                   <option value="week">This Week's Data</option>
                   <option value="month">This Month's Data</option>
+                  <option value="lastMonth">Last Month's Data</option>
+                  <option value="quarter">This Quarter's Data</option>
                 </select>
 
                 {/* Icon positioning inside the select */}
