@@ -30,7 +30,7 @@ import {
 // Types
 type Status = "IN" | "OUT" | "BRS" | "BRE" | "PAUSE" | "CONT" | "—";
 type FilterType = "all" | "working" | "break" | "paused" | "out" | "wfo" | "wfh";
-type PopupDateRange = "today" | "last3" | "week" | "month";
+type PopupDateRange = "today" | "last3" | "week" | "month" | "lastMonth" | "quarter";
 
 interface Employee {
   id: string;
