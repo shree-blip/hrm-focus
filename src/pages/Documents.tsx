@@ -580,6 +580,13 @@ const Documents = () => {
           if (editLinkDoc) await updateDocumentLink(editLinkDoc as Document, newLink);
         }}
       />
+
+      <DeleteDocumentDialog
+        document={deleteDoc as Document | null}
+        open={!!deleteDoc}
+        onOpenChange={(open) => !open && setDeleteDoc(null)}
+        onConfirm={(doc) => handleDelete(doc as DisplayDocument)}
+      />
     </DashboardLayout>
   );
 };
