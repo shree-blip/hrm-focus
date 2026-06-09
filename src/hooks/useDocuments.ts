@@ -176,7 +176,10 @@ export function useDocuments() {
   // Notification side-effects (email + in-app). Extracted so it can be
   // fired once per logical action (e.g. once for a bulk policy upload).
   // ============================================================
-  const sendDocumentNotifications = async (name: string, category: string, employeeId?: string) => {
+  const sendDocumentNotifications = async (_name: string, _category: string, _employeeId?: string) => {
+    // Temporarily disabled — document notifications are paused until further notice.
+    return;
+    /*
     if (!user) return;
 
     // Get uploader info for email notifications
@@ -192,7 +195,7 @@ export function useDocuments() {
     // ============================================================
     // Email side-effect (unchanged): keep existing edge invocation
     // ============================================================
-    const isManagerUploadingForEmployee = !!(employeeId && (isAdmin || isVP || isManager || isLineManager));
+    const isManagerUploadingForEmployee = !!(_employeeId && (isAdmin || isVP || isManager || isLineManager));
     try {
       // Resolve user's own employee id (used for employee_upload path)
       const { data: userProfile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
@@ -206,20 +209,20 @@ export function useDocuments() {
         userEmployeeId = empRecord?.id;
       }
 
-      if (isManagerUploadingForEmployee && employeeId) {
+      if (isManagerUploadingForEmployee && _employeeId) {
         const { data: empData } = await supabase
           .from("employees")
           .select("first_name, last_name")
-          .eq("id", employeeId)
+          .eq("id", _employeeId)
           .maybeSingle();
         const employeeName = empData ? `${empData.first_name} ${empData.last_name}` : "Employee";
         // await supabase.functions.invoke("send-document-upload-notification", {
         //   body: {
         //     uploader_name: uploaderName,
         //     uploader_email: uploaderEmail,
-        //     document_name: name,
-        //     document_category: category,
-        //     employee_id: employeeId,
+        //     document_name: _name,
+        //     document_category: _category,
+        //     employee_id: _employeeId,
         //     employee_name: employeeName,
         //     notify_type: "manager_upload",
         //   },
@@ -229,8 +232,8 @@ export function useDocuments() {
         //   body: {
         //     uploader_name: uploaderName,
         //     uploader_email: uploaderEmail,
-        //     document_name: name,
-        //     document_category: category,
+        //     document_name: _name,
+        //     document_category: _category,
         //     employee_id: userEmployeeId,
         //     notify_type: "employee_upload",
         //   },
@@ -244,7 +247,7 @@ export function useDocuments() {
     // In-app bell notifications — category-aware receiver routing
     // ============================================================
     try {
-      const normalized = (category || "").toLowerCase();
+      const normalized = (_category || "").toLowerCase();
       const link = "/documents";
 
       if (normalized === "policies" || normalized === "policy") {
@@ -262,8 +265,8 @@ export function useDocuments() {
         );
       } else if (normalized === "contracts" || normalized === "contract") {
         // #1 Contract → ONLY the selected employee
-        if (employeeId) {
-          const targetUserId = await getUserIdForEmployee(employeeId);
+        if (_employeeId) {
+          const targetUserId = await getUserIdForEmployee(_employeeId);
           if (targetUserId && targetUserId !== user.id) {
             await notifyUser(targetUserId, {
               title: "📄 New Contract Uploaded",
@@ -277,8 +280,8 @@ export function useDocuments() {
         // #3 Compliance → uploader's LM + supervisor + admin + vp
         // If a manager uploaded for an employee, target THAT employee's chain.
         const subjectUserId =
-          isManagerUploadingForEmployee && employeeId
-            ? (await getUserIdForEmployee(employeeId)) || user.id
+          isManagerUploadingForEmployee && _employeeId
+            ? (await getUserIdForEmployee(_employeeId)) || user.id
             : user.id;
         const subjectName =
           subjectUserId === user.id ? uploaderName : await getEmployeeDisplayName(subjectUserId);
@@ -336,8 +339,8 @@ export function useDocuments() {
         });
       } else {
         // #10 Generic document → only the selected employee (no broadcast)
-        if (employeeId) {
-          const targetUserId = await getUserIdForEmployee(employeeId);
+        if (_employeeId) {
+          const targetUserId = await getUserIdForEmployee(_employeeId);
           if (targetUserId && targetUserId !== user.id) {
             await notifyUser(targetUserId, {
               title: "📄 New Document Uploaded",
@@ -352,6 +355,7 @@ export function useDocuments() {
     } catch (notifyErr) {
       console.error("Error sending document in-app notifications:", notifyErr);
     }
+    */
   };
 
   // ============================================================
