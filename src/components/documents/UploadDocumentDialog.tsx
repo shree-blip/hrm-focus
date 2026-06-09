@@ -194,6 +194,40 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
     }
 
     if (category === "Compliance") {
+      if (isManagerOrAbove) {
+        // Each selected employee has their own document name + link.
+        if (complianceEmployeeIds.length === 0) {
+          toast({ title: "Employee Required", description: "Select at least one employee.", variant: "destructive" });
+          return null;
+        }
+
+        const items: DriveDocItem[] = [];
+        for (const empId of complianceEmployeeIds) {
+          const row = complianceDocsByEmployee[empId] || emptyRow();
+          const name = row.name.trim();
+          const link = row.link.trim();
+          if (!name || !link) {
+            toast({
+              title: "Missing Information",
+              description: `Enter a document name and link for ${getEmployeeLabel(empId)}.`,
+              variant: "destructive",
+            });
+            return null;
+          }
+          if (!isValidDriveLink(link)) {
+            toast({
+              title: "Invalid Link",
+              description: `${getEmployeeLabel(empId)} has an invalid Google Drive link.`,
+              variant: "destructive",
+            });
+            return null;
+          }
+          items.push({ name, category: "Compliance", driveLink: link, employeeId: empId });
+        }
+        return items;
+      }
+
+      // Regular employees target themselves.
       const valid = complianceRows.filter((r) => r.name.trim() && r.link.trim());
       if (valid.length === 0) {
         toast({ title: "Missing Information", description: "Add at least one document name and link.", variant: "destructive" });
@@ -205,30 +239,16 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
           return null;
         }
       }
-
-      // Admins/managers can target multiple employees; others target themselves.
-      const targetEmployeeIds = isManagerOrAbove
-        ? complianceEmployeeIds
-        : currentUserEmployeeId
-          ? [currentUserEmployeeId]
-          : [];
-
-      if (targetEmployeeIds.length === 0) {
-        toast({
-          title: "Employee Required",
-          description: isManagerOrAbove ? "Select at least one employee." : "No employee record found.",
-          variant: "destructive",
-        });
+      if (!currentUserEmployeeId) {
+        toast({ title: "Employee Required", description: "No employee record found.", variant: "destructive" });
         return null;
       }
-
-      const items: DriveDocItem[] = [];
-      for (const empId of targetEmployeeIds) {
-        for (const r of valid) {
-          items.push({ name: r.name.trim(), category: "Compliance", driveLink: r.link.trim(), employeeId: empId });
-        }
-      }
-      return items;
+      return valid.map((r) => ({
+        name: r.name.trim(),
+        category: "Compliance",
+        driveLink: r.link.trim(),
+        employeeId: currentUserEmployeeId,
+      }));
     }
 
     if (category === "Leave Evidence") {
