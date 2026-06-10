@@ -343,10 +343,13 @@ function ClientCombobox({
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return clients;
-    const q = query.toLowerCase();
+    const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+    const q = normalize(query);
+    if (!q) return clients;
     return clients.filter(
-      (c) => c.name.toLowerCase().includes(q) || (c.client_id && c.client_id.toLowerCase().includes(q)),
+      (c) =>
+        normalize(c.name || "").includes(q) ||
+        (c.client_id && normalize(c.client_id).includes(q)),
     );
   }, [clients, query]);
 
