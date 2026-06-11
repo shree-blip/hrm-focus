@@ -15,6 +15,7 @@ interface Employee {
   location: string | null;
   status: string | null;
   hire_date: string | null;
+  employment_type: string | null;
   pay_type: string | null;
   salary: number | null;
   hourly_rate: number | null;
@@ -45,6 +46,7 @@ interface EmployeeDirectory {
   location: string | null;
   status: string | null;
   hire_date: string | null;
+  employment_type: string | null;
   manager_id: string | null;
   line_manager_id: string | null;
   profile_id: string | null;
@@ -88,6 +90,7 @@ export function useEmployees() {
             ...emp,
             user_id: emp.profile_id ? profileToUserMap.get(emp.profile_id) || null : null,
             gender: (emp as any).gender || null,
+            employment_type: (emp as any).employment_type ?? null,
             insurance_premium: (emp as any).insurance_premium || null,
             include_dashain_bonus: (emp as any).include_dashain_bonus ?? null,
             profiles: emp.profile_id
@@ -119,6 +122,7 @@ export function useEmployees() {
             location: emp.location,
             status: emp.status,
             hire_date: emp.hire_date,
+            employment_type: (emp as any).employment_type ?? null,
             pay_type: null,
             salary: null,
             hourly_rate: null,

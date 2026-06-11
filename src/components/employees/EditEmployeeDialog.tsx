@@ -30,6 +30,7 @@ interface Employee {
   status: string;
   initials: string;
   phone: string;
+  employment_type?: string;
   profile_id?: string | null;
   user_id?: string | null;
 }
@@ -203,8 +204,23 @@ export function EditEmployeeDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="probation">Probation</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="employmentType">Employment Type</Label>
+            <Select
+              value={formData.employment_type || "full_time"}
+              onValueChange={(value) => setFormData({ ...formData, employment_type: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full_time">Full-Time</SelectItem>
+                <SelectItem value="probation">Probation</SelectItem>
+                <SelectItem value="intern">Intern</SelectItem>
               </SelectContent>
             </Select>
           </div>

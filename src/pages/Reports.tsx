@@ -72,6 +72,7 @@ interface DailyAttendanceRecord {
   clock_in: string;
   clock_out: string | null;
   hours_worked: number;
+  employment_type?: string;
   // Support both single break (legacy) and multiple breaks
   break_start?: string | null;
   break_end?: string | null;
@@ -596,10 +597,15 @@ const Reports = () => {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
-  const getWorkStatus = (totalHours: number | null, clockOut: string | null) => {
+  const getWorkStatus = (
+    totalHours: number | null,
+    clockOut: string | null,
+    employmentType?: string | null,
+  ) => {
     if (!clockOut || totalHours === null) return { label: "In Progress", variant: "secondary" as const };
-    if (totalHours >= 8.5) return { label: "Overtime", variant: "default" as const };
-    if (totalHours >= 7.5 && totalHours < 8.5) return { label: "Complete", variant: "default" as const };
+    // Interns are Complete after 5 hours; Full-Time and Probation after 8 hours.
+    const requiredHours = employmentType === "intern" ? 5 : 8;
+    if (totalHours >= requiredHours) return { label: "Complete", variant: "default" as const };
     return { label: "Short Time", variant: "destructive" as const };
   };
 
@@ -975,7 +981,7 @@ const Reports = () => {
         const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
         const totalPauseMinutes = calculateTotalPauseMinutes(typedAtt);
         const totalHours = calculateTotalHours(typedAtt);
-        const status = getWorkStatus(totalHours, typedAtt.clock_out).label;
+        const status = getWorkStatus(totalHours, typedAtt.clock_out, typedAtt.employment_type).label;
 
         let row = `"${date}","${typedAtt.employee_name}","${typedAtt.email}","${clockIn}"`;
 
@@ -1523,7 +1529,7 @@ const Reports = () => {
                         const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
                         const totalPauseMinutes = calculateTotalPauseMinutes(typedAtt);
                         const totalHours = calculateTotalHours(typedAtt);
-                        const status = getWorkStatus(totalHours, typedAtt.clock_out);
+        const status = getWorkStatus(totalHours, typedAtt.clock_out, typedAtt.employment_type);
                         const rowKey = `${typedAtt.user_id}-${typedAtt.clock_in}-${index}`;
                         const logId = (att as any).id as string | undefined;
                         const isExpanded = expandedRows.has(rowKey);
