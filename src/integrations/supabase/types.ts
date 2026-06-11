@@ -4390,6 +4390,7 @@ export type Database = {
         Row: {
           department: string | null
           email: string | null
+          employment_type: string | null
           first_name: string | null
           hire_date: string | null
           id: string | null
@@ -4404,6 +4405,7 @@ export type Database = {
         Insert: {
           department?: string | null
           email?: string | null
+          employment_type?: string | null
           first_name?: string | null
           hire_date?: string | null
           id?: string | null
@@ -4418,6 +4420,7 @@ export type Database = {
         Update: {
           department?: string | null
           email?: string | null
+          employment_type?: string | null
           first_name?: string | null
           hire_date?: string | null
           id?: string | null
@@ -4487,6 +4490,7 @@ export type Database = {
           department: string | null
           email: string | null
           employee_id: string | null
+          employment_type: string | null
           first_name: string | null
           gender: string | null
           hire_date: string | null
@@ -4515,6 +4519,7 @@ export type Database = {
           department?: string | null
           email?: string | null
           employee_id?: string | null
+          employment_type?: string | null
           first_name?: string | null
           gender?: string | null
           hire_date?: string | null
@@ -4543,6 +4548,7 @@ export type Database = {
           department?: string | null
           email?: string | null
           employee_id?: string | null
+          employment_type?: string | null
           first_name?: string | null
           gender?: string | null
           hire_date?: string | null
