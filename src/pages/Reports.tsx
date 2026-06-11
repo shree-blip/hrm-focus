@@ -1529,7 +1529,7 @@ const Reports = () => {
                         const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
                         const totalPauseMinutes = calculateTotalPauseMinutes(typedAtt);
                         const totalHours = calculateTotalHours(typedAtt);
-                        const status = getWorkStatus(totalHours, typedAtt.clock_out);
+        const status = getWorkStatus(totalHours, typedAtt.clock_out, typedAtt.employment_type);
                         const rowKey = `${typedAtt.user_id}-${typedAtt.clock_in}-${index}`;
                         const logId = (att as any).id as string | undefined;
                         const isExpanded = expandedRows.has(rowKey);
