@@ -60,6 +60,19 @@ interface SubTeamView {
   employeeName: string;
 }
 
+/** Human-readable label for an employee's employment type */
+function formatEmploymentType(value: string | null | undefined): string {
+  switch (value) {
+    case "intern":
+      return "Intern";
+    case "probation":
+      return "Probation";
+    case "full_time":
+    default:
+      return "Full-Time";
+  }
+}
+
 /** Fetch all team members from both junction table AND legacy columns, deduplicated */
 async function fetchCombinedTeam(employeeId: string): Promise<ClickedEmployeeTeamMember[]> {
   // Fetch junction table and legacy columns in parallel
