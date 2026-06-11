@@ -72,6 +72,7 @@ interface DailyAttendanceRecord {
   clock_in: string;
   clock_out: string | null;
   hours_worked: number;
+  employment_type?: string;
   // Support both single break (legacy) and multiple breaks
   break_start?: string | null;
   break_end?: string | null;
