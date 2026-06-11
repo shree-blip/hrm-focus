@@ -187,18 +187,15 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
 
     // Fetch profiles and employees for name resolution + timezone
     const { data: profiles } = await supabase.from("profiles").select("user_id, first_name, last_name, email");
-    const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id, timezone");
-    const { data: employeeTypes } = await supabase.from("employees").select("profile_id, employment_type");
+    const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id, timezone, employment_type");
 
     const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
     const employeeMap = new Map(employees?.map((e) => [e.id, e]) || []);
     const profileIdToTimezone = new Map(
       employees?.filter(e => e.profile_id).map(e => [e.profile_id, e.timezone || "Asia/Kathmandu"]) || []
     );
-    const userEmploymentTypeMap = new Map<string, string>(
-      (employeeTypes || [])
-        .filter((e) => e.profile_id)
-        .map((e) => [e.profile_id as string, (e as any).employment_type || "full_time"]),
+    const profileIdToEmploymentType = new Map(
+      employees?.filter(e => e.profile_id).map(e => [e.profile_id, (e as any).employment_type || "full_time"]) || []
     );
     const userTimezoneMap = new Map<string, string>();
     profiles?.forEach(p => {
@@ -208,6 +205,15 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
     employees?.forEach(e => {
       if (e.profile_id) {
         userTimezoneMap.set(e.profile_id, e.timezone || "Asia/Kathmandu");
+      }
+    });
+    const userEmploymentTypeMap = new Map<string, string>();
+    profiles?.forEach(p => {
+      userEmploymentTypeMap.set(p.user_id, profileIdToEmploymentType.get(p.user_id) || "full_time");
+    });
+    employees?.forEach(e => {
+      if (e.profile_id) {
+        userEmploymentTypeMap.set(e.profile_id, (e as any).employment_type || "full_time");
       }
     });
 
