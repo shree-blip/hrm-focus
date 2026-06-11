@@ -260,8 +260,14 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
         hoursWorked = Math.max(0, (totalMinutes - breakMinutes - pauseMinutes) / 60);
       }
 
-      const empTz = userTimezoneMap.get(userId) || "Asia/Kathmandu";
-      const empType = userEmploymentTypeMap.get(userId) || "full_time";
+      // Fallback to direct employee record when the log is linked by employee_id only.
+      const empById = employeeId ? employeeMap.get(employeeId) : undefined;
+      const empTz =
+        userTimezoneMap.get(userId) || empById?.timezone || "Asia/Kathmandu";
+      const empType =
+        userEmploymentTypeMap.get(userId) ||
+        (empById as any)?.employment_type ||
+        "full_time";
 
       // Build breaks and pauses arrays from sessions
       const sessions = sessionsMap.get(log.id) || [];
