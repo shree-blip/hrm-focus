@@ -188,11 +188,17 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
     // Fetch profiles and employees for name resolution + timezone
     const { data: profiles } = await supabase.from("profiles").select("user_id, first_name, last_name, email");
     const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id, timezone");
+    const { data: employeeTypes } = await supabase.from("employees").select("profile_id, employment_type");
 
     const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
     const employeeMap = new Map(employees?.map((e) => [e.id, e]) || []);
     const profileIdToTimezone = new Map(
       employees?.filter(e => e.profile_id).map(e => [e.profile_id, e.timezone || "Asia/Kathmandu"]) || []
+    );
+    const userEmploymentTypeMap = new Map<string, string>(
+      (employeeTypes || [])
+        .filter((e) => e.profile_id)
+        .map((e) => [e.profile_id as string, (e as any).employment_type || "full_time"]),
     );
     const userTimezoneMap = new Map<string, string>();
     profiles?.forEach(p => {
@@ -260,6 +266,7 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
       }
 
       const empTz = userTimezoneMap.get(userId) || "Asia/Kathmandu";
+      const empType = userEmploymentTypeMap.get(userId) || "full_time";
 
       // Build breaks and pauses arrays from sessions
       const sessions = sessionsMap.get(log.id) || [];
@@ -288,6 +295,7 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
         clock_in: log.clock_in,
         clock_out: log.clock_out,
         break_start: log.break_start,
+        employment_type: empType,
         break_end: log.break_end,
         total_break_minutes: log.total_break_minutes,
         pause_start: log.pause_start,
