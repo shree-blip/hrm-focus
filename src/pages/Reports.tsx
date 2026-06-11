@@ -981,7 +981,7 @@ const Reports = () => {
         const totalBreakMinutes = calculateTotalBreakMinutes(typedAtt);
         const totalPauseMinutes = calculateTotalPauseMinutes(typedAtt);
         const totalHours = calculateTotalHours(typedAtt);
-        const status = getWorkStatus(totalHours, typedAtt.clock_out).label;
+        const status = getWorkStatus(totalHours, typedAtt.clock_out, typedAtt.employment_type).label;
 
         let row = `"${date}","${typedAtt.employee_name}","${typedAtt.email}","${clockIn}"`;
 
