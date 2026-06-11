@@ -90,6 +90,7 @@ export function useEmployees() {
             ...emp,
             user_id: emp.profile_id ? profileToUserMap.get(emp.profile_id) || null : null,
             gender: (emp as any).gender || null,
+            employment_type: (emp as any).employment_type ?? null,
             insurance_premium: (emp as any).insurance_premium || null,
             include_dashain_bonus: (emp as any).include_dashain_bonus ?? null,
             profiles: emp.profile_id
