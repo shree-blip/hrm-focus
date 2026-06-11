@@ -186,35 +186,24 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
     }
 
     // Fetch profiles and employees for name resolution + timezone
-    const { data: profiles } = await supabase.from("profiles").select("user_id, first_name, last_name, email");
+    const { data: profiles } = await supabase.from("profiles").select("id, user_id, first_name, last_name, email");
     const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id, timezone, employment_type");
 
     const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
     const employeeMap = new Map(employees?.map((e) => [e.id, e]) || []);
-    const profileIdToTimezone = new Map(
-      employees?.filter(e => e.profile_id).map(e => [e.profile_id, e.timezone || "Asia/Kathmandu"]) || []
-    );
-    const profileIdToEmploymentType = new Map(
-      employees?.filter(e => e.profile_id).map(e => [e.profile_id, (e as any).employment_type || "full_time"]) || []
-    );
+    // Map a profile's primary key (profiles.id, referenced by employees.profile_id)
+    // to the auth user_id that attendance_logs.user_id actually stores.
+    const profileIdToUserId = new Map(profiles?.map((p) => [p.id, p.user_id]) || []);
+
+    // Resolve timezone & employment type keyed by the auth user_id used in logs.
     const userTimezoneMap = new Map<string, string>();
-    profiles?.forEach(p => {
-      const tz = profileIdToTimezone.get(p.user_id) || "Asia/Kathmandu";
-      userTimezoneMap.set(p.user_id, tz);
-    });
-    employees?.forEach(e => {
-      if (e.profile_id) {
-        userTimezoneMap.set(e.profile_id, e.timezone || "Asia/Kathmandu");
-      }
-    });
     const userEmploymentTypeMap = new Map<string, string>();
-    profiles?.forEach(p => {
-      userEmploymentTypeMap.set(p.user_id, profileIdToEmploymentType.get(p.user_id) || "full_time");
-    });
-    employees?.forEach(e => {
-      if (e.profile_id) {
-        userEmploymentTypeMap.set(e.profile_id, (e as any).employment_type || "full_time");
-      }
+    employees?.forEach((e) => {
+      if (!e.profile_id) return;
+      const uid = profileIdToUserId.get(e.profile_id);
+      if (!uid) return;
+      userTimezoneMap.set(uid, e.timezone || "Asia/Kathmandu");
+      userEmploymentTypeMap.set(uid, (e as any).employment_type || "full_time");
     });
 
     const userTotals = new Map<
@@ -271,8 +260,14 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
         hoursWorked = Math.max(0, (totalMinutes - breakMinutes - pauseMinutes) / 60);
       }
 
-      const empTz = userTimezoneMap.get(userId) || "Asia/Kathmandu";
-      const empType = userEmploymentTypeMap.get(userId) || "full_time";
+      // Fallback to direct employee record when the log is linked by employee_id only.
+      const empById = employeeId ? employeeMap.get(employeeId) : undefined;
+      const empTz =
+        userTimezoneMap.get(userId) || empById?.timezone || "Asia/Kathmandu";
+      const empType =
+        userEmploymentTypeMap.get(userId) ||
+        (empById as any)?.employment_type ||
+        "full_time";
 
       // Build breaks and pauses arrays from sessions
       const sessions = sessionsMap.get(log.id) || [];
