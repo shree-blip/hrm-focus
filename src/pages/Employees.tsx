@@ -852,7 +852,7 @@ const Employees = () => {
                   <TableHead className="font-semibold">Location</TableHead>
                   <TableHead className="font-semibold">Status</TableHead>
                   {isManager && <TableHead className="font-semibold">Account</TableHead>}
-                  <TableHead className="font-semibold">Contact</TableHead>
+                  <TableHead className="font-semibold">Employment Type</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -927,19 +927,9 @@ const Employees = () => {
                       )}
 
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(`mailto:${employee.email}`, "_blank");
-                            }}
-                          >
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
+                        <Badge variant="secondary" className="font-normal">
+                          {formatEmploymentType(employee.employment_type)}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))
