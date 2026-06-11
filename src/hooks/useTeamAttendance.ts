@@ -31,6 +31,7 @@ interface DailyAttendanceRecord {
   clock_in: string;
   clock_out: string | null;
   break_start: string | null;
+  employment_type: string;
   break_end: string | null;
   total_break_minutes: number | null;
   pause_start: string | null;
