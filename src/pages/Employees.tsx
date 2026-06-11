@@ -582,6 +582,7 @@ const Employees = () => {
       department: employee.department || "",
       location: employee.location || "US",
       status: employee.status || "active",
+      employment_type: employee.employment_type || "full_time",
       initials: getInitials(employee.first_name, employee.last_name),
       profile_id: employee.profile_id || null,
       user_id: employee.user_id || null,
@@ -702,6 +703,7 @@ const Employees = () => {
       job_title: updatedEmployee.role || null,
       location: updatedEmployee.location || "US",
       status: updatedEmployee.status || "active",
+      employment_type: updatedEmployee.employment_type || "full_time",
     });
   };
 
