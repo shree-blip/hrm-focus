@@ -597,10 +597,15 @@ const Reports = () => {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
-  const getWorkStatus = (totalHours: number | null, clockOut: string | null) => {
+  const getWorkStatus = (
+    totalHours: number | null,
+    clockOut: string | null,
+    employmentType?: string | null,
+  ) => {
     if (!clockOut || totalHours === null) return { label: "In Progress", variant: "secondary" as const };
-    if (totalHours >= 8.5) return { label: "Overtime", variant: "default" as const };
-    if (totalHours >= 7.5 && totalHours < 8.5) return { label: "Complete", variant: "default" as const };
+    // Interns are Complete after 5 hours; Full-Time and Probation after 8 hours.
+    const requiredHours = employmentType === "intern" ? 5 : 8;
+    if (totalHours >= requiredHours) return { label: "Complete", variant: "default" as const };
     return { label: "Short Time", variant: "destructive" as const };
   };
 
