@@ -15,6 +15,7 @@ interface Employee {
   location: string | null;
   status: string | null;
   hire_date: string | null;
+  employment_type: string | null;
   pay_type: string | null;
   salary: number | null;
   hourly_rate: number | null;
@@ -45,6 +46,7 @@ interface EmployeeDirectory {
   location: string | null;
   status: string | null;
   hire_date: string | null;
+  employment_type: string | null;
   manager_id: string | null;
   line_manager_id: string | null;
   profile_id: string | null;
@@ -119,6 +121,7 @@ export function useEmployees() {
             location: emp.location,
             status: emp.status,
             hire_date: emp.hire_date,
+            employment_type: (emp as any).employment_type ?? null,
             pay_type: null,
             salary: null,
             hourly_rate: null,
