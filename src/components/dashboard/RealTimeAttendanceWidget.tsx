@@ -609,7 +609,17 @@ export function RealTimeAttendanceWidget() {
   });
 
   const recentActivities = useMemo(() => {
-    return events.filter((evt) => evt.name && evt.name.trim().length > 0 && evt.name !== "Unknown");
+    // Allow a small tolerance for clock skew, but drop clearly future-dated
+    // timestamps (e.g. clock-outs or edited attendance end times set in the
+    // future) so they don't incorrectly bubble to the top of the feed.
+    const futureCutoff = Date.now() + 2 * 60 * 1000; // 2 min tolerance
+    return events
+      .filter((evt) => evt.name && evt.name.trim().length > 0 && evt.name !== "Unknown")
+      .filter((evt) => {
+        const t = new Date(evt.time).getTime();
+        return Number.isFinite(t) && t <= futureCutoff;
+      })
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   }, [events]);
 
   const fullActivities = useMemo<FullActivity[]>(() => {
