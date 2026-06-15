@@ -1,20 +1,18 @@
 import { useEffect, useState, useCallback } from "react";
 import { Megaphone, X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAnnouncements, Announcement } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { isAfter, parseISO } from "date-fns";
 
 const DISMISSED_KEY = "focus_announcement_banner_dismissed";
-const CYCLE_INTERVAL = 3000; // ms between title changes
 
 export default function AnnouncementBanner() {
   const { user } = useAuth();
   const { announcements, loading } = useAnnouncements();
-  const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [dismissed, setDismissed] = useState(false);
   const [activeAnnouncements, setActiveAnnouncements] = useState<string[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
 
   // Filter function to get currently active announcements
   const filterActiveAnnouncements = useCallback((items: Announcement[]) => {
@@ -40,7 +38,10 @@ export default function AnnouncementBanner() {
     const active = filterActiveAnnouncements(announcements);
 
     setActiveAnnouncements(
-      active.map((a) => `📢 ${a.title}`),
+      active.map((a) => {
+        const publisher = a.publisher_name ? ` — ${a.publisher_name}` : "";
+        return `📢 ${a.title}: ${a.content}${publisher}`;
+      }),
     );
   }, [loading, user, announcements, filterActiveAnnouncements]);
 
@@ -66,21 +67,17 @@ export default function AnnouncementBanner() {
       const active = filterActiveAnnouncements(announcements);
 
       setActiveAnnouncements(
-        active.map((a) => `📢 ${a.title}`),
+        active.map((a) => {
+          const publisher = a.publisher_name ? ` — ${a.publisher_name}` : "";
+          const clean = a.content.replace(/\s+/g, " ").trim();
+          const excerpt = clean.length > 120 ? `${clean.slice(0, 120)}…` : clean;
+          return `📢 ${a.title}: ${excerpt}${publisher}`;
+        }),
       );
     }, delay);
 
     return () => clearTimeout(timer);
   }, [loading, announcements, filterActiveAnnouncements]);
-
-  // Cycle through announcement titles in a loop
-  useEffect(() => {
-    if (activeAnnouncements.length <= 1) return;
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % activeAnnouncements.length);
-    }, CYCLE_INTERVAL);
-    return () => clearInterval(interval);
-  }, [activeAnnouncements.length]);
 
   const handleDismiss = () => {
     if (!user) return;
@@ -91,26 +88,24 @@ export default function AnnouncementBanner() {
 
   if (loading || dismissed || activeAnnouncements.length === 0) return null;
 
+  const marqueeText = activeAnnouncements.join("      •      ");
+
   return (
     <div className="bg-primary text-primary-foreground py-2 px-4 relative w-full max-w-full overflow-x-clip rounded-xl">
       <div className="flex items-center gap-3 w-full max-w-full">
         <Megaphone className="h-4 w-4 flex-shrink-0" />
 
-        <div
-          className="relative flex-1 min-w-0 overflow-hidden cursor-pointer"
-          onClick={() => navigate("/announcements")}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") navigate("/announcements");
-          }}
-          title="View all announcements"
-        >
-          <div className="flex items-center h-5">
-            <span className="text-sm font-medium truncate">
-              {activeAnnouncements[currentIndex]}
-            </span>
+        <div className="relative flex-1 min-w-0 overflow-hidden">
+          <div
+            className="absolute inset-y-0 left-0 flex items-center whitespace-nowrap animate-marquee hover:[animation-play-state:paused] will-change-transform"
+            style={{ animationDuration: isMobile ? "40s" : "30s" }}
+          >
+            <span className="text-sm font-medium px-4">{marqueeText}</span>
+            <span className="text-sm font-medium px-4">{marqueeText}</span>
+            <span className="text-sm font-medium px-4">{marqueeText}</span>
+            <span className="text-sm font-medium px-4">{marqueeText}</span>
           </div>
+          <div className="h-5" aria-hidden="true" />
         </div>
 
         <button
