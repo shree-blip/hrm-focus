@@ -115,15 +115,15 @@ export function AnnouncementsWidget() {
       </Card>
 
       <Dialog open={!!selectedAnnouncement} onOpenChange={() => setSelectedAnnouncement(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-w-[calc(100vw-2rem)]">
           <DialogHeader>
-            <div className="flex items-center gap-2">
-              {selectedAnnouncement?.is_pinned && <Pin className="h-4 w-4 text-primary" />}
-              <DialogTitle className="font-display">{selectedAnnouncement?.title}</DialogTitle>
+            <div className="flex items-start gap-2">
+              {selectedAnnouncement?.is_pinned && <Pin className="h-4 w-4 text-primary shrink-0 mt-1" />}
+              <DialogTitle className="font-display break-words">{selectedAnnouncement?.title}</DialogTitle>
             </div>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant="outline"
                 className={`text-xs ${selectedAnnouncement ? getTypeBadgeClass(selectedAnnouncement.type) : ''}`}
@@ -135,7 +135,7 @@ export function AnnouncementsWidget() {
                 {selectedAnnouncement && formatDate(selectedAnnouncement.created_at)}
               </div>
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed break-words break-all whitespace-pre-line">
               {selectedAnnouncement?.content}
             </p>
           </div>
