@@ -14,17 +14,17 @@ import { usePersistentState } from "@/hooks/usePersistentState";
 const getNotificationIcon = (type: string | null) => {
   switch (type) {
     case "leave":
-      return <Calendar className="h-5 w-5 text-info" />;
+      return <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-info" />;
     case "task":
-      return <FileText className="h-5 w-5 text-warning" />;
+      return <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />;
     case "onboarding":
-      return <Users className="h-5 w-5 text-success" />;
+      return <Users className="h-4 w-4 sm:h-5 sm:w-5 text-success" />;
     case "payroll":
-      return <Clock className="h-5 w-5 text-primary" />;
+      return <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />;
     case "announcement":
-      return <Megaphone className="h-5 w-5 text-primary" />;
+      return <Megaphone className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />;
     default:
-      return <Bell className="h-5 w-5 text-muted-foreground" />;
+      return <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />;
   }
 };
 
