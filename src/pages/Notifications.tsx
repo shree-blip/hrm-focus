@@ -172,11 +172,11 @@ const Notifications = () => {
                   <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
                     {getNotificationIcon(notification.type)}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className={cn("font-medium", isUnread && !notification.isAnnouncement && "text-primary")}>
+                      <div className="min-w-0">
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <p className={cn("font-medium break-words", isUnread && !notification.isAnnouncement && "text-primary")}>
                             {notification.title}
                           </p>
                           {notification.isAnnouncement && (
@@ -190,7 +190,7 @@ const Notifications = () => {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-line break-words">
+                        <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-line break-words break-all">
                           {notification.publisher_name && (
                             <span className="font-medium text-foreground/80">By {notification.publisher_name}: </span>
                           )}
