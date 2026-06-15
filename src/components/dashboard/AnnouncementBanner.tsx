@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Megaphone, X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAnnouncements, Announcement } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAfter, parseISO } from "date-fns";
