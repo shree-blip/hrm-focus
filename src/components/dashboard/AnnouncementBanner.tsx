@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Megaphone, X } from "lucide-react";
 import { useAnnouncements, Announcement } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { isAfter, parseISO } from "date-fns";
 
 const DISMISSED_KEY = "focus_announcement_banner_dismissed";
-const CYCLE_INTERVAL = 3000; // ms between title changes
+const PX_PER_SEC = 60; // scroll speed — raise = faster, lower = slower
 
 export default function AnnouncementBanner() {
   const { user } = useAuth();
@@ -14,9 +14,10 @@ export default function AnnouncementBanner() {
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const [activeAnnouncements, setActiveAnnouncements] = useState<string[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Filter function to get currently active announcements
+  const trackRef = useRef<HTMLDivElement>(null);
+  const animRef = useRef<Animation | null>(null);
+
   const filterActiveAnnouncements = useCallback((items: Announcement[]) => {
     const now = new Date();
     return items.filter((a) => {
@@ -34,53 +35,60 @@ export default function AnnouncementBanner() {
     if (loading || !user) return;
 
     const dismissedKey = `${DISMISSED_KEY}_${user.id}_${new Date().toDateString()}`;
-    const wasDismissed = localStorage.getItem(dismissedKey) === "true";
-    setDismissed(wasDismissed);
+    setDismissed(localStorage.getItem(dismissedKey) === "true");
 
     const active = filterActiveAnnouncements(announcements);
-
-    setActiveAnnouncements(
-      active.map((a) => `📢 ${a.title}`),
-    );
+    setActiveAnnouncements(active.map((a) => `📢 ${a.title}`));
   }, [loading, user, announcements, filterActiveAnnouncements]);
 
-  // Auto-remove expired announcements from banner when their time comes
+  // Refresh the list when the next announcement expires
   useEffect(() => {
     if (loading || announcements.length === 0) return;
 
     const now = Date.now();
-
-    // Find the next expiry time
-    const upcomingExpiries = announcements
+    const upcoming = announcements
       .filter((a) => a.is_active && a.expires_at)
       .map((a) => parseISO(a.expires_at!).getTime())
       .filter((t) => t > now);
 
-    if (upcomingExpiries.length === 0) return;
+    if (upcoming.length === 0) return;
 
-    const nextExpiry = Math.min(...upcomingExpiries);
-    const delay = nextExpiry - now + 100; // 100ms buffer to ensure it's past expiry
-
+    const delay = Math.min(...upcoming) - now + 100;
     const timer = setTimeout(() => {
-      // Re-filter and update when an announcement expires
       const active = filterActiveAnnouncements(announcements);
-
-      setActiveAnnouncements(
-        active.map((a) => `📢 ${a.title}`),
-      );
+      setActiveAnnouncements(active.map((a) => `📢 ${a.title}`));
     }, delay);
 
     return () => clearTimeout(timer);
   }, [loading, announcements, filterActiveAnnouncements]);
 
-  // Cycle through announcement titles in a loop
+  const tickerText = activeAnnouncements.join("      •      ");
+
+  // Continuous, seamless marquee at a constant speed
   useEffect(() => {
-    if (activeAnnouncements.length <= 1) return;
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % activeAnnouncements.length);
-    }, CYCLE_INTERVAL);
-    return () => clearInterval(interval);
-  }, [activeAnnouncements.length]);
+    const track = trackRef.current;
+    if (!track || !tickerText) return;
+
+    const start = () => {
+      animRef.current?.cancel();
+      const distance = track.scrollWidth / 2; // one copy (text + padding)
+      if (distance <= 0) return;
+      animRef.current = track.animate([{ transform: "translateX(0)" }, { transform: `translateX(-${distance}px)` }], {
+        duration: (distance / PX_PER_SEC) * 1000,
+        iterations: Infinity,
+        easing: "linear",
+      });
+    };
+
+    start();
+    const ro = new ResizeObserver(start);
+    ro.observe(track);
+
+    return () => {
+      ro.disconnect();
+      animRef.current?.cancel();
+    };
+  }, [tickerText]);
 
   const handleDismiss = () => {
     if (!user) return;
@@ -97,8 +105,10 @@ export default function AnnouncementBanner() {
         <Megaphone className="h-4 w-4 flex-shrink-0" />
 
         <div
-          className="relative flex-1 min-w-0 overflow-hidden cursor-pointer"
+          className="relative flex-1 min-w-0 overflow-hidden cursor-pointer h-5"
           onClick={() => navigate("/announcements")}
+          onMouseEnter={() => animRef.current?.pause()}
+          onMouseLeave={() => animRef.current?.play()}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
@@ -106,9 +116,13 @@ export default function AnnouncementBanner() {
           }}
           title="View all announcements"
         >
-          <div className="flex items-center h-5">
-            <span className="text-sm font-medium truncate">
-              {activeAnnouncements[currentIndex]}
+          <div
+            ref={trackRef}
+            className="absolute inset-y-0 left-0 flex items-center whitespace-nowrap will-change-transform"
+          >
+            <span className="text-sm font-medium pr-12">{tickerText}</span>
+            <span className="text-sm font-medium pr-12" aria-hidden="true">
+              {tickerText}
             </span>
           </div>
         </div>
