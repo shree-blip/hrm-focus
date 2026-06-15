@@ -158,7 +158,7 @@ const Notifications = () => {
                 <div
                   key={notification.id}
                   className={cn(
-                    "flex items-start gap-4 p-4 rounded-lg border border-border transition-all cursor-pointer hover:bg-accent/50",
+                    "flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border border-border transition-all cursor-pointer hover:bg-accent/50",
                     isUnread && !notification.isAnnouncement && "bg-primary/5 border-primary/20",
                     notification.isAnnouncement && notification.isPinned && "bg-warning/5 border-warning/20",
                     notification.isAnnouncement &&
@@ -169,7 +169,7 @@ const Notifications = () => {
                   style={{ animationDelay: `${200 + index * 50}ms` }}
                   onClick={() => handleMarkAsRead(notification.id, notification.isAnnouncement)}
                 >
-                  <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
                     {getNotificationIcon(notification.type)}
                   </div>
                   <div className="flex-1 min-w-0">
