@@ -10,6 +10,7 @@ const DISMISSED_KEY = "focus_announcement_banner_dismissed";
 export default function AnnouncementBanner() {
   const { user } = useAuth();
   const { announcements, loading } = useAnnouncements();
+  const isMobile = useIsMobile();
   const [dismissed, setDismissed] = useState(false);
   const [activeAnnouncements, setActiveAnnouncements] = useState<string[]>([]);
 
