@@ -14,17 +14,17 @@ import { usePersistentState } from "@/hooks/usePersistentState";
 const getNotificationIcon = (type: string | null) => {
   switch (type) {
     case "leave":
-      return <Calendar className="h-5 w-5 text-info" />;
+      return <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-info" />;
     case "task":
-      return <FileText className="h-5 w-5 text-warning" />;
+      return <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />;
     case "onboarding":
-      return <Users className="h-5 w-5 text-success" />;
+      return <Users className="h-4 w-4 sm:h-5 sm:w-5 text-success" />;
     case "payroll":
-      return <Clock className="h-5 w-5 text-primary" />;
+      return <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />;
     case "announcement":
-      return <Megaphone className="h-5 w-5 text-primary" />;
+      return <Megaphone className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />;
     default:
-      return <Bell className="h-5 w-5 text-muted-foreground" />;
+      return <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />;
   }
 };
 
@@ -158,7 +158,7 @@ const Notifications = () => {
                 <div
                   key={notification.id}
                   className={cn(
-                    "flex items-start gap-4 p-4 rounded-lg border border-border transition-all cursor-pointer hover:bg-accent/50",
+                    "flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border border-border transition-all cursor-pointer hover:bg-accent/50",
                     isUnread && !notification.isAnnouncement && "bg-primary/5 border-primary/20",
                     notification.isAnnouncement && notification.isPinned && "bg-warning/5 border-warning/20",
                     notification.isAnnouncement &&
@@ -169,28 +169,30 @@ const Notifications = () => {
                   style={{ animationDelay: `${200 + index * 50}ms` }}
                   onClick={() => handleMarkAsRead(notification.id, notification.isAnnouncement)}
                 >
-                  <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
                     {getNotificationIcon(notification.type)}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className={cn("font-medium", isUnread && !notification.isAnnouncement && "text-primary")}>
+                      <div className="min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                          <p className={cn("font-medium break-words", isUnread && !notification.isAnnouncement && "text-primary")}>
                             {notification.title}
                           </p>
-                          {notification.isAnnouncement && (
-                            <Badge variant="outline" className="text-xs border-warning text-warning">
-                              Announcement
-                            </Badge>
-                          )}
-                          {notification.isPinned && (
-                            <Badge variant="outline" className="text-xs border-destructive text-destructive">
-                              Pinned
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {notification.isAnnouncement && (
+                              <Badge variant="outline" className="text-xs border-warning text-warning">
+                                Announcement
+                              </Badge>
+                            )}
+                            {notification.isPinned && (
+                              <Badge variant="outline" className="text-xs border-destructive text-destructive">
+                                Pinned
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-line break-words">
+                        <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-line break-words break-all">
                           {notification.publisher_name && (
                             <span className="font-medium text-foreground/80">By {notification.publisher_name}: </span>
                           )}
