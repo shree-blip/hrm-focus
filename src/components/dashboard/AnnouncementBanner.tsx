@@ -98,7 +98,7 @@ export default function AnnouncementBanner() {
         <div className="relative flex-1 min-w-0 overflow-hidden">
           <div
             className="absolute inset-y-0 left-0 flex items-center whitespace-nowrap animate-marquee hover:[animation-play-state:paused] will-change-transform"
-            style={{ animationDuration: "200s" }}
+            style={{ animationDuration: isMobile ? "500s" : "200s" }}
           >
             <span className="text-sm font-medium px-4">{marqueeText}</span>
             <span className="text-sm font-medium px-4">{marqueeText}</span>
