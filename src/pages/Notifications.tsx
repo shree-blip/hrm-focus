@@ -175,20 +175,22 @@ const Notifications = () => {
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="flex items-start gap-2 flex-wrap">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                           <p className={cn("font-medium break-words", isUnread && !notification.isAnnouncement && "text-primary")}>
                             {notification.title}
                           </p>
-                          {notification.isAnnouncement && (
-                            <Badge variant="outline" className="text-xs border-warning text-warning">
-                              Announcement
-                            </Badge>
-                          )}
-                          {notification.isPinned && (
-                            <Badge variant="outline" className="text-xs border-destructive text-destructive">
-                              Pinned
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {notification.isAnnouncement && (
+                              <Badge variant="outline" className="text-xs border-warning text-warning">
+                                Announcement
+                              </Badge>
+                            )}
+                            {notification.isPinned && (
+                              <Badge variant="outline" className="text-xs border-destructive text-destructive">
+                                Pinned
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-line break-words break-all">
                           {notification.publisher_name && (
