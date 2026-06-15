@@ -15,8 +15,11 @@ export default function AnnouncementBanner() {
   const [dismissed, setDismissed] = useState(false);
   const [activeAnnouncements, setActiveAnnouncements] = useState<string[]>([]);
 
-  const trackRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null); // visible (clipped) bar
+  const measureRef = useRef<HTMLSpanElement>(null); // hidden single copy
+  const trackRef = useRef<HTMLDivElement>(null); // moving row of copies
   const animRef = useRef<Animation | null>(null);
+  const [dims, setDims] = useState({ copyW: 0, viewW: 0 });
 
   const filterActiveAnnouncements = useCallback((items: Announcement[]) => {
     const now = new Date();
@@ -64,31 +67,37 @@ export default function AnnouncementBanner() {
 
   const tickerText = activeAnnouncements.join("      •      ");
 
-  // Continuous, seamless marquee at a constant speed
+  // Measure one copy's width and the visible bar width (re-measures on resize/font load)
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const measure = measureRef.current;
+    if (!viewport || !measure) return;
+
+    const update = () => setDims({ copyW: measure.offsetWidth, viewW: viewport.offsetWidth });
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(viewport);
+    ro.observe(measure);
+    return () => ro.disconnect();
+  }, [tickerText]);
+
+  // Enough copies to cover the whole bar edge-to-edge + 1 spare for the loop
+  const copies = dims.copyW > 0 ? Math.max(2, Math.ceil(dims.viewW / dims.copyW) + 1) : 2;
+
+  // Seamless marquee: shift by exactly one copy's width, constant speed
   useEffect(() => {
     const track = trackRef.current;
-    if (!track || !tickerText) return;
+    if (!track || dims.copyW <= 0) return;
 
-    const start = () => {
-      animRef.current?.cancel();
-      const distance = track.scrollWidth / 2; // one copy (text + padding)
-      if (distance <= 0) return;
-      animRef.current = track.animate([{ transform: "translateX(0)" }, { transform: `translateX(-${distance}px)` }], {
-        duration: (distance / PX_PER_SEC) * 1000,
-        iterations: Infinity,
-        easing: "linear",
-      });
-    };
-
-    start();
-    const ro = new ResizeObserver(start);
-    ro.observe(track);
-
-    return () => {
-      ro.disconnect();
-      animRef.current?.cancel();
-    };
-  }, [tickerText]);
+    animRef.current?.cancel();
+    animRef.current = track.animate([{ transform: "translateX(0)" }, { transform: `translateX(-${dims.copyW}px)` }], {
+      duration: (dims.copyW / PX_PER_SEC) * 1000,
+      iterations: Infinity,
+      easing: "linear",
+    });
+    return () => animRef.current?.cancel();
+  }, [dims.copyW, copies]);
 
   const handleDismiss = () => {
     if (!user) return;
@@ -105,6 +114,7 @@ export default function AnnouncementBanner() {
         <Megaphone className="h-4 w-4 flex-shrink-0" />
 
         <div
+          ref={viewportRef}
           className="relative flex-1 min-w-0 overflow-hidden cursor-pointer h-5"
           onClick={() => navigate("/announcements")}
           onMouseEnter={() => animRef.current?.pause()}
@@ -116,14 +126,25 @@ export default function AnnouncementBanner() {
           }}
           title="View all announcements"
         >
+          {/* hidden single copy — used only to measure one unit's width */}
+          <span
+            ref={measureRef}
+            aria-hidden
+            className="invisible absolute left-0 top-0 text-sm font-medium pr-12 whitespace-nowrap"
+          >
+            {tickerText}
+          </span>
+
+          {/* visible track: just enough copies to fill the bar, no gaps */}
           <div
             ref={trackRef}
             className="absolute inset-y-0 left-0 flex items-center whitespace-nowrap will-change-transform"
           >
-            <span className="text-sm font-medium pr-12">{tickerText}</span>
-            <span className="text-sm font-medium pr-12" aria-hidden="true">
-              {tickerText}
-            </span>
+            {Array.from({ length: copies }).map((_, i) => (
+              <span key={i} className="text-sm font-medium pr-12" aria-hidden={i > 0}>
+                {tickerText}
+              </span>
+            ))}
           </div>
         </div>
 
