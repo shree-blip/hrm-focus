@@ -1,20 +1,20 @@
 import { useEffect, useState, useCallback } from "react";
 import { Megaphone, X } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useAnnouncements, Announcement } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { isAfter, parseISO } from "date-fns";
 
 const DISMISSED_KEY = "focus_announcement_banner_dismissed";
+const CYCLE_INTERVAL = 3000; // ms between title changes
 
 export default function AnnouncementBanner() {
   const { user } = useAuth();
   const { announcements, loading } = useAnnouncements();
-  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const [activeAnnouncements, setActiveAnnouncements] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   // Filter function to get currently active announcements
   const filterActiveAnnouncements = useCallback((items: Announcement[]) => {
@@ -73,6 +73,15 @@ export default function AnnouncementBanner() {
     return () => clearTimeout(timer);
   }, [loading, announcements, filterActiveAnnouncements]);
 
+  // Cycle through announcement titles in a loop
+  useEffect(() => {
+    if (activeAnnouncements.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % activeAnnouncements.length);
+    }, CYCLE_INTERVAL);
+    return () => clearInterval(interval);
+  }, [activeAnnouncements.length]);
+
   const handleDismiss = () => {
     if (!user) return;
     const dismissedKey = `${DISMISSED_KEY}_${user.id}_${new Date().toDateString()}`;
@@ -81,8 +90,6 @@ export default function AnnouncementBanner() {
   };
 
   if (loading || dismissed || activeAnnouncements.length === 0) return null;
-
-  const marqueeText = activeAnnouncements.join("      •      ");
 
   return (
     <div className="bg-primary text-primary-foreground py-2 px-4 relative w-full max-w-full overflow-x-clip rounded-xl">
@@ -99,16 +106,11 @@ export default function AnnouncementBanner() {
           }}
           title="View all announcements"
         >
-          <div
-            className="absolute inset-y-0 left-0 flex items-center whitespace-nowrap animate-marquee hover:[animation-play-state:paused] will-change-transform"
-            style={{ animationDuration: isMobile ? "500s" : "200s" }}
-          >
-            <span className="text-sm font-medium px-4">{marqueeText}</span>
-            <span className="text-sm font-medium px-4">{marqueeText}</span>
-            <span className="text-sm font-medium px-4">{marqueeText}</span>
-            <span className="text-sm font-medium px-4">{marqueeText}</span>
+          <div className="flex items-center h-5">
+            <span className="text-sm font-medium truncate">
+              {activeAnnouncements[currentIndex]}
+            </span>
           </div>
-          <div className="h-5" aria-hidden="true" />
         </div>
 
         <button
