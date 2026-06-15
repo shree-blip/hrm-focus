@@ -106,16 +106,11 @@ export default function AnnouncementBanner() {
           }}
           title="View all announcements"
         >
-          <div
-            className="absolute inset-y-0 left-0 flex items-center whitespace-nowrap animate-marquee hover:[animation-play-state:paused] will-change-transform"
-            style={{ animationDuration: isMobile ? "500s" : "200s" }}
-          >
-            <span className="text-sm font-medium px-4">{marqueeText}</span>
-            <span className="text-sm font-medium px-4">{marqueeText}</span>
-            <span className="text-sm font-medium px-4">{marqueeText}</span>
-            <span className="text-sm font-medium px-4">{marqueeText}</span>
+          <div className="flex items-center h-5">
+            <span className="text-sm font-medium truncate">
+              {activeAnnouncements[currentIndex]}
+            </span>
           </div>
-          <div className="h-5" aria-hidden="true" />
         </div>
 
         <button
