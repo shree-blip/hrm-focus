@@ -73,6 +73,15 @@ export default function AnnouncementBanner() {
     return () => clearTimeout(timer);
   }, [loading, announcements, filterActiveAnnouncements]);
 
+  // Cycle through announcement titles in a loop
+  useEffect(() => {
+    if (activeAnnouncements.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % activeAnnouncements.length);
+    }, CYCLE_INTERVAL);
+    return () => clearInterval(interval);
+  }, [activeAnnouncements.length]);
+
   const handleDismiss = () => {
     if (!user) return;
     const dismissedKey = `${DISMISSED_KEY}_${user.id}_${new Date().toDateString()}`;
@@ -81,8 +90,6 @@ export default function AnnouncementBanner() {
   };
 
   if (loading || dismissed || activeAnnouncements.length === 0) return null;
-
-  const marqueeText = activeAnnouncements.join("      •      ");
 
   return (
     <div className="bg-primary text-primary-foreground py-2 px-4 relative w-full max-w-full overflow-x-clip rounded-xl">
