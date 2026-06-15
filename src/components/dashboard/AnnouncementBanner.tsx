@@ -1,20 +1,20 @@
 import { useEffect, useState, useCallback } from "react";
 import { Megaphone, X } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useAnnouncements, Announcement } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { isAfter, parseISO } from "date-fns";
 
 const DISMISSED_KEY = "focus_announcement_banner_dismissed";
+const CYCLE_INTERVAL = 3000; // ms between title changes
 
 export default function AnnouncementBanner() {
   const { user } = useAuth();
   const { announcements, loading } = useAnnouncements();
-  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const [activeAnnouncements, setActiveAnnouncements] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   // Filter function to get currently active announcements
   const filterActiveAnnouncements = useCallback((items: Announcement[]) => {
