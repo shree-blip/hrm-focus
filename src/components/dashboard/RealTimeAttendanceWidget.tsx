@@ -587,10 +587,8 @@ export function RealTimeAttendanceWidget() {
       .channel("live-attendance")
       .on("postgres_changes", { event: "*", schema: "public", table: "attendance_logs" }, handleRealtimeChange)
       .subscribe();
-    const interval = setInterval(fetchData, 60000);
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(interval);
     };
   }, [fetchData, handleRealtimeChange]);
 
