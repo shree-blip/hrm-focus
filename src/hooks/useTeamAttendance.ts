@@ -102,6 +102,14 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
   const [dailyAttendance, setDailyAttendance] = useState<DailyAttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Cache the org-wide name/timezone lookup tables. These are only used for
+  // display resolution and are NOT part of the realtime subscriptions below
+  // (which only watch attendance_logs / attendance_break_sessions). Caching
+  // them prevents re-reading the entire profiles + employees tables on every
+  // attendance event. Cleared on unmount so a fresh mount reloads them.
+  const profilesCacheRef = useRef<any[] | null>(null);
+  const employeesCacheRef = useRef<any[] | null>(null);
+
   const fetchTeamAttendance = useCallback(async () => {
     if (!user || (!isManager && !isLineManager)) {
       setLoading(false);
@@ -185,9 +193,21 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
       });
     }
 
-    // Fetch profiles and employees for name resolution + timezone
-    const { data: profiles } = await supabase.from("profiles").select("id, user_id, first_name, last_name, email");
-    const { data: employees } = await supabase.from("employees").select("id, first_name, last_name, email, profile_id, timezone, employment_type");
+    // Fetch profiles and employees for name resolution + timezone.
+    // Served from an in-memory cache after the first load so realtime-driven
+    // refetches don't re-read these whole tables on every attendance event.
+    let profiles = profilesCacheRef.current;
+    let employees = employeesCacheRef.current;
+    if (!profiles || !employees) {
+      const [profilesRes, employeesRes] = await Promise.all([
+        supabase.from("profiles").select("id, user_id, first_name, last_name, email"),
+        supabase.from("employees").select("id, first_name, last_name, email, profile_id, timezone, employment_type"),
+      ]);
+      profiles = profilesRes.data || [];
+      employees = employeesRes.data || [];
+      profilesCacheRef.current = profiles;
+      employeesCacheRef.current = employees;
+    }
 
     const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
     const employeeMap = new Map(employees?.map((e) => [e.id, e]) || []);
@@ -355,6 +375,9 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
     return () => {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       supabase.removeChannel(attendanceChannel);
+      // Drop the cached lookup tables so a fresh mount reloads them.
+      profilesCacheRef.current = null;
+      employeesCacheRef.current = null;
     };
   }, [fetchTeamAttendance]);
 
