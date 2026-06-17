@@ -102,6 +102,14 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
   const [dailyAttendance, setDailyAttendance] = useState<DailyAttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Cache the org-wide name/timezone lookup tables. These are only used for
+  // display resolution and are NOT part of the realtime subscriptions below
+  // (which only watch attendance_logs / attendance_break_sessions). Caching
+  // them prevents re-reading the entire profiles + employees tables on every
+  // attendance event. Cleared on unmount so a fresh mount reloads them.
+  const profilesCacheRef = useRef<any[] | null>(null);
+  const employeesCacheRef = useRef<any[] | null>(null);
+
   const fetchTeamAttendance = useCallback(async () => {
     if (!user || (!isManager && !isLineManager)) {
       setLoading(false);
