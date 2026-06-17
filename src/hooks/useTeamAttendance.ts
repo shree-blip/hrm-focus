@@ -375,6 +375,9 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
     return () => {
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       supabase.removeChannel(attendanceChannel);
+      // Drop the cached lookup tables so a fresh mount reloads them.
+      profilesCacheRef.current = null;
+      employeesCacheRef.current = null;
     };
   }, [fetchTeamAttendance]);
 
