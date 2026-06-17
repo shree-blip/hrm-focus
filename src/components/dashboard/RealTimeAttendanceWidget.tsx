@@ -803,7 +803,9 @@ export function RealTimeAttendanceWidget() {
 
       const { data: historicalLogs, error } = await supabase
         .from("attendance_logs")
-        .select("*")
+        .select(
+          "id, employee_id, user_id, clock_in, clock_out, break_start, break_end, pause_start, pause_end, work_mode, location_name, total_break_minutes, total_pause_minutes",
+        )
         .gte("clock_in", start!.toISOString())
         .lte("clock_in", end!.toISOString())
         .order("clock_in", { ascending: false })
