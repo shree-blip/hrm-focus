@@ -227,6 +227,23 @@ const Employees = () => {
   const showFullDirectory = isVP || isAdmin;
   const showMyTeamSection = (isLineManager || isSupervisor || isManager) && !isVP;
 
+  // For the full directory (VP/executive/admin), detect which employees are team leads
+  // so the table can clearly flag who leads a team. Purely presentational.
+  useEffect(() => {
+    if (!showFullDirectory || employees.length === 0) {
+      setTeamLeadIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const ids = await detectManagersAmong(employees.map((e: any) => String(e.id)));
+      if (!cancelled) setTeamLeadIds(ids);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showFullDirectory, employees]);
+
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
