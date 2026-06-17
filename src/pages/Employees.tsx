@@ -179,6 +179,9 @@ const Employees = () => {
   const [subTeamStack, setSubTeamStack] = useState<SubTeamView[]>([]);
   const [clickedTeamManagerIds, setClickedTeamManagerIds] = useState<Set<string>>(new Set());
 
+  // Team leads among the full directory — used to flag who leads a team (VP/executive/admin view)
+  const [teamLeadIds, setTeamLeadIds] = useState<Set<string>>(new Set());
+
   // Add to team dialog for managing another employee's team (VP/admin)
   const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
   const [managingEmployeeId, setManagingEmployeeId] = useState<string | null>(null);
@@ -417,7 +420,11 @@ const Employees = () => {
     const total = parseFloat(vals?.total ?? "");
     const remaining = parseFloat(vals?.remaining ?? "");
     if (isNaN(total) || isNaN(remaining) || total < 0 || remaining < 0 || remaining > total) {
-      toast({ title: "Invalid values", description: "Total and Remaining must be valid; Remaining cannot exceed Total.", variant: "destructive" });
+      toast({
+        title: "Invalid values",
+        description: "Total and Remaining must be valid; Remaining cannot exceed Total.",
+        variant: "destructive",
+      });
       return;
     }
     setSavingLeaveType(leaveType);
@@ -1401,98 +1408,104 @@ const Employees = () => {
             </div>
           ) : (
             <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 py-2">
-              {clickedLeaveBalances.map((lb) => (
-                <div key={lb.leave_type} className="border rounded-lg p-3 space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground truncate">{lb.leave_type}</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-lg font-bold text-foreground">{lb.remaining_days}</span>
-                    <span className="text-xs text-muted-foreground">/ {lb.total_days} remaining</span>
-                    {lb.used_days > lb.total_days && (
-                      <span className="ml-1 text-xs font-semibold text-destructive">
-                        +{lb.used_days - lb.total_days} over
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-1.5">
-                    <div
-                      className={cn(
-                        "h-1.5 rounded-full transition-all",
-                        lb.total_days > 0 && lb.used_days >= lb.total_days
-                          ? "bg-destructive"
-                          : lb.total_days > 0 && lb.used_days / lb.total_days > 0.5
-                            ? "bg-yellow-500"
-                            : "bg-primary",
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 py-2">
+                {clickedLeaveBalances.map((lb) => (
+                  <div key={lb.leave_type} className="border rounded-lg p-3 space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground truncate">{lb.leave_type}</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-lg font-bold text-foreground">{lb.remaining_days}</span>
+                      <span className="text-xs text-muted-foreground">/ {lb.total_days} remaining</span>
+                      {lb.used_days > lb.total_days && (
+                        <span className="ml-1 text-xs font-semibold text-destructive">
+                          +{lb.used_days - lb.total_days} over
+                        </span>
                       )}
-                      style={{
-                        width: lb.total_days > 0 ? `${Math.min(100, (lb.used_days / lb.total_days) * 100)}%` : "0%",
-                      }}
-                    />
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-1.5">
+                      <div
+                        className={cn(
+                          "h-1.5 rounded-full transition-all",
+                          lb.total_days > 0 && lb.used_days >= lb.total_days
+                            ? "bg-destructive"
+                            : lb.total_days > 0 && lb.used_days / lb.total_days > 0.5
+                              ? "bg-yellow-500"
+                              : "bg-primary",
+                        )}
+                        style={{
+                          width: lb.total_days > 0 ? `${Math.min(100, (lb.used_days / lb.total_days) * 100)}%` : "0%",
+                        }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{lb.used_days} used</p>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">{lb.used_days} used</p>
-                </div>
-              ))}
-            </div>
-            {(isAdmin || isVP) && (
-              <div className="mt-4 border-t pt-4 space-y-3">
-                <p className="text-sm font-semibold">Manual Leave Balance Update</p>
-                <p className="text-xs text-muted-foreground">Adjust Total and Remaining for this employee. Saves to current fiscal year.</p>
-                <div className="space-y-2">
-                  {clickedLeaveBalances.map((lb) => {
-                    const v = editLeave[lb.leave_type] || { total: "", remaining: "" };
-                    return (
-                      <div key={`edit-${lb.leave_type}`} className="grid grid-cols-12 gap-2 items-end">
-                        <div className="col-span-4">
-                          <p className="text-xs text-muted-foreground mb-1 truncate">{lb.leave_type}</p>
-                        </div>
-                        <div className="col-span-3">
-                          <label className="text-[10px] text-muted-foreground">Total</label>
-                          <Input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            value={v.total}
-                            onChange={(e) =>
-                              setEditLeave((p) => ({
-                                ...p,
-                                [lb.leave_type]: { ...(p[lb.leave_type] ?? v), total: e.target.value },
-                              }))
-                            }
-                            className="h-8"
-                          />
-                        </div>
-                        <div className="col-span-3">
-                          <label className="text-[10px] text-muted-foreground">Remaining</label>
-                          <Input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            value={v.remaining}
-                            onChange={(e) =>
-                              setEditLeave((p) => ({
-                                ...p,
-                                [lb.leave_type]: { ...(p[lb.leave_type] ?? v), remaining: e.target.value },
-                              }))
-                            }
-                            className="h-8"
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <Button
-                            size="sm"
-                            className="w-full h-8"
-                            onClick={() => saveLeaveBalance(lb.leave_type)}
-                            disabled={savingLeaveType === lb.leave_type}
-                          >
-                            {savingLeaveType === lb.leave_type ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                ))}
               </div>
-            )}
+              {(isAdmin || isVP) && (
+                <div className="mt-4 border-t pt-4 space-y-3">
+                  <p className="text-sm font-semibold">Manual Leave Balance Update</p>
+                  <p className="text-xs text-muted-foreground">
+                    Adjust Total and Remaining for this employee. Saves to current fiscal year.
+                  </p>
+                  <div className="space-y-2">
+                    {clickedLeaveBalances.map((lb) => {
+                      const v = editLeave[lb.leave_type] || { total: "", remaining: "" };
+                      return (
+                        <div key={`edit-${lb.leave_type}`} className="grid grid-cols-12 gap-2 items-end">
+                          <div className="col-span-4">
+                            <p className="text-xs text-muted-foreground mb-1 truncate">{lb.leave_type}</p>
+                          </div>
+                          <div className="col-span-3">
+                            <label className="text-[10px] text-muted-foreground">Total</label>
+                            <Input
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              value={v.total}
+                              onChange={(e) =>
+                                setEditLeave((p) => ({
+                                  ...p,
+                                  [lb.leave_type]: { ...(p[lb.leave_type] ?? v), total: e.target.value },
+                                }))
+                              }
+                              className="h-8"
+                            />
+                          </div>
+                          <div className="col-span-3">
+                            <label className="text-[10px] text-muted-foreground">Remaining</label>
+                            <Input
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              value={v.remaining}
+                              onChange={(e) =>
+                                setEditLeave((p) => ({
+                                  ...p,
+                                  [lb.leave_type]: { ...(p[lb.leave_type] ?? v), remaining: e.target.value },
+                                }))
+                              }
+                              className="h-8"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <Button
+                              size="sm"
+                              className="w-full h-8"
+                              onClick={() => saveLeaveBalance(lb.leave_type)}
+                              disabled={savingLeaveType === lb.leave_type}
+                            >
+                              {savingLeaveType === lb.leave_type ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                "Save"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </DialogContent>
