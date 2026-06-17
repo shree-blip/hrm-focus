@@ -282,13 +282,15 @@ export function RealTimeAttendanceWidget() {
     // Fetch employees - include active and probation status
     const { data: emps } = await supabase
       .from("employees")
-      .select("id, first_name, last_name, department, profile_id, profiles:profile_id(user_id, avatar_url)")
+      .select("id, first_name, last_name, department, profiles:profile_id(user_id, avatar_url)")
       .in("status", ["active", "probation"]);
 
     // Fetch today's logs (UTC-based)
     const { data: todayLogs } = await supabase
       .from("attendance_logs")
-      .select("*")
+      .select(
+        "id, employee_id, user_id, clock_in, clock_out, break_start, break_end, pause_start, pause_end, work_mode, total_break_minutes, total_pause_minutes",
+      )
       .gte("clock_in", dayStart)
       .lte("clock_in", dayEnd)
       .order("clock_in", { ascending: false });
@@ -296,7 +298,9 @@ export function RealTimeAttendanceWidget() {
     // Also fetch any still-clocked-in logs from previous days (survive midnight)
     const { data: activeLogs } = await supabase
       .from("attendance_logs")
-      .select("*")
+      .select(
+        "id, employee_id, user_id, clock_in, clock_out, break_start, break_end, pause_start, pause_end, work_mode, total_break_minutes, total_pause_minutes",
+      )
       .lt("clock_in", dayStart)
       .is("clock_out", null)
       .order("clock_in", { ascending: false });
@@ -304,7 +308,9 @@ export function RealTimeAttendanceWidget() {
     // Fetch cross-midnight logs: clocked in before today but clocked out today
     const { data: crossMidnightLogs } = await supabase
       .from("attendance_logs")
-      .select("*")
+      .select(
+        "id, employee_id, user_id, clock_in, clock_out, break_start, break_end, pause_start, pause_end, work_mode, total_break_minutes, total_pause_minutes",
+      )
       .lt("clock_in", dayStart)
       .gte("clock_out", dayStart)
       .lte("clock_out", dayEnd)
@@ -325,11 +331,12 @@ export function RealTimeAttendanceWidget() {
 
     const { data: monthLogs } = await supabase
       .from("attendance_logs")
-      .select("*")
+      .select(
+        "id, employee_id, user_id, clock_in, clock_out, break_start, break_end, pause_start, pause_end, work_mode, total_break_minutes, total_pause_minutes",
+      )
       .gte("clock_in", rangeStart)
       .lte("clock_in", dayEnd)
-      .order("clock_in", { ascending: false })
-      .limit(20000);
+      .order("clock_in", { ascending: false });
 
     // Merge and deduplicate by id
     const allLogsMap = new Map<string, AttendanceLogRow>();
