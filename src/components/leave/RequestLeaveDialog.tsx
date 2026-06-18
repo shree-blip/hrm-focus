@@ -166,12 +166,15 @@ export function RequestLeaveDialog({
   // When the user has no remaining paid-leave balance, only Payroll is allowed.
   const noPaidLeaveBalance = typeof annualRemaining === "number" && annualRemaining <= 0;
 
-  // Auto-select Payroll when there's no remaining paid leave balance.
+  // Special leaves are always Paid Leave (never charged to payroll).
+  // Otherwise, auto-select Payroll when there's no remaining paid leave balance.
   useEffect(() => {
-    if (noPaidLeaveBalance) {
+    if (leaveType === "Special Leave") {
+      setPaymentOption("paid_leave");
+    } else if (noPaidLeaveBalance) {
       setPaymentOption("payroll");
     }
-  }, [noPaidLeaveBalance, open]);
+  }, [noPaidLeaveBalance, open, leaveType]);
 
   // Leave in Lieu specific fields
   const [dateWorked, setDateWorked] = useState<Date>(); // The date they worked on a holiday/leave
