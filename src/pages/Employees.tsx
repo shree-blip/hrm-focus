@@ -960,18 +960,25 @@ const Employees = () => {
                         <div className="flex items-center gap-3">
                           <EmployeeAvatar employee={employee} />
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="font-medium">
                                 {employee.first_name} {employee.last_name}
                               </p>
-                              {teamLeadIds.has(String(employee.id)) && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] px-1.5 py-0 border-primary/40 text-primary"
-                                >
-                                  <Users className="h-2.5 w-2.5 mr-0.5" />
-                                  Team Lead
-                                </Badge>
+                              {teamLeadRoles.has(String(employee.id)) && (
+                                <>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0 border-primary/40 text-primary"
+                                  >
+                                    <Users className="h-2.5 w-2.5 mr-0.5" />
+                                    {formatRoleLabel(teamLeadRoles.get(String(employee.id))!)}
+                                  </Badge>
+                                  {employee.department && (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
+                                      {employee.department}
+                                    </Badge>
+                                  )}
+                                </>
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">{employee.email}</p>
