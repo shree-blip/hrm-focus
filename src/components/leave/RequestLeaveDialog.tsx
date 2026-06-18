@@ -120,30 +120,6 @@ function getBusinessDaysBetween(start: Date, end: Date): number {
   return count;
 }
 
-/**
- * Add N business days to a start date, skipping weekends.
- */
-function addBusinessDays(start: Date, businessDays: number): Date {
-  const result = new Date(start);
-  let remaining = businessDays;
-
-  while (result.getDay() === 0 || result.getDay() === 6) {
-    result.setDate(result.getDate() + 1);
-  }
-
-  remaining--;
-
-  while (remaining > 0) {
-    result.setDate(result.getDate() + 1);
-    const day = result.getDay();
-    if (day !== 0 && day !== 6) {
-      remaining--;
-    }
-  }
-
-  return result;
-}
-
 export function RequestLeaveDialog({
   open,
   onOpenChange,
@@ -180,11 +156,14 @@ export function RequestLeaveDialog({
   const [dateWorked, setDateWorked] = useState<Date>(); // The date they worked on a holiday/leave
   const [lieuLeaveDate, setLieuLeaveDate] = useState<Date>(); // The date they want to take off
 
-  // Auto-calculate end date based on leave type selection (using business days)
+  // Auto-calculate end date based on leave type selection.
+  // Special leaves count calendar days (weekends included), so the end date
+  // is simply start + (allocatedDays - 1) calendar days.
   useEffect(() => {
     if (startDate && leaveType === "Special Leave" && specialLeaveSubtype) {
       const allocatedDays = SPECIAL_LEAVE_SUBTYPES[specialLeaveSubtype].days;
-      const calculatedEndDate = addBusinessDays(startDate, allocatedDays);
+      const calculatedEndDate = new Date(startDate);
+      calculatedEndDate.setDate(calculatedEndDate.getDate() + allocatedDays - 1);
       setEndDate(calculatedEndDate);
     }
   }, [startDate, leaveType, specialLeaveSubtype]);
@@ -386,6 +365,10 @@ export function RequestLeaveDialog({
   // Calculate business days between dates
   const getCalculatedDays = () => {
     if (startDate && endDate) {
+      // Special leaves count every calendar day (weekends included)
+      if (leaveType === "Special Leave") {
+        return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      }
       return getBusinessDaysBetween(startDate, endDate);
     }
     return null;
@@ -933,11 +916,18 @@ export function RequestLeaveDialog({
             </div>
           )}
 
-          {/* Weekend notice - not for Leave in Lieu */}
-          {!isLeaveOnLieu && (
+          {/* Weekend notice - not for Leave in Lieu or Special Leave */}
+          {!isLeaveOnLieu && leaveType !== "Special Leave" && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Info className="h-3 w-3" />
               Saturdays and Sundays are not counted as leave days.
+            </p>
+          )}
+          {/* Special leave weekend notice */}
+          {leaveType === "Special Leave" && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Info className="h-3 w-3" />
+              Saturdays and Sundays are counted as leave days for special leave.
             </p>
           )}
 
@@ -958,7 +948,11 @@ export function RequestLeaveDialog({
                   className={cn(isOtherLeave && "bg-violet-500/20 text-violet-600 dark:text-violet-400")}
                 >
                   {isHalfDay ? "0.5" : getCalculatedDays()}{" "}
-                  {isHalfDay ? "day" : `working day${getCalculatedDays() !== 1 ? "s" : ""}`}
+                  {isHalfDay
+                    ? "day"
+                    : leaveType === "Special Leave"
+                      ? `day${getCalculatedDays() !== 1 ? "s" : ""}`
+                      : `working day${getCalculatedDays() !== 1 ? "s" : ""}`}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -971,6 +965,7 @@ export function RequestLeaveDialog({
                   <>
                     From {format(startDate, "MMM d, yyyy")} to {format(endDate, "MMM d, yyyy")}
                     {(() => {
+                      if (leaveType === "Special Leave") return "";
                       const totalCalendarDays =
                         Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
                       const businessDays = getCalculatedDays() || 0;
