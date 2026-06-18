@@ -180,11 +180,14 @@ export function RequestLeaveDialog({
   const [dateWorked, setDateWorked] = useState<Date>(); // The date they worked on a holiday/leave
   const [lieuLeaveDate, setLieuLeaveDate] = useState<Date>(); // The date they want to take off
 
-  // Auto-calculate end date based on leave type selection (using business days)
+  // Auto-calculate end date based on leave type selection.
+  // Special leaves count calendar days (weekends included), so the end date
+  // is simply start + (allocatedDays - 1) calendar days.
   useEffect(() => {
     if (startDate && leaveType === "Special Leave" && specialLeaveSubtype) {
       const allocatedDays = SPECIAL_LEAVE_SUBTYPES[specialLeaveSubtype].days;
-      const calculatedEndDate = addBusinessDays(startDate, allocatedDays);
+      const calculatedEndDate = new Date(startDate);
+      calculatedEndDate.setDate(calculatedEndDate.getDate() + allocatedDays - 1);
       setEndDate(calculatedEndDate);
     }
   }, [startDate, leaveType, specialLeaveSubtype]);
