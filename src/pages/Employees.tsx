@@ -179,8 +179,10 @@ const Employees = () => {
   const [subTeamStack, setSubTeamStack] = useState<SubTeamView[]>([]);
   const [clickedTeamManagerIds, setClickedTeamManagerIds] = useState<Set<string>>(new Set());
 
-  // Team leads among the full directory — used to flag who leads a team (VP/executive/admin view)
-  const [teamLeadIds, setTeamLeadIds] = useState<Set<string>>(new Set());
+  // Team leads among the full directory — maps employee id -> their access role
+  // (supervisor / line_manager / admin / vp). Used to flag who leads a team and their
+  // position in the VP/executive/admin directory view.
+  const [teamLeadRoles, setTeamLeadRoles] = useState<Map<string, string>>(new Map());
 
   // Add to team dialog for managing another employee's team (VP/admin)
   const [manageTeamDialogOpen, setManageTeamDialogOpen] = useState(false);
