@@ -120,30 +120,6 @@ function getBusinessDaysBetween(start: Date, end: Date): number {
   return count;
 }
 
-/**
- * Add N business days to a start date, skipping weekends.
- */
-function addBusinessDays(start: Date, businessDays: number): Date {
-  const result = new Date(start);
-  let remaining = businessDays;
-
-  while (result.getDay() === 0 || result.getDay() === 6) {
-    result.setDate(result.getDate() + 1);
-  }
-
-  remaining--;
-
-  while (remaining > 0) {
-    result.setDate(result.getDate() + 1);
-    const day = result.getDay();
-    if (day !== 0 && day !== 6) {
-      remaining--;
-    }
-  }
-
-  return result;
-}
-
 export function RequestLeaveDialog({
   open,
   onOpenChange,
