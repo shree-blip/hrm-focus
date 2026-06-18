@@ -902,9 +902,9 @@ export function RequestLeaveDialog({
                         <Checkbox
                           id="payment-paid-leave"
                           checked={paymentOption === "paid_leave"}
-                          disabled={noPaidLeaveBalance}
+                          disabled={noPaidLeaveBalance && leaveType !== "Special Leave"}
                           onCheckedChange={(checked) => {
-                            if (noPaidLeaveBalance) return;
+                            if (noPaidLeaveBalance && leaveType !== "Special Leave") return;
                             if (checked) setPaymentOption("paid_leave");
                             else setPaymentOption("");
                           }}
@@ -913,7 +913,9 @@ export function RequestLeaveDialog({
                           htmlFor="payment-paid-leave"
                           className={cn(
                             "text-sm font-medium",
-                            noPaidLeaveBalance ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+                            noPaidLeaveBalance && leaveType !== "Special Leave"
+                              ? "cursor-not-allowed opacity-50"
+                              : "cursor-pointer",
                           )}
                         >
                           Paid Leave
