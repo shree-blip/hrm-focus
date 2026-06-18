@@ -876,12 +876,20 @@ export function RequestLeaveDialog({
                   <Checkbox
                     id="payment-payroll"
                     checked={paymentOption === "payroll"}
+                    disabled={leaveType === "Special Leave"}
                     onCheckedChange={(checked) => {
+                      if (leaveType === "Special Leave") return;
                       if (checked) setPaymentOption("payroll");
                       else if (!noPaidLeaveBalance) setPaymentOption("");
                     }}
                   />
-                  <Label htmlFor="payment-payroll" className="cursor-pointer text-sm font-medium">
+                  <Label
+                    htmlFor="payment-payroll"
+                    className={cn(
+                      "text-sm font-medium",
+                      leaveType === "Special Leave" ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+                    )}
+                  >
                     Payroll
                   </Label>
                 </div>
