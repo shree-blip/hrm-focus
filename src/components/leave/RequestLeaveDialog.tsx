@@ -940,11 +940,18 @@ export function RequestLeaveDialog({
             </div>
           )}
 
-          {/* Weekend notice - not for Leave in Lieu */}
-          {!isLeaveOnLieu && (
+          {/* Weekend notice - not for Leave in Lieu or Special Leave */}
+          {!isLeaveOnLieu && leaveType !== "Special Leave" && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Info className="h-3 w-3" />
               Saturdays and Sundays are not counted as leave days.
+            </p>
+          )}
+          {/* Special leave weekend notice */}
+          {leaveType === "Special Leave" && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Info className="h-3 w-3" />
+              Saturdays and Sundays are counted as leave days for special leave.
             </p>
           )}
 
