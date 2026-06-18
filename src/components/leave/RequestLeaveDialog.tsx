@@ -389,6 +389,10 @@ export function RequestLeaveDialog({
   // Calculate business days between dates
   const getCalculatedDays = () => {
     if (startDate && endDate) {
+      // Special leaves count every calendar day (weekends included)
+      if (leaveType === "Special Leave") {
+        return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      }
       return getBusinessDaysBetween(startDate, endDate);
     }
     return null;
