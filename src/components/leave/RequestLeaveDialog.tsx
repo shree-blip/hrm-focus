@@ -922,7 +922,7 @@ export function RequestLeaveDialog({
                         </Label>
                       </div>
                     </TooltipTrigger>
-                    {noPaidLeaveBalance && (
+                    {noPaidLeaveBalance && leaveType !== "Special Leave" && (
                       <TooltipContent>
                         <p className="text-xs">No paid leave balance remaining. Please choose Payroll.</p>
                       </TooltipContent>
