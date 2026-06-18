@@ -166,12 +166,15 @@ export function RequestLeaveDialog({
   // When the user has no remaining paid-leave balance, only Payroll is allowed.
   const noPaidLeaveBalance = typeof annualRemaining === "number" && annualRemaining <= 0;
 
-  // Auto-select Payroll when there's no remaining paid leave balance.
+  // Special leaves are always Paid Leave (never charged to payroll).
+  // Otherwise, auto-select Payroll when there's no remaining paid leave balance.
   useEffect(() => {
-    if (noPaidLeaveBalance) {
+    if (leaveType === "Special Leave") {
+      setPaymentOption("paid_leave");
+    } else if (noPaidLeaveBalance) {
       setPaymentOption("payroll");
     }
-  }, [noPaidLeaveBalance, open]);
+  }, [noPaidLeaveBalance, open, leaveType]);
 
   // Leave in Lieu specific fields
   const [dateWorked, setDateWorked] = useState<Date>(); // The date they worked on a holiday/leave
@@ -873,12 +876,20 @@ export function RequestLeaveDialog({
                   <Checkbox
                     id="payment-payroll"
                     checked={paymentOption === "payroll"}
+                    disabled={leaveType === "Special Leave"}
                     onCheckedChange={(checked) => {
+                      if (leaveType === "Special Leave") return;
                       if (checked) setPaymentOption("payroll");
                       else if (!noPaidLeaveBalance) setPaymentOption("");
                     }}
                   />
-                  <Label htmlFor="payment-payroll" className="cursor-pointer text-sm font-medium">
+                  <Label
+                    htmlFor="payment-payroll"
+                    className={cn(
+                      "text-sm font-medium",
+                      leaveType === "Special Leave" ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+                    )}
+                  >
                     Payroll
                   </Label>
                 </div>
@@ -891,9 +902,9 @@ export function RequestLeaveDialog({
                         <Checkbox
                           id="payment-paid-leave"
                           checked={paymentOption === "paid_leave"}
-                          disabled={noPaidLeaveBalance}
+                          disabled={noPaidLeaveBalance && leaveType !== "Special Leave"}
                           onCheckedChange={(checked) => {
-                            if (noPaidLeaveBalance) return;
+                            if (noPaidLeaveBalance && leaveType !== "Special Leave") return;
                             if (checked) setPaymentOption("paid_leave");
                             else setPaymentOption("");
                           }}
@@ -902,14 +913,16 @@ export function RequestLeaveDialog({
                           htmlFor="payment-paid-leave"
                           className={cn(
                             "text-sm font-medium",
-                            noPaidLeaveBalance ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+                            noPaidLeaveBalance && leaveType !== "Special Leave"
+                              ? "cursor-not-allowed opacity-50"
+                              : "cursor-pointer",
                           )}
                         >
                           Paid Leave
                         </Label>
                       </div>
                     </TooltipTrigger>
-                    {noPaidLeaveBalance && (
+                    {noPaidLeaveBalance && leaveType !== "Special Leave" && (
                       <TooltipContent>
                         <p className="text-xs">No paid leave balance remaining. Please choose Payroll.</p>
                       </TooltipContent>
