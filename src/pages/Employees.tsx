@@ -230,21 +230,67 @@ const Employees = () => {
   const showMyTeamSection = (isLineManager || isSupervisor || isManager) && !isVP;
 
   // For the full directory (VP/executive/admin), detect which employees are team leads
-  // so the table can clearly flag who leads a team. Purely presentational.
+  // and resolve their access role (supervisor / line manager / admin / vp) so the table
+  // can show who leads a team and in what position. Purely presentational.
   useEffect(() => {
     if (!showFullDirectory || employees.length === 0) {
-      setTeamLeadIds(new Set());
+      setTeamLeadRoles(new Map());
       return;
     }
     let cancelled = false;
     (async () => {
-      const ids = await detectManagersAmong(employees.map((e: any) => String(e.id)));
-      if (!cancelled) setTeamLeadIds(ids);
+      const leadIds = await detectManagersAmong(employees.map((e: any) => String(e.id)));
+
+      // Resolve each team lead's access role via their user_id -> user_roles
+      const leads = employees.filter((e: any) => leadIds.has(String(e.id)));
+      const userIds = leads.map((e: any) => e.user_id).filter(Boolean);
+
+      const userIdToRole = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: roleRows } = await supabase.from("user_roles").select("user_id, role").in("user_id", userIds);
+        (roleRows || []).forEach((r: any) => {
+          if (r.user_id && r.role) userIdToRole.set(r.user_id, r.role);
+        });
+      }
+
+      // Flag everyone who actually leads a team. If they hold a formal leadership role
+      // (vp/admin/line_manager/supervisor) show that role; otherwise they're an ordinary
+      // employee who happens to lead a team -> "Employee Lead".
+      const LEADERSHIP_ROLES = new Set(["vp", "admin", "line_manager", "supervisor"]);
+      const roleMap = new Map<string, string>();
+      leads.forEach((e: any) => {
+        const role = e.user_id ? userIdToRole.get(e.user_id) : undefined;
+        if (role && LEADERSHIP_ROLES.has(role)) {
+          roleMap.set(String(e.id), role);
+        } else {
+          roleMap.set(String(e.id), "employee_lead");
+        }
+      });
+
+      if (!cancelled) setTeamLeadRoles(roleMap);
     })();
     return () => {
       cancelled = true;
     };
   }, [showFullDirectory, employees]);
+
+  // Human-readable label for an access role
+  const formatRoleLabel = (role: string) => {
+    switch (role) {
+      case "vp":
+        return "VP";
+      case "admin":
+        return "Admin";
+      case "line_manager":
+        return "Line Manager";
+      case "supervisor":
+        return "Supervisor";
+      case "employee_lead":
+        return "Employee Lead";
+      default:
+        return "Team Lead";
+    }
+  };
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
