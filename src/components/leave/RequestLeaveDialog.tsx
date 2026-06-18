@@ -972,7 +972,11 @@ export function RequestLeaveDialog({
                   className={cn(isOtherLeave && "bg-violet-500/20 text-violet-600 dark:text-violet-400")}
                 >
                   {isHalfDay ? "0.5" : getCalculatedDays()}{" "}
-                  {isHalfDay ? "day" : `working day${getCalculatedDays() !== 1 ? "s" : ""}`}
+                  {isHalfDay
+                    ? "day"
+                    : leaveType === "Special Leave"
+                      ? `day${getCalculatedDays() !== 1 ? "s" : ""}`
+                      : `working day${getCalculatedDays() !== 1 ? "s" : ""}`}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -985,6 +989,7 @@ export function RequestLeaveDialog({
                   <>
                     From {format(startDate, "MMM d, yyyy")} to {format(endDate, "MMM d, yyyy")}
                     {(() => {
+                      if (leaveType === "Special Leave") return "";
                       const totalCalendarDays =
                         Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
                       const businessDays = getCalculatedDays() || 0;
