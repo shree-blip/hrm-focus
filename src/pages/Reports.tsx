@@ -423,55 +423,18 @@ const Reports = () => {
     return rows;
   }, [dailyAttendance]);
 
-  // Per-employee approved "Paid Leave" days within the selected range.
-  // Paid Leave is treated as a worked/payable day, so it is added back onto
-  // Days Worked. Payroll Deduction leave is NOT added (only actual present days
-  // count). Recomputes automatically whenever leave requests change (e.g. after
-  // a leave is approved) or the selected date range changes.
-  const paidLeaveDaysByUser = useMemo(() => {
-    const map: Record<string, number> = {};
-    const { start: rangeStart, end: rangeEnd } = getDateRangeFromType(dateRange);
-    const isPaidLeave = (reason: string | null | undefined) =>
-      !!reason && /^\s*\[Paid Leave\]/i.test(reason);
-    requests.forEach((r) => {
-      if (r.status !== "approved") return;
-      if (!isPaidLeave(r.reason)) return;
-      const leaveStart = new Date(r.start_date);
-      const leaveEnd = new Date(r.end_date);
-      if (leaveEnd < rangeStart || leaveStart > rangeEnd) return;
-      const empKey = r.user_id;
-      const current = new Date(Math.max(leaveStart.getTime(), rangeStart.getTime()));
-      const end = new Date(Math.min(leaveEnd.getTime(), rangeEnd.getTime()));
-      while (current <= end) {
-        const dow = current.getDay();
-        if (dow !== 0 && dow !== 6) {
-          map[empKey] = (map[empKey] || 0) + (r.is_half_day ? 0.5 : 1);
-        }
-        current.setDate(current.getDate() + 1);
-      }
-    });
-    return map;
-  }, [requests, dateRange]);
-
-  // Days Worked adjusted so Paid Leave days count as worked days.
-  const adjustedSummary = useMemo(
-    () =>
-      derivedSummary.map((emp) => ({
-        ...emp,
-        days_worked: emp.days_worked + (paidLeaveDaysByUser[emp.user_id] || 0),
-      })),
-    [derivedSummary, paidLeaveDaysByUser],
-  );
-
-  // Calculate attendance statistics from derived summary
+  // Calculate attendance statistics from derived summary.
+  // NOTE: The on-screen table & stats show only actual present days. Paid Leave
+  // is treated as a worked/payable day ONLY in the exported CSV report (see
+  // exportToCSV "attendance"), never in the UI.
   const attendanceStats = {
-    totalRecords: adjustedSummary.length,
+    totalRecords: derivedSummary.length,
     avgHoursWorked:
-      adjustedSummary.length > 0
-        ? (adjustedSummary.reduce((sum, emp) => sum + emp.total_hours, 0) / adjustedSummary.length).toFixed(1)
+      derivedSummary.length > 0
+        ? (derivedSummary.reduce((sum, emp) => sum + emp.total_hours, 0) / derivedSummary.length).toFixed(1)
         : "0",
     lateArrivals: 0,
-    totalDaysWorked: adjustedSummary.reduce((sum, emp) => sum + emp.days_worked, 0),
+    totalDaysWorked: derivedSummary.reduce((sum, emp) => sum + emp.days_worked, 0),
   };
 
   const dailyStats = {
@@ -1200,7 +1163,7 @@ const Reports = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {adjustedSummary.length === 0 ? (
+              {derivedSummary.length === 0 ? (
                 <p className="text-center py-8 text-slate-600">No attendance data available for this period</p>
               ) : (
                 <div className="overflow-x-auto">
@@ -1211,7 +1174,7 @@ const Reports = () => {
                       <span>Days Worked</span>
                       <span>Total Hours</span>
                     </div>
-                    {adjustedSummary.map((emp) => (
+                    {derivedSummary.map((emp) => (
                       <div
                         key={emp.user_id}
                         className="grid grid-cols-4 gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-sm"
