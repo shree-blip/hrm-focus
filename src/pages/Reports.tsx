@@ -238,9 +238,6 @@ const Reports = () => {
     () => filteredEmployeesList.slice(0, MAX_VISIBLE_EMPLOYEES),
     [filteredEmployeesList],
   );
-  // Add at the top with other state declarations
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
   // Filter daily attendance by search date and selected employee
   const filteredDailyAttendance = useMemo(() => {
     let filtered = dailyAttendance;
