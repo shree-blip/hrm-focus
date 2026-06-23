@@ -1,4 +1,4 @@
-import { useState, Fragment, useMemo, useRef, useEffect } from "react";
+import { useState, Fragment, useMemo, useEffect } from "react";
 import { useBreakSessions } from "@/hooks/useBreakSessions";
 import { BreakPauseCell, BreakPauseDetailPanel } from "@/components/attendance/BreakPauseDetail";
 import { ClientReportDownload } from "@/components/logsheet/ClientReportDownload";
@@ -16,6 +16,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import {
   BarChart3,
   Download,
@@ -34,6 +44,7 @@ import {
   Pause,
   CalendarRange,
   Pencil,
+  Check,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -156,6 +167,7 @@ const Reports = () => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
   const [debouncedEmployeeSearch, setDebouncedEmployeeSearch] = useState("");
+  const [employeePickerOpen, setEmployeePickerOpen] = useState(false);
 
   // Debounce search input to keep typing snappy on large lists
   useEffect(() => {
@@ -226,9 +238,6 @@ const Reports = () => {
     () => filteredEmployeesList.slice(0, MAX_VISIBLE_EMPLOYEES),
     [filteredEmployeesList],
   );
-  // Add at the top with other state declarations
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
   // Filter daily attendance by search date and selected employee
   const filteredDailyAttendance = useMemo(() => {
     let filtered = dailyAttendance;
@@ -1205,43 +1214,77 @@ const Reports = () => {
             <CardContent>
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex-1 min-w-[250px]">
-                  <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an employee" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      <div className="p-2 sticky top-0 z-10 bg-popover border-b">
-                        <Input
-                          ref={searchInputRef}
+                  <Popover open={employeePickerOpen} onOpenChange={setEmployeePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={employeePickerOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        <span className="truncate">
+                          {selectedEmployee === "all"
+                            ? "All Employees"
+                            : employeesList.find((emp) => emp.user_id === selectedEmployee)?.employee_name ??
+                              "Select an employee"}
+                        </span>
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput
                           placeholder="Search employee..."
                           value={employeeSearchQuery}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            setEmployeeSearchQuery(e.target.value);
-                          }}
-                          onKeyDown={(e) => e.stopPropagation()}
-                          onKeyUp={(e) => e.stopPropagation()}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onFocus={(e) => e.stopPropagation()}
-                          className="h-8"
+                          onValueChange={setEmployeeSearchQuery}
                         />
-                      </div>
-                      <SelectItem value="all">All Employees</SelectItem>
-                      {visibleEmployeesList.map((emp) => (
-                        <SelectItem key={emp.user_id} value={emp.user_id}>
-                          {emp.employee_name}
-                        </SelectItem>
-                      ))}
-                      {filteredEmployeesList.length > visibleEmployeesList.length && (
-                        <div className="p-2 text-xs text-muted-foreground text-center">
-                          Showing {visibleEmployeesList.length} of {filteredEmployeesList.length}. Refine your search…
-                        </div>
-                      )}
-                      {filteredEmployeesList.length === 0 && employeeSearchQuery && (
-                        <div className="p-2 text-sm text-muted-foreground text-center">No employees found</div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                        <CommandList className="max-h-[300px]">
+                          <CommandEmpty>No employees found</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="all-employees"
+                              onSelect={() => {
+                                setSelectedEmployee("all");
+                                setEmployeePickerOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedEmployee === "all" ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                              All Employees
+                            </CommandItem>
+                            {visibleEmployeesList.map((emp) => (
+                              <CommandItem
+                                key={emp.user_id}
+                                value={emp.user_id}
+                                onSelect={() => {
+                                  setSelectedEmployee(emp.user_id);
+                                  setEmployeePickerOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedEmployee === emp.user_id ? "opacity-100" : "opacity-0",
+                                  )}
+                                />
+                                {emp.employee_name}
+                              </CommandItem>
+                            ))}
+                            {filteredEmployeesList.length > visibleEmployeesList.length && (
+                              <div className="p-2 text-xs text-muted-foreground text-center">
+                                Showing {visibleEmployeesList.length} of {filteredEmployeesList.length}. Refine your
+                                search…
+                              </div>
+                            )}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="flex items-center gap-2">
                   <CalendarRange className="h-4 w-4 text-muted-foreground hidden sm:block" />
