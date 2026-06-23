@@ -167,6 +167,7 @@ const Reports = () => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
   const [debouncedEmployeeSearch, setDebouncedEmployeeSearch] = useState("");
+  const [employeePickerOpen, setEmployeePickerOpen] = useState(false);
 
   // Debounce search input to keep typing snappy on large lists
   useEffect(() => {
