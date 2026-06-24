@@ -30,6 +30,7 @@ import {
   CalendarDays,
   UserCheck,
 } from "lucide-react";
+import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
 import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
