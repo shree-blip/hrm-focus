@@ -30,6 +30,7 @@ import {
   CalendarDays,
   UserCheck,
 } from "lucide-react";
+import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmployeeProfileDialog } from "@/components/employees/EmployeeProfileDialog";
 import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
@@ -647,6 +648,72 @@ const Employees = () => {
     return matchesSearch && matchesDepartment && matchesLocation;
   });
 
+  // Export the currently filtered employee directory to a CSV file (VP/Admin only)
+  const handleExportCSV = () => {
+    if (!showFullDirectory) return;
+    const rows = filteredEmployees;
+    if (rows.length === 0) {
+      toast({ title: "No data", description: "There are no employees to export." });
+      return;
+    }
+
+    const headers = [
+      "Employee ID",
+      "First Name",
+      "Last Name",
+      "Email",
+      "Phone",
+      "Department",
+      "Job Title",
+      "Location",
+      "Status",
+      "Employment Type",
+      "Pay Type",
+      "Hire Date",
+      "Salary",
+      "Hourly Rate",
+      "Gender",
+    ];
+
+    const escape = (val: any) => {
+      const s = val === null || val === undefined ? "" : String(val);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+
+    const csvRows = rows.map((emp: any) =>
+      [
+        emp.employee_id,
+        emp.first_name,
+        emp.last_name,
+        emp.email,
+        emp.phone,
+        emp.department,
+        emp.job_title,
+        emp.location,
+        emp.status,
+        formatEmploymentType(emp.employment_type),
+        emp.pay_type,
+        emp.hire_date,
+        emp.salary,
+        emp.hourly_rate,
+        emp.gender,
+      ]
+        .map(escape)
+        .join(","),
+    );
+
+    const csv = [headers.map(escape).join(","), ...csvRows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `employees-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Export Complete", description: `Exported ${rows.length} employees to CSV.` });
+  };
+
   const handleViewProfile = (employee: any) => {
     setSelectedEmployee({
       ...employee,
@@ -854,6 +921,13 @@ const Employees = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {showFullDirectory && (
+            <Button variant="outline" className="gap-2 text-sm" onClick={handleExportCSV}>
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">Export</span>
+            </Button>
+          )}
           {isManager && (
             <Button variant="outline" className="gap-2 text-sm" onClick={handleOpenPromotionPicker}>
               <TrendingUp className="h-4 w-4" />
