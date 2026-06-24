@@ -862,14 +862,37 @@ const Reports = () => {
         }
       }
 
+      // Fetch each employee's remaining leave balance (Annual Leave pool) for the
+      // current fiscal year (Jul 1 – Jun 30). Remaining = total_days - used_days.
+      const remainingLeaveMap: Record<string, number> = {};
+      {
+        const now = new Date();
+        const fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+        const balanceYear = fyStartYear + 1;
+        const userIds = derivedSummary.map((emp) => emp.user_id).filter(Boolean);
+        if (userIds.length > 0) {
+          const { data: balanceRows } = await supabase
+            .from("leave_balances")
+            .select("user_id, leave_type, total_days, used_days")
+            .in("user_id", userIds)
+            .eq("year", balanceYear)
+            .eq("leave_type", "Annual Leave");
+          (balanceRows || []).forEach((b: any) => {
+            const remaining = Math.max(0, Number(b.total_days) - Number(b.used_days));
+            remainingLeaveMap[b.user_id] = remaining;
+          });
+        }
+      }
+
       csvContent =
-        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Deduction Type,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
+        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Remaining Leave (Days),Deduction Type,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
       derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
         const paymentType = paymentTypesMap[emp.user_id]
           ? Array.from(paymentTypesMap[emp.user_id]).sort().join(" | ")
           : "-";
+        const remainingLeave = remainingLeaveMap[emp.user_id] ?? 0;
 
         // Adjusted Days Worked: paid leave is treated as worked time, while
         // payroll-deduction leave is not added back. Actual clock-in days
@@ -905,7 +928,7 @@ const Reports = () => {
         });
         const offDayStr = offDayWork.length > 0 ? offDayWork.sort().join(" | ") : "None";
 
-        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${adjustedDaysWorked},${emp.total_hours},${leaveDays},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
+        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${adjustedDaysWorked},${emp.total_hours},${leaveDays},${remainingLeave},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
