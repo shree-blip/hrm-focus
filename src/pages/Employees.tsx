@@ -921,6 +921,13 @@ const Employees = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {showFullDirectory && (
+            <Button variant="outline" className="gap-2 text-sm" onClick={handleExportCSV}>
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">Export</span>
+            </Button>
+          )}
           {isManager && (
             <Button variant="outline" className="gap-2 text-sm" onClick={handleOpenPromotionPicker}>
               <TrendingUp className="h-4 w-4" />
