@@ -601,7 +601,7 @@ const Reports = () => {
     setCustomEnd("");
   };
 
-  const exportToCSV = (type: "leave" | "attendance" | "daily") => {
+  const exportToCSV = async (type: "leave" | "attendance" | "daily") => {
     let csvContent = "";
     let filename = "";
     const today = new Date();
