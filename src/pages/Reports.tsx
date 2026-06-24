@@ -54,6 +54,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { EditAttendanceDialog } from "@/components/reports/EditAttendanceDialog";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { calendarEntries } from "@/components/dashboard/CompanyCalendar";
