@@ -649,13 +649,38 @@ const Employees = () => {
   });
 
   // Export the currently filtered employee directory to a CSV file (VP/Admin only)
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!showFullDirectory) return;
     const rows = filteredEmployees;
     if (rows.length === 0) {
       toast({ title: "No data", description: "There are no employees to export." });
       return;
     }
+
+    // Fetch birthday (date_of_birth) and work anniversary (joining_date) from profiles
+    const profileIds = rows.map((e: any) => e.profile_id).filter(Boolean);
+    const profileMap = new Map<string, { date_of_birth: string | null; joining_date: string | null }>();
+    if (profileIds.length > 0) {
+      const { data: profileRows } = await supabase
+        .from("profiles")
+        .select("id, date_of_birth, joining_date")
+        .in("id", profileIds);
+      (profileRows || []).forEach((p: any) => {
+        profileMap.set(p.id, { date_of_birth: p.date_of_birth, joining_date: p.joining_date });
+      });
+    }
+
+    // Years of service ("milestone") derived from joining date
+    const yearsOfService = (joiningDate: string | null): string => {
+      if (!joiningDate) return "";
+      const joined = new Date(joiningDate + "T00:00:00");
+      if (isNaN(joined.getTime())) return "";
+      const now = new Date();
+      let years = now.getFullYear() - joined.getFullYear();
+      const m = now.getMonth() - joined.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < joined.getDate())) years--;
+      return years >= 0 ? String(years) : "";
+    };
 
     const headers = [
       "Employee ID",
@@ -668,11 +693,10 @@ const Employees = () => {
       "Location",
       "Status",
       "Employment Type",
-      "Pay Type",
-      "Hire Date",
-      "Salary",
-      "Hourly Rate",
       "Gender",
+      "Birthday",
+      "Work Anniversary",
+      "Years of Service (Milestone)",
     ];
 
     const escape = (val: any) => {
@@ -680,8 +704,9 @@ const Employees = () => {
       return `"${s.replace(/"/g, '""')}"`;
     };
 
-    const csvRows = rows.map((emp: any) =>
-      [
+    const csvRows = rows.map((emp: any) => {
+      const prof = emp.profile_id ? profileMap.get(emp.profile_id) : undefined;
+      return [
         emp.employee_id,
         emp.first_name,
         emp.last_name,
@@ -692,15 +717,14 @@ const Employees = () => {
         emp.location,
         emp.status,
         formatEmploymentType(emp.employment_type),
-        emp.pay_type,
-        emp.hire_date,
-        emp.salary,
-        emp.hourly_rate,
         emp.gender,
+        prof?.date_of_birth || "",
+        prof?.joining_date || "",
+        yearsOfService(prof?.joining_date || null),
       ]
         .map(escape)
-        .join(","),
-    );
+        .join(",");
+    });
 
     const csv = [headers.map(escape).join(","), ...csvRows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
