@@ -680,6 +680,12 @@ const Leave = () => {
                           {format(new Date(request.end_date), "MMM d, yyyy")}
                         </span>
                       </div>
+                      {request.created_at && (
+                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Requested on {format(new Date(request.created_at), "MMM d, yyyy 'at' h:mm a")}
+                        </p>
+                      )}
                       {request.reason && <p className="text-sm text-muted-foreground mt-1">"{request.reason}"</p>}
                       {request.status === "rejected" && request.rejection_reason && (
                         <div className="flex items-start gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
