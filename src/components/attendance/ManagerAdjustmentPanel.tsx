@@ -54,6 +54,13 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
     return format(new Date(iso), "hh:mm a");
   };
 
+  const formatMinutesAsClock = (minutes: number | null | undefined) => {
+    const totalMinutes = Math.max(0, Math.round(minutes || 0));
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
+  };
+
   if (requests.length === 0) return null;
 
   return (
@@ -102,8 +109,8 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                       <TableCell className="text-xs space-y-0.5">
                         {req.proposed_clock_in && <p>Clock In → {formatTime(req.proposed_clock_in)}</p>}
                         {req.proposed_clock_out && <p>Clock Out → {formatTime(req.proposed_clock_out)}</p>}
-                        {req.proposed_break_minutes != null && <p>Break → {req.proposed_break_minutes}m</p>}
-                        {req.proposed_pause_minutes != null && <p>Pause → {req.proposed_pause_minutes}m</p>}
+                        {req.proposed_break_minutes != null && <p>Break → {formatMinutesAsClock(req.proposed_break_minutes)}</p>}
+                        {req.proposed_pause_minutes != null && <p>Pause → {formatMinutesAsClock(req.proposed_pause_minutes)}</p>}
                       </TableCell>
                       <TableCell className="text-sm max-w-[200px] truncate">{req.reason}</TableCell>
                       <TableCell>
@@ -284,8 +291,10 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                       <>
                         <p className="text-muted-foreground">Break:</p>
                         <p>
-                          {selectedRequest.attendance_log.total_break_minutes || 0}m →{" "}
-                          <span className="text-blue-600 font-medium">{selectedRequest.proposed_break_minutes}m</span>
+                          {formatMinutesAsClock(selectedRequest.attendance_log.total_break_minutes)} →{" "}
+                          <span className="text-blue-600 font-medium">
+                            {formatMinutesAsClock(selectedRequest.proposed_break_minutes)}
+                          </span>
                         </p>
                       </>
                     )}
@@ -296,8 +305,10 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                       <>
                         <p className="text-muted-foreground">Pause:</p>
                         <p>
-                          {selectedRequest.attendance_log.total_pause_minutes || 0}m →{" "}
-                          <span className="text-blue-600 font-medium">{selectedRequest.proposed_pause_minutes}m</span>
+                          {formatMinutesAsClock(selectedRequest.attendance_log.total_pause_minutes)} →{" "}
+                          <span className="text-blue-600 font-medium">
+                            {formatMinutesAsClock(selectedRequest.proposed_pause_minutes)}
+                          </span>
                         </p>
                       </>
                     )}
@@ -465,9 +476,9 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                       <>
                         <p className="text-muted-foreground">Break:</p>
                         <p>
-                          {overrideDialog.req.attendance_log.total_break_minutes || 0}m →{" "}
+                          {formatMinutesAsClock(overrideDialog.req.attendance_log.total_break_minutes)} →{" "}
                           <span className="text-blue-600 font-medium">
-                            {overrideDialog.req.proposed_break_minutes}m
+                            {formatMinutesAsClock(overrideDialog.req.proposed_break_minutes)}
                           </span>
                         </p>
                       </>
@@ -477,9 +488,9 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                       <>
                         <p className="text-muted-foreground">Pause:</p>
                         <p>
-                          {overrideDialog.req.attendance_log.total_pause_minutes || 0}m →{" "}
+                          {formatMinutesAsClock(overrideDialog.req.attendance_log.total_pause_minutes)} →{" "}
                           <span className="text-blue-600 font-medium">
-                            {overrideDialog.req.proposed_pause_minutes}m
+                            {formatMinutesAsClock(overrideDialog.req.proposed_pause_minutes)}
                           </span>
                         </p>
                       </>
