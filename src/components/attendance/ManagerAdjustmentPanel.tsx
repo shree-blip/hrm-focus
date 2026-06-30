@@ -279,10 +279,8 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                     )}
 
                     {selectedRequest.proposed_break_minutes != null &&
-                      Math.abs(
-                        selectedRequest.proposed_break_minutes -
-                          (selectedRequest.attendance_log.total_break_minutes || 0),
-                      ) > 1 && (
+                      selectedRequest.proposed_break_minutes !==
+                        (selectedRequest.attendance_log.total_break_minutes || 0) && (
                       <>
                         <p className="text-muted-foreground">Break:</p>
                         <p>
@@ -293,10 +291,8 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                     )}
 
                     {selectedRequest.proposed_pause_minutes != null &&
-                      Math.abs(
-                        selectedRequest.proposed_pause_minutes -
-                          (selectedRequest.attendance_log.total_pause_minutes || 0),
-                      ) > 1 && (
+                      selectedRequest.proposed_pause_minutes !==
+                        (selectedRequest.attendance_log.total_pause_minutes || 0) && (
                       <>
                         <p className="text-muted-foreground">Pause:</p>
                         <p>
