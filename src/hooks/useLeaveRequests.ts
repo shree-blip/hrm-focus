@@ -369,7 +369,13 @@ export function useLeaveRequests() {
   const fetchBalances = useCallback(async () => {
     if (!user) return;
 
-    const currentYear = new Date().getFullYear();
+    // Leave balances are keyed by the fiscal-year-ending year (leave year runs
+    // Jul 1 – Jun 30). After July 1 the active balance row is stored under
+    // next calendar year, matching the Teams view and Reports. Using the raw
+    // calendar year here caused the dashboard to keep showing the pre-July
+    // (up-to-June) balance while Teams already showed the reset value.
+    const nowDate = new Date();
+    const currentYear = nowDate.getMonth() >= 6 ? nowDate.getFullYear() + 1 : nowDate.getFullYear();
 
     const { data: balanceConfigs, error: configError } = await supabase
       .from("leave_balances")
