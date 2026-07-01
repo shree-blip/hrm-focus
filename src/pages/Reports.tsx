@@ -863,11 +863,14 @@ const Reports = () => {
       }
 
       // Fetch each employee's remaining leave balance (Annual Leave pool) for the
-      // current fiscal year (Jul 1 – Jun 30). Remaining = total_days - used_days.
+      // fiscal year (Jul 1 – Jun 30) that the REPORT PERIOD END DATE falls into,
+      // NOT the current live fiscal year. This ensures a report for a past period
+      // (e.g. June 2026) shows the actual balance from that leave year even if it's
+      // downloaded after the July reset. Remaining = total_days - used_days.
       const remainingLeaveMap: Record<string, number> = {};
       {
-        const now = new Date();
-        const fyStartYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+        const refDate = rangeEnd;
+        const fyStartYear = refDate.getUTCMonth() >= 6 ? refDate.getUTCFullYear() : refDate.getUTCFullYear() - 1;
         const balanceYear = fyStartYear + 1;
         const userIds = derivedSummary.map((emp) => emp.user_id).filter(Boolean);
         if (userIds.length > 0) {
