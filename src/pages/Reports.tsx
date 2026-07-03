@@ -753,6 +753,10 @@ const Reports = () => {
       // Paid Leave days count as worked; Payroll (deduction) days do not.
       const paidLeaveDaysMap: Record<string, number> = {};
       const payrollLeaveDaysMap: Record<string, number> = {};
+      // Per-employee, per-date weight of Paid Leave days. Used so we only add
+      // back paid-leave days for dates the employee did NOT already clock in on
+      // (otherwise a paid leave on a day he also worked is counted twice).
+      const paidLeaveDatesMap: Record<string, Record<string, number>> = {};
       requests.forEach((r) => {
         if (r.status !== "approved") return;
         const leaveStart = new Date(r.start_date);
@@ -799,6 +803,9 @@ const Reports = () => {
             // Split by deduction type so worked-days can be adjusted accordingly.
             if (paymentType === "Paid Leave") {
               paidLeaveDaysMap[empKey] = (paidLeaveDaysMap[empKey] || 0) + dayWeight;
+              if (!paidLeaveDatesMap[empKey]) paidLeaveDatesMap[empKey] = {};
+              paidLeaveDatesMap[empKey][dateKey] =
+                (paidLeaveDatesMap[empKey][dateKey] || 0) + dayWeight;
             } else if (paymentType === "Payroll") {
               payrollLeaveDaysMap[empKey] = (payrollLeaveDaysMap[empKey] || 0) + dayWeight;
             }
