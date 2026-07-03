@@ -907,8 +907,16 @@ const Reports = () => {
         // Adjusted Days Worked: paid leave is treated as worked time, while
         // payroll-deduction leave is not added back. Actual clock-in days
         // (emp.days_worked) already exclude leave days (no clock-in), so we add
-        // back only the Paid Leave days for this period.
-        const paidLeaveDays = paidLeaveDaysMap[emp.user_id] || 0;
+        // back only the Paid Leave days for this period — but ONLY for dates the
+        // employee did NOT already clock in on. Otherwise a paid leave taken on a
+        // day he also worked (e.g. a half-day) would be double counted, inflating
+        // Days Worked above the Total Working Days.
+        const empWorkedForDays = workedDatesMap[emp.user_id] || new Set<string>();
+        const paidLeaveDatesForEmp = paidLeaveDatesMap[emp.user_id] || {};
+        const paidLeaveDays = Object.entries(paidLeaveDatesForEmp).reduce(
+          (sum, [dateKey, weight]) => (empWorkedForDays.has(dateKey) ? sum : sum + weight),
+          0,
+        );
         const adjustedDaysWorked = emp.days_worked + paidLeaveDays;
 
         // Build "leaveDate => workedDate" pairs for lieu entries
