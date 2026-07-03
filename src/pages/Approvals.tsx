@@ -517,7 +517,7 @@ const Approvals = () => {
         }
         className="mb-6"
       >
-        <TabsList className="w-full overflow-x-auto scrollbar-hide justify-start">
+        <TabsList className="w-full overflow-x-auto justify-start">
           <TabsTrigger value="leave" className="gap-2 flex-shrink-0">
             <Calendar className="h-4 w-4" />
             Leave ({pendingRequests.length})
