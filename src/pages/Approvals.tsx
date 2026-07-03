@@ -517,24 +517,24 @@ const Approvals = () => {
         }
         className="mb-6"
       >
-        <TabsList>
-          <TabsTrigger value="leave" className="gap-2">
+        <TabsList className="w-full overflow-x-auto justify-start">
+          <TabsTrigger value="leave" className="gap-2 flex-shrink-0">
             <Calendar className="h-4 w-4" />
             Leave ({pendingRequests.length})
           </TabsTrigger>
-          {/* <TabsTrigger value="promotions" className="gap-2">
+          {/* <TabsTrigger value="promotions" className="gap-2 flex-shrink-0">
             <TrendingUp className="h-4 w-4" />
             Promotions ({pendingPromotions.length})
           </TabsTrigger> */}
-          <TabsTrigger value="attendance" className="gap-2">
+          <TabsTrigger value="attendance" className="gap-2 flex-shrink-0">
             <ClipboardList className="h-4 w-4" />
             Attendance Approvals ({pendingAttendanceAdjustments})
           </TabsTrigger>
-          <TabsTrigger value="assets" className="gap-2">
+          <TabsTrigger value="assets" className="gap-2 flex-shrink-0">
             <Package className="h-4 w-4" />
             Request Assets ({pendingAssetRequests})
           </TabsTrigger>
-          {/* <TabsTrigger value="leave-reports" className="gap-2">
+          {/* <TabsTrigger value="leave-reports" className="gap-2 flex-shrink-0">
             <FileText className="h-4 w-4" />
             Leave Reports
           </TabsTrigger> */}
