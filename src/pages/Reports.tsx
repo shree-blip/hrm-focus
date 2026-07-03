@@ -753,6 +753,10 @@ const Reports = () => {
       // Paid Leave days count as worked; Payroll (deduction) days do not.
       const paidLeaveDaysMap: Record<string, number> = {};
       const payrollLeaveDaysMap: Record<string, number> = {};
+      // Per-employee, per-date weight of Paid Leave days. Used so we only add
+      // back paid-leave days for dates the employee did NOT already clock in on
+      // (otherwise a paid leave on a day he also worked is counted twice).
+      const paidLeaveDatesMap: Record<string, Record<string, number>> = {};
       requests.forEach((r) => {
         if (r.status !== "approved") return;
         const leaveStart = new Date(r.start_date);
@@ -799,6 +803,9 @@ const Reports = () => {
             // Split by deduction type so worked-days can be adjusted accordingly.
             if (paymentType === "Paid Leave") {
               paidLeaveDaysMap[empKey] = (paidLeaveDaysMap[empKey] || 0) + dayWeight;
+              if (!paidLeaveDatesMap[empKey]) paidLeaveDatesMap[empKey] = {};
+              paidLeaveDatesMap[empKey][dateKey] =
+                (paidLeaveDatesMap[empKey][dateKey] || 0) + dayWeight;
             } else if (paymentType === "Payroll") {
               payrollLeaveDaysMap[empKey] = (payrollLeaveDaysMap[empKey] || 0) + dayWeight;
             }
@@ -900,8 +907,16 @@ const Reports = () => {
         // Adjusted Days Worked: paid leave is treated as worked time, while
         // payroll-deduction leave is not added back. Actual clock-in days
         // (emp.days_worked) already exclude leave days (no clock-in), so we add
-        // back only the Paid Leave days for this period.
-        const paidLeaveDays = paidLeaveDaysMap[emp.user_id] || 0;
+        // back only the Paid Leave days for this period — but ONLY for dates the
+        // employee did NOT already clock in on. Otherwise a paid leave taken on a
+        // day he also worked (e.g. a half-day) would be double counted, inflating
+        // Days Worked above the Total Working Days.
+        const empWorkedForDays = workedDatesMap[emp.user_id] || new Set<string>();
+        const paidLeaveDatesForEmp = paidLeaveDatesMap[emp.user_id] || {};
+        const paidLeaveDays = Object.entries(paidLeaveDatesForEmp).reduce(
+          (sum, [dateKey, weight]) => (empWorkedForDays.has(dateKey) ? sum : sum + weight),
+          0,
+        );
         const adjustedDaysWorked = emp.days_worked + paidLeaveDays;
 
         // Build "leaveDate => workedDate" pairs for lieu entries
