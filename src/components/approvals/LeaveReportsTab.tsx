@@ -190,8 +190,13 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
 
     return requests.filter((r) => {
       if (rangeStart || rangeEnd) {
+        // Match any leave that OVERLAPS the selected range, not only those that
+        // START within it. A request spanning a month boundary (e.g. May 28 →
+        // Jun 01) still has leave days inside the selected month and must be
+        // shown, otherwise the list undercounts vs. the attendance summary.
         const start = parseISO(r.start_date);
-        if (rangeStart && start < rangeStart) return false;
+        const end = parseISO(r.end_date);
+        if (rangeStart && end < rangeStart) return false;
         if (rangeEnd && start > rangeEnd) return false;
       }
       if (filterEmployee !== "all" && r.user_id !== filterEmployee) return false;
