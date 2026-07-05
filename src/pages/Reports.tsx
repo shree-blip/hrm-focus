@@ -610,7 +610,7 @@ const Reports = () => {
     // Extract the payment status ("Payroll" / "Paid Leave") prefixed to a leave reason.
     const extractPaymentType = (reason: string | null | undefined): string => {
       if (!reason) return "";
-      const m = /^\s*\[(Payroll|Paid Leave)\]/i.exec(reason);
+      const m = /\[(Payroll|Paid Leave)\]/i.exec(reason);
       return m ? (m[1].toLowerCase() === "payroll" ? "Payroll" : "Paid Leave") : "";
     };
 
