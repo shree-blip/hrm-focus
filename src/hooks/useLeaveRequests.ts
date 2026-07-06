@@ -877,6 +877,7 @@ export function useLeaveRequests() {
     days: number;
     is_half_day: boolean;
     half_day_period: string | null;
+    payment_type?: "payroll" | "paid_leave";
   }) => {
     if (!user || (!isAdmin && !isVP)) return;
 
@@ -887,13 +888,15 @@ export function useLeaveRequests() {
       return `${year}-${month}-${day}`;
     };
 
+    const paymentLabel = params.payment_type === "payroll" ? "Payroll" : "Paid Leave";
+
     const { error } = await supabase.from("leave_requests").insert({
       user_id: params.user_id,
       leave_type: params.leave_type,
       start_date: formatLocalDate(params.start_date),
       end_date: formatLocalDate(params.end_date),
       days: params.days,
-      reason: `[Admin assigned] ${params.reason}`,
+      reason: `[Admin assigned] [${paymentLabel}] ${params.reason}`,
       status: "approved",
       approved_by: user.id,
       approved_at: new Date().toISOString(),

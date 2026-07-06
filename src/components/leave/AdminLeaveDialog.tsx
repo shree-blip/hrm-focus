@@ -54,6 +54,7 @@ interface AdminLeaveDialogProps {
     days: number;
     is_half_day: boolean;
     half_day_period: string | null;
+    payment_type: "payroll" | "paid_leave";
   }) => Promise<void>;
 }
 
@@ -81,6 +82,7 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
   const [isHalfDay, setIsHalfDay] = useState(false);
   const [halfDayPeriod, setHalfDayPeriod] = useState<string>("first_half");
   const [submitting, setSubmitting] = useState(false);
+  const [paymentType, setPaymentType] = useState<"payroll" | "paid_leave">("paid_leave");
 
   useEffect(() => {
     if (open) {
@@ -93,6 +95,7 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
       setReason("");
       setIsHalfDay(false);
       setHalfDayPeriod("first_half");
+      setPaymentType("paid_leave");
     }
   }, [open]);
 
@@ -134,6 +137,7 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
         days: 0.5,
         is_half_day: true,
         half_day_period: halfDayPeriod,
+        payment_type: paymentType,
       });
       setSubmitting(false);
       onOpenChange(false);
@@ -161,6 +165,7 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
       days,
       is_half_day: false,
       half_day_period: null,
+      payment_type: paymentType,
     });
     setSubmitting(false);
     onOpenChange(false);
@@ -302,6 +307,43 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
               onChange={(e) => setReason(e.target.value)}
               rows={3}
             />
+          </div>
+
+          {/* Deduction / Payment Type */}
+          <div className="space-y-2">
+            <Label>Deduction Type</Label>
+            <RadioGroup
+              value={paymentType}
+              onValueChange={(v) => setPaymentType(v as "payroll" | "paid_leave")}
+              className="grid grid-cols-2 gap-3"
+            >
+              <label
+                htmlFor="admin-paid-leave"
+                className={cn(
+                  "flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition-colors",
+                  paymentType === "paid_leave" ? "border-primary bg-primary/5" : "border-border"
+                )}
+              >
+                <RadioGroupItem value="paid_leave" id="admin-paid-leave" className="mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Paid Leave</p>
+                  <p className="text-xs text-muted-foreground">Deducts from the employee's leave balance.</p>
+                </div>
+              </label>
+              <label
+                htmlFor="admin-payroll"
+                className={cn(
+                  "flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition-colors",
+                  paymentType === "payroll" ? "border-primary bg-primary/5" : "border-border"
+                )}
+              >
+                <RadioGroupItem value="payroll" id="admin-payroll" className="mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Payroll</p>
+                  <p className="text-xs text-muted-foreground">Charged to payroll, no balance deduction.</p>
+                </div>
+              </label>
+            </RadioGroup>
           </div>
 
           <div className="flex items-center gap-2 p-2 rounded-md bg-primary/5 border border-primary/20">
