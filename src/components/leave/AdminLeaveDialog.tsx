@@ -350,7 +350,14 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
 
           {/* Deduction / Payment Type */}
           <div className="space-y-2">
-            <Label>Deduction Type</Label>
+            <div className="flex items-center justify-between">
+              <Label>Deduction Type</Label>
+              {selectedUserId && availableBalance !== null && (
+                <Badge variant={availableBalance > 0 ? "secondary" : "destructive"} className="text-xs">
+                  {availableBalance > 0 ? `${availableBalance} paid leave left` : "No paid leave left"}
+                </Badge>
+              )}
+            </div>
             <RadioGroup
               value={paymentType}
               onValueChange={(v) => setPaymentType(v as "payroll" | "paid_leave")}
@@ -359,11 +366,19 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
               <label
                 htmlFor="admin-paid-leave"
                 className={cn(
-                  "flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition-colors",
+                  "flex items-start gap-2 rounded-lg border p-3 transition-colors",
+                  availableBalance !== null && availableBalance <= 0
+                    ? "cursor-not-allowed opacity-50 border-border"
+                    : "cursor-pointer",
                   paymentType === "paid_leave" ? "border-primary bg-primary/5" : "border-border"
                 )}
               >
-                <RadioGroupItem value="paid_leave" id="admin-paid-leave" className="mt-0.5" />
+                <RadioGroupItem
+                  value="paid_leave"
+                  id="admin-paid-leave"
+                  className="mt-0.5"
+                  disabled={availableBalance !== null && availableBalance <= 0}
+                />
                 <div>
                   <p className="text-sm font-medium">Paid Leave</p>
                   <p className="text-xs text-muted-foreground">Deducts from the employee's leave balance.</p>
