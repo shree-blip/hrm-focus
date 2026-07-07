@@ -83,6 +83,7 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
   const [halfDayPeriod, setHalfDayPeriod] = useState<string>("first_half");
   const [submitting, setSubmitting] = useState(false);
   const [paymentType, setPaymentType] = useState<"payroll" | "paid_leave">("paid_leave");
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -96,8 +97,46 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
       setIsHalfDay(false);
       setHalfDayPeriod("first_half");
       setPaymentType("paid_leave");
+      setAvailableBalance(null);
     }
   }, [open]);
+
+  // When an employee is selected, check their available paid-leave (Annual Leave) balance.
+  // If they have no balance left, auto-switch the deduction type to Payroll.
+  useEffect(() => {
+    if (!selectedUserId) {
+      setAvailableBalance(null);
+      return;
+    }
+
+    let cancelled = false;
+    const checkBalance = async () => {
+      const year = new Date().getFullYear();
+      const { data } = await supabase
+        .from("leave_balances")
+        .select("total_days, used_days")
+        .eq("user_id", selectedUserId)
+        .eq("leave_type", "Annual Leave")
+        .eq("year", year)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      const available = data ? Number(data.total_days) - Number(data.used_days) : 0;
+      setAvailableBalance(available);
+
+      if (available <= 0) {
+        setPaymentType("payroll");
+      } else {
+        setPaymentType("paid_leave");
+      }
+    };
+
+    checkBalance();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedUserId]);
 
   const fetchEmployees = async () => {
     const { data } = await supabase
