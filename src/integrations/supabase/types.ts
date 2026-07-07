@@ -4151,6 +4151,91 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_sprints: {
+        Row: {
+          created_at: string
+          current_tasks: string | null
+          employee_id: string
+          id: string
+          last_week_completed: string | null
+          notes_blockers: string | null
+          org_id: string | null
+          reviewed_at: string | null
+          reviewer_comment: string | null
+          reviewer_id: string | null
+          score: number | null
+          status: string
+          upcoming_plan: string | null
+          updated_at: string
+          user_id: string
+          week_end: string
+          week_start: string
+          weekly_targets: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_tasks?: string | null
+          employee_id: string
+          id?: string
+          last_week_completed?: string | null
+          notes_blockers?: string | null
+          org_id?: string | null
+          reviewed_at?: string | null
+          reviewer_comment?: string | null
+          reviewer_id?: string | null
+          score?: number | null
+          status?: string
+          upcoming_plan?: string | null
+          updated_at?: string
+          user_id: string
+          week_end: string
+          week_start: string
+          weekly_targets?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_tasks?: string | null
+          employee_id?: string
+          id?: string
+          last_week_completed?: string | null
+          notes_blockers?: string | null
+          org_id?: string | null
+          reviewed_at?: string | null
+          reviewer_comment?: string | null
+          reviewer_id?: string | null
+          score?: number | null
+          status?: string
+          upcoming_plan?: string | null
+          updated_at?: string
+          user_id?: string
+          week_end?: string
+          week_start?: string
+          weekly_targets?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_sprints_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_sprints_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_sprints_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_log_history: {
         Row: {
           change_type: string
@@ -4670,6 +4755,10 @@ export type Database = {
       can_manage_announcements: { Args: { _user_id: string }; Returns: boolean }
       can_manage_task: {
         Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_review_sprint: {
+        Args: { _employee_id: string; _user_id: string }
         Returns: boolean
       }
       can_view_asset_request: {
