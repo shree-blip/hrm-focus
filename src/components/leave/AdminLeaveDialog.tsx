@@ -111,7 +111,13 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
 
     let cancelled = false;
     const checkBalance = async () => {
-      const year = new Date().getFullYear();
+      // Leave balances are keyed by the fiscal-year-ending year (the leave year
+      // runs July -> June, stored under the ending calendar year). From July
+      // onward we must read next calendar year's balance, matching Leave page,
+      // dashboard and Reports. Using the raw calendar year showed the stale
+      // pre-July balance.
+      const nowDate = new Date();
+      const year = nowDate.getMonth() >= 6 ? nowDate.getFullYear() + 1 : nowDate.getFullYear();
       const { data } = await supabase
         .from("leave_balances")
         .select("total_days, used_days")
