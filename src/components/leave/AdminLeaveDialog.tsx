@@ -83,6 +83,7 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
   const [halfDayPeriod, setHalfDayPeriod] = useState<string>("first_half");
   const [submitting, setSubmitting] = useState(false);
   const [paymentType, setPaymentType] = useState<"payroll" | "paid_leave">("paid_leave");
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -96,8 +97,46 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
       setIsHalfDay(false);
       setHalfDayPeriod("first_half");
       setPaymentType("paid_leave");
+      setAvailableBalance(null);
     }
   }, [open]);
+
+  // When an employee is selected, check their available paid-leave (Annual Leave) balance.
+  // If they have no balance left, auto-switch the deduction type to Payroll.
+  useEffect(() => {
+    if (!selectedUserId) {
+      setAvailableBalance(null);
+      return;
+    }
+
+    let cancelled = false;
+    const checkBalance = async () => {
+      const year = new Date().getFullYear();
+      const { data } = await supabase
+        .from("leave_balances")
+        .select("total_days, used_days")
+        .eq("user_id", selectedUserId)
+        .eq("leave_type", "Annual Leave")
+        .eq("year", year)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      const available = data ? Number(data.total_days) - Number(data.used_days) : 0;
+      setAvailableBalance(available);
+
+      if (available <= 0) {
+        setPaymentType("payroll");
+      } else {
+        setPaymentType("paid_leave");
+      }
+    };
+
+    checkBalance();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedUserId]);
 
   const fetchEmployees = async () => {
     const { data } = await supabase
@@ -311,7 +350,14 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
 
           {/* Deduction / Payment Type */}
           <div className="space-y-2">
-            <Label>Deduction Type</Label>
+            <div className="flex items-center justify-between">
+              <Label>Deduction Type</Label>
+              {selectedUserId && availableBalance !== null && (
+                <Badge variant={availableBalance > 0 ? "secondary" : "destructive"} className="text-xs">
+                  {availableBalance > 0 ? `${availableBalance} paid leave left` : "No paid leave left"}
+                </Badge>
+              )}
+            </div>
             <RadioGroup
               value={paymentType}
               onValueChange={(v) => setPaymentType(v as "payroll" | "paid_leave")}
@@ -320,11 +366,19 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
               <label
                 htmlFor="admin-paid-leave"
                 className={cn(
-                  "flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition-colors",
+                  "flex items-start gap-2 rounded-lg border p-3 transition-colors",
+                  availableBalance !== null && availableBalance <= 0
+                    ? "cursor-not-allowed opacity-50 border-border"
+                    : "cursor-pointer",
                   paymentType === "paid_leave" ? "border-primary bg-primary/5" : "border-border"
                 )}
               >
-                <RadioGroupItem value="paid_leave" id="admin-paid-leave" className="mt-0.5" />
+                <RadioGroupItem
+                  value="paid_leave"
+                  id="admin-paid-leave"
+                  className="mt-0.5"
+                  disabled={availableBalance !== null && availableBalance <= 0}
+                />
                 <div>
                   <p className="text-sm font-medium">Paid Leave</p>
                   <p className="text-xs text-muted-foreground">Deducts from the employee's leave balance.</p>
