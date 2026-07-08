@@ -92,7 +92,12 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
   const fetchEmployeeBalances = useCallback(async () => {
     setLoadingBalances(true);
     try {
-      const currentYear = new Date().getFullYear();
+      // Leave balances are keyed by the fiscal-year-ending year (leave year runs
+      // July -> June, stored under the ending calendar year). From July onward we
+      // must read next calendar year's balance so the panel reflects the reset
+      // July balance instead of the stale pre-July (June) one.
+      const nowDate = new Date();
+      const currentYear = nowDate.getMonth() >= 6 ? nowDate.getFullYear() + 1 : nowDate.getFullYear();
 
       // For managers with teamUserIds, query balances only for those users directly
       let relevantBalances: { user_id: string; leave_type: string; total_days: number; used_days: number }[] = [];
