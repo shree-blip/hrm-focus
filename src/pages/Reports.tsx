@@ -607,11 +607,11 @@ const Reports = () => {
     const today = new Date();
     const dateStr = formatDateLocal(today.toISOString());
 
-    // Extract the payment status ("Payroll" / "Paid Leave") prefixed to a leave reason.
+    // Extract the payment status ("Unpaid Leave" / "Paid Leave") prefixed to a leave reason.
     const extractPaymentType = (reason: string | null | undefined): string => {
       if (!reason) return "";
-      const m = /\[(Payroll|Paid Leave)\]/i.exec(reason);
-      return m ? (m[1].toLowerCase() === "payroll" ? "Payroll" : "Paid Leave") : "";
+      const m = /\[(Payroll|Paid Leave|Unpaid Leave)\]/i.exec(reason);
+      return m ? (m[1].toLowerCase() === "paid leave" ? "Paid Leave" : "Unpaid Leave") : "";
     };
 
     if (type === "leave") {
@@ -747,10 +747,10 @@ const Reports = () => {
       const leaveTypeDetailsMap: Record<string, Record<string, string[]>> = {};
       // Per-employee map of lieu leave date -> worked date (extracted from "Leave in Lieu - YYYY-MM-DD")
       const lieuWorkedDatesMap: Record<string, Record<string, string>> = {};
-      // Per-employee set of payment statuses ("Payroll" / "Paid Leave") from approved leaves.
+      // Per-employee set of payment statuses ("Unpaid Leave" / "Paid Leave") from approved leaves.
       const paymentTypesMap: Record<string, Set<string>> = {};
       // Per-employee approved leave days split by deduction type within the range.
-      // Paid Leave days count as worked; Payroll (deduction) days do not.
+      // Paid Leave days count as worked; Unpaid Leave days do not.
       const paidLeaveDaysMap: Record<string, number> = {};
       const payrollLeaveDaysMap: Record<string, number> = {};
       // Per-employee, per-date weight of Paid Leave days. Used so we only add
@@ -806,7 +806,7 @@ const Reports = () => {
               if (!paidLeaveDatesMap[empKey]) paidLeaveDatesMap[empKey] = {};
               paidLeaveDatesMap[empKey][dateKey] =
                 (paidLeaveDatesMap[empKey][dateKey] || 0) + dayWeight;
-            } else if (paymentType === "Payroll") {
+            } else if (paymentType === "Unpaid Leave") {
               payrollLeaveDaysMap[empKey] = (payrollLeaveDaysMap[empKey] || 0) + dayWeight;
             }
             if (workedDate) {

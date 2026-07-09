@@ -888,7 +888,7 @@ export function useLeaveRequests() {
       return `${year}-${month}-${day}`;
     };
 
-    const paymentLabel = params.payment_type === "payroll" ? "Payroll" : "Paid Leave";
+    const paymentLabel = params.payment_type === "payroll" ? "Unpaid Leave" : "Paid Leave";
 
     const { error } = await supabase.from("leave_requests").insert({
       user_id: params.user_id,

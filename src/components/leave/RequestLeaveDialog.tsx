@@ -297,7 +297,7 @@ export function RequestLeaveDialog({
     if (!paymentOption) {
       toast({
         title: "Selection Required",
-        description: "Please select either Payroll or Paid Leave before applying.",
+        description: "Please select either Unpaid Leave or Paid Leave before applying.",
         variant: "destructive",
       });
       return;
@@ -338,7 +338,7 @@ export function RequestLeaveDialog({
       actualLeaveType = `Other Leave - ${otherLeaveSubtype}`;
     }
 
-    const paymentLabel = paymentOption === "payroll" ? "Payroll" : "Paid Leave";
+    const paymentLabel = paymentOption === "payroll" ? "Unpaid Leave" : "Paid Leave";
     const reasonWithPayment = `[${paymentLabel}] ${reason}`;
 
     setIsSubmitting(true);
@@ -873,7 +873,7 @@ export function RequestLeaveDialog({
                       leaveType === "Special Leave" ? "cursor-not-allowed opacity-50" : "cursor-pointer",
                     )}
                   >
-                    Payroll
+                    Unpaid Leave
                   </Label>
                 </div>
 
@@ -907,7 +907,7 @@ export function RequestLeaveDialog({
                     </TooltipTrigger>
                     {noPaidLeaveBalance && leaveType !== "Special Leave" && (
                       <TooltipContent>
-                        <p className="text-xs">No paid leave balance remaining. Please choose Payroll.</p>
+                        <p className="text-xs">No paid leave balance remaining. Please choose Unpaid Leave.</p>
                       </TooltipContent>
                     )}
                   </Tooltip>
