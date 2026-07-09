@@ -399,7 +399,7 @@ export function AdminLeaveDialog({ open, onOpenChange, onSubmit }: AdminLeaveDia
               >
                 <RadioGroupItem value="payroll" id="admin-payroll" className="mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium">Payroll</p>
+                  <p className="text-sm font-medium">Unpaid Leave</p>
                   <p className="text-xs text-muted-foreground">Charged to payroll, no balance deduction.</p>
                 </div>
               </label>
