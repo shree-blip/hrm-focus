@@ -271,11 +271,11 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
         .replace(/\s+/g, " ")
         .trim();
     };
-    // Extract the payment status ("Payroll" / "Paid Leave") prefixed to the reason.
+    // Extract the payment status ("Unpaid Leave" / "Paid Leave") prefixed to the reason.
     const extractPaymentType = (reason: string | null): string => {
       if (!reason) return "";
-      const m = /\[(Payroll|Paid Leave)\]/i.exec(reason);
-      return m ? (m[1].toLowerCase() === "payroll" ? "Payroll" : "Paid Leave") : "";
+      const m = /\[(Payroll|Paid Leave|Unpaid Leave)\]/i.exec(reason);
+      return m ? (m[1].toLowerCase() === "paid leave" ? "Paid Leave" : "Unpaid Leave") : "";
     };
     const header = [
       "Employee",
