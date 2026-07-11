@@ -1009,8 +1009,15 @@ const Reports = () => {
       header += ",Clock Out,Total Hours (excl. breaks & pauses),Status\n";
       csvContent = header;
 
+      let prevWeekKey: string | null = null;
       filteredDailyAttendance.forEach((att) => {
         const typedAtt = att as DailyAttendanceRecord;
+        const weekKey = getWeekKey(typedAtt.clock_in);
+        // Insert 2 empty rows whenever the week changes (skip before first row).
+        if (prevWeekKey !== null && weekKey !== prevWeekKey) {
+          csvContent += "\n\n";
+        }
+        prevWeekKey = weekKey;
         const date = formatDateLocal(typedAtt.clock_in);
         const day = formatWeekdayLocal(typedAtt.clock_in);
         const clockIn = formatTimeLocal(typedAtt.clock_in);
