@@ -977,7 +977,7 @@ const Reports = () => {
       );
 
       // Build dynamic header with individual break and pause columns
-      let header = "Date,Employee,Email,Clock In";
+      let header = "Date,Day,Employee,Email,Clock In";
 
       // Add columns for each possible break
       for (let i = 1; i <= maxBreaks; i++) {
@@ -997,6 +997,7 @@ const Reports = () => {
       filteredDailyAttendance.forEach((att) => {
         const typedAtt = att as DailyAttendanceRecord;
         const date = formatDateLocal(typedAtt.clock_in);
+        const day = formatWeekdayLocal(typedAtt.clock_in);
         const clockIn = formatTimeLocal(typedAtt.clock_in);
         const clockOut = formatTimeLocal(typedAtt.clock_out);
         const breaks = getBreaks(typedAtt);
@@ -1006,7 +1007,7 @@ const Reports = () => {
         const totalHours = calculateTotalHours(typedAtt);
         const status = getWorkStatus(totalHours, typedAtt.clock_out, typedAtt.employment_type).label;
 
-        let row = `"${date}","${typedAtt.employee_name}","${typedAtt.email}","${clockIn}"`;
+        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${clockIn}"`;
 
         // Add each break's individual data
         for (let i = 0; i < maxBreaks; i++) {
