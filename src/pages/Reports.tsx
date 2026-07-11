@@ -217,6 +217,21 @@ const Reports = () => {
     });
   };
 
+  // Derive an ISO-week key (e.g. "2026-W15") used to group export rows by week.
+  const getWeekKey = (dateString: string | null) => {
+    if (!dateString) return "-";
+    const d = new Date(dateString);
+    // Normalize to UTC midnight, shift to Thursday of the current ISO week.
+    const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const dayNum = (date.getUTCDay() + 6) % 7; // Mon=0 .. Sun=6
+    date.setUTCDate(date.getUTCDate() - dayNum + 3);
+    const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+    const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+    firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+    const week = 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+  };
+
   // Get unique employees list from daily attendance
   const employeesList = useMemo(() => {
     const employeesMap = new Map<string, { user_id: string; employee_name: string; email: string }>();
