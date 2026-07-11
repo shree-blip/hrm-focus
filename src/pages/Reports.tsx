@@ -1104,13 +1104,14 @@ const Reports = () => {
         prevWeekKey = weekKey;
         prevClockIn = item.sortIso;
 
-        // Holiday marker row for holidays with no attendance record.
+        // Holiday marker row for holidays with no attendance record — rendered
+        // as a full-width labeled separator, same style as the weekend row.
         if (item.kind === "holiday") {
           const holWeekday = new Date(`${item.dateKey}T12:00:00Z`).toLocaleDateString("en-US", {
             weekday: "long",
             timeZone: "UTC",
           });
-          csvContent += `"${item.dateKey}","${holWeekday}","🎉 Company Holiday — ${item.name}"\n`;
+          csvContent += `\n"Holiday: ${item.dateKey} (${holWeekday}) — ${item.name}"\n\n`;
           return;
         }
 
