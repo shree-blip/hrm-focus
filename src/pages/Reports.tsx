@@ -208,6 +208,15 @@ const Reports = () => {
     return `${year}-${month}-${day}`;
   };
 
+  // Derive the weekday name (e.g. "Monday") for a given timestamp.
+  const formatWeekdayLocal = (dateString: string | null, tz?: string) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      weekday: "long",
+      ...(tz ? { timeZone: tz } : {}),
+    });
+  };
+
   // Get unique employees list from daily attendance
   const employeesList = useMemo(() => {
     const employeesMap = new Map<string, { user_id: string; employee_name: string; email: string }>();
