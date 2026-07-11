@@ -1036,14 +1036,22 @@ const Reports = () => {
       csvContent = header;
 
       let prevWeekKey: string | null = null;
+      let prevClockIn: string | null = null;
       filteredDailyAttendance.forEach((att) => {
         const typedAtt = att as DailyAttendanceRecord;
         const weekKey = getWeekKey(typedAtt.clock_in);
-        // Insert 2 empty rows whenever the week changes (skip before first row).
+        // On a week change, insert one empty row, then a labeled weekend row
+        // (with the weekend date/day) and another empty row as a separator.
         if (prevWeekKey !== null && weekKey !== prevWeekKey) {
-          csvContent += "\n\n";
+          const weekendDays = getWeekendDaysBetween(typedAtt.clock_in, prevClockIn);
+          const weekendLabel =
+            weekendDays.length > 0
+              ? `Weekend: ${weekendDays.join(" | ")}`
+              : "Weekend";
+          csvContent += `\n"${weekendLabel}"\n\n`;
         }
         prevWeekKey = weekKey;
+        prevClockIn = typedAtt.clock_in;
         const date = formatDateLocal(typedAtt.clock_in);
         const day = formatWeekdayLocal(typedAtt.clock_in);
         const clockIn = formatTimeLocal(typedAtt.clock_in);
