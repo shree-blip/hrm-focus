@@ -232,6 +232,32 @@ const Reports = () => {
     return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
   };
 
+  // List the weekend day(s) (Saturday/Sunday) that fall strictly between two
+  // dates. Records are exported newest-first, so `laterIso` is the more recent
+  // record and `earlierIso` the older one from the previous week.
+  const getWeekendDaysBetween = (earlierIso: string | null, laterIso: string | null) => {
+    if (!earlierIso || !laterIso) return [] as string[];
+    const start = new Date(earlierIso);
+    const end = new Date(laterIso);
+    const lo = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+    const hi = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+    const result: string[] = [];
+    const cur = new Date(lo);
+    cur.setUTCDate(cur.getUTCDate() + 1); // exclusive of both endpoints
+    while (cur < hi) {
+      const dow = cur.getUTCDay(); // 0 = Sun, 6 = Sat
+      if (dow === 0 || dow === 6) {
+        const y = cur.getUTCFullYear();
+        const m = String(cur.getUTCMonth() + 1).padStart(2, "0");
+        const d = String(cur.getUTCDate()).padStart(2, "0");
+        const name = cur.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+        result.push(`${y}-${m}-${d} (${name})`);
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return result;
+  };
+
   // Get unique employees list from daily attendance
   const employeesList = useMemo(() => {
     const employeesMap = new Map<string, { user_id: string; employee_name: string; email: string }>();
