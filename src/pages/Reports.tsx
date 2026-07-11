@@ -1017,6 +1017,25 @@ const Reports = () => {
         }, 0),
       );
 
+      // Build a holiday-name map (Company Calendar static entries + dynamic
+      // calendar events) keyed by YYYY-MM-DD, so holidays can be labeled in the
+      // daily report — even on days when nobody clocked in.
+      const holidayKeyLocal = (dt: Date) => {
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, "0");
+        const dd = String(dt.getDate()).padStart(2, "0");
+        return `${y}-${m}-${dd}`;
+      };
+      const holidayNameMap = new Map<string, string>();
+      calendarEntries.forEach((entry) => {
+        if (entry.type !== "holiday" && entry.type !== "optional") return;
+        holidayNameMap.set(holidayKeyLocal(entry.date), entry.name);
+      });
+      (calendarEvents || []).forEach((ev) => {
+        if (ev.event_type !== "holiday") return;
+        holidayNameMap.set(ev.event_date, ev.title);
+      });
+
       // Build dynamic header with individual break and pause columns
       let header = "Date,Day,Employee,Email,Clock In";
 
@@ -1032,18 +1051,50 @@ const Reports = () => {
       }
       header += ",Total Pauses Count,Total Pause Time (min)";
 
-      header += ",Clock Out,Total Hours (excl. breaks & pauses),Status\n";
+      header += ",Clock Out,Total Hours (excl. breaks & pauses),Status,Holiday\n";
       csvContent = header;
+
+      // Merge attendance records with holiday markers for holiday dates that
+      // fall inside the report range but have no attendance row, so holidays
+      // (e.g. "Labor Day") still appear in the report. Everything is sorted
+      // newest-first to match the on-screen ordering.
+      type DailyExportItem =
+        | { kind: "record"; sortIso: string; att: DailyAttendanceRecord }
+        | { kind: "holiday"; sortIso: string; dateKey: string; name: string };
+
+      const recordDateKeys = new Set<string>();
+      const exportItems: DailyExportItem[] = filteredDailyAttendance.map((att) => {
+        const typedAtt = att as DailyAttendanceRecord;
+        recordDateKeys.add(formatDateLocal(typedAtt.clock_in));
+        return { kind: "record", sortIso: typedAtt.clock_in, att: typedAtt };
+      });
+
+      if (recordDateKeys.size > 0) {
+        const sortedKeys = Array.from(recordDateKeys).sort();
+        const minKey = sortedKeys[0];
+        const maxKey = sortedKeys[sortedKeys.length - 1];
+        holidayNameMap.forEach((name, dateKey) => {
+          if (dateKey >= minKey && dateKey <= maxKey && !recordDateKeys.has(dateKey)) {
+            exportItems.push({
+              kind: "holiday",
+              sortIso: `${dateKey}T06:00:00Z`,
+              dateKey,
+              name,
+            });
+          }
+        });
+      }
+
+      exportItems.sort((a, b) => new Date(b.sortIso).getTime() - new Date(a.sortIso).getTime());
 
       let prevWeekKey: string | null = null;
       let prevClockIn: string | null = null;
-      filteredDailyAttendance.forEach((att) => {
-        const typedAtt = att as DailyAttendanceRecord;
-        const weekKey = getWeekKey(typedAtt.clock_in);
+      exportItems.forEach((item) => {
+        const weekKey = getWeekKey(item.sortIso);
         // On a week change, insert one empty row, then a labeled weekend row
         // (with the weekend date/day) and another empty row as a separator.
         if (prevWeekKey !== null && weekKey !== prevWeekKey) {
-          const weekendDays = getWeekendDaysBetween(typedAtt.clock_in, prevClockIn);
+          const weekendDays = getWeekendDaysBetween(item.sortIso, prevClockIn);
           const weekendLabel =
             weekendDays.length > 0
               ? `Weekend: ${weekendDays.join(" | ")}`
@@ -1051,7 +1102,19 @@ const Reports = () => {
           csvContent += `\n"${weekendLabel}"\n\n`;
         }
         prevWeekKey = weekKey;
-        prevClockIn = typedAtt.clock_in;
+        prevClockIn = item.sortIso;
+
+        // Holiday marker row for holidays with no attendance record.
+        if (item.kind === "holiday") {
+          const holWeekday = new Date(`${item.dateKey}T12:00:00Z`).toLocaleDateString("en-US", {
+            weekday: "long",
+            timeZone: "UTC",
+          });
+          csvContent += `"${item.dateKey}","${holWeekday}","🎉 Company Holiday — ${item.name}"\n`;
+          return;
+        }
+
+        const typedAtt = item.att;
         const date = formatDateLocal(typedAtt.clock_in);
         const day = formatWeekdayLocal(typedAtt.clock_in);
         const clockIn = formatTimeLocal(typedAtt.clock_in);
@@ -1104,7 +1167,8 @@ const Reports = () => {
         row += `,${pauses.length},${totalPauseMinutes}`;
 
         const totalHoursStr = totalHours !== null ? totalHours.toFixed(2) : "In Progress";
-        row += `,"${clockOut}",${totalHoursStr},"${status}"\n`;
+        const holidayName = holidayNameMap.get(date) || "-";
+        row += `,"${clockOut}",${totalHoursStr},"${status}","${holidayName}"\n`;
         csvContent += row;
       });
 
