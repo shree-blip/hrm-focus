@@ -1038,7 +1038,7 @@ const Reports = () => {
       });
 
       // Build dynamic header with individual break and pause columns
-      let header = "Date,Day,Employee,Email,Clock In";
+      let header = "Date,Day,Employee,Email,Shift Location,Clock In";
 
       // Add columns for each possible break
       for (let i = 1; i <= maxBreaks; i++) {
