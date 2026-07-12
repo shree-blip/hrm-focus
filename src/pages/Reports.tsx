@@ -1156,7 +1156,16 @@ const Reports = () => {
         const status = getWorkStatus(totalHours, typedAtt.clock_out, typedAtt.employment_type).label;
 
         const shiftLocation = typedAtt.location_name || "-";
-        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${shiftLocation}","${clockIn}"`;
+        const startMode = getInitialWorkModeFromLocation(
+          typedAtt.location_name ?? null,
+          typedAtt.work_mode ?? null,
+        );
+        const endMode = normalizeWorkMode(typedAtt.work_mode ?? null);
+        const modeChanged = startMode && endMode ? startMode !== endMode : false;
+        const modeSummary = modeChanged
+          ? `${getModeLabel(startMode)} -> ${getModeLabel(endMode)}`
+          : getModeLabel(endMode || startMode || null);
+        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${shiftLocation}","${getModeLabel(startMode)}","${getModeLabel(endMode)}","${modeSummary}","${clockIn}"`;
 
         // Add each break's individual data
         for (let i = 0; i < maxBreaks; i++) {
