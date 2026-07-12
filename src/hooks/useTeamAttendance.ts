@@ -153,7 +153,8 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
       .from("attendance_logs")
       .select(
         `id, user_id, employee_id, clock_in, clock_out, break_start, break_end,
-         total_break_minutes, pause_start, pause_end, total_pause_minutes, is_edited`
+         total_break_minutes, pause_start, pause_end, total_pause_minutes, is_edited,
+         location_name`
       )
       .gte("clock_in", startDate.toISOString())
       .lte("clock_in", endDate.toISOString());
