@@ -40,6 +40,7 @@ interface DailyAttendanceRecord {
   hours_worked: number;
   date: string;
   is_edited: boolean;
+  location_name: string | null;
   breaks: { break_start: string | null; break_end: string | null; duration_minutes: number }[];
   pauses: { pause_start: string | null; pause_end: string | null; duration_minutes: number }[];
 }
@@ -152,7 +153,8 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
       .from("attendance_logs")
       .select(
         `id, user_id, employee_id, clock_in, clock_out, break_start, break_end,
-         total_break_minutes, pause_start, pause_end, total_pause_minutes, is_edited`
+         total_break_minutes, pause_start, pause_end, total_pause_minutes, is_edited,
+         location_name`
       )
       .gte("clock_in", startDate.toISOString())
       .lte("clock_in", endDate.toISOString());
@@ -325,6 +327,7 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
         hours_worked: hoursWorked,
         date: getUTCDateKey(log.clock_in),
         is_edited: !!(log as any).is_edited,
+        location_name: log.location_name || null,
         breaks,
         pauses,
       });

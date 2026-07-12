@@ -85,6 +85,7 @@ interface DailyAttendanceRecord {
   clock_out: string | null;
   hours_worked: number;
   employment_type?: string;
+  location_name?: string | null;
   // Support both single break (legacy) and multiple breaks
   break_start?: string | null;
   break_end?: string | null;
@@ -1037,7 +1038,7 @@ const Reports = () => {
       });
 
       // Build dynamic header with individual break and pause columns
-      let header = "Date,Day,Employee,Email,Clock In";
+      let header = "Date,Day,Employee,Email,Shift Location,Clock In";
 
       // Add columns for each possible break
       for (let i = 1; i <= maxBreaks; i++) {
@@ -1127,7 +1128,8 @@ const Reports = () => {
         const totalHours = calculateTotalHours(typedAtt);
         const status = getWorkStatus(totalHours, typedAtt.clock_out, typedAtt.employment_type).label;
 
-        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${clockIn}"`;
+        const shiftLocation = typedAtt.location_name || "-";
+        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${shiftLocation}","${clockIn}"`;
 
         // Add each break's individual data
         for (let i = 0; i < maxBreaks; i++) {
