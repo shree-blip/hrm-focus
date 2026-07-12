@@ -1128,7 +1128,8 @@ const Reports = () => {
         const totalHours = calculateTotalHours(typedAtt);
         const status = getWorkStatus(totalHours, typedAtt.clock_out, typedAtt.employment_type).label;
 
-        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${clockIn}"`;
+        const shiftLocation = typedAtt.location_name || "-";
+        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${shiftLocation}","${clockIn}"`;
 
         // Add each break's individual data
         for (let i = 0; i < maxBreaks; i++) {
