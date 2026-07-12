@@ -327,6 +327,7 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
         hours_worked: hoursWorked,
         date: getUTCDateKey(log.clock_in),
         is_edited: !!(log as any).is_edited,
+        location_name: log.location_name || null,
         breaks,
         pauses,
       });
