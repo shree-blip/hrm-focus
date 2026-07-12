@@ -86,6 +86,7 @@ interface DailyAttendanceRecord {
   hours_worked: number;
   employment_type?: string;
   location_name?: string | null;
+  work_mode?: string | null;
   // Support both single break (legacy) and multiple breaks
   break_start?: string | null;
   break_end?: string | null;
