@@ -40,6 +40,7 @@ interface DailyAttendanceRecord {
   hours_worked: number;
   date: string;
   is_edited: boolean;
+  location_name: string | null;
   breaks: { break_start: string | null; break_end: string | null; duration_minutes: number }[];
   pauses: { pause_start: string | null; pause_end: string | null; duration_minutes: number }[];
 }
