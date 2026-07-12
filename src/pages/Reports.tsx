@@ -86,6 +86,7 @@ interface DailyAttendanceRecord {
   hours_worked: number;
   employment_type?: string;
   location_name?: string | null;
+  work_mode?: string | null;
   // Support both single break (legacy) and multiple breaks
   break_start?: string | null;
   break_end?: string | null;
@@ -100,6 +101,32 @@ interface DailyAttendanceRecord {
 
 // Helper to get human-readable date range label
 const getDateRangeLabel = (rangeType: DateRangeType): string => {
+  return getDateRangeLabelImpl(rangeType);
+};
+
+// Work mode helpers (mirrors the Live Attendance export logic)
+const normalizeWorkMode = (mode: string | null): "wfo" | "wfh" | null => {
+  if (mode === "wfo" || mode === "wfh") return mode;
+  return null;
+};
+
+const getModeLabel = (mode: "wfo" | "wfh" | null) => {
+  if (mode === "wfh") return "WFH";
+  if (mode === "wfo") return "WFO";
+  return "N/A";
+};
+
+const getInitialWorkModeFromLocation = (
+  locationName: string | null,
+  fallbackMode: string | null,
+): "wfo" | "wfh" | null => {
+  const normalizedLocation = locationName?.toLowerCase() || "";
+  if (normalizedLocation.includes("home")) return "wfh";
+  if (normalizedLocation.includes("office")) return "wfo";
+  return normalizeWorkMode(fallbackMode);
+};
+
+const getDateRangeLabelImpl = (rangeType: DateRangeType): string => {
   const { start, end } = getDateRangeFromType(rangeType);
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -1038,7 +1065,7 @@ const Reports = () => {
       });
 
       // Build dynamic header with individual break and pause columns
-      let header = "Date,Day,Employee,Email,Shift Location,Clock In";
+      let header = "Date,Day,Employee,Email,Shift Location,Start Work Mode,End Work Mode,Mode Change Summary,Clock In";
 
       // Add columns for each possible break
       for (let i = 1; i <= maxBreaks; i++) {
@@ -1129,7 +1156,16 @@ const Reports = () => {
         const status = getWorkStatus(totalHours, typedAtt.clock_out, typedAtt.employment_type).label;
 
         const shiftLocation = typedAtt.location_name || "-";
-        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${shiftLocation}","${clockIn}"`;
+        const startMode = getInitialWorkModeFromLocation(
+          typedAtt.location_name ?? null,
+          typedAtt.work_mode ?? null,
+        );
+        const endMode = normalizeWorkMode(typedAtt.work_mode ?? null);
+        const modeChanged = startMode && endMode ? startMode !== endMode : false;
+        const modeSummary = modeChanged
+          ? `${getModeLabel(startMode)} -> ${getModeLabel(endMode)}`
+          : getModeLabel(endMode || startMode || null);
+        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${shiftLocation}","${getModeLabel(startMode)}","${getModeLabel(endMode)}","${modeSummary}","${clockIn}"`;
 
         // Add each break's individual data
         for (let i = 0; i < maxBreaks; i++) {
