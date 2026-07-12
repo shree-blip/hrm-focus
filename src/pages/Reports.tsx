@@ -101,6 +101,32 @@ interface DailyAttendanceRecord {
 
 // Helper to get human-readable date range label
 const getDateRangeLabel = (rangeType: DateRangeType): string => {
+  return getDateRangeLabelImpl(rangeType);
+};
+
+// Work mode helpers (mirrors the Live Attendance export logic)
+const normalizeWorkMode = (mode: string | null): "wfo" | "wfh" | null => {
+  if (mode === "wfo" || mode === "wfh") return mode;
+  return null;
+};
+
+const getModeLabel = (mode: "wfo" | "wfh" | null) => {
+  if (mode === "wfh") return "WFH";
+  if (mode === "wfo") return "WFO";
+  return "N/A";
+};
+
+const getInitialWorkModeFromLocation = (
+  locationName: string | null,
+  fallbackMode: string | null,
+): "wfo" | "wfh" | null => {
+  const normalizedLocation = locationName?.toLowerCase() || "";
+  if (normalizedLocation.includes("home")) return "wfh";
+  if (normalizedLocation.includes("office")) return "wfo";
+  return normalizeWorkMode(fallbackMode);
+};
+
+const getDateRangeLabelImpl = (rangeType: DateRangeType): string => {
   const { start, end } = getDateRangeFromType(rangeType);
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
