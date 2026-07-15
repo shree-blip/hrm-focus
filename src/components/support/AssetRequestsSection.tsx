@@ -112,7 +112,7 @@ export function AssetRequestsSection() {
       "Rejection Reason","Last Updated",
     ];
     const rows = filteredRequests.map((r) => [
-      r.id, r.title, getTypeLabel(r.request_type), r.description,
+      r.title, getTypeLabel(r.request_type), r.description,
       r.status, r.approval_stage,
       r.requester_name || "", r.requester_email || "", r.requester_department || "",
       fmt(r.created_at),
