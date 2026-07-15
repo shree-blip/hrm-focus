@@ -33,13 +33,8 @@ export function AssetRequestsSection() {
   const [filter, setFilter] = useState("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const { isLineManager } = (() => {
-    // lazy import replacement handled inline below
-    return { isLineManager: false };
-  })();
 
   const isSuperUser = isVP || isAdmin;
-  const canExport = isSuperUser || isLineManagerView;
 
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) return;
@@ -75,6 +70,8 @@ export function AssetRequestsSection() {
       (r) => r.user_id !== user?.id && (r.approval_stage === "pending_line_manager")
     );
   }, [assetRequests, user]);
+
+  const canExport = isSuperUser || isLineManagerView;
 
   const filteredRequests = useMemo(() => {
     let filtered = assetRequests;
