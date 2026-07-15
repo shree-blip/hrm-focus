@@ -104,7 +104,7 @@ export function AssetRequestsSection() {
   const handleExportCsv = () => {
     const fmt = (d: string | null) => (d ? format(new Date(d), "yyyy-MM-dd HH:mm") : "");
     const headers = [
-      "Request ID","Title","Type","Description","Status","Approval Stage",
+      "Title","Type","Description","Status","Approval Stage",
       "Requester Name","Requester Email","Department",
       "Request Date","Line Manager","Line Manager Approved At",
       "Admin Approver","Admin Approved At",
