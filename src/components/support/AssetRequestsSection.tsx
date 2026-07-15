@@ -14,7 +14,7 @@ import {
 import { useAssetRequests } from "@/hooks/useAssetRequests";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Plus, Package, Monitor, Check, X, Loader2, Clock, ShieldCheck, UserCheck, AlertCircle } from "lucide-react";
+import { Plus, Package, Monitor, Check, X, Loader2, Clock, ShieldCheck, UserCheck, AlertCircle, Download } from "lucide-react";
 import { format } from "date-fns";
 import { CommentsThread } from "./CommentsThread";
 
@@ -31,8 +31,15 @@ export function AssetRequestsSection() {
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [filter, setFilter] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const { isLineManager } = (() => {
+    // lazy import replacement handled inline below
+    return { isLineManager: false };
+  })();
 
   const isSuperUser = isVP || isAdmin;
+  const canExport = isSuperUser || isLineManagerView;
 
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) return;
@@ -80,8 +87,54 @@ export function AssetRequestsSection() {
     } else if (filter === "my_requests") {
       filtered = filtered.filter((r) => r.user_id === user?.id);
     }
+    if (fromDate) {
+      const from = new Date(fromDate).getTime();
+      filtered = filtered.filter((r) => new Date(r.created_at).getTime() >= from);
+    }
+    if (toDate) {
+      const to = new Date(toDate).getTime() + 24 * 60 * 60 * 1000 - 1;
+      filtered = filtered.filter((r) => new Date(r.created_at).getTime() <= to);
+    }
     return filtered;
-  }, [assetRequests, filter, user]);
+  }, [assetRequests, filter, user, fromDate, toDate]);
+
+  const escapeCsv = (val: any) => {
+    if (val === null || val === undefined) return "";
+    const s = String(val).replace(/"/g, '""').replace(/\r?\n/g, " ");
+    return `"${s}"`;
+  };
+
+  const handleExportCsv = () => {
+    const fmt = (d: string | null) => (d ? format(new Date(d), "yyyy-MM-dd HH:mm") : "");
+    const headers = [
+      "Request ID","Title","Type","Description","Status","Approval Stage",
+      "Requester Name","Requester Email","Department",
+      "Request Date","Line Manager","Line Manager Approved At",
+      "Admin Approver","Admin Approved At",
+      "Final Approver","Final Approved At",
+      "Rejection Reason","Last Updated",
+    ];
+    const rows = filteredRequests.map((r) => [
+      r.id, r.title, getTypeLabel(r.request_type), r.description,
+      r.status, r.approval_stage,
+      r.requester_name || "", r.requester_email || "", r.requester_department || "",
+      fmt(r.created_at),
+      r.line_manager_name || "", fmt(r.line_manager_approved_at),
+      r.admin_approver_name || "", fmt(r.admin_approved_at),
+      r.approver_name || "", fmt(r.approved_at),
+      r.rejection_reason || "", fmt(r.updated_at),
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `asset-requests-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const getStatusBadge = (request: any) => {
     switch (request.approval_stage) {
@@ -165,7 +218,26 @@ export function AssetRequestsSection() {
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle>Requests</CardTitle>
-            <Select value={filter} onValueChange={setFilter}>
+            <div className="flex items-center gap-2 flex-wrap">
+              {canExport && (
+                <>
+                  <Input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-[150px]"
+                    aria-label="From date"
+                  />
+                  <Input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-[150px]"
+                    aria-label="To date"
+                  />
+                </>
+              )}
+              <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Filter..." />
               </SelectTrigger>
@@ -180,7 +252,19 @@ export function AssetRequestsSection() {
                 )}
                 {isSuperUser && <SelectItem value="pending_admin">Pending Admin Review</SelectItem>}
               </SelectContent>
-            </Select>
+              </Select>
+              {canExport && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportCsv}
+                  disabled={filteredRequests.length === 0}
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Export CSV
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
