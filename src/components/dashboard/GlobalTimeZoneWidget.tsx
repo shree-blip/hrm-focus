@@ -377,6 +377,10 @@ function detectLocalTimezone(): TZInfo {
   return { label: city, iana, abbr: getAbbr(iana), region: "Local" };
 }
 
+function isNepalTimezone(tz: TZInfo): boolean {
+  return tz.iana === "Asia/Kathmandu" || tz.iana === "Asia/Katmandu" || getOffsetLabel(tz.iana, new Date()) === "GMT+5:45";
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // SMALL CARD WIDGET (for sidebar / header)
 // ═══════════════════════════════════════════════════════════════════════
@@ -439,7 +443,7 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   const refDate = new Date(now.getTime() + offsetMs);
 
   const [selectedZones, setSelectedZones] = useState<TZInfo[]>(() => {
-    if (localTz.iana !== "Asia/Kathmandu") {
+    if (!isNepalTimezone(localTz)) {
       const nepal = FULL_TIMEZONE_DB.find((tz) => tz.iana === "Asia/Kathmandu");
       return nepal ? [nepal] : [];
     }
@@ -504,7 +508,7 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   // timezone is not already Nepal. When local is Nepal, the big local clock
   // already displays Nepal time, so the card would be redundant.
   const nepalIana = "Asia/Kathmandu";
-  const showNepalAlongside = localTz.iana !== nepalIana;
+  const showNepalAlongside = !isNepalTimezone(localTz);
   const nepalTime = getTimeInZone(nepalIana, refDate);
   const nepalOffsetLabel = getOffsetLabel(nepalIana, refDate);
 
