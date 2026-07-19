@@ -500,6 +500,14 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   const localTime = getTimeInZone(localTz.iana, refDate);
   const localOffsetLabel = getOffsetLabel(localTz.iana, refDate);
 
+  // Always keep Nepal time visible so it doesn't disappear when the user
+  // switches "Your Local Time" to a US zone. Only render when Nepal isn't
+  // already the local zone (to avoid duplication).
+  const nepalIana = "Asia/Kathmandu";
+  const showNepalAlongside = localTz.iana !== nepalIana;
+  const nepalTime = getTimeInZone(nepalIana, refDate);
+  const nepalOffsetLabel = getOffsetLabel(nepalIana, refDate);
+
   // Get friendly name for selected ref zone
   const refZoneName = useMemo(() => {
     if (refZone === localTz.iana) return `${localTz.label} (${localTz.abbr})`;
