@@ -42,13 +42,22 @@ export function Header({ isMobile, mobileMenuSlot }: HeaderProps = {}) {
     return () => clearInterval(timer);
   }, []);
 
-  const formatNepalTime = (date: Date) =>
+  const localTimeZone =
+    (typeof Intl !== "undefined" && Intl.DateTimeFormat().resolvedOptions().timeZone) || "Asia/Kathmandu";
+
+  const formatLocalTime = (date: Date) =>
     date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
-      timeZone: "Asia/Kathmandu",
+      timeZone: localTimeZone,
     });
+
+  const localTzAbbr =
+    new Date()
+      .toLocaleTimeString("en-US", { timeZone: localTimeZone, timeZoneName: "short" })
+      .split(" ")
+      .pop() || "LOCAL";
 
   const formatCaliforniaTime = (date: Date) =>
     date.toLocaleTimeString("en-US", {
@@ -214,10 +223,10 @@ export function Header({ isMobile, mobileMenuSlot }: HeaderProps = {}) {
             <div className="flex flex-col justify-center min-w-[122px] leading-none">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold tabular-nums text-foreground tracking-tight">
-                  {formatNepalTime(currentTime)}
+                  {formatLocalTime(currentTime)}
                 </span>
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/15 uppercase tracking-wide">
-                  NPT
+                  {localTzAbbr}
                 </span>
               </div>
 
