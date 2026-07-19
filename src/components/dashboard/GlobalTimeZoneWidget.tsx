@@ -500,6 +500,14 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   const localTime = getTimeInZone(localTz.iana, refDate);
   const localOffsetLabel = getOffsetLabel(localTz.iana, refDate);
 
+  // Always keep Nepal time visible so it doesn't disappear when the user
+  // switches "Your Local Time" to a US zone. Only render when Nepal isn't
+  // already the local zone (to avoid duplication).
+  const nepalIana = "Asia/Kathmandu";
+  const showNepalAlongside = localTz.iana !== nepalIana;
+  const nepalTime = getTimeInZone(nepalIana, refDate);
+  const nepalOffsetLabel = getOffsetLabel(nepalIana, refDate);
+
   // Get friendly name for selected ref zone
   const refZoneName = useMemo(() => {
     if (refZone === localTz.iana) return `${localTz.label} (${localTz.abbr})`;
@@ -616,6 +624,26 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
 
               {/* Date */}
               <p className="text-sm text-muted-foreground mt-1">{formatDate(localTime)}</p>
+
+              {/* Always-visible Nepal time (so it doesn't disappear when
+                  the user switches their local zone to a US zone) */}
+              {showNepalAlongside && (
+                <div className="mt-3 flex items-center justify-between rounded-lg border border-border/60 bg-background/60 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🇳🇵</span>
+                    <div className="leading-tight">
+                      <div className="text-xs font-semibold text-foreground">Nepal Time</div>
+                      <div className="text-[11px] text-muted-foreground">Kathmandu ({nepalOffsetLabel})</div>
+                    </div>
+                  </div>
+                  <div className="text-right leading-tight">
+                    <div className="text-sm font-bold text-foreground tabular-nums">
+                      {formatTime(nepalTime, use24h)}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">{formatDateShort(nepalTime)}</div>
+                  </div>
+                </div>
+              )}
 
               {/* ── Reference zone selector + time/date inputs ── */}
               <div className="space-y-3 mt-4 pt-4 border-t border-border">
