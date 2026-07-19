@@ -500,9 +500,9 @@ export function TimeZoneModal({ onClose }: { onClose: () => void }) {
   const localTime = getTimeInZone(localTz.iana, refDate);
   const localOffsetLabel = getOffsetLabel(localTz.iana, refDate);
 
-  // Always keep Nepal time visible so it doesn't disappear when the user
-  // switches "Your Local Time" to a US zone. Only render when Nepal isn't
-  // already the local zone (to avoid duplication).
+  // Show a Nepal Time reference card only when the user's actual geo/browser
+  // timezone is not already Nepal. When local is Nepal, the big local clock
+  // already displays Nepal time, so the card would be redundant.
   const nepalIana = "Asia/Kathmandu";
   const showNepalAlongside = localTz.iana !== nepalIana;
   const nepalTime = getTimeInZone(nepalIana, refDate);
