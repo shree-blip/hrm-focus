@@ -33,6 +33,35 @@ export function AssetRequestsSection() {
   const [filter, setFilter] = useState("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+
+  const setProcessing = (id: string, on: boolean) => {
+    setProcessingIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  const handleLineManagerApprove = async (id: string) => {
+    if (processingIds.has(id)) return;
+    setProcessing(id, true);
+    try {
+      await lineManagerApprove(id);
+    } finally {
+      setProcessing(id, false);
+    }
+  };
+
+  const handleAdminApprove = async (id: string) => {
+    if (processingIds.has(id)) return;
+    setProcessing(id, true);
+    try {
+      await adminApprove(id);
+    } finally {
+      setProcessing(id, false);
+    }
+  };
 
   const isSuperUser = isVP || isAdmin;
 
@@ -339,10 +368,23 @@ export function AssetRequestsSection() {
                   {/* Action Buttons */}
                   {canActAsLineManager(request) && (
                     <div className="flex items-center gap-2 pt-2 border-t">
-                      <Button size="sm" onClick={() => lineManagerApprove(request.id)}>
-                        <Check className="h-4 w-4 mr-1" />Approve & Forward to Admin
+                      <Button
+                        size="sm"
+                        onClick={() => handleLineManagerApprove(request.id)}
+                        disabled={processingIds.has(request.id)}
+                      >
+                        {processingIds.has(request.id) ? (
+                          <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Approving...</>
+                        ) : (
+                          <><Check className="h-4 w-4 mr-1" />Approve & Forward to Admin</>
+                        )}
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDeclineClick(request.id)}>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeclineClick(request.id)}
+                        disabled={processingIds.has(request.id)}
+                      >
                         <X className="h-4 w-4 mr-1" />Decline
                       </Button>
                     </div>
@@ -350,10 +392,23 @@ export function AssetRequestsSection() {
 
                   {canActAsAdmin(request) && (
                     <div className="flex items-center gap-2 pt-2 border-t">
-                      <Button size="sm" onClick={() => adminApprove(request.id)}>
-                        <ShieldCheck className="h-4 w-4 mr-1" />Admin Approve
+                      <Button
+                        size="sm"
+                        onClick={() => handleAdminApprove(request.id)}
+                        disabled={processingIds.has(request.id)}
+                      >
+                        {processingIds.has(request.id) ? (
+                          <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Approving...</>
+                        ) : (
+                          <><ShieldCheck className="h-4 w-4 mr-1" />Admin Approve</>
+                        )}
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDeclineClick(request.id)}>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeclineClick(request.id)}
+                        disabled={processingIds.has(request.id)}
+                      >
                         <X className="h-4 w-4 mr-1" />Decline
                       </Button>
                     </div>
