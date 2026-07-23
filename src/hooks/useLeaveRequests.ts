@@ -4,6 +4,27 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { resolveTeamMemberUserIds, resolveManagerUserIds } from "@/utils/teamResolver";
 
+/**
+ * Page through every row matching a Supabase select builder. The Data API caps
+ * a single response (default 1000 rows), so historical/report reads must
+ * iterate `.range(from, from + pageSize - 1)` until an under-full page returns.
+ * Callers pass a factory that produces a fresh query each iteration.
+ */
+async function fetchAllPaged<T = any>(
+  buildQuery: () => any,
+  pageSize = 1000,
+): Promise<{ data: T[]; error: any }> {
+  const out: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+    if (error) return { data: out, error };
+    const page = (data || []) as T[];
+    out.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return { data: out, error: null };
+}
+
 /** Count business days (Mon–Fri) between two dates, inclusive. */
 function getBusinessDaysBetween(start: Date, end: Date): number {
   let count = 0;
@@ -146,13 +167,15 @@ export function useLeaveRequests() {
   const fetchOwnRequests = useCallback(async () => {
     if (!user) return [];
 
-    const { data, error } = await supabase
-      .from("leave_requests")
-      .select(
-        "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
-      )
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+    const { data, error } = await fetchAllPaged(() =>
+      supabase
+        .from("leave_requests")
+        .select(
+          "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+    );
 
     if (error) {
       console.error("Error fetching own requests:", error);
@@ -185,13 +208,15 @@ export function useLeaveRequests() {
   const fetchTeamLeaves = useCallback(async () => {
     if (!user) return [];
 
-    const { data, error } = await supabase
-      .from("leave_requests")
-      .select(
-        "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
-      )
-      .eq("status", "approved")
-      .order("start_date", { ascending: true });
+    const { data, error } = await fetchAllPaged(() =>
+      supabase
+        .from("leave_requests")
+        .select(
+          "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
+        )
+        .eq("status", "approved")
+        .order("start_date", { ascending: true }),
+    );
 
     if (error) {
       console.error("Error fetching team leaves:", error);
@@ -219,14 +244,16 @@ export function useLeaveRequests() {
   const fetchPendingForManager = useCallback(async () => {
     if (!user || !isManager) return [];
 
-    const { data, error } = await supabase
-      .from("leave_requests")
-      .select(
-        "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
-      )
-      .eq("status", "pending")
-      .neq("user_id", user.id)
-      .order("created_at", { ascending: false });
+    const { data, error } = await fetchAllPaged(() =>
+      supabase
+        .from("leave_requests")
+        .select(
+          "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
+        )
+        .eq("status", "pending")
+        .neq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+    );
 
     if (error) {
       console.error("Error fetching pending requests:", error);
@@ -260,21 +287,25 @@ export function useLeaveRequests() {
     const cols =
       "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at";
     if (role === "admin" || role === "vp") {
-      const { data, error } = await supabase
-        .from("leave_requests")
-        .select(cols)
-        .neq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const { data, error } = await fetchAllPaged(() =>
+        supabase
+          .from("leave_requests")
+          .select(cols)
+          .neq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+      );
       if (error) return [];
       return data || [];
     }
 
     if (isSupervisor || isLineManager || role === "line_manager" || role === "supervisor") {
-      const { data, error } = await supabase
-        .from("leave_requests")
-        .select(cols)
-        .neq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const { data, error } = await fetchAllPaged(() =>
+        supabase
+          .from("leave_requests")
+          .select(cols)
+          .neq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+      );
       if (error) return [];
 
       const teamIds = await fetchTeamMemberUserIds();
@@ -298,14 +329,16 @@ export function useLeaveRequests() {
 
     const todayStr = new Date().toISOString().split("T")[0];
 
-    const { data, error } = await supabase
-      .from("leave_requests")
-      .select(
-        "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
-      )
-      .eq("status", "approved")
-      .gte("end_date", todayStr)
-      .order("start_date", { ascending: true });
+    const { data, error } = await fetchAllPaged(() =>
+      supabase
+        .from("leave_requests")
+        .select(
+          "id, user_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at, rejection_reason, is_half_day, half_day_period, created_at",
+        )
+        .eq("status", "approved")
+        .gte("end_date", todayStr)
+        .order("start_date", { ascending: true }),
+    );
 
     if (error) {
       console.error("Error fetching all approved leaves:", error);
