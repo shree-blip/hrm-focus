@@ -697,8 +697,10 @@ const Reports = () => {
       const employeeMonthlyLeave: Record<string, Record<string, number>> = {};
       const employeeNames: Record<string, string> = {};
 
-      // Get all months in the selected date range
-      const { start: rangeStart, end: rangeEnd } = getDateRangeFromType(dateRange);
+      // Get all months in the selected date range (manual From/To wins).
+      const { start: rangeStart, end: rangeEnd } = effectiveRange
+        ? { start: effectiveRange.start, end: effectiveRange.end }
+        : getDateRangeFromType(dateRange);
       const allMonths: string[] = [];
       const currentMonth = new Date(rangeStart);
       while (currentMonth <= rangeEnd) {
@@ -767,7 +769,12 @@ const Reports = () => {
 
       filename = `leave-report-${dateStr}.csv`;
     } else if (type === "attendance") {
-      const { start: rangeStart, end: rangeEnd } = getDateRangeFromType(dateRange);
+      // When the user has picked a manual From/To range, use that as the
+      // authoritative window for working-days, leave overlap, holidays, etc.
+      // Otherwise fall back to the preset (this-month, last-month, ...).
+      const { start: rangeStart, end: rangeEnd } = effectiveRange
+        ? { start: effectiveRange.start, end: effectiveRange.end }
+        : getDateRangeFromType(dateRange);
       // Build holiday/company-leave date set from Company Calendar (static + dynamic)
       // so working-days calculation excludes them.
       // NOTE: rangeStart/rangeEnd are produced via Date.UTC, but calendarEntries
