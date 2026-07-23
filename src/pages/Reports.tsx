@@ -1371,15 +1371,54 @@ const Reports = () => {
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle className="text-lg">Attendance Summary</CardTitle>
-                  <CardDescription>Team attendance data for {getDateRangeLabel(dateRange)}</CardDescription>
+                  <CardDescription>
+                    Team attendance data for{" "}
+                    {customRange
+                      ? `${formatRangeDate(customRange.start)} - ${formatRangeDate(customRange.end)}`
+                      : getDateRangeLabel(dateRange)}
+                  </CardDescription>
                 </div>
-                <Button onClick={() => exportToCSV("attendance")} className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Export CSV
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <CalendarRange className="h-4 w-4 text-muted-foreground hidden sm:block" />
+                    <Input
+                      type="date"
+                      value={customStart}
+                      max={customEnd || undefined}
+                      onChange={(e) => setCustomStart(e.target.value)}
+                      aria-label="Summary range start date"
+                      className="w-[150px] sm:w-[160px]"
+                    />
+                    <span className="text-muted-foreground text-sm">to</span>
+                    <Input
+                      type="date"
+                      value={customEnd}
+                      min={customStart || undefined}
+                      onChange={(e) => setCustomEnd(e.target.value)}
+                      aria-label="Summary range end date"
+                      className="w-[150px] sm:w-[160px]"
+                    />
+                    {(customStart || customEnd) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setCustomStart("");
+                          setCustomEnd("");
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <Button onClick={() => exportToCSV("attendance")} className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
