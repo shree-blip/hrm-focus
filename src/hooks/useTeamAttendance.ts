@@ -118,6 +118,8 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
       return;
     }
 
+    setLoading(true);
+
     const { start: startDate, end: endDate } =
       customRange && customRange.start && customRange.end
         ? customRange
@@ -149,23 +151,37 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
       }
     }
 
-    // Fetch attendance logs
-    let query = supabase
-      .from("attendance_logs")
-      .select(
-        `id, user_id, employee_id, clock_in, clock_out, break_start, break_end,
-         total_break_minutes, pause_start, pause_end, total_pause_minutes, is_edited,
-         location_name, work_mode`
-      )
-      .gte("clock_in", startDate.toISOString())
-      .lte("clock_in", endDate.toISOString());
+    // Fetch attendance logs in pages. The Data API caps a single response, so
+    // reports for larger date ranges must page through every matching record.
+    const pageSize = 1000;
+    const logs: any[] = [];
+    let error: any = null;
+    for (let from = 0; ; from += pageSize) {
+      let query = supabase
+        .from("attendance_logs")
+        .select(
+          `id, user_id, employee_id, clock_in, clock_out, break_start, break_end,
+           total_break_minutes, pause_start, pause_end, total_pause_minutes, is_edited,
+           location_name, work_mode`
+        )
+        .gte("clock_in", startDate.toISOString())
+        .lte("clock_in", endDate.toISOString())
+        .order("clock_in", { ascending: false })
+        .range(from, from + pageSize - 1);
 
-    // Scope to team members only for line managers / supervisors
-    if (teamUserIds) {
-      query = query.in("user_id", teamUserIds);
+      // Scope to team members only for line managers / supervisors
+      if (teamUserIds) {
+        query = query.in("user_id", teamUserIds);
+      }
+
+      const { data: page, error: pageError } = await query;
+      if (pageError) {
+        error = pageError;
+        break;
+      }
+      logs.push(...(page || []));
+      if (!page || page.length < pageSize) break;
     }
-
-    const { data: logs, error } = await query;
 
     if (error) {
       console.error("Error fetching team attendance:", error);
@@ -182,12 +198,16 @@ export function useTeamAttendance(dateRangeType?: DateRangeType, customRange?: {
       const allSessions: (BreakSessionRecord & { attendance_log_id: string })[] = [];
       for (let i = 0; i < logIds.length; i += batchSize) {
         const batch = logIds.slice(i, i + batchSize);
-        const { data: sessions } = await supabase
-          .from("attendance_break_sessions")
-          .select("id, attendance_log_id, session_type, start_time, end_time, duration_minutes")
-          .in("attendance_log_id", batch)
-          .order("start_time", { ascending: true });
-        if (sessions) allSessions.push(...(sessions as any));
+        for (let from = 0; ; from += pageSize) {
+          const { data: sessions } = await supabase
+            .from("attendance_break_sessions")
+            .select("id, attendance_log_id, session_type, start_time, end_time, duration_minutes")
+            .in("attendance_log_id", batch)
+            .order("start_time", { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (sessions) allSessions.push(...(sessions as any));
+          if (!sessions || sessions.length < pageSize) break;
+        }
       }
       allSessions.forEach((s) => {
         const arr = sessionsMap.get(s.attendance_log_id) || [];
