@@ -767,7 +767,12 @@ const Reports = () => {
 
       filename = `leave-report-${dateStr}.csv`;
     } else if (type === "attendance") {
-      const { start: rangeStart, end: rangeEnd } = getDateRangeFromType(dateRange);
+      // When the user has picked a manual From/To range, use that as the
+      // authoritative window for working-days, leave overlap, holidays, etc.
+      // Otherwise fall back to the preset (this-month, last-month, ...).
+      const { start: rangeStart, end: rangeEnd } = effectiveRange
+        ? { start: effectiveRange.start, end: effectiveRange.end }
+        : getDateRangeFromType(dateRange);
       // Build holiday/company-leave date set from Company Calendar (static + dynamic)
       // so working-days calculation excludes them.
       // NOTE: rangeStart/rangeEnd are produced via Date.UTC, but calendarEntries
