@@ -21,6 +21,7 @@ type DayCode = "P" | "A" | "HD" | "NR" | "H" | "WH";
 interface Row {
   name: string;
   email: string;
+  gender: string | null;
   days: Record<string, DayCode>;
   presentCount: number;
   absentCount: number;
@@ -59,18 +60,24 @@ export function PayrollAttendanceLeaveTab() {
   );
 
   // Non-working days (weekends handled separately) from the company calendar.
-  const holidaySet = useMemo(() => {
+  // Female-only holidays (e.g. Haritalika Teej) are tracked separately so they
+  // only count as a holiday for female employees.
+  const isFemaleOnly = (label: string) => /female\s*only/i.test(label || "");
+
+  const { holidaySet, femaleHolidaySet } = useMemo(() => {
     const set = new Set<string>();
+    const femaleSet = new Set<string>();
     const nonWorking = new Set(["holiday", "company_leave", "non_working", "leave"]);
     calendarEntries.forEach((e) => {
       if (!nonWorking.has(e.type)) return;
-      set.add(keyOf(e.date.getFullYear(), e.date.getMonth(), e.date.getDate()));
+      const k = keyOf(e.date.getFullYear(), e.date.getMonth(), e.date.getDate());
+      (isFemaleOnly((e as any).name) ? femaleSet : set).add(k);
     });
     (calendarEvents || []).forEach((ev: any) => {
       if (!nonWorking.has(ev.event_type)) return;
-      set.add(ev.event_date);
+      (isFemaleOnly(ev.title) ? femaleSet : set).add(ev.event_date);
     });
-    return set;
+    return { holidaySet: set, femaleHolidaySet: femaleSet };
   }, [calendarEvents]);
 
   useEffect(() => {
@@ -88,7 +95,7 @@ export function PayrollAttendanceLeaveTab() {
 
       const [profilesRes, employeesRes, leavesRes] = await Promise.all([
         supabase.from("profiles").select("id, user_id, first_name, last_name, email"),
-        supabase.from("employees").select("id, profile_id, first_name, last_name, email, status, employment_type"),
+        supabase.from("employees").select("id, profile_id, first_name, last_name, email, status, employment_type, gender"),
         supabase
           .from("leave_requests")
           .select("user_id, start_date, end_date, leave_type, is_half_day, status")
@@ -122,6 +129,7 @@ export function PayrollAttendanceLeaveTab() {
             user_id: p?.user_id || null,
             name: `${e.first_name} ${e.last_name}`.trim(),
             email: e.email,
+            gender: (e.gender as string | null) || null,
           };
         })
         .filter((p) => !!p.user_id)
@@ -167,14 +175,21 @@ export function PayrollAttendanceLeaveTab() {
         }
       });
 
-      let workingDays = 0;
-      dayKeys.forEach((k, i) => {
-        const dow = new Date(year, monthIdx, i + 1).getDay();
-        if (dow !== 0 && dow !== 6 && !holidaySet.has(k)) workingDays++;
-      });
+      const countWorkingDays = (extraHolidays: Set<string>) => {
+        let n = 0;
+        dayKeys.forEach((k, i) => {
+          const dow = new Date(year, monthIdx, i + 1).getDay();
+          if (dow !== 0 && dow !== 6 && !holidaySet.has(k) && !extraHolidays.has(k)) n++;
+        });
+        return n;
+      };
+      const emptySet = new Set<string>();
 
       const built: Row[] = people.map((p) => {
         const uid = p.user_id as string;
+        const isFemale = (p.gender || "").toLowerCase() === "female";
+        const extraHolidays = isFemale ? femaleHolidaySet : emptySet;
+        const workingDays = countWorkingDays(extraHolidays);
         const worked = workedMap[uid] || new Set<string>();
         const leaves = leaveMap[uid] || {};
         const days: Record<string, DayCode> = {};
@@ -190,7 +205,7 @@ export function PayrollAttendanceLeaveTab() {
             days[k] = "WH";
             return;
           }
-          if (holidaySet.has(k)) {
+          if (holidaySet.has(k) || extraHolidays.has(k)) {
             days[k] = "H";
             return;
           }
@@ -245,6 +260,7 @@ export function PayrollAttendanceLeaveTab() {
         return {
           name: p.name,
           email: p.email,
+          gender: p.gender,
           days,
           presentCount,
           absentCount,
@@ -275,7 +291,7 @@ export function PayrollAttendanceLeaveTab() {
     return () => {
       cancelled = true;
     };
-  }, [year, monthIdx, dayKeys, holidaySet]);
+  }, [year, monthIdx, dayKeys, holidaySet, femaleHolidaySet]);
 
   const monthLabel = new Date(year, monthIdx, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
