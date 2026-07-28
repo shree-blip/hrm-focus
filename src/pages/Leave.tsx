@@ -24,6 +24,7 @@ import { useLeaveRequests } from "@/hooks/useLeaveRequests";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { format, differenceInDays } from "date-fns";
+import { parseDateOnly } from "@/lib/timeFormat";
 import { Button } from "@/components/ui/button";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
 import { toast } from "@/hooks/use-toast";
