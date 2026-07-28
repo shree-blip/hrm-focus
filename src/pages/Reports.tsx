@@ -738,12 +738,36 @@ const Reports = () => {
         employeeMonthlyLeave[name][monthKey] = (employeeMonthlyLeave[name][monthKey] || 0) + r.days;
       });
 
+      // Remaining Annual Leave per employee for the fiscal year of the range end.
+      const leaveRemainingMap: Record<string, number> = {};
+      {
+        const fyStartYear = rangeEnd.getMonth() >= 6 ? rangeEnd.getFullYear() : rangeEnd.getFullYear() - 1;
+        const balanceYear = fyStartYear + 1;
+        const uids = Array.from(new Set(requests.map((r: any) => r.user_id).filter(Boolean)));
+        if (uids.length > 0) {
+          const { data: balanceRows } = await supabase
+            .from("leave_balances")
+            .select("user_id, total_days, used_days")
+            .in("user_id", uids)
+            .eq("year", balanceYear)
+            .eq("leave_type", "Annual Leave");
+          (balanceRows || []).forEach((b: any) => {
+            leaveRemainingMap[b.user_id] = Math.max(0, Number(b.total_days) - Number(b.used_days));
+          });
+        }
+      }
+      const oneLine = (t: string | null | undefined) =>
+        (t || "").replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+
       // Build CSV - First section: Detailed leave requests
       csvContent = "=== DETAILED LEAVE REQUESTS ===\n";
-      csvContent += "Employee,Leave Type,Start Date,End Date,Days,Status,Deduction Type,Reason\n";
-      requests.forEach((r) => {
+      csvContent +=
+        "Employee,Leave Type,Start Date,End Date,Days,Half Day,Status,Deduction Type,Reason,Rejection Reason,Remaining Leave (Days)\n";
+      requests.forEach((r: any) => {
         const name = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown";
-        csvContent += `"${name}","${r.leave_type}","${r.start_date}","${r.end_date}",${r.days},"${r.status}","${extractPaymentType(r.reason)}","${r.reason || ""}"\n`;
+        const halfDay = r.is_half_day ? `Yes (${r.half_day_period || ""})` : "No";
+        const remaining = leaveRemainingMap[r.user_id] ?? "";
+        csvContent += `"${name}","${r.leave_type}","${r.start_date}","${r.end_date}",${r.days},"${halfDay}","${r.status}","${extractPaymentType(r.reason)}","${oneLine(r.reason)}","${oneLine(r.rejection_reason)}","${remaining}"\n`;
       });
 
       // Build CSV - Second section: Monthly summary per employee
