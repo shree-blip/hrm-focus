@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useEmployees } from "@/hooks/useEmployees";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
+import { parseDateOnly } from "@/lib/timeFormat";
 import { cn } from "@/lib/utils";
 import {
   Download,
@@ -632,8 +633,8 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
                                     : ""}
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">
-                                  {format(new Date(r.start_date), "MMM d")} –{" "}
-                                  {format(new Date(r.end_date), "MMM d, yyyy")}
+                                  {format(parseDateOnly(r.start_date), "MMM d")} –{" "}
+                                  {format(parseDateOnly(r.end_date), "MMM d, yyyy")}
                                 </span>
                               </div>
                               {r.reason && (

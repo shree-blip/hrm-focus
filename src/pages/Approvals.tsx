@@ -20,6 +20,7 @@ import { PromotionApprovalQueue } from "@/components/employees/PromotionApproval
 import { AttendanceApprovalsTab } from "@/components/approvals/AttendanceApprovalsTab";
 import { AssetRequestsSection } from "@/components/support/AssetRequestsSection";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
+import { parseDateOnly } from "@/lib/timeFormat";
 import {
   Check,
   X,
@@ -128,9 +129,9 @@ const Approvals = () => {
     today.setHours(0, 0, 0, 0);
     return ownRequests.find((r) => {
       if (r.status !== "approved" || r.user_id !== user?.id) return false;
-      const startDate = new Date(r.start_date);
+      const startDate = parseDateOnly(r.start_date);
       startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(r.end_date);
+      const endDate = parseDateOnly(r.end_date);
       endDate.setHours(0, 0, 0, 0);
       return today >= startDate && today <= endDate;
     });
@@ -393,7 +394,7 @@ const Approvals = () => {
                   {leaveTypeCfg.label}
                 </Badge>
                 <span className="text-sm text-muted-foreground">
-                  {format(new Date(request.start_date), "MMM d")} – {format(new Date(request.end_date), "MMM d, yyyy")}
+                  {format(parseDateOnly(request.start_date), "MMM d")} – {format(parseDateOnly(request.end_date), "MMM d, yyyy")}
                 </span>
               </div>
               {request.created_at && (

@@ -39,3 +39,16 @@ export function formatDuration(totalMinutes: number): string {
   if (m === 0) return `${h}h`;
   return `${h}h ${m}m`;
 }
+
+/**
+ * Parse a YYYY-MM-DD (date-only) string as a LOCAL calendar date.
+ * Avoids the timezone shift where `new Date("2026-08-14")` is treated
+ * as UTC and rendered as Aug 13 in US timezones.
+ */
+export function parseDateOnly(dateStr: string | null | undefined): Date {
+  if (!dateStr) return new Date(NaN);
+  const [datePart] = String(dateStr).split("T");
+  const [y, m, d] = datePart.split("-").map(Number);
+  if (!y || !m || !d) return new Date(dateStr as string);
+  return new Date(y, m - 1, d);
+}
