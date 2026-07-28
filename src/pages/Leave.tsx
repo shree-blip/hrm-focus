@@ -280,7 +280,12 @@ const Leave = () => {
     .filter((r) => r.user_id === user?.id)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  if (loading) {
+  // Only show the full-screen spinner on the very first load. Subsequent background
+  // refetches (e.g. realtime updates when the user switches tabs and returns) must
+  // NOT unmount the page — otherwise the Request Leave dialog gets torn down and
+  // any half-filled form is lost.
+  const isInitialLoading = loading && ownRequests.length === 0 && balances.length === 0;
+  if (isInitialLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
