@@ -1233,6 +1233,58 @@ const Reports = () => {
         csvContent += row;
       });
 
+      // ---- Monthly Status summary ----------------------------------------
+      // Per calendar month covered by the report: Present (attendance records),
+      // Absent (expected working attendance minus present) and Holiday count.
+      const monthKeys = new Set<string>();
+      const presentByMonth = new Map<string, number>();
+      const employeesByMonth = new Map<string, Set<string>>();
+      filteredDailyAttendance.forEach((att) => {
+        const dk = formatDateLocal((att as DailyAttendanceRecord).clock_in);
+        const mk = dk.slice(0, 7);
+        monthKeys.add(mk);
+        presentByMonth.set(mk, (presentByMonth.get(mk) || 0) + 1);
+        const set = employeesByMonth.get(mk) || new Set<string>();
+        set.add((att as DailyAttendanceRecord).email);
+        employeesByMonth.set(mk, set);
+      });
+
+      if (monthKeys.size > 0) {
+        const sortedMonths = Array.from(monthKeys).sort();
+        const holidayByMonth = new Map<string, number>();
+        holidayNameMap.forEach((_n, dateKey) => {
+          const mk = dateKey.slice(0, 7);
+          if (!monthKeys.has(mk)) return;
+          holidayByMonth.set(mk, (holidayByMonth.get(mk) || 0) + 1);
+        });
+
+        csvContent += `\n"Monthly Status"\n`;
+        csvContent += `"Month","Present","Absent","Holiday"\n`;
+        sortedMonths.forEach((mk) => {
+          const [my, mm] = mk.split("-").map(Number);
+          const label = new Date(my, mm - 1, 1).toLocaleDateString("en-US", {
+            month: "long",
+            year: "numeric",
+          });
+          const holidays = holidayByMonth.get(mk) || 0;
+          const present = presentByMonth.get(mk) || 0;
+          const headcount = employeesByMonth.get(mk)?.size || 0;
+
+          // Working days in this month (weekdays excluding calendar holidays)
+          const daysInMonth = new Date(my, mm, 0).getDate();
+          let workingDays = 0;
+          for (let d = 1; d <= daysInMonth; d++) {
+            const dt = new Date(my, mm - 1, d);
+            const dow = dt.getDay();
+            if (dow === 0 || dow === 6) continue;
+            if (holidayNameMap.has(holidayKeyLocal(dt))) continue;
+            workingDays++;
+          }
+          const absent = Math.max(0, workingDays * headcount - present);
+          csvContent += `"${label}",${present},${absent},${holidays}\n`;
+        });
+      }
+
       // Add employee name to filename if filtered
       const employeeSuffix =
         selectedEmployee !== "all" && selectedEmployeeSummary
