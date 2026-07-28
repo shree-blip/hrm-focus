@@ -291,7 +291,7 @@ export function PayrollAttendanceLeaveTab() {
     return () => {
       cancelled = true;
     };
-  }, [year, monthIdx, dayKeys, holidaySet]);
+  }, [year, monthIdx, dayKeys, holidaySet, femaleHolidaySet]);
 
   const monthLabel = new Date(year, monthIdx, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
