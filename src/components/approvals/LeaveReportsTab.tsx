@@ -289,7 +289,11 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
       "Deduction Type",
       "Reason",
       "Rejection Reason",
+      "Remaining Leave (Days)",
     ];
+    const remainingByUser = new Map<string, number>(
+      employeeBalances.map((e) => [e.userId, Math.max(0, e.totalDays - e.usedDays)]),
+    );
     const rows = filtered.map((r) => [
       r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : "Unknown",
       r.leave_type,
@@ -301,6 +305,7 @@ export const LeaveReportsTab = ({ requests }: LeaveReportsTabProps) => {
       extractPaymentType(r.reason),
       cleanText(r.reason),
       cleanText(r.rejection_reason),
+      remainingByUser.get(r.user_id) ?? "",
     ]);
     const csv = [header, ...rows]
       .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
