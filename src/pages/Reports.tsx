@@ -1964,6 +1964,13 @@ const Reports = () => {
         <TabsContent value="leave" className="space-y-6">
           <LeaveReportsTab requests={requests} />
         </TabsContent>
+
+        {/* ── Payroll, Leave & Attendance Balance (Admin / CEO only) ── */}
+        {canViewPayrollReport && (
+          <TabsContent value="payroll-balance" className="space-y-6">
+            <PayrollAttendanceLeaveTab />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* VP Edit Attendance Dialog */}
