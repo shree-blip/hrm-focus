@@ -1127,6 +1127,8 @@ export type Database = {
           phone: string | null
           position_level: string | null
           probation_completed: boolean | null
+          probation_end_date: string | null
+          probation_start_date: string | null
           profile_id: string | null
           provident_fund: number | null
           salary: number | null
@@ -1164,6 +1166,8 @@ export type Database = {
           phone?: string | null
           position_level?: string | null
           probation_completed?: boolean | null
+          probation_end_date?: string | null
+          probation_start_date?: string | null
           profile_id?: string | null
           provident_fund?: number | null
           salary?: number | null
@@ -1201,6 +1205,8 @@ export type Database = {
           phone?: string | null
           position_level?: string | null
           probation_completed?: boolean | null
+          probation_end_date?: string | null
+          probation_start_date?: string | null
           profile_id?: string | null
           provident_fund?: number | null
           salary?: number | null
@@ -4800,6 +4806,7 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      complete_due_probations: { Args: never; Returns: number }
       create_dm_conversation: {
         Args: { _other_user_id: string }
         Returns: string
@@ -4819,6 +4826,7 @@ export type Database = {
         }
         Returns: string
       }
+      fiscal_year_of: { Args: { _d: string }; Returns: number }
       get_all_subordinate_employee_ids: {
         Args: { _manager_employee_id: string }
         Returns: string[]
@@ -4924,6 +4932,10 @@ export type Database = {
       }
       mark_signup_used: { Args: { check_email: string }; Returns: boolean }
       reset_annual_leave_for_new_period: { Args: never; Returns: undefined }
+      set_annual_leave_total: {
+        Args: { _employee_id: string; _total: number }
+        Returns: undefined
+      }
       sync_profile_with_employee: { Args: never; Returns: undefined }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }

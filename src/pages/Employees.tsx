@@ -880,7 +880,15 @@ const Employees = () => {
       location: updatedEmployee.location || "US",
       status: updatedEmployee.status || "active",
       employment_type: updatedEmployee.employment_type || "full_time",
-    });
+      probation_start_date:
+        updatedEmployee.employment_type === "probation"
+          ? updatedEmployee.probation_start_date || null
+          : null,
+      probation_end_date:
+        updatedEmployee.employment_type === "probation"
+          ? updatedEmployee.probation_end_date || null
+          : null,
+    } as any);
   };
 
   const handleConfirmDeactivate = async (employeeId: number | string) => {

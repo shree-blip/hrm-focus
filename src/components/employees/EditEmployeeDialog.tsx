@@ -31,6 +31,8 @@ interface Employee {
   initials: string;
   phone: string;
   employment_type?: string;
+  probation_start_date?: string | null;
+  probation_end_date?: string | null;
   profile_id?: string | null;
   user_id?: string | null;
 }
@@ -58,6 +60,30 @@ export function EditEmployeeDialog({
       setFormData({ ...employee });
     }
   }, [employee]);
+
+  // Load probation period dates for this employee
+  useEffect(() => {
+    const fetchProbation = async () => {
+      if (!open || !employee?.id) return;
+      const { data } = await supabase
+        .from("employees")
+        .select("probation_start_date, probation_end_date")
+        .eq("id", String(employee.id))
+        .maybeSingle();
+      if (data) {
+        setFormData((prev) =>
+          prev
+            ? {
+                ...prev,
+                probation_start_date: (data as any).probation_start_date ?? "",
+                probation_end_date: (data as any).probation_end_date ?? "",
+              }
+            : prev,
+        );
+      }
+    };
+    fetchProbation();
+  }, [open, employee?.id]);
 
   // Load existing milestone info (birthday / work anniversary) from the profile
   useEffect(() => {
@@ -212,7 +238,25 @@ export function EditEmployeeDialog({
             <Label htmlFor="employmentType">Employment Type</Label>
             <Select
               value={formData.employment_type || "full_time"}
-              onValueChange={(value) => setFormData({ ...formData, employment_type: value })}
+              onValueChange={(value) => {
+                if (value === "probation") {
+                  const start = formData.probation_start_date || new Date().toISOString().slice(0, 10);
+                  let end = formData.probation_end_date;
+                  if (!end) {
+                    const d = new Date(start);
+                    d.setMonth(d.getMonth() + 3);
+                    end = d.toISOString().slice(0, 10);
+                  }
+                  setFormData({
+                    ...formData,
+                    employment_type: value,
+                    probation_start_date: start,
+                    probation_end_date: end,
+                  });
+                  return;
+                }
+                setFormData({ ...formData, employment_type: value });
+              }}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -224,6 +268,40 @@ export function EditEmployeeDialog({
               </SelectContent>
             </Select>
           </div>
+          {formData.employment_type === "probation" && (
+            <div className="space-y-3 rounded-lg border p-4">
+              <p className="text-sm font-medium">Probation Period</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="probationStart">Start Date</Label>
+                  <Input
+                    id="probationStart"
+                    type="date"
+                    value={formData.probation_start_date || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, probation_start_date: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="probationEnd">End Date</Label>
+                  <Input
+                    id="probationEnd"
+                    type="date"
+                    value={formData.probation_end_date || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, probation_end_date: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Annual leave is prorated to 1 day per probation month (3 days for a 3-month
+                probation). When probation ends the employee becomes Full-Time and the allowance
+                resets to 12 days, minus any leave already taken.
+              </p>
+            </div>
+          )}
           <div className="space-y-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Milestones</p>
             <div className="grid grid-cols-2 gap-4">
