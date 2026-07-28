@@ -31,6 +31,8 @@ interface Employee {
   initials: string;
   phone: string;
   employment_type?: string;
+  probation_start_date?: string | null;
+  probation_end_date?: string | null;
   profile_id?: string | null;
   user_id?: string | null;
 }
