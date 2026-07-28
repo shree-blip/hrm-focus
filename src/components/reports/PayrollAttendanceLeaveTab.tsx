@@ -236,6 +236,7 @@ export function PayrollAttendanceLeaveTab() {
           totalPresentCount + covered + specialCovered
         );
         void uncovered;
+        const paidLeaveRemaining = Math.max(0, annualBalance - regularLeave);
 
         return {
           name: p.name,
@@ -250,9 +251,9 @@ export function PayrollAttendanceLeaveTab() {
           annualBalance,
           special,
           adjustedPresent,
-          paidLeaveRemaining: Math.max(0, annualBalance - regularLeave),
+          paidLeaveRemaining,
           specialRemaining,
-          deductDays: Math.max(0, workingDays - adjustedPresent),
+          deductDays: Math.max(0, workingDays - adjustedPresent - paidLeaveRemaining),
         };
       });
 
@@ -351,7 +352,7 @@ export function PayrollAttendanceLeaveTab() {
     csv += csvCell("Note:") + "\n";
     csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, H = Holiday/Weekend") + "\n";
     csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance - leave not covered") + "\n";
-    csv += csvCell("Deduct days from payroll = Working Days - Total Present days after Adjustment") + "\n";
+    csv += csvCell("Deduct days from payroll = Working Days - Total Present days after Adjustment - Paid leave remaining") + "\n";
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
