@@ -3,6 +3,7 @@ import { useBreakSessions } from "@/hooks/useBreakSessions";
 import { BreakPauseCell, BreakPauseDetailPanel } from "@/components/attendance/BreakPauseDetail";
 import { ClientReportDownload } from "@/components/logsheet/ClientReportDownload";
 import { LeaveReportsTab } from "@/components/approvals/LeaveReportsTab";
+import { PayrollAttendanceLeaveTab } from "@/components/reports/PayrollAttendanceLeaveTab";
 import {
   formatAttendanceTime,
   getWorkDate,
@@ -141,7 +142,8 @@ const getDateRangeLabelImpl = (rangeType: DateRangeType): string => {
 
 const Reports = () => {
   const { requests, loading: leaveLoading } = useLeaveRequests();
-  const { isVP, user } = useAuth();
+  const { isVP, isAdmin, user } = useAuth();
+  const canViewPayrollReport = isVP || isAdmin;
   const { hasPermission } = usePermissions();
   const { events: calendarEvents } = useCalendarEvents();
   const canEditAttendance = isVP || hasPermission("edit_attendance");
@@ -1304,7 +1306,7 @@ const Reports = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 sm:w-auto lg:w-[600px] h-auto gap-1">
+        <TabsList className="flex w-full overflow-x-auto sm:w-auto h-auto gap-1">
           <TabsTrigger value="attendance" className="gap-2">
             <Clock className="h-4 w-4" />
             <span className="hidden sm:inline">Attendance Summary</span>
@@ -1328,6 +1330,14 @@ const Reports = () => {
             <span className="hidden sm:inline">Leave Report</span>
             <span className="sm:hidden">Leave</span>
           </TabsTrigger>
+
+          {canViewPayrollReport && (
+            <TabsTrigger value="payroll-balance" className="gap-2">
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Payroll, Leave & Attendance</span>
+              <span className="sm:hidden">Payroll</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="attendance" className="space-y-6">
