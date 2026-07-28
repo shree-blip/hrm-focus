@@ -154,13 +154,26 @@ const Reports = () => {
 
   const [searchDate, setSearchDate] = useState("");
 
+  // Debounce manual date inputs so refetch only fires after the user finishes typing.
+  // Native <input type="date"> emits onChange on every partial keystroke (Y/M/D),
+  // which was causing the page to refresh mid-entry.
+  const [debouncedStart, setDebouncedStart] = useState(customStart);
+  const [debouncedEnd, setDebouncedEnd] = useState(customEnd);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedStart(customStart);
+      setDebouncedEnd(customEnd);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [customStart, customEnd]);
+
   const customRange = useMemo(() => {
-    if (!customStart || !customEnd) return null;
-    const start = new Date(`${customStart}T00:00:00.000Z`);
-    const end = new Date(`${customEnd}T23:59:59.999Z`);
+    if (!debouncedStart || !debouncedEnd) return null;
+    const start = new Date(`${debouncedStart}T00:00:00.000Z`);
+    const end = new Date(`${debouncedEnd}T23:59:59.999Z`);
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return null;
     return { start, end };
-  }, [customStart, customEnd]);
+  }, [debouncedStart, debouncedEnd]);
 
   // Effective fetch range: prefer the manual From/To range, otherwise if a single
   // "Filter by date" day is chosen, fetch that day (± 1 day buffer for timezones)
