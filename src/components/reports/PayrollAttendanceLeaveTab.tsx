@@ -227,7 +227,15 @@ export function PayrollAttendanceLeaveTab() {
           specialRemaining[s.key] = Math.max(0, s.cap - used);
         });
 
-        const adjustedPresent = totalPresentCount + covered + specialCovered - uncovered;
+        // Total present days after adjustment = actual present days (incl. half days)
+        // + paid leave days covered by the annual balance + special leave days within cap.
+        // Uncovered (unpaid) leave days are simply NOT added — subtracting them again
+        // would double-penalise the employee.
+        const adjustedPresent = Math.min(
+          workingDays,
+          totalPresentCount + covered + specialCovered
+        );
+        void uncovered;
 
         return {
           name: p.name,
