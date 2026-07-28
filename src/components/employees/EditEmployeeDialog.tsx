@@ -61,6 +61,30 @@ export function EditEmployeeDialog({
     }
   }, [employee]);
 
+  // Load probation period dates for this employee
+  useEffect(() => {
+    const fetchProbation = async () => {
+      if (!open || !employee?.id) return;
+      const { data } = await supabase
+        .from("employees")
+        .select("probation_start_date, probation_end_date")
+        .eq("id", String(employee.id))
+        .maybeSingle();
+      if (data) {
+        setFormData((prev) =>
+          prev
+            ? {
+                ...prev,
+                probation_start_date: (data as any).probation_start_date ?? "",
+                probation_end_date: (data as any).probation_end_date ?? "",
+              }
+            : prev,
+        );
+      }
+    };
+    fetchProbation();
+  }, [open, employee?.id]);
+
   // Load existing milestone info (birthday / work anniversary) from the profile
   useEffect(() => {
     const fetchMilestones = async () => {
