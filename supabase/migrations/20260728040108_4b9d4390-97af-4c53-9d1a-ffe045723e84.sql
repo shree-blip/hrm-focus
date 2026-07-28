@@ -1,0 +1,1 @@
+DELETE FROM leave_requests WHERE id = 'cda28cfa-bea9-41d6-919a-31c0ad1852ee';
