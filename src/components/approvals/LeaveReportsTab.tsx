@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useEmployees } from "@/hooks/useEmployees";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
+import { parseDateOnly } from "@/lib/timeFormat";
 import { cn } from "@/lib/utils";
 import {
   Download,

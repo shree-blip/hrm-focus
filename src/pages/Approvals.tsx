@@ -20,6 +20,7 @@ import { PromotionApprovalQueue } from "@/components/employees/PromotionApproval
 import { AttendanceApprovalsTab } from "@/components/approvals/AttendanceApprovalsTab";
 import { AssetRequestsSection } from "@/components/support/AssetRequestsSection";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
+import { parseDateOnly } from "@/lib/timeFormat";
 import {
   Check,
   X,
