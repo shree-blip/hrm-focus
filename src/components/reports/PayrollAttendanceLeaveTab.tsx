@@ -16,7 +16,7 @@ const SPECIAL_LEAVES = [
   { key: "paternity", label: "Paternity Leave", cap: 22, match: /paternity/i },
 ] as const;
 
-type DayCode = "P" | "A" | "HD" | "NR" | "H";
+type DayCode = "P" | "A" | "HD" | "NR" | "H" | "WH";
 
 interface Row {
   name: string;
@@ -185,8 +185,12 @@ export function PayrollAttendanceLeaveTab() {
 
         dayKeys.forEach((k, i) => {
           const dow = new Date(year, monthIdx, i + 1).getDay();
-          const isOff = dow === 0 || dow === 6 || holidaySet.has(k);
-          if (isOff) {
+          const isWeekend = dow === 0 || dow === 6;
+          if (isWeekend) {
+            days[k] = "WH";
+            return;
+          }
+          if (holidaySet.has(k)) {
             days[k] = "H";
             return;
           }
@@ -350,7 +354,7 @@ export function PayrollAttendanceLeaveTab() {
 
     csv += "\n";
     csv += csvCell("Note:") + "\n";
-    csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, H = Holiday/Weekend") + "\n";
+  csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday") + "\n";
     csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance - leave not covered") + "\n";
     csv += csvCell("Deduct days from payroll = Working Days - Total Present days after Adjustment - Paid leave remaining") + "\n";
 
@@ -468,7 +472,7 @@ export function PayrollAttendanceLeaveTab() {
               </tbody>
             </table>
             <p className="mt-4 text-xs text-muted-foreground">
-              P = Present · A = Absent (full-day leave) · HD = Half day · NR = Non recorded · H = Holiday/Weekend
+              P = Present · A = Absent (full-day leave) · HD = Half day · NR = Non recorded · WH = Weekend (Sat/Sun) · H = Public Holiday
             </p>
           </div>
         )}
