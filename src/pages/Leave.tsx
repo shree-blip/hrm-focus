@@ -43,8 +43,8 @@ function exportLeaveHistoryToCsv(requests: any[], fileName: string): void {
 
   const rows = requests.map((r) => [
     escapeCsv(r.leave_type),
-    escapeCsv(format(new Date(r.start_date), "yyyy-MM-dd")),
-    escapeCsv(format(new Date(r.end_date), "yyyy-MM-dd")),
+    escapeCsv(format(parseDateOnly(r.start_date), "yyyy-MM-dd")),
+    escapeCsv(format(parseDateOnly(r.end_date), "yyyy-MM-dd")),
     escapeCsv(r.days),
     escapeCsv(r.status),
     escapeCsv(r.reason || ""),
@@ -200,9 +200,9 @@ const Leave = () => {
     today.setHours(0, 0, 0, 0);
     return allApprovedLeaves.filter((r) => {
       if (r.user_id === user?.id) return false;
-      const startDate = new Date(r.start_date);
+      const startDate = parseDateOnly(r.start_date);
       startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(r.end_date);
+      const endDate = parseDateOnly(r.end_date);
       endDate.setHours(0, 0, 0, 0);
       return today >= startDate && today <= endDate;
     });
@@ -347,7 +347,7 @@ const Leave = () => {
                           const initials = leave.profile
                             ? `${leave.profile.first_name[0]}${leave.profile.last_name[0]}`
                             : "TM";
-                          const daysRemaining = Math.max(0, differenceInDays(new Date(leave.end_date), new Date()) + 1);
+                          const daysRemaining = Math.max(0, differenceInDays(parseDateOnly(leave.end_date), new Date()) + 1);
                           const isLieu = isLeaveOnLieuType(leave.leave_type);
                           const isSick = isSickLeaveType(leave.leave_type);
                           const isOther = isOtherLeaveType(leave.leave_type);
@@ -676,8 +676,8 @@ const Leave = () => {
                           {getLeaveTypeDisplay(request.leave_type)}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
-                          {format(new Date(request.start_date), "MMM d, yyyy")} -{" "}
-                          {format(new Date(request.end_date), "MMM d, yyyy")}
+                          {format(parseDateOnly(request.start_date), "MMM d, yyyy")} -{" "}
+                          {format(parseDateOnly(request.end_date), "MMM d, yyyy")}
                         </span>
                       </div>
                       {request.created_at && (
@@ -779,9 +779,9 @@ const Leave = () => {
                     // Collect all approved leaves overlapping this date
                     const leavesOnDay = !isWeekend
                       ? allApprovedLeaves.filter((r) => {
-                          const startDate = new Date(r.start_date);
+                          const startDate = parseDateOnly(r.start_date);
                           startDate.setHours(0, 0, 0, 0);
-                          const endDate = new Date(r.end_date);
+                          const endDate = parseDateOnly(r.end_date);
                           endDate.setHours(0, 0, 0, 0);
                           return currentDate >= startDate && currentDate <= endDate && endDate >= todayNorm;
                         })
@@ -803,7 +803,7 @@ const Leave = () => {
                             : r.profile
                               ? `${r.profile.first_name} ${r.profile.last_name}`
                               : "Employee";
-                        return `${name}: ${format(new Date(r.start_date), "MMM d")} – ${format(new Date(r.end_date), "MMM d")}`;
+                        return `${name}: ${format(parseDateOnly(r.start_date), "MMM d")} – ${format(parseDateOnly(r.end_date), "MMM d")}`;
                       })
                       .join("\n");
 
@@ -862,9 +862,9 @@ const Leave = () => {
                       const currentlyOnLeave = allApprovedLeaves.filter((r) => {
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
-                        const startDate = new Date(r.start_date);
+                        const startDate = parseDateOnly(r.start_date);
                         startDate.setHours(0, 0, 0, 0);
-                        const endDate = new Date(r.end_date);
+                        const endDate = parseDateOnly(r.end_date);
                         endDate.setHours(0, 0, 0, 0);
                         return today >= startDate && today <= endDate;
                       });
@@ -896,7 +896,7 @@ const Leave = () => {
                               </Badge>
                             </div>
                             <span className="text-muted-foreground text-xs">
-                              {format(new Date(r.start_date), "MMM d")} - {format(new Date(r.end_date), "MMM d")}
+                              {format(parseDateOnly(r.start_date), "MMM d")} - {format(parseDateOnly(r.end_date), "MMM d")}
                             </span>
                           </div>
                         );
@@ -910,7 +910,7 @@ const Leave = () => {
                   <div className="space-y-2">
                     {(() => {
                       const upcoming = allApprovedLeaves
-                        .filter((r) => new Date(r.start_date) > new Date())
+                        .filter((r) => parseDateOnly(r.start_date) > new Date())
                         .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
                         .slice(0, 5);
 
@@ -938,7 +938,7 @@ const Leave = () => {
                               </span>
                             </div>
                             <span className="text-muted-foreground text-xs">
-                              {format(new Date(r.start_date), "MMM d")} - {format(new Date(r.end_date), "MMM d")}
+                              {format(parseDateOnly(r.start_date), "MMM d")} - {format(parseDateOnly(r.end_date), "MMM d")}
                             </span>
                           </div>
                         );
