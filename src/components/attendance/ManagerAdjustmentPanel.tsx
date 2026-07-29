@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { AdjustmentRequest } from "@/hooks/useAttendanceAdjustments";
+import { useBreakSessions } from "@/hooks/useBreakSessions";
 
 interface Props {
   requests: AdjustmentRequest[];
@@ -34,6 +35,13 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
   const [overrideDialog, setOverrideDialog] = useState<{ req: AdjustmentRequest } | null>(null);
   const [overrideComment, setOverrideComment] = useState("");
   const [overrideDecision, setOverrideDecision] = useState<"approved" | "rejected">("rejected");
+  const { fetchSessions, getSessions, isLoading } = useBreakSessions();
+
+  useEffect(() => {
+    if (selectedRequest?.attendance_log_id) {
+      fetchSessions(selectedRequest.attendance_log_id);
+    }
+  }, [selectedRequest?.attendance_log_id, fetchSessions]);
 
   const pending = requests.filter((r) => r.status === "pending");
   const reviewed = requests.filter((r) => r.status !== "pending");
