@@ -1,0 +1,1 @@
+ALTER TABLE public.attendance_adjustment_requests ADD COLUMN IF NOT EXISTS proposed_sessions jsonb;

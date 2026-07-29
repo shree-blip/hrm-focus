@@ -92,6 +92,35 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
     return { start, end, minutes: adjMinutes };
   };
 
+  /**
+   * Exact window the employee typed in (when the request stored per-session times).
+   * Falls back to the proportional estimate for older requests.
+   */
+  const getRequestedWindow = (
+    req: AdjustmentRequest,
+    session: { id: string; session_type: string; start_time: string; end_time: string | null; duration_minutes: number | null },
+    sessions: { session_type: string; duration_minutes: number | null }[],
+  ) => {
+    const entered = req.proposed_sessions?.find((p) => p.id === session.id);
+    if (entered && entered.start) {
+      const start = new Date(entered.start);
+      const end = entered.end ? new Date(entered.end) : null;
+      const minutes = entered.minutes ?? (end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0);
+      const unchanged =
+        start.getTime() === new Date(session.start_time).getTime() &&
+        ((end === null && session.end_time === null) ||
+          (end !== null && session.end_time !== null && end.getTime() === new Date(session.end_time).getTime()));
+      if (unchanged) return null;
+      return { start, end, minutes, exact: true };
+    }
+    const est = getAdjustedWindow(
+      session,
+      sessions,
+      session.session_type === "break" ? req.proposed_break_minutes : req.proposed_pause_minutes,
+    );
+    return est ? { ...est, exact: false } : null;
+  };
+
   if (requests.length === 0) return null;
 
   return (
@@ -353,13 +382,7 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                     <ul className="space-y-0.5">
                       {getSessions(selectedRequest.attendance_log_id)!.map((s) => {
                         const all = getSessions(selectedRequest.attendance_log_id)!;
-                        const adj = getAdjustedWindow(
-                          s,
-                          all,
-                          s.session_type === "break"
-                            ? selectedRequest.proposed_break_minutes
-                            : selectedRequest.proposed_pause_minutes,
-                        );
+                        const adj = getRequestedWindow(selectedRequest, s, all);
                         return (
                           <li key={s.id} className="text-xs space-y-0.5">
                             <div className="flex items-center justify-between gap-2">
@@ -371,9 +394,9 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                             </div>
                             {adj && (
                               <div className="flex items-center justify-between gap-2 text-blue-600">
-                                <span className="w-14 text-[10px]">Adjusted</span>
+                                <span className="w-14 text-[10px]">{adj.exact ? "Requested" : "Adjusted (est.)"}</span>
                                 <span className="flex-1">
-                                  ({format(adj.start, "hh:mm a")} → {format(adj.end, "hh:mm a")})
+                                  ({format(adj.start, "hh:mm a")} → {adj.end ? format(adj.end, "hh:mm a") : "ongoing"})
                                 </span>
                                 <span className="font-medium">{formatMinutesAsClock(adj.minutes)}</span>
                               </div>
