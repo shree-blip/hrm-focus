@@ -292,6 +292,7 @@ export type Database = {
           proposed_clock_in: string | null
           proposed_clock_out: string | null
           proposed_pause_minutes: number | null
+          proposed_sessions: Json | null
           reason: string
           requested_by: string
           reviewed_at: string | null
@@ -315,6 +316,7 @@ export type Database = {
           proposed_clock_in?: string | null
           proposed_clock_out?: string | null
           proposed_pause_minutes?: number | null
+          proposed_sessions?: Json | null
           reason: string
           requested_by: string
           reviewed_at?: string | null
@@ -338,6 +340,7 @@ export type Database = {
           proposed_clock_in?: string | null
           proposed_clock_out?: string | null
           proposed_pause_minutes?: number | null
+          proposed_sessions?: Json | null
           reason?: string
           requested_by?: string
           reviewed_at?: string | null
