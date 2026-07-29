@@ -70,55 +70,24 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
   };
 
   /**
-   * Derive the adjusted (proposed) window for a session. The request only carries
-   * proposed break/pause TOTALS, so the total is distributed across that type's
-   * sessions proportionally to their original durations, keeping the start time.
-   */
-  const getAdjustedWindow = (
-    session: { session_type: string; start_time: string; end_time: string | null; duration_minutes: number | null },
-    sessions: { session_type: string; duration_minutes: number | null }[],
-    proposedTotal: number | null | undefined,
-  ) => {
-    if (proposedTotal == null) return null;
-    const sameType = sessions.filter((s) => s.session_type === session.session_type);
-    const originalTotal = sameType.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
-    const own = session.duration_minutes || 0;
-    const share =
-      originalTotal > 0 ? (own / originalTotal) * proposedTotal : proposedTotal / (sameType.length || 1);
-    const adjMinutes = Math.max(0, Math.round(share));
-    if (adjMinutes === Math.round(own)) return null;
-    const start = new Date(session.start_time);
-    const end = new Date(start.getTime() + adjMinutes * 60 * 1000);
-    return { start, end, minutes: adjMinutes };
-  };
-
-  /**
-   * Exact window the employee typed in (when the request stored per-session times).
-   * Falls back to the proportional estimate for older requests.
+   * Exact window the employee typed in. Returns null when this session was not
+   * changed (no estimates — only real submitted values are shown).
    */
   const getRequestedWindow = (
     req: AdjustmentRequest,
     session: { id: string; session_type: string; start_time: string; end_time: string | null; duration_minutes: number | null },
-    sessions: { session_type: string; duration_minutes: number | null }[],
   ) => {
     const entered = req.proposed_sessions?.find((p) => p.id === session.id);
-    if (entered && entered.start) {
-      const start = new Date(entered.start);
-      const end = entered.end ? new Date(entered.end) : null;
-      const minutes = entered.minutes ?? (end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0);
-      const unchanged =
-        start.getTime() === new Date(session.start_time).getTime() &&
-        ((end === null && session.end_time === null) ||
-          (end !== null && session.end_time !== null && end.getTime() === new Date(session.end_time).getTime()));
-      if (unchanged) return null;
-      return { start, end, minutes, exact: true };
-    }
-    const est = getAdjustedWindow(
-      session,
-      sessions,
-      session.session_type === "break" ? req.proposed_break_minutes : req.proposed_pause_minutes,
-    );
-    return est ? { ...est, exact: false } : null;
+    if (!entered || !entered.start) return null;
+    const start = new Date(entered.start);
+    const end = entered.end ? new Date(entered.end) : null;
+    const minutes = entered.minutes ?? (end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0);
+    const unchanged =
+      start.getTime() === new Date(session.start_time).getTime() &&
+      ((end === null && session.end_time === null) ||
+        (end !== null && session.end_time !== null && end.getTime() === new Date(session.end_time).getTime()));
+    if (unchanged) return null;
+    return { start, end, minutes };
   };
 
   if (requests.length === 0) return null;
