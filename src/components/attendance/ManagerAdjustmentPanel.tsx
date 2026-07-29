@@ -69,6 +69,29 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
     return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
   };
 
+  /**
+   * Derive the adjusted (proposed) window for a session. The request only carries
+   * proposed break/pause TOTALS, so the total is distributed across that type's
+   * sessions proportionally to their original durations, keeping the start time.
+   */
+  const getAdjustedWindow = (
+    session: { session_type: string; start_time: string; end_time: string | null; duration_minutes: number | null },
+    sessions: { session_type: string; duration_minutes: number | null }[],
+    proposedTotal: number | null | undefined,
+  ) => {
+    if (proposedTotal == null) return null;
+    const sameType = sessions.filter((s) => s.session_type === session.session_type);
+    const originalTotal = sameType.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    const own = session.duration_minutes || 0;
+    const share =
+      originalTotal > 0 ? (own / originalTotal) * proposedTotal : proposedTotal / (sameType.length || 1);
+    const adjMinutes = Math.max(0, Math.round(share));
+    if (adjMinutes === Math.round(own)) return null;
+    const start = new Date(session.start_time);
+    const end = new Date(start.getTime() + adjMinutes * 60 * 1000);
+    return { start, end, minutes: adjMinutes };
+  };
+
   if (requests.length === 0) return null;
 
   return (
