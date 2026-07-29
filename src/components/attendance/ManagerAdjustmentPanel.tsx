@@ -471,14 +471,14 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                       {formatTime(overrideDialog.req.attendance_log.clock_in)}
                     </p>
 
-                    {overrideDialog.req.proposed_clock_in && (
-                      <>
-                        <p className="text-muted-foreground">Proposed Clock In:</p>
-                        <p className="text-blue-600 font-medium">
-                          {format(new Date(overrideDialog.req.proposed_clock_in), "MMM d")} —{" "}
-                          {formatTime(overrideDialog.req.proposed_clock_in)}
-                        </p>
-                      </>
+                    <p className="text-muted-foreground">Proposed Clock In:</p>
+                    {overrideDialog.req.proposed_clock_in ? (
+                      <p className="text-blue-600 font-medium">
+                        {format(new Date(overrideDialog.req.proposed_clock_in), "MMM d")} —{" "}
+                        {formatTime(overrideDialog.req.proposed_clock_in)}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">No change requested</p>
                     )}
 
                     <p className="text-muted-foreground">Current Clock Out:</p>
@@ -488,38 +488,38 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                         : "-"}
                     </p>
 
-                    {overrideDialog.req.proposed_clock_out && (
-                      <>
-                        <p className="text-muted-foreground">Proposed Clock Out:</p>
-                        <p className="text-blue-600 font-medium">
-                          {format(new Date(overrideDialog.req.proposed_clock_out), "MMM d")} —{" "}
-                          {formatTime(overrideDialog.req.proposed_clock_out)}
-                        </p>
-                      </>
+                    <p className="text-muted-foreground">Proposed Clock Out:</p>
+                    {overrideDialog.req.proposed_clock_out ? (
+                      <p className="text-blue-600 font-medium">
+                        {format(new Date(overrideDialog.req.proposed_clock_out), "MMM d")} —{" "}
+                        {formatTime(overrideDialog.req.proposed_clock_out)}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">No change requested</p>
                     )}
 
-                    {overrideDialog.req.proposed_break_minutes != null && (
-                      <>
-                        <p className="text-muted-foreground">Break:</p>
-                        <p>
-                          {formatMinutesAsClock(overrideDialog.req.attendance_log.total_break_minutes)} →{" "}
-                          <span className="text-blue-600 font-medium">
-                            {formatMinutesAsClock(overrideDialog.req.proposed_break_minutes)}
-                          </span>
-                        </p>
-                      </>
+                    <p className="text-muted-foreground">Current Break total:</p>
+                    <p>{formatMinutesAsClock(overrideDialog.req.attendance_log.total_break_minutes)}</p>
+
+                    <p className="text-muted-foreground">Proposed Break total:</p>
+                    {overrideDialog.req.proposed_break_minutes != null ? (
+                      <p className="text-blue-600 font-medium">
+                        {formatMinutesAsClock(overrideDialog.req.proposed_break_minutes)}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">No change requested</p>
                     )}
 
-                    {overrideDialog.req.proposed_pause_minutes != null && (
-                      <>
-                        <p className="text-muted-foreground">Pause:</p>
-                        <p>
-                          {formatMinutesAsClock(overrideDialog.req.attendance_log.total_pause_minutes)} →{" "}
-                          <span className="text-blue-600 font-medium">
-                            {formatMinutesAsClock(overrideDialog.req.proposed_pause_minutes)}
-                          </span>
-                        </p>
-                      </>
+                    <p className="text-muted-foreground">Current Pause total:</p>
+                    <p>{formatMinutesAsClock(overrideDialog.req.attendance_log.total_pause_minutes)}</p>
+
+                    <p className="text-muted-foreground">Proposed Pause total:</p>
+                    {overrideDialog.req.proposed_pause_minutes != null ? (
+                      <p className="text-blue-600 font-medium">
+                        {formatMinutesAsClock(overrideDialog.req.proposed_pause_minutes)}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">No change requested</p>
                     )}
                   </div>
                 )}
