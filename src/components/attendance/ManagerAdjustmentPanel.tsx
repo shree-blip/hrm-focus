@@ -293,35 +293,57 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                       </>
                     )}
 
-                    {selectedRequest.proposed_break_minutes != null &&
-                      selectedRequest.proposed_break_minutes !==
-                        (selectedRequest.attendance_log.total_break_minutes || 0) && (
-                      <>
-                        <p className="text-muted-foreground">Break:</p>
-                        <p>
-                          {formatMinutesAsClock(selectedRequest.attendance_log.total_break_minutes)} →{" "}
+                    <p className="text-muted-foreground">Break total:</p>
+                    <p>
+                      {formatMinutesAsClock(selectedRequest.attendance_log.total_break_minutes)}
+                      {selectedRequest.proposed_break_minutes != null && (
+                        <>
+                          {" → "}
                           <span className="text-blue-600 font-medium">
                             {formatMinutesAsClock(selectedRequest.proposed_break_minutes)}
                           </span>
-                        </p>
-                      </>
-                    )}
+                          <span className="text-muted-foreground"> (requested)</span>
+                        </>
+                      )}
+                    </p>
 
-                    {selectedRequest.proposed_pause_minutes != null &&
-                      selectedRequest.proposed_pause_minutes !==
-                        (selectedRequest.attendance_log.total_pause_minutes || 0) && (
-                      <>
-                        <p className="text-muted-foreground">Pause:</p>
-                        <p>
-                          {formatMinutesAsClock(selectedRequest.attendance_log.total_pause_minutes)} →{" "}
+                    <p className="text-muted-foreground">Pause total:</p>
+                    <p>
+                      {formatMinutesAsClock(selectedRequest.attendance_log.total_pause_minutes)}
+                      {selectedRequest.proposed_pause_minutes != null && (
+                        <>
+                          {" → "}
                           <span className="text-blue-600 font-medium">
                             {formatMinutesAsClock(selectedRequest.proposed_pause_minutes)}
                           </span>
-                        </p>
-                      </>
-                    )}
+                          <span className="text-muted-foreground"> (requested)</span>
+                        </>
+                      )}
+                    </p>
                   </div>
                 )}
+
+                {/* Break / Pause session windows */}
+                <div className="pt-2 border-t">
+                  <p className="text-muted-foreground text-xs mb-1">Break / Pause sessions (from → to):</p>
+                  {isLoading(selectedRequest.attendance_log_id) ? (
+                    <p className="text-xs text-muted-foreground">Loading sessions…</p>
+                  ) : (getSessions(selectedRequest.attendance_log_id)?.length || 0) === 0 ? (
+                    <p className="text-xs text-muted-foreground">No break or pause sessions recorded</p>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {getSessions(selectedRequest.attendance_log_id)!.map((s) => (
+                        <li key={s.id} className="text-xs flex items-center justify-between gap-2">
+                          <span className="capitalize text-muted-foreground w-14">{s.session_type}</span>
+                          <span className="flex-1">
+                            {formatTime(s.start_time)} → {s.end_time ? formatTime(s.end_time) : "ongoing"}
+                          </span>
+                          <span className="font-medium">{formatMinutesAsClock(s.duration_minutes)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
 
                 <div className="pt-1 border-t">
                   <p className="text-muted-foreground text-xs">Reason:</p>
