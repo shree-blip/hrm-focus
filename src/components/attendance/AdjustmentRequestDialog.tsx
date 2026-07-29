@@ -34,6 +34,13 @@ interface Props {
     proposed_break_minutes?: number;
     proposed_pause_minutes?: number;
     reason: string;
+    proposed_sessions?: {
+      id: string;
+      session_type: "break" | "pause";
+      start: string | null;
+      end: string | null;
+      minutes: number;
+    }[];
   }) => Promise<boolean | undefined>;
 }
 
@@ -153,6 +160,13 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
       proposed_clock_out?: string;
       proposed_break_minutes?: number;
       proposed_pause_minutes?: number;
+      proposed_sessions?: {
+        id: string;
+        session_type: "break" | "pause";
+        start: string | null;
+        end: string | null;
+        minutes: number;
+      }[];
     } = {
       attendance_log_id: log.id,
       reason: reason.trim(),
@@ -175,6 +189,18 @@ export function AdjustmentRequestDialog({ log, open, onOpenChange, onSubmit }: P
     }
     if (totals.pauseMin !== (log.total_pause_minutes || 0)) {
       proposed.proposed_pause_minutes = totals.pauseMin;
+    }
+
+    // Capture the exact per-session times the employee entered so reviewers
+    // see the requested windows rather than a derived estimate.
+    if (editableSessions.length > 0) {
+      proposed.proposed_sessions = editableSessions.map((s) => ({
+        id: s.id,
+        session_type: s.session_type,
+        start: s.start ? new Date(s.start).toISOString() : null,
+        end: s.end ? new Date(s.end).toISOString() : null,
+        minutes: diffMinutes(s.start, s.end),
+      }));
     }
 
     const success = await onSubmit(proposed);

@@ -23,6 +23,7 @@ export interface AdjustmentRequest {
   proposed_clock_out: string | null;
   proposed_break_minutes: number | null;
   proposed_pause_minutes: number | null;
+  proposed_sessions?: ProposedSession[] | null;
   reason: string;
   status: "pending" | "approved" | "rejected";
   reviewer_comment: string | null;
@@ -42,12 +43,21 @@ export interface AdjustmentRequest {
   override_profile?: { first_name: string; last_name: string } | null;
 }
 
+export interface ProposedSession {
+  id: string;
+  session_type: "break" | "pause";
+  start: string | null;
+  end: string | null;
+  minutes: number;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const adjTable = () => (supabase as unknown as any).from("attendance_adjustment_requests");
 
 const SELECT_COLS = [
   "id","attendance_log_id","requested_by","reviewer_id",
   "proposed_clock_in","proposed_clock_out","proposed_break_minutes","proposed_pause_minutes",
+  "proposed_sessions",
   "reason","status","reviewer_comment","reviewed_at","created_at",
   "original_clock_in","original_clock_out","original_break_minutes","original_pause_minutes",
   "override_status","override_by","override_comment","override_at",
@@ -206,6 +216,7 @@ export function useAttendanceAdjustments() {
     proposed_break_minutes?: number;
     proposed_pause_minutes?: number;
     reason: string;
+    proposed_sessions?: ProposedSession[];
   }) => {
     if (!user) return;
     const { error } = await adjTable().insert({
@@ -215,6 +226,7 @@ export function useAttendanceAdjustments() {
       proposed_clock_out: data.proposed_clock_out || null,
       proposed_break_minutes: data.proposed_break_minutes ?? null,
       proposed_pause_minutes: data.proposed_pause_minutes ?? null,
+      proposed_sessions: data.proposed_sessions ?? null,
       reason: data.reason,
     });
     if (error) {
