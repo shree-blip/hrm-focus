@@ -69,6 +69,29 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
     return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
   };
 
+  /**
+   * Derive the adjusted (proposed) window for a session. The request only carries
+   * proposed break/pause TOTALS, so the total is distributed across that type's
+   * sessions proportionally to their original durations, keeping the start time.
+   */
+  const getAdjustedWindow = (
+    session: { session_type: string; start_time: string; end_time: string | null; duration_minutes: number | null },
+    sessions: { session_type: string; duration_minutes: number | null }[],
+    proposedTotal: number | null | undefined,
+  ) => {
+    if (proposedTotal == null) return null;
+    const sameType = sessions.filter((s) => s.session_type === session.session_type);
+    const originalTotal = sameType.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    const own = session.duration_minutes || 0;
+    const share =
+      originalTotal > 0 ? (own / originalTotal) * proposedTotal : proposedTotal / (sameType.length || 1);
+    const adjMinutes = Math.max(0, Math.round(share));
+    if (adjMinutes === Math.round(own)) return null;
+    const start = new Date(session.start_time);
+    const end = new Date(start.getTime() + adjMinutes * 60 * 1000);
+    return { start, end, minutes: adjMinutes };
+  };
+
   if (requests.length === 0) return null;
 
   return (
@@ -328,15 +351,36 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                     <p className="text-xs text-muted-foreground">No break or pause sessions recorded</p>
                   ) : (
                     <ul className="space-y-0.5">
-                      {getSessions(selectedRequest.attendance_log_id)!.map((s) => (
-                        <li key={s.id} className="text-xs flex items-center justify-between gap-2">
-                          <span className="capitalize text-muted-foreground w-14">{s.session_type}</span>
-                          <span className="flex-1">
-                            {formatTime(s.start_time)} → {s.end_time ? formatTime(s.end_time) : "ongoing"}
-                          </span>
-                          <span className="font-medium">{formatMinutesAsClock(s.duration_minutes)}</span>
-                        </li>
-                      ))}
+                      {getSessions(selectedRequest.attendance_log_id)!.map((s) => {
+                        const all = getSessions(selectedRequest.attendance_log_id)!;
+                        const adj = getAdjustedWindow(
+                          s,
+                          all,
+                          s.session_type === "break"
+                            ? selectedRequest.proposed_break_minutes
+                            : selectedRequest.proposed_pause_minutes,
+                        );
+                        return (
+                          <li key={s.id} className="text-xs space-y-0.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="capitalize text-muted-foreground w-14">{s.session_type}</span>
+                              <span className="flex-1">
+                                {formatTime(s.start_time)} → {s.end_time ? formatTime(s.end_time) : "ongoing"}
+                              </span>
+                              <span className="font-medium">{formatMinutesAsClock(s.duration_minutes)}</span>
+                            </div>
+                            {adj && (
+                              <div className="flex items-center justify-between gap-2 text-blue-600">
+                                <span className="w-14 text-[10px]">Adjusted</span>
+                                <span className="flex-1">
+                                  ({format(adj.start, "hh:mm a")} → {format(adj.end, "hh:mm a")})
+                                </span>
+                                <span className="font-medium">{formatMinutesAsClock(adj.minutes)}</span>
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>
