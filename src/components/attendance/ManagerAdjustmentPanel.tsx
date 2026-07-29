@@ -70,55 +70,24 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
   };
 
   /**
-   * Derive the adjusted (proposed) window for a session. The request only carries
-   * proposed break/pause TOTALS, so the total is distributed across that type's
-   * sessions proportionally to their original durations, keeping the start time.
-   */
-  const getAdjustedWindow = (
-    session: { session_type: string; start_time: string; end_time: string | null; duration_minutes: number | null },
-    sessions: { session_type: string; duration_minutes: number | null }[],
-    proposedTotal: number | null | undefined,
-  ) => {
-    if (proposedTotal == null) return null;
-    const sameType = sessions.filter((s) => s.session_type === session.session_type);
-    const originalTotal = sameType.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
-    const own = session.duration_minutes || 0;
-    const share =
-      originalTotal > 0 ? (own / originalTotal) * proposedTotal : proposedTotal / (sameType.length || 1);
-    const adjMinutes = Math.max(0, Math.round(share));
-    if (adjMinutes === Math.round(own)) return null;
-    const start = new Date(session.start_time);
-    const end = new Date(start.getTime() + adjMinutes * 60 * 1000);
-    return { start, end, minutes: adjMinutes };
-  };
-
-  /**
-   * Exact window the employee typed in (when the request stored per-session times).
-   * Falls back to the proportional estimate for older requests.
+   * Exact window the employee typed in. Returns null when this session was not
+   * changed (no estimates — only real submitted values are shown).
    */
   const getRequestedWindow = (
     req: AdjustmentRequest,
     session: { id: string; session_type: string; start_time: string; end_time: string | null; duration_minutes: number | null },
-    sessions: { session_type: string; duration_minutes: number | null }[],
   ) => {
     const entered = req.proposed_sessions?.find((p) => p.id === session.id);
-    if (entered && entered.start) {
-      const start = new Date(entered.start);
-      const end = entered.end ? new Date(entered.end) : null;
-      const minutes = entered.minutes ?? (end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0);
-      const unchanged =
-        start.getTime() === new Date(session.start_time).getTime() &&
-        ((end === null && session.end_time === null) ||
-          (end !== null && session.end_time !== null && end.getTime() === new Date(session.end_time).getTime()));
-      if (unchanged) return null;
-      return { start, end, minutes, exact: true };
-    }
-    const est = getAdjustedWindow(
-      session,
-      sessions,
-      session.session_type === "break" ? req.proposed_break_minutes : req.proposed_pause_minutes,
-    );
-    return est ? { ...est, exact: false } : null;
+    if (!entered || !entered.start) return null;
+    const start = new Date(entered.start);
+    const end = entered.end ? new Date(entered.end) : null;
+    const minutes = entered.minutes ?? (end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0);
+    const unchanged =
+      start.getTime() === new Date(session.start_time).getTime() &&
+      ((end === null && session.end_time === null) ||
+        (end !== null && session.end_time !== null && end.getTime() === new Date(session.end_time).getTime()));
+    if (unchanged) return null;
+    return { start, end, minutes };
   };
 
   if (requests.length === 0) return null;
@@ -373,16 +342,19 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
 
                 {/* Break / Pause session windows */}
                 <div className="pt-2 border-t">
-                  <p className="text-muted-foreground text-xs mb-1">Break / Pause sessions (from → to):</p>
+                  <p className="text-muted-foreground text-xs mb-1">Adjusted break / pause sessions:</p>
                   {isLoading(selectedRequest.attendance_log_id) ? (
                     <p className="text-xs text-muted-foreground">Loading sessions…</p>
-                  ) : (getSessions(selectedRequest.attendance_log_id)?.length || 0) === 0 ? (
-                    <p className="text-xs text-muted-foreground">No break or pause sessions recorded</p>
+                  ) : (getSessions(selectedRequest.attendance_log_id) || []).filter((s) =>
+                      getRequestedWindow(selectedRequest, s),
+                    ).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No break or pause session changes requested</p>
                   ) : (
                     <ul className="space-y-0.5">
-                      {getSessions(selectedRequest.attendance_log_id)!.map((s) => {
-                        const all = getSessions(selectedRequest.attendance_log_id)!;
-                        const adj = getRequestedWindow(selectedRequest, s, all);
+                      {getSessions(selectedRequest.attendance_log_id)!
+                        .filter((s) => getRequestedWindow(selectedRequest, s))
+                        .map((s) => {
+                        const adj = getRequestedWindow(selectedRequest, s)!;
                         return (
                           <li key={s.id} className="text-xs space-y-0.5">
                             <div className="flex items-center justify-between gap-2">
@@ -394,7 +366,7 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                             </div>
                             {adj && (
                               <div className="flex items-center justify-between gap-2 text-blue-600">
-                                <span className="w-14 text-[10px]">{adj.exact ? "Requested" : "Adjusted (est.)"}</span>
+                                <span className="w-14 text-[10px]">Requested</span>
                                 <span className="flex-1">
                                   ({format(adj.start, "hh:mm a")} → {adj.end ? format(adj.end, "hh:mm a") : "ongoing"})
                                 </span>
