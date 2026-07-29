@@ -342,16 +342,19 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
 
                 {/* Break / Pause session windows */}
                 <div className="pt-2 border-t">
-                  <p className="text-muted-foreground text-xs mb-1">Break / Pause sessions (from → to):</p>
+                  <p className="text-muted-foreground text-xs mb-1">Adjusted break / pause sessions:</p>
                   {isLoading(selectedRequest.attendance_log_id) ? (
                     <p className="text-xs text-muted-foreground">Loading sessions…</p>
-                  ) : (getSessions(selectedRequest.attendance_log_id)?.length || 0) === 0 ? (
-                    <p className="text-xs text-muted-foreground">No break or pause sessions recorded</p>
+                  ) : (getSessions(selectedRequest.attendance_log_id) || []).filter((s) =>
+                      getRequestedWindow(selectedRequest, s),
+                    ).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No break or pause session changes requested</p>
                   ) : (
                     <ul className="space-y-0.5">
-                      {getSessions(selectedRequest.attendance_log_id)!.map((s) => {
-                        const all = getSessions(selectedRequest.attendance_log_id)!;
-                        const adj = getRequestedWindow(selectedRequest, s, all);
+                      {getSessions(selectedRequest.attendance_log_id)!
+                        .filter((s) => getRequestedWindow(selectedRequest, s))
+                        .map((s) => {
+                        const adj = getRequestedWindow(selectedRequest, s)!;
                         return (
                           <li key={s.id} className="text-xs space-y-0.5">
                             <div className="flex items-center justify-between gap-2">
@@ -363,7 +366,7 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                             </div>
                             {adj && (
                               <div className="flex items-center justify-between gap-2 text-blue-600">
-                                <span className="w-14 text-[10px]">{adj.exact ? "Requested" : "Adjusted (est.)"}</span>
+                                <span className="w-14 text-[10px]">Requested</span>
                                 <span className="flex-1">
                                   ({format(adj.start, "hh:mm a")} → {adj.end ? format(adj.end, "hh:mm a") : "ongoing"})
                                 </span>
