@@ -12,6 +12,7 @@ import { useAttendanceAdjustments } from "@/hooks/useAttendanceAdjustments";
 import { useAssetRequests } from "@/hooks/useAssetRequests";
 import { useAuth } from "@/contexts/AuthContext";
 import { RejectReasonDialog } from "@/components/leave/RejectReasonDialog";
+import { CancelReasonDialog } from "@/components/leave/CancelReasonDialog";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
 import { AdminLeaveDialog } from "@/components/leave/AdminLeaveDialog";
 import { LeaveConflictDialog } from "@/components/leave/LeaveConflictDialog";
@@ -114,6 +115,8 @@ const Approvals = () => {
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [adminDialogOpen, setAdminDialogOpen] = useState(false);
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null);
   const [conflictData, setConflictData] = useState<{
     requestId: string;
     employeeName: string;
@@ -328,6 +331,20 @@ const Approvals = () => {
     }
   };
 
+  const handleOpenCancelDialog = (id: string, name: string) => {
+    setCancelTarget({ id, name });
+    setCancelDialogOpen(true);
+  };
+
+  const handleCancelApproved = async (reason: string) => {
+    if (!cancelTarget) return;
+    setProcessingId(cancelTarget.id);
+    await cancelRequest(cancelTarget.id, reason);
+    setCancelTarget(null);
+    setProcessingId(null);
+    refetch();
+  };
+
   const handleRejectDialogOpenChange = (open: boolean) => {
     setRejectDialogOpen(open);
     if (!open) setSelectedRequest(null);
@@ -453,7 +470,7 @@ const Approvals = () => {
                 size="sm"
                 variant="outline"
                 className="gap-1 text-destructive hover:bg-destructive/10"
-                onClick={() => cancelRequest(request.id, "Cancelled by management")}
+                onClick={() => handleOpenCancelDialog(request.id, employeeName)}
                 disabled={isProcessing}
               >
                 <X className="h-3 w-3" />
@@ -722,6 +739,15 @@ const Approvals = () => {
             onOpenChange={handleRejectDialogOpenChange}
             onConfirm={handleReject}
             employeeName={selectedRequest?.name || ""}
+          />
+          <CancelReasonDialog
+            open={cancelDialogOpen}
+            onOpenChange={(open) => {
+              setCancelDialogOpen(open);
+              if (!open) setCancelTarget(null);
+            }}
+            onConfirm={handleCancelApproved}
+            employeeName={cancelTarget?.name || ""}
           />
           <LeaveConflictDialog
             open={conflictDialogOpen}
