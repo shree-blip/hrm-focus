@@ -365,6 +365,14 @@ export function PayrollAttendanceLeaveTab() {
         );
         void uncovered;
         const paidLeaveRemaining = remainingNow;
+        // Unpaid leave always deducts from payroll — it can never be offset by the
+        // remaining paid balance. Other gaps (NR / uncovered days) may still be
+        // absorbed by the remaining paid leave balance.
+        const otherGap = Math.max(
+          0,
+          workingDays - adjustedPresent - unpaidLeaveDays - paidLeaveRemaining
+        );
+        const deductDays = Math.round((otherGap + unpaidLeaveDays) * 10) / 10;
 
         return {
           name: p.name,
@@ -385,7 +393,7 @@ export function PayrollAttendanceLeaveTab() {
           adjustedPresent,
           paidLeaveRemaining,
           specialRemaining,
-          deductDays: Math.max(0, workingDays - adjustedPresent - paidLeaveRemaining),
+          deductDays,
         };
       });
 
