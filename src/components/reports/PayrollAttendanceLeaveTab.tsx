@@ -418,11 +418,13 @@ export function PayrollAttendanceLeaveTab() {
           : bal
           ? Math.max(0, bal.total - bal.used + paidRegularLeave)
           : 0;
-        // Remaining balance after this month's paid leave usage.
-        // Always: entitlement (balance carried into the month) - total paid leave
-        // taken in the month = paid leave remaining.
-        const remainingNow =
-          Math.round(Math.max(0, availableBefore - paidRegularLeave) * 10) / 10;
+        // Remaining balance after this month's leave usage.
+        // Probation / intern: entitlement - Total Leave Taken (full days + half-day
+        // units) = paid leave remaining, since their pool carries forward.
+        // Full-time: entitlement - total paid leave taken = paid leave remaining.
+        const remainingNow = isMonthlyAccrual
+          ? Math.round(Math.max(0, availableBefore - totalLeaveTaken) * 10) / 10
+          : Math.round(Math.max(0, availableBefore - paidRegularLeave) * 10) / 10;
         // Probation / intern entitlement is the pool remaining after leave taken in
         // PREVIOUS months. This month's paid leave days are then subtracted from it
         // to give "Paid leave remaining" (entitlement - total paid leave = remaining).
