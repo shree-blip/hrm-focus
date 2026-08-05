@@ -142,6 +142,7 @@ export function PayrollAttendanceLeaveTab() {
         supabase
           .from("leave_requests")
           .select("user_id, start_date, end_date, leave_type, is_half_day, status")
+          .select("user_id, start_date, end_date, leave_type, is_half_day, status, reason")
           .eq("status", "approved")
           .lte("start_date", endKey)
           .gte("end_date", startKey),
