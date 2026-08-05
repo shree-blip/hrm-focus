@@ -139,7 +139,11 @@ export function PayrollAttendanceLeaveTab() {
 
       const [profilesRes, employeesRes, leavesRes] = await Promise.all([
         supabase.from("profiles").select("id, user_id, first_name, last_name, email"),
-        supabase.from("employees").select("id, profile_id, first_name, last_name, email, status, employment_type, gender"),
+        supabase
+          .from("employees")
+          .select(
+            "id, profile_id, first_name, last_name, email, status, employment_type, gender, hire_date, probation_start_date, probation_end_date"
+          ),
         supabase
           .from("leave_requests")
           .select("user_id, start_date, end_date, leave_type, is_half_day, status")
@@ -176,12 +180,74 @@ export function PayrollAttendanceLeaveTab() {
             email: e.email,
             gender: (e.gender as string | null) || null,
             employment_type: (e.employment_type as string | null) || null,
+            probation_start_date: (e as any).probation_start_date || (e as any).hire_date || null,
+            probation_end_date: (e as any).probation_end_date || null,
           };
         })
         .filter((p) => !!p.user_id)
         .sort((a, b) => a.name.localeCompare(b.name));
 
       const userIds = people.map((p) => p.user_id as string);
+
+      // ---- Probation / intern pooled paid-leave entitlement -------------------
+      // Probation staff accrue 1 paid day per probation month but may use the whole
+      // pool at once (e.g. all 3 days in month 1). Later months then have nothing
+      // left, so those absences flow into payroll deductions.
+      const probationInfo: Record<string, { pool: number; startKey: string }> = {};
+      people.forEach((p) => {
+        if (p.employment_type !== "probation" && p.employment_type !== "intern") return;
+        const uid = p.user_id as string;
+        const ps = p.probation_start_date ? String(p.probation_start_date).slice(0, 10) : null;
+        if (!ps) {
+          probationInfo[uid] = { pool: 3, startKey: "0000-00-00" };
+          return;
+        }
+        const [psy, psm] = ps.split("-").map(Number);
+        let months = 3;
+        if (p.probation_end_date) {
+          const [pey, pem] = String(p.probation_end_date).slice(0, 10).split("-").map(Number);
+          months = Math.max(1, (pey - psy) * 12 + (pem - psm) + 1);
+        }
+        probationInfo[uid] = { pool: months, startKey: ps };
+      });
+
+      // Paid regular leave already consumed from the pool BEFORE this report month.
+      const priorPoolUsed: Record<string, number> = {};
+      const probationUserIds = Object.keys(probationInfo);
+      if (probationUserIds.length > 0) {
+        const earliest = probationUserIds.reduce(
+          (min, uid) => (probationInfo[uid].startKey < min ? probationInfo[uid].startKey : min),
+          "9999-12-31"
+        );
+        const { data: priorLeaves } = await supabase
+          .from("leave_requests")
+          .select("user_id, start_date, end_date, leave_type, is_half_day, reason")
+          .in("user_id", probationUserIds)
+          .eq("status", "approved")
+          .lt("start_date", startKey)
+          .gte("end_date", earliest);
+        (priorLeaves || []).forEach((r: any) => {
+          const info = probationInfo[r.user_id];
+          if (!info) return;
+          if (isUnpaidReason(r.reason)) return;
+          if (SPECIAL_LEAVES.some((s) => s.match.test(r.leave_type || ""))) return;
+          if (/lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "")) return;
+          const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
+          const [ey, em, ed] = String(r.end_date).split("-").map(Number);
+          const cur = new Date(sy, sm - 1, sd);
+          const end = new Date(ey, em - 1, ed);
+          while (cur <= end) {
+            const k = keyOf(cur.getFullYear(), cur.getMonth(), cur.getDate());
+            const dow = cur.getDay();
+            if (k >= info.startKey && k < startKey && dow !== 0 && dow !== 6) {
+              priorPoolUsed[r.user_id] =
+                (priorPoolUsed[r.user_id] || 0) + (r.is_half_day ? 0.5 : 1);
+            }
+            cur.setDate(cur.getDate() + 1);
+          }
+        });
+      }
+
       const balanceMap: Record<string, { total: number; used: number }> = {};
       if (userIds.length > 0) {
         const { data: balances } = await supabase
