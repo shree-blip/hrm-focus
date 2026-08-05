@@ -16,7 +16,7 @@ const SPECIAL_LEAVES = [
   { key: "paternity", label: "Paternity Leave", cap: 22, match: /paternity/i },
 ] as const;
 
-type DayCode = "P" | "A" | "HD" | "NR" | "H" | "WH";
+type DayCode = "P" | "A" | "HD" | "NR" | "H" | "WH" | "LL";
 
 interface Row {
   name: string;
@@ -26,6 +26,7 @@ interface Row {
   presentCount: number;
   absentCount: number;
   halfDayCount: number;
+  lieuCount: number;
   totalLeaveTaken: number;
   totalPresentCount: number;
   workingDays: number;
@@ -208,16 +209,24 @@ export function PayrollAttendanceLeaveTab() {
         let presentCount = 0;
         let absentCount = 0;
         let halfDayCount = 0;
+        let lieuCount = 0;
         const special: Record<string, number> = {};
 
         dayKeys.forEach((k, i) => {
           const dow = new Date(year, monthIdx, i + 1).getDay();
           const isWeekend = dow === 0 || dow === 6;
+          const isHoliday = holidaySet.has(k) || extraHolidays.has(k);
+          // Worked on a weekend or public holiday → earns Leave in Lieu (LL).
+          if ((isWeekend || isHoliday) && worked.has(k)) {
+            days[k] = "LL";
+            lieuCount++;
+            return;
+          }
           if (isWeekend) {
             days[k] = "WH";
             return;
           }
-          if (holidaySet.has(k) || extraHolidays.has(k)) {
+          if (isHoliday) {
             days[k] = "H";
             return;
           }
@@ -284,6 +293,7 @@ export function PayrollAttendanceLeaveTab() {
           presentCount,
           absentCount,
           halfDayCount,
+          lieuCount,
           totalLeaveTaken: regularLeave,
           totalPresentCount,
           workingDays,
@@ -334,6 +344,7 @@ export function PayrollAttendanceLeaveTab() {
       "Present count",
       "Absent Count",
       "Half day count",
+      "Leave in Lieu earned",
       "Total Leave taken",
       "Total Present Count",
       "Working Days",
@@ -347,6 +358,7 @@ export function PayrollAttendanceLeaveTab() {
     const header2 = [
       "Name",
       ...dayNames,
+      "",
       "",
       "",
       "",
@@ -375,6 +387,7 @@ export function PayrollAttendanceLeaveTab() {
         r.presentCount,
         r.absentCount,
         r.halfDayCount,
+        r.lieuCount,
         r.totalLeaveTaken,
         r.totalPresentCount,
         r.workingDays,
@@ -390,7 +403,7 @@ export function PayrollAttendanceLeaveTab() {
 
     csv += "\n";
     csv += csvCell("Note:") + "\n";
-  csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday") + "\n";
+  csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday, LL = Leave in Lieu (worked on weekend/holiday)") + "\n";
     csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance - leave not covered") + "\n";
     csv += csvCell("Deduct days from payroll = Working Days - Total Present days after Adjustment - Paid leave remaining") + "\n";
 
@@ -446,6 +459,7 @@ export function PayrollAttendanceLeaveTab() {
                   <th className="px-2 py-2 text-center font-semibold">Present</th>
                   <th className="px-2 py-2 text-center font-semibold">Absent</th>
                   <th className="px-2 py-2 text-center font-semibold">Half day</th>
+                  <th className="px-2 py-2 text-center font-semibold">Leave in Lieu</th>
                   <th className="px-2 py-2 text-center font-semibold">Total Leave taken</th>
                   <th className="px-2 py-2 text-center font-semibold">Total Present Count</th>
                   <th className="px-2 py-2 text-center font-semibold">Working Days</th>
@@ -471,7 +485,7 @@ export function PayrollAttendanceLeaveTab() {
                       {new Date(year, monthIdx, i + 1).toLocaleDateString("en-US", { weekday: "narrow" })}
                     </th>
                   ))}
-                  <th colSpan={10 + SPECIAL_LEAVES.length * 2} />
+                  <th colSpan={11 + SPECIAL_LEAVES.length * 2} />
                 </tr>
               </thead>
               <tbody>
@@ -486,6 +500,7 @@ export function PayrollAttendanceLeaveTab() {
                     <td className="px-2 py-1 text-center">{r.presentCount}</td>
                     <td className="px-2 py-1 text-center">{r.absentCount}</td>
                     <td className="px-2 py-1 text-center">{r.halfDayCount}</td>
+                    <td className="px-2 py-1 text-center">{r.lieuCount}</td>
                     <td className="px-2 py-1 text-center">{r.totalLeaveTaken}</td>
                     <td className="px-2 py-1 text-center">{r.totalPresentCount}</td>
                     <td className="px-2 py-1 text-center">{r.workingDays}</td>
@@ -508,7 +523,7 @@ export function PayrollAttendanceLeaveTab() {
               </tbody>
             </table>
             <p className="mt-4 text-xs text-muted-foreground">
-              P = Present · A = Absent (full-day leave) · HD = Half day · NR = Non recorded · WH = Weekend (Sat/Sun) · H = Public Holiday
+              P = Present · A = Absent (full-day leave) · HD = Half day · NR = Non recorded · WH = Weekend (Sat/Sun) · H = Public Holiday · LL = Leave in Lieu (worked on weekend/holiday)
             </p>
           </div>
         )}
