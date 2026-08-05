@@ -408,23 +408,22 @@ export function PayrollAttendanceLeaveTab() {
         // Intern / probation staff accrue 1 paid leave day per month, so their
         // monthly report must be judged against that monthly allowance instead of
         // the aggregate fiscal-year balance (which may already be exhausted).
-        const isMonthlyAccrual =
-          p.employment_type === "probation" || p.employment_type === "intern";
-        const monthlyAllowance = 1;
-        // Annual entitlement comes straight from the leave balance record:
-        // 12 days/year for full-time, prorated (1/month) for intern & probation.
-        const annualEntitlement = isMonthlyAccrual ? monthlyAllowance : bal ? bal.total : 0;
-        // Remaining balance already has this fiscal year's usage deducted.
-        const remainingNow = isMonthlyAccrual
-          ? Math.round(Math.max(0, monthlyAllowance - paidRegularLeave) * 10) / 10
-          : bal
-          ? Math.max(0, bal.total - bal.used)
-          : 0;
+        const pool = probationInfo[uid];
+        const isMonthlyAccrual = !!pool;
+        // Probation / intern: one pooled entitlement for the whole probation period
+        // (1 day per probation month, 3 by default) that can be taken all at once.
+        const annualEntitlement = isMonthlyAccrual ? pool.pool : bal ? bal.total : 0;
         // Balance available at the start of this reporting month.
         const availableBefore = isMonthlyAccrual
-          ? monthlyAllowance
+          ? Math.max(0, pool.pool - (priorPoolUsed[uid] || 0))
           : bal
           ? Math.max(0, bal.total - bal.used + paidRegularLeave)
+          : 0;
+        // Remaining balance after this month's paid leave usage.
+        const remainingNow = isMonthlyAccrual
+          ? Math.round(Math.max(0, availableBefore - paidRegularLeave) * 10) / 10
+          : bal
+          ? Math.max(0, bal.total - bal.used)
           : 0;
 
         const covered = Math.min(paidRegularLeave, availableBefore);
