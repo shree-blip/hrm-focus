@@ -220,11 +220,11 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                           <div className="flex flex-col gap-0.5">
                             <span>
                               {req.attendance_log?.clock_in
-                                ? format(new Date(req.attendance_log.clock_in), "EEE, MMM d")
+                                ? format(new Date(req.attendance_log.clock_in), "EEE, MMM d, yyyy")
                                 : "-"}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              Requested: {format(new Date(req.created_at), "MMM d, h:mm a")}
+                              Requested: {format(new Date(req.created_at), "MMM d, yyyy h:mm a")}
                             </span>
                           </div>
                         </TableCell>
