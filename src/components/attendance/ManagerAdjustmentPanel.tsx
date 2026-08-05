@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ThumbsUp, ThumbsDown, ClipboardList, AlertTriangle, ShieldAlert } from "lucide-react";
 import {
@@ -35,6 +36,7 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
   const [overrideDialog, setOverrideDialog] = useState<{ req: AdjustmentRequest } | null>(null);
   const [overrideComment, setOverrideComment] = useState("");
   const [overrideDecision, setOverrideDecision] = useState<"approved" | "rejected">("rejected");
+  const [historyMonth, setHistoryMonth] = useState<string>("all");
   const { fetchSessions, getSessions, isLoading } = useBreakSessions();
 
   useEffect(() => {
@@ -45,6 +47,18 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
 
   const pending = requests.filter((r) => r.status === "pending");
   const reviewed = requests.filter((r) => r.status !== "pending");
+
+  const monthKeyOf = (req: AdjustmentRequest) => {
+    const base = req.attendance_log?.clock_in || req.created_at;
+    return format(new Date(base), "yyyy-MM");
+  };
+
+  const monthOptions = Array.from(new Set(reviewed.map(monthKeyOf)))
+    .sort((a, b) => (a < b ? 1 : -1))
+    .map((key) => ({ key, label: format(new Date(`${key}-01T00:00:00`), "MMMM yyyy") }));
+
+  const filteredReviewed =
+    historyMonth === "all" ? reviewed : reviewed.filter((r) => monthKeyOf(r) === historyMonth);
 
   const handleDecision = async (decision: "approved" | "rejected") => {
     if (!selectedRequest || !comment.trim()) return;
