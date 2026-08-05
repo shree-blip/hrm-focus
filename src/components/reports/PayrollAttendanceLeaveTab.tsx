@@ -166,9 +166,11 @@ export function PayrollAttendanceLeaveTab() {
       // Leave dates per user, split into regular vs special leave.
       // Multiple half-day requests on the SAME date are accumulated so that
       // two halves (first + second half) correctly count as one full day.
-      const leaveMap: Record<string, Record<string, { amount: number; special: string | null }>> = {};
+      const leaveMap: Record<string, Record<string, { amount: number; special: string | null; lieu: boolean }>> = {};
       (leavesRes.data || []).forEach((r: any) => {
         const special = SPECIAL_LEAVES.find((s) => s.match.test(r.leave_type || ""))?.key || null;
+        // Leave in lieu (compensatory off for weekend/holiday work).
+        const isLieu = /lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "");
         const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
         const [ey, em, ed] = String(r.end_date).split("-").map(Number);
         const cur = new Date(sy, sm - 1, sd);
@@ -182,6 +184,7 @@ export function PayrollAttendanceLeaveTab() {
             byUser[k] = {
               amount: Math.min(1, (existing?.amount || 0) + add),
               special: existing?.special || special,
+              lieu: Boolean(existing?.lieu || isLieu),
             };
           }
           cur.setDate(cur.getDate() + 1);
@@ -216,10 +219,17 @@ export function PayrollAttendanceLeaveTab() {
           const dow = new Date(year, monthIdx, i + 1).getDay();
           const isWeekend = dow === 0 || dow === 6;
           const isHoliday = holidaySet.has(k) || extraHolidays.has(k);
-          // Worked on a weekend or public holiday → earns Leave in Lieu (LL).
-          if ((isWeekend || isHoliday) && worked.has(k)) {
+          const leaveHere = leaves[k];
+          // Leave in lieu taken → LL, on any day (incl. weekend/holiday).
+          if (leaveHere?.lieu) {
             days[k] = "LL";
             lieuCount++;
+            return;
+          }
+          // Worked on a weekend or public holiday → still shown as Present.
+          if ((isWeekend || isHoliday) && worked.has(k)) {
+            days[k] = "P";
+            presentCount++;
             return;
           }
           if (isWeekend) {
@@ -278,9 +288,11 @@ export function PayrollAttendanceLeaveTab() {
         // + paid leave days covered by the annual balance + special leave days within cap.
         // Uncovered (unpaid) leave days are simply NOT added — subtracting them again
         // would double-penalise the employee.
+        // Leave-in-lieu days are compensatory time off already earned by working a
+        // weekend/holiday, so they count as present days (never a payroll deduction).
         const adjustedPresent = Math.min(
           workingDays,
-          totalPresentCount + covered + specialCovered
+          totalPresentCount + covered + specialCovered + lieuCount
         );
         void uncovered;
         const paidLeaveRemaining = remainingNow;
@@ -344,7 +356,7 @@ export function PayrollAttendanceLeaveTab() {
       "Present count",
       "Absent Count",
       "Half day count",
-      "Leave in Lieu earned",
+      "Leave in Lieu taken",
       "Total Leave taken",
       "Total Present Count",
       "Working Days",
@@ -403,7 +415,7 @@ export function PayrollAttendanceLeaveTab() {
 
     csv += "\n";
     csv += csvCell("Note:") + "\n";
-  csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday, LL = Leave in Lieu (worked on weekend/holiday)") + "\n";
+  csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday, LL = Leave in Lieu taken (compensatory off for weekend/holiday work)") + "\n";
     csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance - leave not covered") + "\n";
     csv += csvCell("Deduct days from payroll = Working Days - Total Present days after Adjustment - Paid leave remaining") + "\n";
 
@@ -523,7 +535,7 @@ export function PayrollAttendanceLeaveTab() {
               </tbody>
             </table>
             <p className="mt-4 text-xs text-muted-foreground">
-              P = Present · A = Absent (full-day leave) · HD = Half day · NR = Non recorded · WH = Weekend (Sat/Sun) · H = Public Holiday · LL = Leave in Lieu (worked on weekend/holiday)
+              P = Present · A = Absent (full-day leave) · HD = Half day · NR = Non recorded · WH = Weekend (Sat/Sun) · H = Public Holiday · LL = Leave in Lieu taken (compensatory off for weekend/holiday work)
             </p>
           </div>
         )}
