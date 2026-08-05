@@ -166,9 +166,11 @@ export function PayrollAttendanceLeaveTab() {
       // Leave dates per user, split into regular vs special leave.
       // Multiple half-day requests on the SAME date are accumulated so that
       // two halves (first + second half) correctly count as one full day.
-      const leaveMap: Record<string, Record<string, { amount: number; special: string | null }>> = {};
+      const leaveMap: Record<string, Record<string, { amount: number; special: string | null; lieu: boolean }>> = {};
       (leavesRes.data || []).forEach((r: any) => {
         const special = SPECIAL_LEAVES.find((s) => s.match.test(r.leave_type || ""))?.key || null;
+        // Leave in lieu (compensatory off for weekend/holiday work).
+        const isLieu = /lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "");
         const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
         const [ey, em, ed] = String(r.end_date).split("-").map(Number);
         const cur = new Date(sy, sm - 1, sd);
@@ -182,6 +184,7 @@ export function PayrollAttendanceLeaveTab() {
             byUser[k] = {
               amount: Math.min(1, (existing?.amount || 0) + add),
               special: existing?.special || special,
+              lieu: Boolean(existing?.lieu || isLieu),
             };
           }
           cur.setDate(cur.getDate() + 1);
