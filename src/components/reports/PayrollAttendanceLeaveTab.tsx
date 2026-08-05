@@ -27,6 +27,7 @@ interface Row {
   absentCount: number;
   halfDayCount: number;
   lieuCount: number;
+  unpaidLeaveDays: number;
   totalLeaveTaken: number;
   totalPresentCount: number;
   workingDays: number;
@@ -40,6 +41,11 @@ interface Row {
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
+/** Approved leave is unpaid when the reason carries an unpaid/payroll tag. */
+const isUnpaidReason = (reason: string | null) => {
+  const m = /\[(Payroll|Paid Leave|Unpaid Leave)\]/i.exec(reason || "");
+  return !!m && m[1].toLowerCase() !== "paid leave";
+};
 const keyOf = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const csvCell = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
@@ -136,6 +142,7 @@ export function PayrollAttendanceLeaveTab() {
         supabase
           .from("leave_requests")
           .select("user_id, start_date, end_date, leave_type, is_half_day, status")
+          .select("user_id, start_date, end_date, leave_type, is_half_day, status, reason")
           .eq("status", "approved")
           .lte("start_date", endKey)
           .gte("end_date", startKey),
@@ -204,12 +211,14 @@ export function PayrollAttendanceLeaveTab() {
       // `amount` is the capped day value (max 1) used for the day code / absent count.
       const leaveMap: Record<
         string,
-        Record<string, { amount: number; half: number; special: string | null; lieu: boolean }>
+        Record<string, { amount: number; half: number; unpaid: number; special: string | null; lieu: boolean }>
       > = {};
       (leavesRes.data || []).forEach((r: any) => {
         const special = SPECIAL_LEAVES.find((s) => s.match.test(r.leave_type || ""))?.key || null;
         // Leave in lieu (compensatory off for weekend/holiday work).
         const isLieu = /lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "");
+        // Unpaid ("[Unpaid Leave]"/"[Payroll]") leave never consumes the paid balance.
+        const unpaid = isUnpaidReason(r.reason);
         const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
         const [ey, em, ed] = String(r.end_date).split("-").map(Number);
         const cur = new Date(sy, sm - 1, sd);
@@ -223,6 +232,7 @@ export function PayrollAttendanceLeaveTab() {
             byUser[k] = {
               amount: Math.min(1, (existing?.amount || 0) + add),
               half: (existing?.half || 0) + (r.is_half_day ? 0.5 : 0),
+              unpaid: Math.min(1, (existing?.unpaid || 0) + (unpaid ? add : 0)),
               special: existing?.special || special,
               lieu: Boolean(existing?.lieu || isLieu),
             };
@@ -257,6 +267,9 @@ export function PayrollAttendanceLeaveTab() {
         let halfDayCount = 0;
         let halfPresentCredit = 0;
         let lieuCount = 0;
+        // Leave days explicitly marked unpaid — these never consume the paid
+        // balance and always end up as payroll deductions.
+        let unpaidLeaveDays = 0;
         const special: Record<string, number> = {};
 
         dayKeys.forEach((k, i) => {
@@ -287,6 +300,7 @@ export function PayrollAttendanceLeaveTab() {
           const leave = leaves[k];
           if (leave) {
             if (leave.special) special[leave.special] = (special[leave.special] || 0) + leave.amount;
+            else unpaidLeaveDays += Math.min(leave.unpaid, leave.amount);
             halfDayCount += leave.half;
             if (leave.amount < 1) {
               days[k] = "HD";
@@ -308,6 +322,8 @@ export function PayrollAttendanceLeaveTab() {
         const specialTotal = Object.values(special).reduce((a, b) => a + b, 0);
         const totalLeaveTaken = absentCount + halfPresentCredit - specialTotal;
         const regularLeave = Math.max(0, totalLeaveTaken);
+        // Paid portion of regular leave (unpaid-tagged days are excluded).
+        const paidRegularLeave = Math.max(0, regularLeave - unpaidLeaveDays);
         const totalPresentCount = presentCount + halfPresentCredit;
         const bal = balanceMap[uid];
         // Annual entitlement comes straight from the leave balance record:
@@ -316,9 +332,9 @@ export function PayrollAttendanceLeaveTab() {
         // Remaining balance already has this fiscal year's usage deducted.
         const remainingNow = bal ? Math.max(0, bal.total - bal.used) : 0;
         // Balance available at the start of this reporting month.
-        const availableBefore = bal ? Math.max(0, bal.total - bal.used + regularLeave) : 0;
+        const availableBefore = bal ? Math.max(0, bal.total - bal.used + paidRegularLeave) : 0;
 
-        const covered = Math.min(regularLeave, availableBefore);
+        const covered = Math.min(paidRegularLeave, availableBefore);
         const uncovered = regularLeave - covered;
 
         const specialRemaining: Record<string, number> = {};
@@ -351,6 +367,7 @@ export function PayrollAttendanceLeaveTab() {
           absentCount,
           halfDayCount,
           lieuCount,
+          unpaidLeaveDays,
           totalLeaveTaken: regularLeave,
           totalPresentCount,
           workingDays,
@@ -402,6 +419,7 @@ export function PayrollAttendanceLeaveTab() {
       "Absent Count",
       "Half day count",
       "Leave in Lieu taken",
+      "Unpaid leave days",
       "Total Leave taken",
       "Total Present Count",
       "Working Days",
@@ -415,6 +433,7 @@ export function PayrollAttendanceLeaveTab() {
     const header2 = [
       "Name",
       ...dayNames,
+      "",
       "",
       "",
       "",
@@ -445,6 +464,7 @@ export function PayrollAttendanceLeaveTab() {
         r.absentCount,
         r.halfDayCount,
         r.lieuCount,
+        r.unpaidLeaveDays,
         r.totalLeaveTaken,
         r.totalPresentCount,
         r.workingDays,
@@ -461,7 +481,7 @@ export function PayrollAttendanceLeaveTab() {
     csv += "\n";
     csv += csvCell("Note:") + "\n";
   csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday, LL = Leave in Lieu taken (compensatory off for weekend/holiday work)") + "\n";
-    csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance - leave not covered") + "\n";
+    csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance + special leave within cap + leave in lieu (unpaid leave days are excluded)") + "\n";
     csv += csvCell("Deduct days from payroll = Working Days - Total Present days after Adjustment - Paid leave remaining") + "\n";
     csv +=
       csvCell(
@@ -535,6 +555,7 @@ export function PayrollAttendanceLeaveTab() {
                   <th className="px-2 py-2 text-center font-semibold">Absent</th>
                   <th className="px-2 py-2 text-center font-semibold">Half day</th>
                   <th className="px-2 py-2 text-center font-semibold">Leave in Lieu</th>
+                  <th className="px-2 py-2 text-center font-semibold">Unpaid leave</th>
                   <th className="px-2 py-2 text-center font-semibold">Total Leave taken</th>
                   <th className="px-2 py-2 text-center font-semibold">Total Present Count</th>
                   <th className="px-2 py-2 text-center font-semibold">Working Days</th>
@@ -560,7 +581,7 @@ export function PayrollAttendanceLeaveTab() {
                       {new Date(year, monthIdx, i + 1).toLocaleDateString("en-US", { weekday: "narrow" })}
                     </th>
                   ))}
-                  <th colSpan={11 + SPECIAL_LEAVES.length * 2} />
+                  <th colSpan={12 + SPECIAL_LEAVES.length * 2} />
                 </tr>
               </thead>
               <tbody>
@@ -576,6 +597,7 @@ export function PayrollAttendanceLeaveTab() {
                     <td className="px-2 py-1 text-center">{r.absentCount}</td>
                     <td className="px-2 py-1 text-center">{r.halfDayCount}</td>
                     <td className="px-2 py-1 text-center">{r.lieuCount}</td>
+                    <td className="px-2 py-1 text-center">{r.unpaidLeaveDays}</td>
                     <td className="px-2 py-1 text-center">{r.totalLeaveTaken}</td>
                     <td className="px-2 py-1 text-center">{r.totalPresentCount}</td>
                     <td className="px-2 py-1 text-center">{r.workingDays}</td>
