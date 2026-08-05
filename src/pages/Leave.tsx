@@ -685,6 +685,13 @@ const Leave = () => {
                           {format(parseDateOnly(request.start_date), "MMM d, yyyy")} -{" "}
                           {format(parseDateOnly(request.end_date), "MMM d, yyyy")}
                         </span>
+                        {request.is_half_day && (
+                          <Badge variant="outline" className="text-xs">
+                            {request.half_day_period === "second_half"
+                              ? "Second Half (Afternoon)"
+                              : "First Half (Morning)"}
+                          </Badge>
+                        )}
                       </div>
                       {request.created_at && (
                         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
