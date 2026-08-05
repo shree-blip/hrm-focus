@@ -419,6 +419,7 @@ export function PayrollAttendanceLeaveTab() {
       "Absent Count",
       "Half day count",
       "Leave in Lieu taken",
+      "Unpaid leave days",
       "Total Leave taken",
       "Total Present Count",
       "Working Days",
@@ -432,6 +433,7 @@ export function PayrollAttendanceLeaveTab() {
     const header2 = [
       "Name",
       ...dayNames,
+      "",
       "",
       "",
       "",
@@ -462,6 +464,7 @@ export function PayrollAttendanceLeaveTab() {
         r.absentCount,
         r.halfDayCount,
         r.lieuCount,
+        r.unpaidLeaveDays,
         r.totalLeaveTaken,
         r.totalPresentCount,
         r.workingDays,
@@ -478,7 +481,7 @@ export function PayrollAttendanceLeaveTab() {
     csv += "\n";
     csv += csvCell("Note:") + "\n";
   csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday, LL = Leave in Lieu taken (compensatory off for weekend/holiday work)") + "\n";
-    csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance - leave not covered") + "\n";
+    csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance + special leave within cap + leave in lieu (unpaid leave days are excluded)") + "\n";
     csv += csvCell("Deduct days from payroll = Working Days - Total Present days after Adjustment - Paid leave remaining") + "\n";
     csv +=
       csvCell(
@@ -552,6 +555,7 @@ export function PayrollAttendanceLeaveTab() {
                   <th className="px-2 py-2 text-center font-semibold">Absent</th>
                   <th className="px-2 py-2 text-center font-semibold">Half day</th>
                   <th className="px-2 py-2 text-center font-semibold">Leave in Lieu</th>
+                  <th className="px-2 py-2 text-center font-semibold">Unpaid leave</th>
                   <th className="px-2 py-2 text-center font-semibold">Total Leave taken</th>
                   <th className="px-2 py-2 text-center font-semibold">Total Present Count</th>
                   <th className="px-2 py-2 text-center font-semibold">Working Days</th>
@@ -577,7 +581,7 @@ export function PayrollAttendanceLeaveTab() {
                       {new Date(year, monthIdx, i + 1).toLocaleDateString("en-US", { weekday: "narrow" })}
                     </th>
                   ))}
-                  <th colSpan={11 + SPECIAL_LEAVES.length * 2} />
+                  <th colSpan={12 + SPECIAL_LEAVES.length * 2} />
                 </tr>
               </thead>
               <tbody>
@@ -593,6 +597,7 @@ export function PayrollAttendanceLeaveTab() {
                     <td className="px-2 py-1 text-center">{r.absentCount}</td>
                     <td className="px-2 py-1 text-center">{r.halfDayCount}</td>
                     <td className="px-2 py-1 text-center">{r.lieuCount}</td>
+                    <td className="px-2 py-1 text-center">{r.unpaidLeaveDays}</td>
                     <td className="px-2 py-1 text-center">{r.totalLeaveTaken}</td>
                     <td className="px-2 py-1 text-center">{r.totalPresentCount}</td>
                     <td className="px-2 py-1 text-center">{r.workingDays}</td>
