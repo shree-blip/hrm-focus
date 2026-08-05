@@ -463,6 +463,17 @@ export function PayrollAttendanceLeaveTab() {
   csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday, LL = Leave in Lieu taken (compensatory off for weekend/holiday work)") + "\n";
     csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance - leave not covered") + "\n";
     csv += csvCell("Deduct days from payroll = Working Days - Total Present days after Adjustment - Paid leave remaining") + "\n";
+    csv +=
+      csvCell(
+        `Working days for ${monthLabel} = ${workingDaysInfo.weekdays} weekdays (Mon-Fri) - ${workingDaysInfo.holidays.length} calendar holiday(s) = ${workingDaysInfo.working}`,
+      ) + "\n";
+    if (workingDaysInfo.holidays.length)
+      csv += csvCell(`Calendar holidays: ${workingDaysInfo.holidays.join("; ")}`) + "\n";
+    if (workingDaysInfo.femaleHolidays.length)
+      csv +=
+        csvCell(
+          `Female-only holidays (working days ${workingDaysInfo.workingFemale} for female employees): ${workingDaysInfo.femaleHolidays.join("; ")}`,
+        ) + "\n";
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
