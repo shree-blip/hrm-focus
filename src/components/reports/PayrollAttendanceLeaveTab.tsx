@@ -82,6 +82,41 @@ export function PayrollAttendanceLeaveTab() {
     return { holidaySet: set, femaleHolidaySet: femaleSet };
   }, [calendarEvents]);
 
+  // Auditable working-days breakdown for the selected month: weekdays (Mon–Fri)
+  // minus only the holidays actually present in the company calendar.
+  const workingDaysInfo = useMemo(() => {
+    const names = new Map<string, string>();
+    const femaleNames = new Map<string, string>();
+    calendarEntries.forEach((e) => {
+      if (!["holiday", "company_leave", "non_working", "leave"].includes(e.type)) return;
+      const k = keyOf(e.date.getFullYear(), e.date.getMonth(), e.date.getDate());
+      (isFemaleOnly((e as any).name) ? femaleNames : names).set(k, (e as any).name);
+    });
+    (calendarEvents || []).forEach((ev: any) => {
+      if (!["holiday", "company_leave", "non_working", "leave"].includes(ev.event_type)) return;
+      (isFemaleOnly(ev.title) ? femaleNames : names).set(ev.event_date, ev.title);
+    });
+
+    let weekdays = 0;
+    const holidays: string[] = [];
+    const femaleHolidays: string[] = [];
+    dayKeys.forEach((k, i) => {
+      const dow = new Date(year, monthIdx, i + 1).getDay();
+      if (dow === 0 || dow === 6) return;
+      weekdays++;
+      if (names.has(k)) holidays.push(`${k} ${names.get(k)}`);
+      else if (femaleNames.has(k)) femaleHolidays.push(`${k} ${femaleNames.get(k)}`);
+    });
+
+    return {
+      weekdays,
+      holidays,
+      femaleHolidays,
+      working: weekdays - holidays.length,
+      workingFemale: weekdays - holidays.length - femaleHolidays.length,
+    };
+  }, [calendarEvents, dayKeys, year, monthIdx]);
+
   useEffect(() => {
     let cancelled = false;
 
