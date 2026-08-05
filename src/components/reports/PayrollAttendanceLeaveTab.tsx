@@ -41,6 +41,11 @@ interface Row {
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
+/** Approved leave is unpaid when the reason carries an unpaid/payroll tag. */
+const isUnpaidReason = (reason: string | null) => {
+  const m = /\[(Payroll|Paid Leave|Unpaid Leave)\]/i.exec(reason || "");
+  return !!m && m[1].toLowerCase() !== "paid leave";
+};
 const keyOf = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const csvCell = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
