@@ -175,10 +175,10 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">History</p>
                 <Select value={historyMonth} onValueChange={setHistoryMonth}>
                   <SelectTrigger className="h-8 w-[180px] text-xs">
-                    <SelectValue placeholder="Filter by month" />
+                    <SelectValue placeholder="Attendance month" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All months</SelectItem>
+                    <SelectItem value="all">All attendance months</SelectItem>
                     {monthOptions.map((m) => (
                       <SelectItem key={m.key} value={m.key}>
                         {m.label}
@@ -220,11 +220,11 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                           <div className="flex flex-col gap-0.5">
                             <span>
                               {req.attendance_log?.clock_in
-                                ? format(new Date(req.attendance_log.clock_in), "EEE, MMM d")
+                                ? format(new Date(req.attendance_log.clock_in), "EEE, MMM d, yyyy")
                                 : "-"}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              Requested: {format(new Date(req.created_at), "MMM d, h:mm a")}
+                              Requested: {format(new Date(req.created_at), "MMM d, yyyy h:mm a")}
                             </span>
                           </div>
                         </TableCell>
