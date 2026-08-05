@@ -164,9 +164,13 @@ export function PayrollAttendanceLeaveTab() {
       });
 
       // Leave dates per user, split into regular vs special leave.
-      // Multiple half-day requests on the SAME date are accumulated so that
-      // two halves (first + second half) correctly count as one full day.
-      const leaveMap: Record<string, Record<string, { amount: number; special: string | null; lieu: boolean }>> = {};
+      // `half` keeps the RAW half-day units requested on that date (0.5 each, never
+      // capped) so the "Half day count" column reflects every half day taken, while
+      // `amount` is the capped day value (max 1) used for the day code / absent count.
+      const leaveMap: Record<
+        string,
+        Record<string, { amount: number; half: number; special: string | null; lieu: boolean }>
+      > = {};
       (leavesRes.data || []).forEach((r: any) => {
         const special = SPECIAL_LEAVES.find((s) => s.match.test(r.leave_type || ""))?.key || null;
         // Leave in lieu (compensatory off for weekend/holiday work).
@@ -183,6 +187,7 @@ export function PayrollAttendanceLeaveTab() {
             const add = r.is_half_day ? 0.5 : 1;
             byUser[k] = {
               amount: Math.min(1, (existing?.amount || 0) + add),
+              half: (existing?.half || 0) + (r.is_half_day ? 0.5 : 0),
               special: existing?.special || special,
               lieu: Boolean(existing?.lieu || isLieu),
             };
