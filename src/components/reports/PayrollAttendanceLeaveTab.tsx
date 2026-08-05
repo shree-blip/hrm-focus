@@ -356,7 +356,7 @@ export function PayrollAttendanceLeaveTab() {
       "Present count",
       "Absent Count",
       "Half day count",
-      "Leave in Lieu earned",
+      "Leave in Lieu taken",
       "Total Leave taken",
       "Total Present Count",
       "Working Days",
@@ -415,7 +415,7 @@ export function PayrollAttendanceLeaveTab() {
 
     csv += "\n";
     csv += csvCell("Note:") + "\n";
-  csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday, LL = Leave in Lieu (worked on weekend/holiday)") + "\n";
+  csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday, LL = Leave in Lieu taken (compensatory off for weekend/holiday work)") + "\n";
     csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance - leave not covered") + "\n";
     csv += csvCell("Deduct days from payroll = Working Days - Total Present days after Adjustment - Paid leave remaining") + "\n";
 
@@ -535,7 +535,7 @@ export function PayrollAttendanceLeaveTab() {
               </tbody>
             </table>
             <p className="mt-4 text-xs text-muted-foreground">
-              P = Present · A = Absent (full-day leave) · HD = Half day · NR = Non recorded · WH = Weekend (Sat/Sun) · H = Public Holiday · LL = Leave in Lieu (worked on weekend/holiday)
+              P = Present · A = Absent (full-day leave) · HD = Half day · NR = Non recorded · WH = Weekend (Sat/Sun) · H = Public Holiday · LL = Leave in Lieu taken (compensatory off for weekend/holiday work)
             </p>
           </div>
         )}
