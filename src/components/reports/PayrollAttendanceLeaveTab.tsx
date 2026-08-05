@@ -27,6 +27,7 @@ interface Row {
   absentCount: number;
   halfDayCount: number;
   lieuCount: number;
+  unpaidLeaveDays: number;
   totalLeaveTaken: number;
   totalPresentCount: number;
   workingDays: number;
