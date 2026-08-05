@@ -171,7 +171,25 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
           {/* History */}
           {reviewed.length > 0 && (
             <div className="mt-4">
-              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">History</p>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">History</p>
+                <Select value={historyMonth} onValueChange={setHistoryMonth}>
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <SelectValue placeholder="Filter by month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All months</SelectItem>
+                    {monthOptions.map((m) => (
+                      <SelectItem key={m.key} value={m.key}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {filteredReviewed.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No requests for this month</p>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -184,7 +202,7 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reviewed.slice(0, 10).map((req) => {
+                  {(historyMonth === "all" ? filteredReviewed.slice(0, 10) : filteredReviewed).map((req) => {
                     const empName = req.requester_profile
                       ? `${req.requester_profile.first_name} ${req.requester_profile.last_name}`
                       : "Employee";
