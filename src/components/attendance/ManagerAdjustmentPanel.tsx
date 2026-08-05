@@ -175,10 +175,10 @@ export function ManagerAdjustmentPanel({ requests, onReview, onOverride, canOver
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">History</p>
                 <Select value={historyMonth} onValueChange={setHistoryMonth}>
                   <SelectTrigger className="h-8 w-[180px] text-xs">
-                    <SelectValue placeholder="Filter by month" />
+                    <SelectValue placeholder="Attendance month" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All months</SelectItem>
+                    <SelectItem value="all">All attendance months</SelectItem>
                     {monthOptions.map((m) => (
                       <SelectItem key={m.key} value={m.key}>
                         {m.label}
