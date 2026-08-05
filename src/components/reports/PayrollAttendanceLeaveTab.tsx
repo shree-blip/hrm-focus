@@ -478,6 +478,7 @@ export function PayrollAttendanceLeaveTab() {
     csv += header2.map(csvCell).join(",") + "\n";
 
     rows.forEach((r) => {
+      const exportedTotalLeaveTaken = Math.round((r.absentCount + r.halfDayCount) * 10) / 10;
       const line = [
         r.name,
         ...dayKeys.map((k) => r.days[k]),
@@ -489,7 +490,7 @@ export function PayrollAttendanceLeaveTab() {
         r.lieuCount,
         r.unpaidLeaveDays,
         r.paidLeaveDays,
-        r.totalLeaveTaken,
+        exportedTotalLeaveTaken,
         r.totalPresentCount,
         r.workingDays,
         r.annualEntitlement,
