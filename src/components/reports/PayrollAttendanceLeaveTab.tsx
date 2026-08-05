@@ -491,6 +491,13 @@ export function PayrollAttendanceLeaveTab() {
         <div>
           <CardTitle>Payroll, Leave & Attendance Balance</CardTitle>
           <CardDescription>Day-wise attendance codes with leave balances and payroll deduction — {monthLabel}</CardDescription>
+          <CardDescription className="mt-1">
+            Working days: {workingDaysInfo.working} ({workingDaysInfo.weekdays} weekdays Mon–Fri
+            {workingDaysInfo.holidays.length > 0 && <> − {workingDaysInfo.holidays.length} calendar holiday(s)</>})
+            {workingDaysInfo.femaleHolidays.length > 0 && (
+              <> · female employees: {workingDaysInfo.workingFemale} ({workingDaysInfo.femaleHolidays.join(", ")})</>
+            )}
+          </CardDescription>
         </div>
         <div className="flex items-center gap-2">
           <Input
