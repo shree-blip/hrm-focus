@@ -328,9 +328,12 @@ export function PayrollAttendanceLeaveTab() {
 
         const specialTotal = Object.values(special).reduce((a, b) => a + b, 0);
         void specialTotal;
-        // Sum of raw leave units so half days always contribute 0.5 each
-        // (e.g. 3 full days + 3 half days = 4.5).
+        // Regular leave units remain the basis for paid/unpaid balance coverage.
         const regularLeave = Math.round(Math.max(0, regularLeaveUnits) * 10) / 10;
+        // Reporting rule: Total Leave Taken = full absent days + all half-day units.
+        // Keep this separate from the date-capped balance calculation above so
+        // three full absences plus three half days always reports as 4.5.
+        const totalLeaveTaken = Math.round((absentCount + halfDayCount) * 10) / 10;
         // Paid portion of regular leave (unpaid-tagged days are excluded).
         const paidRegularLeave = Math.max(0, regularLeave - unpaidLeaveDays);
         const totalPresentCount = presentCount + halfPresentCredit;
@@ -386,7 +389,7 @@ export function PayrollAttendanceLeaveTab() {
           lieuCount,
           unpaidLeaveDays,
           paidLeaveDays: Math.round(paidRegularLeave * 10) / 10,
-          totalLeaveTaken: regularLeave,
+          totalLeaveTaken,
           totalPresentCount,
           workingDays,
           annualBalance: remainingNow,
