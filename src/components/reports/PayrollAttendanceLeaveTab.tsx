@@ -424,12 +424,12 @@ export function PayrollAttendanceLeaveTab() {
           : bal
           ? Math.max(0, bal.total - bal.used)
           : 0;
-        // Probation / intern entitlement is reported as the pool REMAINING after
-        // leave already taken in previous months and in this month. Once the pool
-        // is spent (e.g. Richard used all 3 days earlier), entitlement is 0 and
-        // every further leave day flows into payroll deductions as unpaid.
+        // Probation / intern entitlement is the pool remaining after leave taken in
+        // PREVIOUS months. This month's paid leave days are then subtracted from it
+        // to give "Paid leave remaining" (entitlement - total paid leave = remaining).
+        // Once the pool is spent, entitlement is 0 and further leave is unpaid.
         const annualEntitlement = isMonthlyAccrual
-          ? remainingNow
+          ? availableBefore
           : bal
           ? bal.total
           : 0;
