@@ -175,6 +175,7 @@ export function PayrollAttendanceLeaveTab() {
             name: `${e.first_name} ${e.last_name}`.trim(),
             email: e.email,
             gender: (e.gender as string | null) || null,
+            employment_type: (e.employment_type as string | null) || null,
           };
         })
         .filter((p) => !!p.user_id)
@@ -338,13 +339,27 @@ export function PayrollAttendanceLeaveTab() {
         const paidRegularLeave = Math.max(0, regularLeave - unpaidLeaveDays);
         const totalPresentCount = presentCount + halfPresentCredit;
         const bal = balanceMap[uid];
+        // Intern / probation staff accrue 1 paid leave day per month, so their
+        // monthly report must be judged against that monthly allowance instead of
+        // the aggregate fiscal-year balance (which may already be exhausted).
+        const isMonthlyAccrual =
+          p.employment_type === "probation" || p.employment_type === "intern";
+        const monthlyAllowance = 1;
         // Annual entitlement comes straight from the leave balance record:
         // 12 days/year for full-time, prorated (1/month) for intern & probation.
-        const annualEntitlement = bal ? bal.total : 0;
+        const annualEntitlement = isMonthlyAccrual ? monthlyAllowance : bal ? bal.total : 0;
         // Remaining balance already has this fiscal year's usage deducted.
-        const remainingNow = bal ? Math.max(0, bal.total - bal.used) : 0;
+        const remainingNow = isMonthlyAccrual
+          ? Math.round(Math.max(0, monthlyAllowance - paidRegularLeave) * 10) / 10
+          : bal
+          ? Math.max(0, bal.total - bal.used)
+          : 0;
         // Balance available at the start of this reporting month.
-        const availableBefore = bal ? Math.max(0, bal.total - bal.used + paidRegularLeave) : 0;
+        const availableBefore = isMonthlyAccrual
+          ? monthlyAllowance
+          : bal
+          ? Math.max(0, bal.total - bal.used + paidRegularLeave)
+          : 0;
 
         const covered = Math.min(paidRegularLeave, availableBefore);
         const uncovered = regularLeave - covered;
