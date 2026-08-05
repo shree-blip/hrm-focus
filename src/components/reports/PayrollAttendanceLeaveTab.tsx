@@ -28,6 +28,7 @@ interface Row {
   halfDayCount: number;
   lieuCount: number;
   unpaidLeaveDays: number;
+  paidLeaveDays: number;
   totalLeaveTaken: number;
   totalPresentCount: number;
   workingDays: number;
@@ -384,6 +385,7 @@ export function PayrollAttendanceLeaveTab() {
           halfDayCount,
           lieuCount,
           unpaidLeaveDays,
+          paidLeaveDays: Math.round(paidRegularLeave * 10) / 10,
           totalLeaveTaken: regularLeave,
           totalPresentCount,
           workingDays,
@@ -436,6 +438,7 @@ export function PayrollAttendanceLeaveTab() {
       "Half day count",
       "Leave in Lieu taken",
       "Unpaid leave days",
+      "Total paid leave days",
       "Total Leave taken",
       "Total Present Count",
       "Working Days",
@@ -449,6 +452,7 @@ export function PayrollAttendanceLeaveTab() {
     const header2 = [
       "Name",
       ...dayNames,
+      "",
       "",
       "",
       "",
@@ -481,6 +485,7 @@ export function PayrollAttendanceLeaveTab() {
         r.halfDayCount,
         r.lieuCount,
         r.unpaidLeaveDays,
+        r.paidLeaveDays,
         r.totalLeaveTaken,
         r.totalPresentCount,
         r.workingDays,
@@ -572,6 +577,7 @@ export function PayrollAttendanceLeaveTab() {
                   <th className="px-2 py-2 text-center font-semibold">Half day</th>
                   <th className="px-2 py-2 text-center font-semibold">Leave in Lieu</th>
                   <th className="px-2 py-2 text-center font-semibold">Unpaid leave</th>
+                  <th className="px-2 py-2 text-center font-semibold">Total paid leave</th>
                   <th className="px-2 py-2 text-center font-semibold">Total Leave taken</th>
                   <th className="px-2 py-2 text-center font-semibold">Total Present Count</th>
                   <th className="px-2 py-2 text-center font-semibold">Working Days</th>
@@ -597,7 +603,7 @@ export function PayrollAttendanceLeaveTab() {
                       {new Date(year, monthIdx, i + 1).toLocaleDateString("en-US", { weekday: "narrow" })}
                     </th>
                   ))}
-                  <th colSpan={12 + SPECIAL_LEAVES.length * 2} />
+                  <th colSpan={13 + SPECIAL_LEAVES.length * 2} />
                 </tr>
               </thead>
               <tbody>
@@ -614,6 +620,7 @@ export function PayrollAttendanceLeaveTab() {
                     <td className="px-2 py-1 text-center">{r.halfDayCount}</td>
                     <td className="px-2 py-1 text-center">{r.lieuCount}</td>
                     <td className="px-2 py-1 text-center">{r.unpaidLeaveDays}</td>
+                    <td className="px-2 py-1 text-center">{r.paidLeaveDays}</td>
                     <td className="px-2 py-1 text-center">{r.totalLeaveTaken}</td>
                     <td className="px-2 py-1 text-center">{r.totalPresentCount}</td>
                     <td className="px-2 py-1 text-center">{r.workingDays}</td>
