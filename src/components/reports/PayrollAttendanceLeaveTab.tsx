@@ -216,8 +216,11 @@ export function PayrollAttendanceLeaveTab() {
         const days: Record<string, DayCode> = {};
         let presentCount = 0;
         let absentCount = 0;
-        // Half days are accumulated in day units: each half day = 0.5
+        // Half days are accumulated in day units: each half day = 0.5.
+        // halfDayCount = every half day taken (reported column).
+        // halfPresentCredit = only halves on HD-coded days (half worked, half off).
         let halfDayCount = 0;
+        let halfPresentCredit = 0;
         let lieuCount = 0;
         const special: Record<string, number> = {};
 
@@ -249,9 +252,10 @@ export function PayrollAttendanceLeaveTab() {
           const leave = leaves[k];
           if (leave) {
             if (leave.special) special[leave.special] = (special[leave.special] || 0) + leave.amount;
+            halfDayCount += leave.half;
             if (leave.amount < 1) {
               days[k] = "HD";
-              halfDayCount += 0.5;
+              halfPresentCredit += leave.half;
             } else {
               days[k] = "A";
               absentCount++;
@@ -267,9 +271,9 @@ export function PayrollAttendanceLeaveTab() {
         });
 
         const specialTotal = Object.values(special).reduce((a, b) => a + b, 0);
-        const totalLeaveTaken = absentCount + halfDayCount - specialTotal;
+        const totalLeaveTaken = absentCount + halfPresentCredit - specialTotal;
         const regularLeave = Math.max(0, totalLeaveTaken);
-        const totalPresentCount = presentCount + halfDayCount;
+        const totalPresentCount = presentCount + halfPresentCredit;
         const bal = balanceMap[uid];
         // Annual entitlement comes straight from the leave balance record:
         // 12 days/year for full-time, prorated (1/month) for intern & probation.
