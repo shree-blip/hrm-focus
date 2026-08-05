@@ -267,6 +267,9 @@ export function PayrollAttendanceLeaveTab() {
         let halfDayCount = 0;
         let halfPresentCredit = 0;
         let lieuCount = 0;
+        // Leave days explicitly marked unpaid — these never consume the paid
+        // balance and always end up as payroll deductions.
+        let unpaidLeaveDays = 0;
         const special: Record<string, number> = {};
 
         dayKeys.forEach((k, i) => {
@@ -297,6 +300,7 @@ export function PayrollAttendanceLeaveTab() {
           const leave = leaves[k];
           if (leave) {
             if (leave.special) special[leave.special] = (special[leave.special] || 0) + leave.amount;
+            else unpaidLeaveDays += Math.min(leave.unpaid, leave.amount);
             halfDayCount += leave.half;
             if (leave.amount < 1) {
               days[k] = "HD";
@@ -318,6 +322,8 @@ export function PayrollAttendanceLeaveTab() {
         const specialTotal = Object.values(special).reduce((a, b) => a + b, 0);
         const totalLeaveTaken = absentCount + halfPresentCredit - specialTotal;
         const regularLeave = Math.max(0, totalLeaveTaken);
+        // Paid portion of regular leave (unpaid-tagged days are excluded).
+        const paidRegularLeave = Math.max(0, regularLeave - unpaidLeaveDays);
         const totalPresentCount = presentCount + halfPresentCredit;
         const bal = balanceMap[uid];
         // Annual entitlement comes straight from the leave balance record:
@@ -326,9 +332,9 @@ export function PayrollAttendanceLeaveTab() {
         // Remaining balance already has this fiscal year's usage deducted.
         const remainingNow = bal ? Math.max(0, bal.total - bal.used) : 0;
         // Balance available at the start of this reporting month.
-        const availableBefore = bal ? Math.max(0, bal.total - bal.used + regularLeave) : 0;
+        const availableBefore = bal ? Math.max(0, bal.total - bal.used + paidRegularLeave) : 0;
 
-        const covered = Math.min(regularLeave, availableBefore);
+        const covered = Math.min(paidRegularLeave, availableBefore);
         const uncovered = regularLeave - covered;
 
         const specialRemaining: Record<string, number> = {};
@@ -361,6 +367,7 @@ export function PayrollAttendanceLeaveTab() {
           absentCount,
           halfDayCount,
           lieuCount,
+          unpaidLeaveDays,
           totalLeaveTaken: regularLeave,
           totalPresentCount,
           workingDays,
