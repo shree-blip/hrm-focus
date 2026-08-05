@@ -410,11 +410,18 @@ export function PayrollAttendanceLeaveTab() {
         // the aggregate fiscal-year balance (which may already be exhausted).
         const pool = probationInfo[uid];
         const isMonthlyAccrual = !!pool;
-        // Probation / intern: one pooled entitlement for the whole probation period
-        // (1 day per probation month, 3 by default) that can be taken all at once.
+        // Probation / intern: show the full probation entitlement while any of the
+        // carried pool remains. Once prior paid leave has exhausted that pool, the
+        // report must show 0 (for example Richard). Current-month paid leave is
+        // deducted from the displayed entitlement (for example Ashmita: 3 - 2 = 1).
+        const probationEntitlement = isMonthlyAccrual
+          ? (priorPoolUsed[uid] || 0) >= pool.pool
+            ? 0
+            : pool.pool
+          : 0;
         // Balance available at the start of this reporting month.
         const availableBefore = isMonthlyAccrual
-          ? Math.max(0, pool.pool - (priorPoolUsed[uid] || 0))
+          ? probationEntitlement
           : bal
           ? Math.max(0, bal.total - bal.used + paidRegularLeave)
           : 0;
@@ -425,10 +432,9 @@ export function PayrollAttendanceLeaveTab() {
         const remainingNow = isMonthlyAccrual
           ? Math.round(Math.max(0, availableBefore - totalLeaveTaken) * 10) / 10
           : Math.round(Math.max(0, availableBefore - paidRegularLeave) * 10) / 10;
-        // Probation / intern entitlement is the pool remaining after leave taken in
-        // PREVIOUS months. This month's paid leave days are then subtracted from it
-        // to give "Paid leave remaining" (entitlement - total paid leave = remaining).
-        // Once the pool is spent, entitlement is 0 and further leave is unpaid.
+        // This month's paid leave days are subtracted from the displayed entitlement
+        // to give "Paid leave remaining". Once the carried pool was already spent in
+        // prior months, entitlement remains 0 and further leave is unpaid.
         const annualEntitlement = Math.round(availableBefore * 10) / 10;
 
         const covered = Math.min(paidRegularLeave, availableBefore);
