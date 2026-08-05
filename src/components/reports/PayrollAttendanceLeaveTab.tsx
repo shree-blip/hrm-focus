@@ -219,10 +219,17 @@ export function PayrollAttendanceLeaveTab() {
           const dow = new Date(year, monthIdx, i + 1).getDay();
           const isWeekend = dow === 0 || dow === 6;
           const isHoliday = holidaySet.has(k) || extraHolidays.has(k);
-          // Worked on a weekend or public holiday → earns Leave in Lieu (LL).
-          if ((isWeekend || isHoliday) && worked.has(k)) {
+          const leaveHere = leaves[k];
+          // Leave in lieu taken → LL, on any day (incl. weekend/holiday).
+          if (leaveHere?.lieu) {
             days[k] = "LL";
             lieuCount++;
+            return;
+          }
+          // Worked on a weekend or public holiday → still shown as Present.
+          if ((isWeekend || isHoliday) && worked.has(k)) {
+            days[k] = "P";
+            presentCount++;
             return;
           }
           if (isWeekend) {
@@ -281,9 +288,11 @@ export function PayrollAttendanceLeaveTab() {
         // + paid leave days covered by the annual balance + special leave days within cap.
         // Uncovered (unpaid) leave days are simply NOT added — subtracting them again
         // would double-penalise the employee.
+        // Leave-in-lieu days are compensatory time off already earned by working a
+        // weekend/holiday, so they count as present days (never a payroll deduction).
         const adjustedPresent = Math.min(
           workingDays,
-          totalPresentCount + covered + specialCovered
+          totalPresentCount + covered + specialCovered + lieuCount
         );
         void uncovered;
         const paidLeaveRemaining = remainingNow;
