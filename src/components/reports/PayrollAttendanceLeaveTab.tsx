@@ -211,12 +211,14 @@ export function PayrollAttendanceLeaveTab() {
       // `amount` is the capped day value (max 1) used for the day code / absent count.
       const leaveMap: Record<
         string,
-        Record<string, { amount: number; half: number; special: string | null; lieu: boolean }>
+        Record<string, { amount: number; half: number; unpaid: number; special: string | null; lieu: boolean }>
       > = {};
       (leavesRes.data || []).forEach((r: any) => {
         const special = SPECIAL_LEAVES.find((s) => s.match.test(r.leave_type || ""))?.key || null;
         // Leave in lieu (compensatory off for weekend/holiday work).
         const isLieu = /lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "");
+        // Unpaid ("[Unpaid Leave]"/"[Payroll]") leave never consumes the paid balance.
+        const unpaid = isUnpaidReason(r.reason);
         const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
         const [ey, em, ed] = String(r.end_date).split("-").map(Number);
         const cur = new Date(sy, sm - 1, sd);
@@ -230,6 +232,7 @@ export function PayrollAttendanceLeaveTab() {
             byUser[k] = {
               amount: Math.min(1, (existing?.amount || 0) + add),
               half: (existing?.half || 0) + (r.is_half_day ? 0.5 : 0),
+              unpaid: Math.min(1, (existing?.unpaid || 0) + (unpaid ? add : 0)),
               special: existing?.special || special,
               lieu: Boolean(existing?.lieu || isLieu),
             };
