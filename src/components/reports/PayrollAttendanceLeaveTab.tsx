@@ -267,6 +267,9 @@ export function PayrollAttendanceLeaveTab() {
         let halfDayCount = 0;
         let halfPresentCredit = 0;
         let lieuCount = 0;
+        // Raw regular (non-special, non-lieu) leave units taken: full day = 1,
+        // half day = 0.5. This is the authoritative "total leave taken" value.
+        let regularLeaveUnits = 0;
         // Leave days explicitly marked unpaid — these never consume the paid
         // balance and always end up as payroll deductions.
         let unpaidLeaveDays = 0;
@@ -300,7 +303,10 @@ export function PayrollAttendanceLeaveTab() {
           const leave = leaves[k];
           if (leave) {
             if (leave.special) special[leave.special] = (special[leave.special] || 0) + leave.amount;
-            else unpaidLeaveDays += Math.min(leave.unpaid, leave.amount);
+            else {
+              unpaidLeaveDays += Math.min(leave.unpaid, leave.amount);
+              regularLeaveUnits += leave.amount;
+            }
             halfDayCount += leave.half;
             if (leave.amount < 1) {
               days[k] = "HD";
@@ -320,8 +326,10 @@ export function PayrollAttendanceLeaveTab() {
         });
 
         const specialTotal = Object.values(special).reduce((a, b) => a + b, 0);
-        const totalLeaveTaken = absentCount + halfPresentCredit - specialTotal;
-        const regularLeave = Math.max(0, totalLeaveTaken);
+        void specialTotal;
+        // Sum of raw leave units so half days always contribute 0.5 each
+        // (e.g. 3 full days + 3 half days = 4.5).
+        const regularLeave = Math.round(Math.max(0, regularLeaveUnits) * 10) / 10;
         // Paid portion of regular leave (unpaid-tagged days are excluded).
         const paidRegularLeave = Math.max(0, regularLeave - unpaidLeaveDays);
         const totalPresentCount = presentCount + halfPresentCredit;
