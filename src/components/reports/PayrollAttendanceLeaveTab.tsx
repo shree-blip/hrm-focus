@@ -82,6 +82,41 @@ export function PayrollAttendanceLeaveTab() {
     return { holidaySet: set, femaleHolidaySet: femaleSet };
   }, [calendarEvents]);
 
+  // Auditable working-days breakdown for the selected month: weekdays (Mon–Fri)
+  // minus only the holidays actually present in the company calendar.
+  const workingDaysInfo = useMemo(() => {
+    const names = new Map<string, string>();
+    const femaleNames = new Map<string, string>();
+    calendarEntries.forEach((e) => {
+      if (!["holiday", "company_leave", "non_working", "leave"].includes(e.type)) return;
+      const k = keyOf(e.date.getFullYear(), e.date.getMonth(), e.date.getDate());
+      (isFemaleOnly((e as any).name) ? femaleNames : names).set(k, (e as any).name);
+    });
+    (calendarEvents || []).forEach((ev: any) => {
+      if (!["holiday", "company_leave", "non_working", "leave"].includes(ev.event_type)) return;
+      (isFemaleOnly(ev.title) ? femaleNames : names).set(ev.event_date, ev.title);
+    });
+
+    let weekdays = 0;
+    const holidays: string[] = [];
+    const femaleHolidays: string[] = [];
+    dayKeys.forEach((k, i) => {
+      const dow = new Date(year, monthIdx, i + 1).getDay();
+      if (dow === 0 || dow === 6) return;
+      weekdays++;
+      if (names.has(k)) holidays.push(`${k} ${names.get(k)}`);
+      else if (femaleNames.has(k)) femaleHolidays.push(`${k} ${femaleNames.get(k)}`);
+    });
+
+    return {
+      weekdays,
+      holidays,
+      femaleHolidays,
+      working: weekdays - holidays.length,
+      workingFemale: weekdays - holidays.length - femaleHolidays.length,
+    };
+  }, [calendarEvents, dayKeys, year, monthIdx]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -428,6 +463,17 @@ export function PayrollAttendanceLeaveTab() {
   csv += csvCell("P = Present, A = Absent (full day leave), HD = Half day, NR = Non recorded, WH = Weekend Holiday (Sat/Sun), H = Public Holiday, LL = Leave in Lieu taken (compensatory off for weekend/holiday work)") + "\n";
     csv += csvCell("Total Present days after Adjustment = Total Present Count + paid leave covered by balance - leave not covered") + "\n";
     csv += csvCell("Deduct days from payroll = Working Days - Total Present days after Adjustment - Paid leave remaining") + "\n";
+    csv +=
+      csvCell(
+        `Working days for ${monthLabel} = ${workingDaysInfo.weekdays} weekdays (Mon-Fri) - ${workingDaysInfo.holidays.length} calendar holiday(s) = ${workingDaysInfo.working}`,
+      ) + "\n";
+    if (workingDaysInfo.holidays.length)
+      csv += csvCell(`Calendar holidays: ${workingDaysInfo.holidays.join("; ")}`) + "\n";
+    if (workingDaysInfo.femaleHolidays.length)
+      csv +=
+        csvCell(
+          `Female-only holidays (working days ${workingDaysInfo.workingFemale} for female employees): ${workingDaysInfo.femaleHolidays.join("; ")}`,
+        ) + "\n";
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -445,6 +491,13 @@ export function PayrollAttendanceLeaveTab() {
         <div>
           <CardTitle>Payroll, Leave & Attendance Balance</CardTitle>
           <CardDescription>Day-wise attendance codes with leave balances and payroll deduction — {monthLabel}</CardDescription>
+          <CardDescription className="mt-1">
+            Working days: {workingDaysInfo.working} ({workingDaysInfo.weekdays} weekdays Mon–Fri
+            {workingDaysInfo.holidays.length > 0 && <> − {workingDaysInfo.holidays.length} calendar holiday(s)</>})
+            {workingDaysInfo.femaleHolidays.length > 0 && (
+              <> · female employees: {workingDaysInfo.workingFemale} ({workingDaysInfo.femaleHolidays.join(", ")})</>
+            )}
+          </CardDescription>
         </div>
         <div className="flex items-center gap-2">
           <Input
