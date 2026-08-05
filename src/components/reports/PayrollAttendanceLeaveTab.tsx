@@ -16,7 +16,7 @@ const SPECIAL_LEAVES = [
   { key: "paternity", label: "Paternity Leave", cap: 22, match: /paternity/i },
 ] as const;
 
-type DayCode = "P" | "A" | "HD" | "NR" | "H" | "WH";
+type DayCode = "P" | "A" | "HD" | "NR" | "H" | "WH" | "LL";
 
 interface Row {
   name: string;
@@ -26,6 +26,7 @@ interface Row {
   presentCount: number;
   absentCount: number;
   halfDayCount: number;
+  lieuCount: number;
   totalLeaveTaken: number;
   totalPresentCount: number;
   workingDays: number;
@@ -208,16 +209,24 @@ export function PayrollAttendanceLeaveTab() {
         let presentCount = 0;
         let absentCount = 0;
         let halfDayCount = 0;
+        let lieuCount = 0;
         const special: Record<string, number> = {};
 
         dayKeys.forEach((k, i) => {
           const dow = new Date(year, monthIdx, i + 1).getDay();
           const isWeekend = dow === 0 || dow === 6;
+          const isHoliday = holidaySet.has(k) || extraHolidays.has(k);
+          // Worked on a weekend or public holiday → earns Leave in Lieu (LL).
+          if ((isWeekend || isHoliday) && worked.has(k)) {
+            days[k] = "LL";
+            lieuCount++;
+            return;
+          }
           if (isWeekend) {
             days[k] = "WH";
             return;
           }
-          if (holidaySet.has(k) || extraHolidays.has(k)) {
+          if (isHoliday) {
             days[k] = "H";
             return;
           }
@@ -284,6 +293,7 @@ export function PayrollAttendanceLeaveTab() {
           presentCount,
           absentCount,
           halfDayCount,
+          lieuCount,
           totalLeaveTaken: regularLeave,
           totalPresentCount,
           workingDays,
