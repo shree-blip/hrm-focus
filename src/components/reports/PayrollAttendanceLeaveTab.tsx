@@ -337,7 +337,7 @@ export function PayrollAttendanceLeaveTab() {
       "Total Leave taken",
       "Total Present Count",
       "Working Days",
-      "Annual Paid Leave (balance last month)",
+      "Annual Paid Leave (entitlement)",
       ...SPECIAL_LEAVES.map((s) => s.label),
       "Total Present days after Adjustment",
       "Paid leave remaining",
@@ -378,7 +378,7 @@ export function PayrollAttendanceLeaveTab() {
         r.totalLeaveTaken,
         r.totalPresentCount,
         r.workingDays,
-        r.annualBalance,
+        r.annualEntitlement,
         ...SPECIAL_LEAVES.map((s) => r.special[s.key] || 0),
         r.adjustedPresent,
         r.paidLeaveRemaining,
@@ -449,7 +449,7 @@ export function PayrollAttendanceLeaveTab() {
                   <th className="px-2 py-2 text-center font-semibold">Total Leave taken</th>
                   <th className="px-2 py-2 text-center font-semibold">Total Present Count</th>
                   <th className="px-2 py-2 text-center font-semibold">Working Days</th>
-                  <th className="px-2 py-2 text-center font-semibold">Annual Paid Leave</th>
+                  <th className="px-2 py-2 text-center font-semibold">Annual Paid Leave (entitlement)</th>
                   {SPECIAL_LEAVES.map((s) => (
                     <th key={s.key} className="px-2 py-2 text-center font-semibold">
                       {s.label}
@@ -489,7 +489,7 @@ export function PayrollAttendanceLeaveTab() {
                     <td className="px-2 py-1 text-center">{r.totalLeaveTaken}</td>
                     <td className="px-2 py-1 text-center">{r.totalPresentCount}</td>
                     <td className="px-2 py-1 text-center">{r.workingDays}</td>
-                    <td className="px-2 py-1 text-center">{r.annualBalance}</td>
+                    <td className="px-2 py-1 text-center">{r.annualEntitlement}</td>
                     {SPECIAL_LEAVES.map((s) => (
                       <td key={`${r.email}-${s.key}`} className="px-2 py-1 text-center">
                         {r.special[s.key] || 0}
