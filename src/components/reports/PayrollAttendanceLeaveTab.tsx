@@ -30,6 +30,7 @@ interface Row {
   totalPresentCount: number;
   workingDays: number;
   annualBalance: number;
+  annualEntitlement: number;
   special: Record<string, number>;
   adjustedPresent: number;
   paidLeaveRemaining: number;
@@ -136,7 +137,7 @@ export function PayrollAttendanceLeaveTab() {
         .sort((a, b) => a.name.localeCompare(b.name));
 
       const userIds = people.map((p) => p.user_id as string);
-      const balanceMap: Record<string, number> = {};
+      const balanceMap: Record<string, { total: number; used: number }> = {};
       if (userIds.length > 0) {
         const { data: balances } = await supabase
           .from("leave_balances")
@@ -145,7 +146,10 @@ export function PayrollAttendanceLeaveTab() {
           .eq("year", fyEndYear)
           .eq("leave_type", "Annual Leave");
         (balances || []).forEach((b: any) => {
-          balanceMap[b.user_id] = Math.max(0, Number(b.total_days || 0) - Number(b.used_days || 0));
+          balanceMap[b.user_id] = {
+            total: Number(b.total_days || 0),
+            used: Number(b.used_days || 0),
+          };
         });
       }
 
@@ -158,8 +162,10 @@ export function PayrollAttendanceLeaveTab() {
         (workedMap[l.user_id] ||= new Set()).add(k);
       });
 
-      // Leave dates per user, split into regular vs special leave
-      const leaveMap: Record<string, Record<string, { half: boolean; special: string | null }>> = {};
+      // Leave dates per user, split into regular vs special leave.
+      // Multiple half-day requests on the SAME date are accumulated so that
+      // two halves (first + second half) correctly count as one full day.
+      const leaveMap: Record<string, Record<string, { amount: number; special: string | null }>> = {};
       (leavesRes.data || []).forEach((r: any) => {
         const special = SPECIAL_LEAVES.find((s) => s.match.test(r.leave_type || ""))?.key || null;
         const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
@@ -169,7 +175,13 @@ export function PayrollAttendanceLeaveTab() {
         while (cur <= end) {
           const k = keyOf(cur.getFullYear(), cur.getMonth(), cur.getDate());
           if (k >= startKey && k <= endKey) {
-            (leaveMap[r.user_id] ||= {})[k] = { half: !!r.is_half_day, special };
+            const byUser = (leaveMap[r.user_id] ||= {});
+            const existing = byUser[k];
+            const add = r.is_half_day ? 0.5 : 1;
+            byUser[k] = {
+              amount: Math.min(1, (existing?.amount || 0) + add),
+              special: existing?.special || special,
+            };
           }
           cur.setDate(cur.getDate() + 1);
         }
@@ -211,8 +223,8 @@ export function PayrollAttendanceLeaveTab() {
           }
           const leave = leaves[k];
           if (leave) {
-            if (leave.special) special[leave.special] = (special[leave.special] || 0) + (leave.half ? 0.5 : 1);
-            if (leave.half) {
+            if (leave.special) special[leave.special] = (special[leave.special] || 0) + leave.amount;
+            if (leave.amount < 1) {
               days[k] = "HD";
               halfDayCount++;
             } else {
@@ -233,9 +245,16 @@ export function PayrollAttendanceLeaveTab() {
         const totalLeaveTaken = absentCount + halfDayCount * 0.5 - specialTotal;
         const regularLeave = Math.max(0, totalLeaveTaken);
         const totalPresentCount = presentCount + halfDayCount * 0.5;
-        const annualBalance = balanceMap[uid] ?? 0;
+        const bal = balanceMap[uid];
+        // Annual entitlement comes straight from the leave balance record:
+        // 12 days/year for full-time, prorated (1/month) for intern & probation.
+        const annualEntitlement = bal ? bal.total : 0;
+        // Remaining balance already has this fiscal year's usage deducted.
+        const remainingNow = bal ? Math.max(0, bal.total - bal.used) : 0;
+        // Balance available at the start of this reporting month.
+        const availableBefore = bal ? Math.max(0, bal.total - bal.used + regularLeave) : 0;
 
-        const covered = Math.min(regularLeave, annualBalance);
+        const covered = Math.min(regularLeave, availableBefore);
         const uncovered = regularLeave - covered;
 
         const specialRemaining: Record<string, number> = {};
@@ -255,7 +274,7 @@ export function PayrollAttendanceLeaveTab() {
           totalPresentCount + covered + specialCovered
         );
         void uncovered;
-        const paidLeaveRemaining = Math.max(0, annualBalance - regularLeave);
+        const paidLeaveRemaining = remainingNow;
 
         return {
           name: p.name,
@@ -268,7 +287,8 @@ export function PayrollAttendanceLeaveTab() {
           totalLeaveTaken: regularLeave,
           totalPresentCount,
           workingDays,
-          annualBalance,
+          annualBalance: remainingNow,
+          annualEntitlement,
           special,
           adjustedPresent,
           paidLeaveRemaining,
@@ -317,7 +337,7 @@ export function PayrollAttendanceLeaveTab() {
       "Total Leave taken",
       "Total Present Count",
       "Working Days",
-      "Annual Paid Leave (balance last month)",
+      "Annual Paid Leave (entitlement)",
       ...SPECIAL_LEAVES.map((s) => s.label),
       "Total Present days after Adjustment",
       "Paid leave remaining",
@@ -358,7 +378,7 @@ export function PayrollAttendanceLeaveTab() {
         r.totalLeaveTaken,
         r.totalPresentCount,
         r.workingDays,
-        r.annualBalance,
+        r.annualEntitlement,
         ...SPECIAL_LEAVES.map((s) => r.special[s.key] || 0),
         r.adjustedPresent,
         r.paidLeaveRemaining,
@@ -429,7 +449,7 @@ export function PayrollAttendanceLeaveTab() {
                   <th className="px-2 py-2 text-center font-semibold">Total Leave taken</th>
                   <th className="px-2 py-2 text-center font-semibold">Total Present Count</th>
                   <th className="px-2 py-2 text-center font-semibold">Working Days</th>
-                  <th className="px-2 py-2 text-center font-semibold">Annual Paid Leave</th>
+                  <th className="px-2 py-2 text-center font-semibold">Annual Paid Leave (entitlement)</th>
                   {SPECIAL_LEAVES.map((s) => (
                     <th key={s.key} className="px-2 py-2 text-center font-semibold">
                       {s.label}
@@ -469,7 +489,7 @@ export function PayrollAttendanceLeaveTab() {
                     <td className="px-2 py-1 text-center">{r.totalLeaveTaken}</td>
                     <td className="px-2 py-1 text-center">{r.totalPresentCount}</td>
                     <td className="px-2 py-1 text-center">{r.workingDays}</td>
-                    <td className="px-2 py-1 text-center">{r.annualBalance}</td>
+                    <td className="px-2 py-1 text-center">{r.annualEntitlement}</td>
                     {SPECIAL_LEAVES.map((s) => (
                       <td key={`${r.email}-${s.key}`} className="px-2 py-1 text-center">
                         {r.special[s.key] || 0}
