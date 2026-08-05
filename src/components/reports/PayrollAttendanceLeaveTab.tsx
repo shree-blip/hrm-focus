@@ -412,7 +412,6 @@ export function PayrollAttendanceLeaveTab() {
         const isMonthlyAccrual = !!pool;
         // Probation / intern: one pooled entitlement for the whole probation period
         // (1 day per probation month, 3 by default) that can be taken all at once.
-        const annualEntitlement = isMonthlyAccrual ? pool.pool : bal ? bal.total : 0;
         // Balance available at the start of this reporting month.
         const availableBefore = isMonthlyAccrual
           ? Math.max(0, pool.pool - (priorPoolUsed[uid] || 0))
@@ -424,6 +423,15 @@ export function PayrollAttendanceLeaveTab() {
           ? Math.round(Math.max(0, availableBefore - paidRegularLeave) * 10) / 10
           : bal
           ? Math.max(0, bal.total - bal.used)
+          : 0;
+        // Probation / intern entitlement is reported as the pool REMAINING after
+        // leave already taken in previous months and in this month. Once the pool
+        // is spent (e.g. Richard used all 3 days earlier), entitlement is 0 and
+        // every further leave day flows into payroll deductions as unpaid.
+        const annualEntitlement = isMonthlyAccrual
+          ? remainingNow
+          : bal
+          ? bal.total
           : 0;
 
         const covered = Math.min(paidRegularLeave, availableBefore);
