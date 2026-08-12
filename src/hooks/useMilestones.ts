@@ -51,6 +51,9 @@ export function useMilestones() {
 
       const now = new Date();
       const currentYear = now.getFullYear();
+      // Project milestones across previous, current and next year so the
+      // calendar shows them when navigating beyond the current year.
+      const years = [currentYear - 1, currentYear, currentYear + 1];
       const result: Milestone[] = [];
 
       const norm = (v?: string | null) => (v || "").trim().toLowerCase();
@@ -82,15 +85,16 @@ export function useMilestones() {
           try {
             const dob = new Date(profile.date_of_birth + "T00:00:00");
             if (!isNaN(dob.getTime())) {
-              const birthdayThisYear = new Date(currentYear, dob.getMonth(), dob.getDate());
-              result.push({
-                id: `bday-${profile.id || profile.user_id}`,
-                employee_name: name,
-                date: birthdayThisYear,
-                type: "birthday",
-                avatar_url: profile.avatar_url ?? null,
-                department: profile.department ?? null,
-              });
+              for (const y of years) {
+                result.push({
+                  id: `bday-${profile.id || profile.user_id}-${y}`,
+                  employee_name: name,
+                  date: new Date(y, dob.getMonth(), dob.getDate()),
+                  type: "birthday",
+                  avatar_url: profile.avatar_url ?? null,
+                  department: profile.department ?? null,
+                });
+              }
             }
           } catch {
             // skip invalid date
@@ -102,18 +106,19 @@ export function useMilestones() {
           try {
             const joined = new Date(profile.joining_date + "T00:00:00");
             if (!isNaN(joined.getTime())) {
-              const years = currentYear - joined.getFullYear();
-              if (years > 0) {
-                const anniversaryThisYear = new Date(currentYear, joined.getMonth(), joined.getDate());
-                result.push({
-                  id: `anniv-${profile.id || profile.user_id}`,
-                  employee_name: name,
-                  date: anniversaryThisYear,
-                  type: "anniversary",
-                  years,
-                  avatar_url: profile.avatar_url ?? null,
-                  department: profile.department ?? null,
-                });
+              for (const y of years) {
+                const yearsOfService = y - joined.getFullYear();
+                if (yearsOfService > 0) {
+                  result.push({
+                    id: `anniv-${profile.id || profile.user_id}-${y}`,
+                    employee_name: name,
+                    date: new Date(y, joined.getMonth(), joined.getDate()),
+                    type: "anniversary",
+                    years: yearsOfService,
+                    avatar_url: profile.avatar_url ?? null,
+                    department: profile.department ?? null,
+                  });
+                }
               }
             }
           } catch {
