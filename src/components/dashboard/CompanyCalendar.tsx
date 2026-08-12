@@ -231,12 +231,14 @@ const customEventTypeConfig: Record<
 function CustomDayCell({
   date,
   customEventsForDate,
+  milestonesForDate,
   isManager,
   onAddClick,
   displayMonth,
 }: {
   date: Date;
   customEventsForDate: CalendarEvent[];
+  milestonesForDate: Milestone[];
   isManager?: boolean;
   onAddClick?: (date: Date) => void;
   displayMonth?: Date;
@@ -315,6 +317,7 @@ function CustomDayCell({
 
       {/* Mobile: Show dots indicator only */}
       <div className="flex sm:hidden items-center justify-center gap-0.5 mt-0.5 flex-wrap max-w-full">
+        {milestonesForDate.length > 0 && <div className="h-1 w-1 rounded-full bg-emerald-500" />}
         {holidayEntries.length > 0 && <div className="h-1 w-1 rounded-full bg-amber-500" />}
         {deadlineEntries.length > 0 && <div className="h-1 w-1 rounded-full bg-orange-500" />}
         {customEventsForDate.some((e) => e.event_type === "event") && (
@@ -330,6 +333,16 @@ function CustomDayCell({
 
       {/* Desktop: Show full event details */}
       <div className="hidden sm:flex flex-col items-center gap-0.5 w-full max-w-full overflow-hidden mt-0.5">
+        {milestonesForDate.slice(0, 1).map((milestone) => (
+          <div key={milestone.id} className="flex items-center gap-0.5 w-full justify-center">
+            <Cake className="h-2 w-2 md:h-2.5 md:w-2.5 text-emerald-500 flex-shrink-0" />
+            <span className="text-[6px] md:text-[8px] font-medium text-emerald-700 dark:text-emerald-400 truncate text-center">
+              {milestone.employee_name.substring(0, 12)}
+              {milestone.employee_name.length > 12 ? "…" : ""}
+            </span>
+          </div>
+        ))}
+
         {holidayEntries.length > 0 && (
           <div className="flex items-center gap-0.5 w-full justify-center">
             <Star className="h-2 w-2 md:h-2.5 md:w-2.5 text-amber-500 flex-shrink-0" />
@@ -811,6 +824,7 @@ export function CompanyCalendar() {
                   date={date}
                   displayMonth={displayMonth}
                   customEventsForDate={getCustomEventsForDate(date)}
+                  milestonesForDate={getMilestonesForDate(date)}
                   isManager={canManageCalendar}
                   onAddClick={handleAddEventFromCell}
                 />
