@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
-import { useMilestones } from "@/hooks/useMilestones";
+import { useMilestones, type Milestone } from "@/hooks/useMilestones";
 import { useCalendarEvents, CalendarEvent } from "@/hooks/useCalendarEvents";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { useAuth } from "@/contexts/AuthContext";
