@@ -427,8 +427,22 @@ const Leave = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Annual Leave Balance</p>
-                  {(() => {
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {probation.isProbation ? "Probation Leave Balance" : "Annual Leave Balance"}
+                  </p>
+                  {probation.isProbation ? (
+                    <>
+                      <p className="text-2xl font-bold mt-1">
+                        {Math.max(0, probation.remaining)} of {probation.quota} days remaining
+                        {probation.remaining < 0 && (
+                          <span className="ml-1 text-sm font-semibold text-destructive">
+                            +{-probation.remaining} over
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">(Probation)</p>
+                    </>
+                  ) : (() => {
                     const remaining = getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal();
                     const over = remaining < 0 ? -remaining : 0;
                     return (
