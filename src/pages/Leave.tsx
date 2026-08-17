@@ -27,6 +27,7 @@ import { format, differenceInDays } from "date-fns";
 import { parseDateOnly } from "@/lib/timeFormat";
 import { Button } from "@/components/ui/button";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
+import { useProbationLeave } from "@/hooks/useProbationLeave";
 import { toast } from "@/hooks/use-toast";
 
 // ─── CSV Export ───────────────────────────────────────────────────────────────
@@ -89,6 +90,7 @@ const isSickLeaveType = (leaveType: string) => {
 const Leave = () => {
   const { user, isManager } = useAuth();
   const { ownRequests, teamLeaves, allApprovedLeaves, balances, loading, createRequest, refetch } = useLeaveRequests();
+  const probation = useProbationLeave();
   const { unreadCount } = useNotifications();
   const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
