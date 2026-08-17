@@ -73,10 +73,30 @@ export function useWorkModeHistory(startDate?: string, endDate?: string) {
     return map;
   }, [changes]);
 
+  /** Chronological entries grouped by attendance log id. */
+  const byLogId = useMemo(() => {
+    const map = new Map<string, WorkModeChange[]>();
+    changes.forEach((change) => {
+      if (!change.attendance_log_id) return;
+      const list = map.get(change.attendance_log_id);
+      if (list) list.push(change);
+      else map.set(change.attendance_log_id, [change]);
+    });
+    map.forEach((list) =>
+      list.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()),
+    );
+    return map;
+  }, [changes]);
+
   const getChangesFor = useCallback(
     (userId: string, dateKey: string) => byUserDate.get(`${userId}|${dateKey}`) || [],
     [byUserDate],
   );
 
-  return { changes, byUserDate, getChangesFor, loading, refetch: fetchChanges };
+  const getChangesForLog = useCallback(
+    (logId: string | null | undefined) => (logId ? byLogId.get(logId) || [] : []),
+    [byLogId],
+  );
+
+  return { changes, byUserDate, byLogId, getChangesFor, getChangesForLog, loading, refetch: fetchChanges };
 }
