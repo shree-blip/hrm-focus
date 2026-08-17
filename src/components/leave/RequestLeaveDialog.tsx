@@ -98,6 +98,8 @@ interface RequestLeaveDialogProps {
   isOnLeave?: boolean;
   currentLeave?: CurrentLeave | null;
   annualRemaining?: number;
+  /** Set when the employee is on probation: fixed quota for the whole probation period. */
+  probation?: { quota: number; remaining: number };
 }
 
 /**
@@ -127,6 +129,7 @@ export function RequestLeaveDialog({
   isOnLeave = false,
   currentLeave = null,
   annualRemaining,
+  probation,
 }: RequestLeaveDialogProps) {
   const [leaveType, setLeaveType] = useState<LeaveType | "">("Other Leave");
   const [specialLeaveSubtype, setSpecialLeaveSubtype] = useState<SpecialLeaveSubtype | "">("");

@@ -985,6 +985,11 @@ const Leave = () => {
         open={requestDialogOpen}
         onOpenChange={setRequestDialogOpen}
         annualRemaining={getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()}
+        probation={
+          probation.isProbation
+            ? { quota: probation.quota, remaining: probation.remaining }
+            : undefined
+        }
         onSubmit={async (request) => {
           const submitted = await createRequest({
             leave_type: request.type,
@@ -996,6 +1001,7 @@ const Leave = () => {
           });
           if (submitted) {
             refetch();
+            probation.refetch();
           }
           return submitted;
         }}
