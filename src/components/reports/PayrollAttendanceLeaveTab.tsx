@@ -463,14 +463,19 @@ export function PayrollAttendanceLeaveTab() {
         );
         void uncovered;
         const paidLeaveRemaining = remainingNow;
+        // Probation / intern: only the part of the leave the pool could not cover
+        // counts as unpaid, even if the request itself carried an unpaid tag.
+        const effectiveUnpaid = isMonthlyAccrual
+          ? Math.round(Math.max(0, regularLeave - covered) * 10) / 10
+          : unpaidLeaveDays;
         // Unpaid leave always deducts from payroll — it can never be offset by the
         // remaining paid balance. Other gaps (NR / uncovered days) may still be
         // absorbed by the remaining paid leave balance.
         const otherGap = Math.max(
           0,
-          workingDays - adjustedPresent - unpaidLeaveDays - paidLeaveRemaining
+          workingDays - adjustedPresent - effectiveUnpaid - paidLeaveRemaining
         );
-        const deductDays = Math.round((otherGap + unpaidLeaveDays) * 10) / 10;
+        const deductDays = Math.round((otherGap + effectiveUnpaid) * 10) / 10;
 
         return {
           name: p.name,
@@ -481,7 +486,7 @@ export function PayrollAttendanceLeaveTab() {
           absentCount,
           halfDayCount,
           lieuCount,
-          unpaidLeaveDays,
+          unpaidLeaveDays: effectiveUnpaid,
           paidLeaveDays: Math.round(paidRegularLeave * 10) / 10,
           totalLeaveTaken,
           totalPresentCount,
