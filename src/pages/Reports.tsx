@@ -1,5 +1,6 @@
-import { useState, Fragment, useMemo, useEffect } from "react";
+import { useState, Fragment, useMemo, useEffect, useCallback } from "react";
 import { useBreakSessions } from "@/hooks/useBreakSessions";
+import { useWorkModeHistory } from "@/hooks/useWorkModeHistory";
 import { BreakPauseCell, BreakPauseDetailPanel } from "@/components/attendance/BreakPauseDetail";
 import { ClientReportDownload } from "@/components/logsheet/ClientReportDownload";
 import { LeaveReportsTab } from "@/components/approvals/LeaveReportsTab";
@@ -205,6 +206,29 @@ const Reports = () => {
     loading: attendanceLoading,
     refetch: refetchAttendance,
   } = useTeamAttendance(dateRange, effectiveRange);
+
+  // Append-only work mode history for the visible period
+  const workModeRange = useMemo(() => {
+    const toKey = (d: Date) => {
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(d.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${dd}`;
+    };
+    const range = effectiveRange || getDateRangeFromType(dateRange);
+    if (!range?.start || !range?.end) return { start: undefined, end: undefined };
+    // Pad by a day so employee-timezone dates at the edges are always included
+    const start = new Date(range.start);
+    start.setUTCDate(start.getUTCDate() - 1);
+    const end = new Date(range.end);
+    end.setUTCDate(end.getUTCDate() + 1);
+    return { start: toKey(start), end: toKey(end) };
+  }, [effectiveRange, dateRange]);
+
+  const { getChangesFor, getChangesForLog } = useWorkModeHistory(
+    workModeRange.start,
+    workModeRange.end,
+  );
 
   const [activeTab, setActiveTab] = usePersistentState("reports:activeTab", "daily");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
