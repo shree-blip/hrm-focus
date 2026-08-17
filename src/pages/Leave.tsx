@@ -27,6 +27,7 @@ import { format, differenceInDays } from "date-fns";
 import { parseDateOnly } from "@/lib/timeFormat";
 import { Button } from "@/components/ui/button";
 import { RequestLeaveDialog } from "@/components/leave/RequestLeaveDialog";
+import { useProbationLeave } from "@/hooks/useProbationLeave";
 import { toast } from "@/hooks/use-toast";
 
 // ─── CSV Export ───────────────────────────────────────────────────────────────
@@ -89,6 +90,7 @@ const isSickLeaveType = (leaveType: string) => {
 const Leave = () => {
   const { user, isManager } = useAuth();
   const { ownRequests, teamLeaves, allApprovedLeaves, balances, loading, createRequest, refetch } = useLeaveRequests();
+  const probation = useProbationLeave();
   const { unreadCount } = useNotifications();
   const [showTeamLeaveBanner, setShowTeamLeaveBanner] = useState(true);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
@@ -425,8 +427,22 @@ const Leave = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Annual Leave Balance</p>
-                  {(() => {
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {probation.isProbation ? "Probation Leave Balance" : "Annual Leave Balance"}
+                  </p>
+                  {probation.isProbation ? (
+                    <>
+                      <p className="text-2xl font-bold mt-1">
+                        {Math.max(0, probation.remaining)} of {probation.quota} days remaining
+                        {probation.remaining < 0 && (
+                          <span className="ml-1 text-sm font-semibold text-destructive">
+                            +{-probation.remaining} over
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">(Probation)</p>
+                    </>
+                  ) : (() => {
                     const remaining = getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal();
                     const over = remaining < 0 ? -remaining : 0;
                     return (
@@ -969,6 +985,11 @@ const Leave = () => {
         open={requestDialogOpen}
         onOpenChange={setRequestDialogOpen}
         annualRemaining={getAnnualLeaveTotalDays() - getAnnualLeaveUsedTotal()}
+        probation={
+          probation.isProbation
+            ? { quota: probation.quota, remaining: probation.remaining }
+            : undefined
+        }
         onSubmit={async (request) => {
           const submitted = await createRequest({
             leave_type: request.type,
@@ -980,6 +1001,7 @@ const Leave = () => {
           });
           if (submitted) {
             refetch();
+            probation.refetch();
           }
           return submitted;
         }}

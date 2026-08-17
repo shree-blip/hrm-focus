@@ -98,6 +98,8 @@ interface RequestLeaveDialogProps {
   isOnLeave?: boolean;
   currentLeave?: CurrentLeave | null;
   annualRemaining?: number;
+  /** Set when the employee is on probation: fixed quota for the whole probation period. */
+  probation?: { quota: number; remaining: number };
 }
 
 /**
@@ -127,6 +129,7 @@ export function RequestLeaveDialog({
   isOnLeave = false,
   currentLeave = null,
   annualRemaining,
+  probation,
 }: RequestLeaveDialogProps) {
   const [leaveType, setLeaveType] = useState<LeaveType | "">("Other Leave");
   const [specialLeaveSubtype, setSpecialLeaveSubtype] = useState<SpecialLeaveSubtype | "">("");
@@ -319,6 +322,24 @@ export function RequestLeaveDialog({
           title: "Invalid Date Range",
           description:
             "Your selected dates fall entirely on weekends. Please select dates that include at least one working day.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Probation employees are limited to a fixed 3-day quota for the whole
+    // probation period. Unpaid leave and special leaves don't consume it.
+    if (probation && leaveType !== "Special Leave" && paymentOption !== "payroll") {
+      const requestedDays = isHalfDay
+        ? 0.5
+        : endDate
+          ? getBusinessDaysBetween(startDate, endDate)
+          : 0;
+      if (requestedDays > Math.max(0, probation.remaining)) {
+        toast({
+          title: "Probation Leave Limit Reached",
+          description: `Probation employees are limited to ${probation.quota} days of paid leave for the entire probation period. You have ${Math.max(0, probation.remaining)} day(s) remaining and requested ${requestedDays} day(s).`,
           variant: "destructive",
         });
         return;
