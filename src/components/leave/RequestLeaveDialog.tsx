@@ -328,6 +328,24 @@ export function RequestLeaveDialog({
       }
     }
 
+    // Probation employees are limited to a fixed 3-day quota for the whole
+    // probation period. Unpaid leave and special leaves don't consume it.
+    if (probation && leaveType !== "Special Leave" && paymentOption !== "payroll") {
+      const requestedDays = isHalfDay
+        ? 0.5
+        : endDate
+          ? getBusinessDaysBetween(startDate, endDate)
+          : 0;
+      if (requestedDays > Math.max(0, probation.remaining)) {
+        toast({
+          title: "Probation Leave Limit Reached",
+          description: `Probation employees are limited to ${probation.quota} days of paid leave for the entire probation period. You have ${Math.max(0, probation.remaining)} day(s) remaining and requested ${requestedDays} day(s).`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     const adjustedStartDate = new Date(startDate);
     adjustedStartDate.setHours(12, 0, 0, 0);
     const adjustedEndDate = isHalfDay ? new Date(startDate) : new Date(endDate!);
