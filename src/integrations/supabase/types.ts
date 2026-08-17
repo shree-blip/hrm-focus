@@ -4446,6 +4446,60 @@ export type Database = {
           },
         ]
       }
+      work_mode_changes: {
+        Row: {
+          applies_on: string
+          attendance_log_id: string | null
+          created_at: string
+          employee_id: string | null
+          id: string
+          mode: string
+          recorded_at: string
+          recorded_by: string | null
+          source: string
+          user_id: string
+        }
+        Insert: {
+          applies_on: string
+          attendance_log_id?: string | null
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          mode: string
+          recorded_at?: string
+          recorded_by?: string | null
+          source?: string
+          user_id: string
+        }
+        Update: {
+          applies_on?: string
+          attendance_log_id?: string | null
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          mode?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_mode_changes_attendance_log_id_fkey"
+            columns: ["attendance_log_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_mode_changes_attendance_log_id_fkey"
+            columns: ["attendance_log_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_logs_with_names"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       attendance_logs_with_names: {
