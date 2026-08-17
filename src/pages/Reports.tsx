@@ -1186,7 +1186,8 @@ const Reports = () => {
       });
 
       // Build dynamic header with individual break and pause columns
-      let header = "Date,Day,Employee,Email,Shift Location,Start Work Mode,End Work Mode,Mode Change Summary,Clock In";
+      let header =
+        "Date,Day,Employee,Email,Shift Location,Start Work Mode,Effective Work Mode,Work Mode History (chronological),Clock In";
 
       // Add columns for each possible break
       for (let i = 1; i <= maxBreaks; i++) {
@@ -1277,16 +1278,24 @@ const Reports = () => {
         const status = getWorkStatus(totalHours, typedAtt.clock_out, typedAtt.employment_type).label;
 
         const shiftLocation = typedAtt.location_name || "-";
-        const startMode = getInitialWorkModeFromLocation(
-          typedAtt.location_name ?? null,
-          typedAtt.work_mode ?? null,
-        );
-        const endMode = normalizeWorkMode(typedAtt.work_mode ?? null);
-        const modeChanged = startMode && endMode ? startMode !== endMode : false;
-        const modeSummary = modeChanged
-          ? `${getModeLabel(startMode)} -> ${getModeLabel(endMode)}`
-          : getModeLabel(endMode || startMode || null);
-        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${shiftLocation}","${getModeLabel(startMode)}","${getModeLabel(endMode)}","${modeSummary}","${clockIn}"`;
+        const modeSequence = getWorkModeSequence(typedAtt);
+        const startMode = modeSequence.length > 0 ? modeSequence[0].mode : null;
+        const effectiveMode =
+          modeSequence.length > 0 ? modeSequence[modeSequence.length - 1].mode : null;
+        // Every recorded change, in order, with its timestamp. Superseded entries
+        // are labelled "corrected" instead of being dropped or de-duplicated.
+        const modeSummary =
+          modeSequence.length > 0
+            ? modeSequence
+                .map(
+                  (item) =>
+                    `${getModeLabel(item.mode)} @ ${formatTimeLocal(item.recorded_at, typedAtt.employee_timezone)}${
+                      item.superseded ? " (corrected)" : " (effective)"
+                    }`,
+                )
+                .join(" -> ")
+            : "N/A";
+        let row = `"${date}","${day}","${typedAtt.employee_name}","${typedAtt.email}","${shiftLocation}","${getModeLabel(startMode)}","${getModeLabel(effectiveMode)}","${modeSummary}","${clockIn}"`;
 
         // Add each break's individual data
         for (let i = 0; i < maxBreaks; i++) {
