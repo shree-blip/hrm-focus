@@ -115,6 +115,38 @@ Deno.serve(async (req) => {
 
     let result: Record<string, unknown> = {};
 
+    // Local (employee-timezone) calendar date for the work-mode history entry.
+    const localDateKey = (() => {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: employeeTimezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(serverNow);
+      return parts; // YYYY-MM-DD
+    })();
+
+    // APPEND-ONLY work mode log. Every recorded change is its own row —
+    // never overwritten, never de-duplicated (two identical WFH entries stay two entries).
+    const recordWorkMode = async (
+      mode: string | null | undefined,
+      logId: string | null,
+      source: string,
+    ) => {
+      if (mode !== "wfo" && mode !== "wfh") return;
+      const { error: wmError } = await supabaseAdmin.from("work_mode_changes").insert({
+        user_id: userId,
+        employee_id: employeeId,
+        attendance_log_id: logId,
+        mode,
+        applies_on: localDateKey,
+        recorded_at: serverUtc,
+        recorded_by: userId,
+        source,
+      });
+      if (wmError) console.error("[work_mode_changes] insert failed", wmError);
+    };
+
     switch (action) {
       case "clock_in": {
         // Guard: if there's already an open log for this user, return it instead of creating a duplicate
@@ -153,6 +185,8 @@ Deno.serve(async (req) => {
           .single();
 
         if (error) throw error;
+
+        await recordWorkMode(work_mode || "wfo", data?.id ?? null, "clock_in");
 
         // Create notification
         await supabaseAdmin.rpc("create_notification", {
@@ -520,6 +554,10 @@ Deno.serve(async (req) => {
           .single();
 
         if (error) throw error;
+
+        // Record the mode chosen on resume as its own history entry, even when it
+        // matches the previous value (no de-duplication by design).
+        await recordWorkMode(new_work_mode, log_id, "end_pause");
 
         // Close the open pause session
         const { data: openPauseSession } = await supabaseAdmin
