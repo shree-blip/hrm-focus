@@ -555,6 +555,10 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
+        // Record the mode chosen on resume as its own history entry, even when it
+        // matches the previous value (no de-duplication by design).
+        await recordWorkMode(new_work_mode, log_id, "end_pause");
+
         // Close the open pause session
         const { data: openPauseSession } = await supabaseAdmin
           .from("attendance_break_sessions")
