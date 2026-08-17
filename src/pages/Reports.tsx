@@ -654,6 +654,57 @@ const Reports = () => {
     return `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
   };
 
+  // ── Work mode history (append-only) ────────────────────────────────
+  // Every recorded change is rendered in chronological order. Earlier entries
+  // for the same day are marked as corrected/superseded; the last entry is the
+  // effective mode for that day. Identical consecutive values are NOT collapsed.
+  type WorkModeSequenceItem = {
+    mode: "wfo" | "wfh";
+    recorded_at: string;
+    superseded: boolean;
+    effective: boolean;
+  };
+
+  const getWorkModeSequence = useCallback(
+    (att: DailyAttendanceRecord): WorkModeSequenceItem[] => {
+      const logId = (att as any).id as string | undefined;
+      let history = getChangesForLog(logId);
+      if (history.length === 0) {
+        history = getChangesFor(att.user_id, formatDateLocal(att.clock_in));
+      }
+      if (history.length > 0) {
+        return history.map((entry, idx) => ({
+          mode: entry.mode,
+          recorded_at: entry.recorded_at,
+          superseded: idx < history.length - 1,
+          effective: idx === history.length - 1,
+        }));
+      }
+      // Fallback for records with no history rows at all (pre-migration edge cases)
+      const startMode = getInitialWorkModeFromLocation(
+        att.location_name ?? null,
+        att.work_mode ?? null,
+      );
+      const endMode = normalizeWorkMode(att.work_mode ?? null);
+      const items: WorkModeSequenceItem[] = [];
+      if (startMode) {
+        items.push({ mode: startMode, recorded_at: att.clock_in, superseded: false, effective: true });
+      }
+      if (endMode && startMode && endMode !== startMode) {
+        items[0].superseded = true;
+        items[0].effective = false;
+        items.push({
+          mode: endMode,
+          recorded_at: att.pause_end || att.clock_out || att.clock_in,
+          superseded: false,
+          effective: true,
+        });
+      }
+      return items;
+    },
+    [getChangesForLog, getChangesFor],
+  );
+
   const formatBreakDuration = (minutes: number): string => {
     if (minutes < 60) {
       return `${minutes}m`;
