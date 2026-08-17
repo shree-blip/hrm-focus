@@ -1959,6 +1959,7 @@ const Reports = () => {
                         <th className="text-left p-3 font-medium">Work Date</th>
                         <th className="text-left p-3 font-medium">Employee</th>
                         <th className="text-left p-3 font-medium">Clock In</th>
+                        <th className="text-left p-3 font-medium">Work Mode History</th>
                         <th className="text-left p-3 font-medium">Breaks</th>
                         <th className="text-left p-3 font-medium">Break Time</th>
                         <th className="text-left p-3 font-medium">Pauses</th>
@@ -2016,6 +2017,48 @@ const Reports = () => {
                               </td>
                               <td className="p-3 text-success font-mono">
                                 {formatTimeLocal(typedAtt.clock_in, typedAtt.employee_timezone)}
+                              </td>
+                              {/* Full chronological work mode history — nothing collapsed */}
+                              <td className="p-3 align-top">
+                                {(() => {
+                                  const sequence = getWorkModeSequence(typedAtt);
+                                  if (sequence.length === 0) {
+                                    return <span className="text-xs text-muted-foreground">N/A</span>;
+                                  }
+                                  return (
+                                    <div className="flex flex-col gap-1 min-w-[170px]">
+                                      {sequence.map((item, i) => (
+                                        <div
+                                          key={`${rowKey}-mode-${i}`}
+                                          className="flex items-center gap-1.5 text-xs"
+                                        >
+                                          <Badge
+                                            variant={item.effective ? "default" : "outline"}
+                                            className={
+                                              item.superseded
+                                                ? "line-through text-muted-foreground text-[10px]"
+                                                : "text-[10px]"
+                                            }
+                                          >
+                                            {item.mode === "wfh" ? "WFH" : "WFO"}
+                                          </Badge>
+                                          <span
+                                            className={
+                                              item.superseded
+                                                ? "font-mono line-through text-muted-foreground"
+                                                : "font-mono"
+                                            }
+                                          >
+                                            {formatTimeLocal(item.recorded_at, typedAtt.employee_timezone)}
+                                          </span>
+                                          <span className="text-[10px] text-muted-foreground">
+                                            {item.superseded ? "corrected" : "effective"}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                })()}
                               </td>
                               {/* Merged Break column: count + duration, clickable */}
                               <td className="p-3" colSpan={2}>
