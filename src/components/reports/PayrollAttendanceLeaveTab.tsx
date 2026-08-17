@@ -229,7 +229,9 @@ export function PayrollAttendanceLeaveTab() {
         (priorLeaves || []).forEach((r: any) => {
           const info = probationInfo[r.user_id];
           if (!info) return;
-          if (isUnpaidReason(r.reason)) return;
+          // Probation / intern pool covers every regular leave day (including
+          // half days) taken inside the probation window, even when the request
+          // was tagged unpaid — the fixed pool is the entitlement being spent.
           if (SPECIAL_LEAVES.some((s) => s.match.test(r.leave_type || ""))) return;
           if (/lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "")) return;
           const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
@@ -402,7 +404,7 @@ export function PayrollAttendanceLeaveTab() {
         // three full absences plus three half days always reports as 4.5.
         const totalLeaveTaken = Math.round((absentCount + halfDayCount) * 10) / 10;
         // Paid portion of regular leave (unpaid-tagged days are excluded).
-        const paidRegularLeave = Math.max(0, regularLeave - unpaidLeaveDays);
+        const paidRegularLeaveBase = Math.max(0, regularLeave - unpaidLeaveDays);
         const totalPresentCount = presentCount + halfPresentCredit;
         const bal = balanceMap[uid];
         // Intern / probation staff accrue 1 paid leave day per month, so their
@@ -410,6 +412,9 @@ export function PayrollAttendanceLeaveTab() {
         // the aggregate fiscal-year balance (which may already be exhausted).
         const pool = probationInfo[uid];
         const isMonthlyAccrual = !!pool;
+        // Probation / intern: leave inside the probation window is paid while the
+        // fixed pool lasts, regardless of any unpaid tag on the request.
+        const paidRegularLeave = isMonthlyAccrual ? regularLeave : paidRegularLeaveBase;
         // Probation / intern: entitlement carried into this month = total probation
         // pool minus leave already taken in earlier probation months.
         // Richard (pool spent) -> 0, Ashmita (none used) -> 3, Chandani (1 used) -> 2.
@@ -458,14 +463,19 @@ export function PayrollAttendanceLeaveTab() {
         );
         void uncovered;
         const paidLeaveRemaining = remainingNow;
+        // Probation / intern: only the part of the leave the pool could not cover
+        // counts as unpaid, even if the request itself carried an unpaid tag.
+        const effectiveUnpaid = isMonthlyAccrual
+          ? Math.round(Math.max(0, regularLeave - covered) * 10) / 10
+          : unpaidLeaveDays;
         // Unpaid leave always deducts from payroll — it can never be offset by the
         // remaining paid balance. Other gaps (NR / uncovered days) may still be
         // absorbed by the remaining paid leave balance.
         const otherGap = Math.max(
           0,
-          workingDays - adjustedPresent - unpaidLeaveDays - paidLeaveRemaining
+          workingDays - adjustedPresent - effectiveUnpaid - paidLeaveRemaining
         );
-        const deductDays = Math.round((otherGap + unpaidLeaveDays) * 10) / 10;
+        const deductDays = Math.round((otherGap + effectiveUnpaid) * 10) / 10;
 
         return {
           name: p.name,
@@ -476,7 +486,7 @@ export function PayrollAttendanceLeaveTab() {
           absentCount,
           halfDayCount,
           lieuCount,
-          unpaidLeaveDays,
+          unpaidLeaveDays: effectiveUnpaid,
           paidLeaveDays: Math.round(paidRegularLeave * 10) / 10,
           totalLeaveTaken,
           totalPresentCount,
