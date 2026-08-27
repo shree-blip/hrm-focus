@@ -27,7 +27,8 @@ export function RejectReasonDialog({
   onConfirm,
   employeeName,
 }: RejectReasonDialogProps) {
-  const [reason, setReason] = useState("");
+  // Draft is persisted so a background data refresh / remount never loses typing.
+  const [reason, setReason, resetReason] = usePersistentState("leave:rejectReasonDraft", "");
   const [error, setError] = useState("");
 
   const handleConfirm = () => {
@@ -40,18 +41,19 @@ export function RejectReasonDialog({
       });
       return;
     }
-    
+
     onConfirm(reason);
-    setReason("");
+    resetReason();
     setError("");
     onOpenChange(false);
   };
 
   const handleCancel = () => {
-    setReason("");
+    resetReason();
     setError("");
     onOpenChange(false);
   };
+
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
