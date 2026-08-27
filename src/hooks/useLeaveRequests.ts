@@ -422,9 +422,15 @@ export function useLeaveRequests() {
     setBalances(balanceConfigs as LeaveBalance[]);
   }, [user]);
 
+  // Only the very first load toggles the page-level loading state. Background
+  // refreshes (realtime events) must stay silent, otherwise consumer pages
+  // swap to a loading screen and unmount open dialogs, wiping user input.
+  const hasLoadedOnceRef = useRef(false);
+
   const loadAllData = useCallback(async () => {
-    setLoading(true);
+    if (!hasLoadedOnceRef.current) setLoading(true);
     await Promise.all([fetchRequests(), fetchBalances()]);
+    hasLoadedOnceRef.current = true;
     setLoading(false);
   }, [fetchRequests, fetchBalances]);
 
