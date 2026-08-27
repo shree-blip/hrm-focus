@@ -1075,7 +1075,17 @@ export function useLeaveRequests() {
     // requests stay as "cancelled".
     const newStatus =
       originalStatus === "approved" && (isAdmin || isVP || isSupervisor || isLineManager) ? "rejected" : "cancelled";
-    const { error } = await supabase.from("leave_requests").update({ status: newStatus }).eq("id", requestId);
+    const cancelReasonText = reason?.trim() || "No reason provided";
+    const { error } = await supabase
+      .from("leave_requests")
+      .update({
+        status: newStatus,
+        // Persist the cancellation reason so it is visible wherever the
+        // rejection reason is shown (Leave, Approvals, reports, CSV exports).
+        rejection_reason: `Cancelled: ${cancelReasonText}`,
+      })
+      .eq("id", requestId);
+
 
     if (error) {
       toast({ title: "Error", description: "Failed to cancel leave request", variant: "destructive" });
