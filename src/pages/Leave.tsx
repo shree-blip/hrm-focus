@@ -716,12 +716,16 @@ const Leave = () => {
                         </p>
                       )}
                       {request.reason && <p className="text-sm text-muted-foreground mt-1">"{request.reason}"</p>}
-                      {request.status === "rejected" && request.rejection_reason && (
+                      {(request.status === "rejected" || request.status === "cancelled") && request.rejection_reason && (
                         <div className="flex items-start gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                           <MessageSquare className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-                          <p className="text-sm text-destructive">
-                            <span className="font-medium">Rejection reason:</span> {request.rejection_reason}
+                          <p className="text-sm text-destructive break-words">
+                            <span className="font-medium">
+                              {request.rejection_reason.startsWith("Cancelled:") ? "Cancellation reason:" : "Rejection reason:"}
+                            </span>{" "}
+                            {request.rejection_reason.replace(/^Cancelled:\s*/, "")}
                           </p>
+
                         </div>
                       )}
                     </div>
