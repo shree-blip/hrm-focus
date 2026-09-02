@@ -18,7 +18,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Cake, CalendarHeart } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Cake, CalendarHeart, Briefcase } from "lucide-react";
+
+const EMPLOYMENT_DATE_TYPES = [
+  { type: "intern", label: "Intern Date" },
+  { type: "probation", label: "Probation Date" },
+  { type: "full_time", label: "Full time" },
+] as const;
+
 
 interface Employee {
   id: number;
@@ -50,10 +58,40 @@ export function EditEmployeeDialog({
   onOpenChange,
   onSave,
 }: EditEmployeeDialogProps) {
+  const { isAdmin, isVP } = useAuth();
+  const canEditEmploymentDates = isAdmin || isVP;
   const [formData, setFormData] = useState<Employee | null>(null);
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [joiningDate, setJoiningDate] = useState("");
   const [savingMilestones, setSavingMilestones] = useState(false);
+  const [employmentDates, setEmploymentDates] = useState<Record<string, string>>({});
+  const [employmentDateIds, setEmploymentDateIds] = useState<Record<string, string>>({});
+
+  // Load employment type history dates (intern / probation / full time)
+  useEffect(() => {
+    const fetchEmploymentDates = async () => {
+      setEmploymentDates({});
+      setEmploymentDateIds({});
+      if (!open || !employee?.id || !canEditEmploymentDates) return;
+      const { data } = await (supabase as any)
+        .from("employment_type_history")
+        .select("id, employment_type, effective_date")
+        .eq("employee_id", String(employee.id))
+        .order("effective_date", { ascending: true });
+      const dates: Record<string, string> = {};
+      const ids: Record<string, string> = {};
+      (data || []).forEach((row: any) => {
+        if (!dates[row.employment_type]) {
+          dates[row.employment_type] = row.effective_date ?? "";
+          ids[row.employment_type] = row.id;
+        }
+      });
+      setEmploymentDates(dates);
+      setEmploymentDateIds(ids);
+    };
+    fetchEmploymentDates();
+  }, [open, employee?.id, canEditEmploymentDates]);
+
 
   useEffect(() => {
     if (employee) {
@@ -135,10 +173,36 @@ export function EditEmployeeDialog({
       }
     }
 
+    // Persist employment history dates (intern / probation / full time)
+    if (canEditEmploymentDates && employee?.id) {
+      setSavingMilestones(true);
+      for (const { type } of EMPLOYMENT_DATE_TYPES) {
+        const value = employmentDates[type] || "";
+        const existingId = employmentDateIds[type];
+        if (value && existingId) {
+          await (supabase as any)
+            .from("employment_type_history")
+            .update({ effective_date: value })
+            .eq("id", existingId);
+        } else if (value && !existingId) {
+          await (supabase as any).from("employment_type_history").insert({
+            employee_id: String(employee.id),
+            employment_type: type,
+            effective_date: value,
+            note: "Manually set by management",
+          });
+        } else if (!value && existingId) {
+          await (supabase as any).from("employment_type_history").delete().eq("id", existingId);
+        }
+      }
+      setSavingMilestones(false);
+    }
+
     onSave(formData);
     toast.success(`${formData.name}'s details updated successfully`);
     onOpenChange(false);
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -302,7 +366,34 @@ export function EditEmployeeDialog({
               </p>
             </div>
           )}
+          {canEditEmploymentDates && (
+            <div className="space-y-3 rounded-lg border p-4">
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+                Employment History Dates
+              </p>
+              <div className="space-y-3">
+                {EMPLOYMENT_DATE_TYPES.map(({ type, label }) => (
+                  <div key={type} className="space-y-2">
+                    <Label htmlFor={`emp-date-${type}`}>{label}</Label>
+                    <Input
+                      id={`emp-date-${type}`}
+                      type="date"
+                      value={employmentDates[type] || ""}
+                      onChange={(e) =>
+                        setEmploymentDates((prev) => ({ ...prev, [type]: e.target.value }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                These dates appear in the employee's Employment History. Clear a date to remove it.
+              </p>
+            </div>
+          )}
           <div className="space-y-3 rounded-lg border p-4">
+
             <p className="text-sm font-medium">Milestones</p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
