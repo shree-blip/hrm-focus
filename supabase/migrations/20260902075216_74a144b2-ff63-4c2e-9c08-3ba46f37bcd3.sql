@@ -1,0 +1,1 @@
+ALTER TABLE public.employment_type_history ADD COLUMN IF NOT EXISTS end_date date;

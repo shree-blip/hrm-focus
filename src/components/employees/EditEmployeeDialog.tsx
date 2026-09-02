@@ -65,28 +65,33 @@ export function EditEmployeeDialog({
   const [joiningDate, setJoiningDate] = useState("");
   const [savingMilestones, setSavingMilestones] = useState(false);
   const [employmentDates, setEmploymentDates] = useState<Record<string, string>>({});
+  const [employmentEndDates, setEmploymentEndDates] = useState<Record<string, string>>({});
   const [employmentDateIds, setEmploymentDateIds] = useState<Record<string, string>>({});
 
   // Load employment type history dates (intern / probation / full time)
   useEffect(() => {
     const fetchEmploymentDates = async () => {
       setEmploymentDates({});
+      setEmploymentEndDates({});
       setEmploymentDateIds({});
       if (!open || !employee?.id || !canEditEmploymentDates) return;
       const { data } = await (supabase as any)
         .from("employment_type_history")
-        .select("id, employment_type, effective_date")
+        .select("id, employment_type, effective_date, end_date")
         .eq("employee_id", String(employee.id))
         .order("effective_date", { ascending: true });
       const dates: Record<string, string> = {};
+      const ends: Record<string, string> = {};
       const ids: Record<string, string> = {};
       (data || []).forEach((row: any) => {
-        if (!dates[row.employment_type]) {
+        if (!ids[row.employment_type]) {
           dates[row.employment_type] = row.effective_date ?? "";
+          ends[row.employment_type] = row.end_date ?? "";
           ids[row.employment_type] = row.id;
         }
       });
       setEmploymentDates(dates);
+      setEmploymentEndDates(ends);
       setEmploymentDateIds(ids);
     };
     fetchEmploymentDates();
@@ -178,17 +183,19 @@ export function EditEmployeeDialog({
       setSavingMilestones(true);
       for (const { type } of EMPLOYMENT_DATE_TYPES) {
         const value = employmentDates[type] || "";
+        const endValue = employmentEndDates[type] || "";
         const existingId = employmentDateIds[type];
         if (value && existingId) {
           await (supabase as any)
             .from("employment_type_history")
-            .update({ effective_date: value })
+            .update({ effective_date: value, end_date: endValue || null })
             .eq("id", existingId);
         } else if (value && !existingId) {
           await (supabase as any).from("employment_type_history").insert({
             employee_id: String(employee.id),
             employment_type: type,
             effective_date: value,
+            end_date: endValue || null,
             note: "Manually set by management",
           });
         } else if (!value && existingId) {
@@ -375,20 +382,41 @@ export function EditEmployeeDialog({
               <div className="space-y-3">
                 {EMPLOYMENT_DATE_TYPES.map(({ type, label }) => (
                   <div key={type} className="space-y-2">
-                    <Label htmlFor={`emp-date-${type}`}>{label}</Label>
-                    <Input
-                      id={`emp-date-${type}`}
-                      type="date"
-                      value={employmentDates[type] || ""}
-                      onChange={(e) =>
-                        setEmploymentDates((prev) => ({ ...prev, [type]: e.target.value }))
-                      }
-                    />
+                    <Label>{label}</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor={`emp-date-${type}`} className="text-xs text-muted-foreground">
+                          Start date
+                        </Label>
+                        <Input
+                          id={`emp-date-${type}`}
+                          type="date"
+                          value={employmentDates[type] || ""}
+                          onChange={(e) =>
+                            setEmploymentDates((prev) => ({ ...prev, [type]: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={`emp-end-${type}`} className="text-xs text-muted-foreground">
+                          End date
+                        </Label>
+                        <Input
+                          id={`emp-end-${type}`}
+                          type="date"
+                          value={employmentEndDates[type] || ""}
+                          onChange={(e) =>
+                            setEmploymentEndDates((prev) => ({ ...prev, [type]: e.target.value }))
+                          }
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                These dates appear in the employee's Employment History. Clear a date to remove it.
+                These dates appear in the employee's Employment History. Clear the start date to
+                remove an entry; the end date is optional (leave blank if ongoing).
               </p>
             </div>
           )}

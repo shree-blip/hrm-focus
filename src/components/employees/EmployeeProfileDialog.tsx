@@ -208,7 +208,7 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
   // --- Employment type history (HR/Admin + CEO only) ---
   const canViewEmploymentHistory = isAdmin || isVP;
   const [employmentHistory, setEmploymentHistory] = useState<
-    { id: string; employment_type: string; previous_type: string | null; effective_date: string; note: string | null }[]
+    { id: string; employment_type: string; previous_type: string | null; effective_date: string; end_date: string | null; note: string | null }[]
   >([]);
 
   useEffect(() => {
@@ -217,7 +217,7 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
       if (!open || !employee?.id || !canViewEmploymentHistory) return;
       const { data } = await (supabase as any)
         .from("employment_type_history")
-        .select("id, employment_type, previous_type, effective_date, note")
+        .select("id, employment_type, previous_type, effective_date, end_date, note")
         .eq("employee_id", String(employee.id))
         .order("effective_date", { ascending: true })
         .order("created_at", { ascending: true });
@@ -418,6 +418,12 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
                             <span className="font-medium">
                               {entry
                                 ? formatMilestoneDate(entry.effective_date) || entry.effective_date
+                                : "—"}
+                            </span>
+                            {" — "}
+                            <span className="font-medium">
+                              {entry?.end_date
+                                ? formatMilestoneDate(entry.end_date) || entry.end_date
                                 : "—"}
                             </span>
                           </span>
