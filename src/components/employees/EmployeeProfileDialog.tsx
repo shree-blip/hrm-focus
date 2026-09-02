@@ -217,7 +217,7 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
       if (!open || !employee?.id || !canViewEmploymentHistory) return;
       const { data } = await (supabase as any)
         .from("employment_type_history")
-        .select("id, employment_type, previous_type, effective_date, note")
+        .select("id, employment_type, previous_type, effective_date, end_date, note")
         .eq("employee_id", String(employee.id))
         .order("effective_date", { ascending: true })
         .order("created_at", { ascending: true });
