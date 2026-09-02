@@ -382,20 +382,41 @@ export function EditEmployeeDialog({
               <div className="space-y-3">
                 {EMPLOYMENT_DATE_TYPES.map(({ type, label }) => (
                   <div key={type} className="space-y-2">
-                    <Label htmlFor={`emp-date-${type}`}>{label}</Label>
-                    <Input
-                      id={`emp-date-${type}`}
-                      type="date"
-                      value={employmentDates[type] || ""}
-                      onChange={(e) =>
-                        setEmploymentDates((prev) => ({ ...prev, [type]: e.target.value }))
-                      }
-                    />
+                    <Label>{label}</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor={`emp-date-${type}`} className="text-xs text-muted-foreground">
+                          Start date
+                        </Label>
+                        <Input
+                          id={`emp-date-${type}`}
+                          type="date"
+                          value={employmentDates[type] || ""}
+                          onChange={(e) =>
+                            setEmploymentDates((prev) => ({ ...prev, [type]: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={`emp-end-${type}`} className="text-xs text-muted-foreground">
+                          End date
+                        </Label>
+                        <Input
+                          id={`emp-end-${type}`}
+                          type="date"
+                          value={employmentEndDates[type] || ""}
+                          onChange={(e) =>
+                            setEmploymentEndDates((prev) => ({ ...prev, [type]: e.target.value }))
+                          }
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                These dates appear in the employee's Employment History. Clear a date to remove it.
+                These dates appear in the employee's Employment History. Clear the start date to
+                remove an entry; the end date is optional (leave blank if ongoing).
               </p>
             </div>
           )}
