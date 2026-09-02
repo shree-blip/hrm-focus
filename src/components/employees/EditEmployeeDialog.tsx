@@ -366,7 +366,34 @@ export function EditEmployeeDialog({
               </p>
             </div>
           )}
+          {canEditEmploymentDates && (
+            <div className="space-y-3 rounded-lg border p-4">
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+                Employment History Dates
+              </p>
+              <div className="space-y-3">
+                {EMPLOYMENT_DATE_TYPES.map(({ type, label }) => (
+                  <div key={type} className="space-y-2">
+                    <Label htmlFor={`emp-date-${type}`}>{label}</Label>
+                    <Input
+                      id={`emp-date-${type}`}
+                      type="date"
+                      value={employmentDates[type] || ""}
+                      onChange={(e) =>
+                        setEmploymentDates((prev) => ({ ...prev, [type]: e.target.value }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                These dates appear in the employee's Employment History. Clear a date to remove it.
+              </p>
+            </div>
+          )}
           <div className="space-y-3 rounded-lg border p-4">
+
             <p className="text-sm font-medium">Milestones</p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
