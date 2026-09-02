@@ -1282,6 +1282,61 @@ export type Database = {
           },
         ]
       }
+      employment_type_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          effective_date: string
+          employee_id: string
+          employment_type: string
+          id: string
+          note: string | null
+          previous_type: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          effective_date?: string
+          employee_id: string
+          employment_type: string
+          id?: string
+          note?: string | null
+          previous_type?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          effective_date?: string
+          employee_id?: string
+          employment_type?: string
+          id?: string
+          note?: string | null
+          previous_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employment_type_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_type_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_salary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_type_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback_360: {
         Row: {
           category: string
