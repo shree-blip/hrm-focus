@@ -420,6 +420,12 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
                                 ? formatMilestoneDate(entry.effective_date) || entry.effective_date
                                 : "—"}
                             </span>
+                            {" — "}
+                            <span className="font-medium">
+                              {entry?.end_date
+                                ? formatMilestoneDate(entry.end_date) || entry.end_date
+                                : "—"}
+                            </span>
                           </span>
                           {entry?.note && (
                             <p className="text-xs text-muted-foreground">{entry.note}</p>
