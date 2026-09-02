@@ -65,28 +65,33 @@ export function EditEmployeeDialog({
   const [joiningDate, setJoiningDate] = useState("");
   const [savingMilestones, setSavingMilestones] = useState(false);
   const [employmentDates, setEmploymentDates] = useState<Record<string, string>>({});
+  const [employmentEndDates, setEmploymentEndDates] = useState<Record<string, string>>({});
   const [employmentDateIds, setEmploymentDateIds] = useState<Record<string, string>>({});
 
   // Load employment type history dates (intern / probation / full time)
   useEffect(() => {
     const fetchEmploymentDates = async () => {
       setEmploymentDates({});
+      setEmploymentEndDates({});
       setEmploymentDateIds({});
       if (!open || !employee?.id || !canEditEmploymentDates) return;
       const { data } = await (supabase as any)
         .from("employment_type_history")
-        .select("id, employment_type, effective_date")
+        .select("id, employment_type, effective_date, end_date")
         .eq("employee_id", String(employee.id))
         .order("effective_date", { ascending: true });
       const dates: Record<string, string> = {};
+      const ends: Record<string, string> = {};
       const ids: Record<string, string> = {};
       (data || []).forEach((row: any) => {
-        if (!dates[row.employment_type]) {
+        if (!ids[row.employment_type]) {
           dates[row.employment_type] = row.effective_date ?? "";
+          ends[row.employment_type] = row.end_date ?? "";
           ids[row.employment_type] = row.id;
         }
       });
       setEmploymentDates(dates);
+      setEmploymentEndDates(ends);
       setEmploymentDateIds(ids);
     };
     fetchEmploymentDates();
