@@ -388,6 +388,39 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
             </div>
           </div>
 
+          {/* Employment History (HR/Admin & CEO only) */}
+          {canViewEmploymentHistory && employmentHistory.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Employment History</h4>
+                <div className="space-y-2">
+                  {employmentHistory.map((h, i) => (
+                    <div key={h.id} className="flex items-start gap-3 text-sm">
+                      <Briefcase className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <span className="font-medium">
+                          {i === 0 && !h.previous_type
+                            ? `Joined as ${EMPLOYMENT_TYPE_LABELS[h.employment_type] || h.employment_type}`
+                            : `${EMPLOYMENT_TYPE_LABELS[h.previous_type || ""] || h.previous_type || "—"} → ${EMPLOYMENT_TYPE_LABELS[h.employment_type] || h.employment_type}`}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · {formatMilestoneDate(h.effective_date) || h.effective_date}
+                        </span>
+                        {h.note && (
+                          <p className="text-xs text-muted-foreground">{h.note}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+
+
           {/* Milestones */}
           {(milestone.dob || milestone.joining) && (
             <>
