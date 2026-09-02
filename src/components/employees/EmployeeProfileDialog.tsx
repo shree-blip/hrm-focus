@@ -208,7 +208,7 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
   // --- Employment type history (HR/Admin + CEO only) ---
   const canViewEmploymentHistory = isAdmin || isVP;
   const [employmentHistory, setEmploymentHistory] = useState<
-    { id: string; employment_type: string; previous_type: string | null; effective_date: string; note: string | null }[]
+    { id: string; employment_type: string; previous_type: string | null; effective_date: string; end_date: string | null; note: string | null }[]
   >([]);
 
   useEffect(() => {
