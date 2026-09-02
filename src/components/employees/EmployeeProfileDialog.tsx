@@ -29,6 +29,12 @@ const LazyRequestPromotionDialog = lazy(() =>
   })),
 );
 
+const EMPLOYMENT_TYPE_LABELS: Record<string, string> = {
+  full_time: "Full-Time",
+  probation: "Probation",
+  intern: "Intern",
+};
+
 interface Employee {
   id: number | string;
   name: string;
