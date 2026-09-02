@@ -18,7 +18,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Cake, CalendarHeart } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Cake, CalendarHeart, Briefcase } from "lucide-react";
+
+const EMPLOYMENT_DATE_TYPES = [
+  { type: "intern", label: "Intern Date" },
+  { type: "probation", label: "Probation Date" },
+  { type: "full_time", label: "Full time" },
+] as const;
+
 
 interface Employee {
   id: number;
