@@ -29,6 +29,12 @@ const LazyRequestPromotionDialog = lazy(() =>
   })),
 );
 
+const EMPLOYMENT_TYPE_LABELS: Record<string, string> = {
+  full_time: "Full-Time",
+  probation: "Probation",
+  intern: "Intern",
+};
+
 interface Employee {
   id: number | string;
   name: string;
@@ -199,6 +205,28 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
     fetchMilestone();
   }, [open, employee?.user_id, employee?.profile_id]);
 
+  // --- Employment type history (HR/Admin + CEO only) ---
+  const canViewEmploymentHistory = isAdmin || isVP;
+  const [employmentHistory, setEmploymentHistory] = useState<
+    { id: string; employment_type: string; previous_type: string | null; effective_date: string; note: string | null }[]
+  >([]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setEmploymentHistory([]);
+      if (!open || !employee?.id || !canViewEmploymentHistory) return;
+      const { data } = await (supabase as any)
+        .from("employment_type_history")
+        .select("id, employment_type, previous_type, effective_date, note")
+        .eq("employee_id", String(employee.id))
+        .order("effective_date", { ascending: true })
+        .order("created_at", { ascending: true });
+      setEmploymentHistory(data || []);
+    };
+    fetchHistory();
+  }, [open, employee?.id, canViewEmploymentHistory]);
+
+
   const formatMilestoneDate = (value: string | null) => {
     if (!value) return null;
     const d = new Date(value + "T00:00:00");
@@ -365,6 +393,39 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
               </div>
             </div>
           </div>
+
+          {/* Employment History (HR/Admin & CEO only) */}
+          {canViewEmploymentHistory && employmentHistory.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Employment History</h4>
+                <div className="space-y-2">
+                  {employmentHistory.map((h, i) => (
+                    <div key={h.id} className="flex items-start gap-3 text-sm">
+                      <Briefcase className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <span className="font-medium">
+                          {i === 0 && !h.previous_type
+                            ? `Joined as ${EMPLOYMENT_TYPE_LABELS[h.employment_type] || h.employment_type}`
+                            : `${EMPLOYMENT_TYPE_LABELS[h.previous_type || ""] || h.previous_type || "—"} → ${EMPLOYMENT_TYPE_LABELS[h.employment_type] || h.employment_type}`}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · {formatMilestoneDate(h.effective_date) || h.effective_date}
+                        </span>
+                        {h.note && (
+                          <p className="text-xs text-muted-foreground">{h.note}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+
 
           {/* Milestones */}
           {(milestone.dob || milestone.joining) && (
