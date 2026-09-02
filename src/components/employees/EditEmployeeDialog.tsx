@@ -173,10 +173,36 @@ export function EditEmployeeDialog({
       }
     }
 
+    // Persist employment history dates (intern / probation / full time)
+    if (canEditEmploymentDates && employee?.id) {
+      setSavingMilestones(true);
+      for (const { type } of EMPLOYMENT_DATE_TYPES) {
+        const value = employmentDates[type] || "";
+        const existingId = employmentDateIds[type];
+        if (value && existingId) {
+          await (supabase as any)
+            .from("employment_type_history")
+            .update({ effective_date: value })
+            .eq("id", existingId);
+        } else if (value && !existingId) {
+          await (supabase as any).from("employment_type_history").insert({
+            employee_id: String(employee.id),
+            employment_type: type,
+            effective_date: value,
+            note: "Manually set by management",
+          });
+        } else if (!value && existingId) {
+          await (supabase as any).from("employment_type_history").delete().eq("id", existingId);
+        }
+      }
+      setSavingMilestones(false);
+    }
+
     onSave(formData);
     toast.success(`${formData.name}'s details updated successfully`);
     onOpenChange(false);
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
