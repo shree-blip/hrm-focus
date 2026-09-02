@@ -199,6 +199,28 @@ export function EmployeeProfileDialog({ employee, open, onOpenChange }: Employee
     fetchMilestone();
   }, [open, employee?.user_id, employee?.profile_id]);
 
+  // --- Employment type history (HR/Admin + CEO only) ---
+  const canViewEmploymentHistory = isAdmin || isVP;
+  const [employmentHistory, setEmploymentHistory] = useState<
+    { id: string; employment_type: string; previous_type: string | null; effective_date: string; note: string | null }[]
+  >([]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setEmploymentHistory([]);
+      if (!open || !employee?.id || !canViewEmploymentHistory) return;
+      const { data } = await (supabase as any)
+        .from("employment_type_history")
+        .select("id, employment_type, previous_type, effective_date, note")
+        .eq("employee_id", String(employee.id))
+        .order("effective_date", { ascending: true })
+        .order("created_at", { ascending: true });
+      setEmploymentHistory(data || []);
+    };
+    fetchHistory();
+  }, [open, employee?.id, canViewEmploymentHistory]);
+
+
   const formatMilestoneDate = (value: string | null) => {
     if (!value) return null;
     const d = new Date(value + "T00:00:00");
