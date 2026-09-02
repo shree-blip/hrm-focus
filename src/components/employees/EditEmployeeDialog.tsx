@@ -183,17 +183,19 @@ export function EditEmployeeDialog({
       setSavingMilestones(true);
       for (const { type } of EMPLOYMENT_DATE_TYPES) {
         const value = employmentDates[type] || "";
+        const endValue = employmentEndDates[type] || "";
         const existingId = employmentDateIds[type];
         if (value && existingId) {
           await (supabase as any)
             .from("employment_type_history")
-            .update({ effective_date: value })
+            .update({ effective_date: value, end_date: endValue || null })
             .eq("id", existingId);
         } else if (value && !existingId) {
           await (supabase as any).from("employment_type_history").insert({
             employee_id: String(employee.id),
             employment_type: type,
             effective_date: value,
+            end_date: endValue || null,
             note: "Manually set by management",
           });
         } else if (!value && existingId) {
