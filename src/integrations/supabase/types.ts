@@ -1289,6 +1289,7 @@ export type Database = {
           effective_date: string
           employee_id: string
           employment_type: string
+          end_date: string | null
           id: string
           note: string | null
           previous_type: string | null
@@ -1299,6 +1300,7 @@ export type Database = {
           effective_date?: string
           employee_id: string
           employment_type: string
+          end_date?: string | null
           id?: string
           note?: string | null
           previous_type?: string | null
@@ -1309,6 +1311,7 @@ export type Database = {
           effective_date?: string
           employee_id?: string
           employment_type?: string
+          end_date?: string | null
           id?: string
           note?: string | null
           previous_type?: string | null
