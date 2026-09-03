@@ -383,20 +383,18 @@ export function PayrollAttendanceLeaveTab() {
         // Probation / intern: leave inside the probation window is paid while the
         // fixed pool lasts, regardless of any unpaid tag on the request.
         const paidRegularLeave = isMonthlyAccrual ? regularLeave : paidRegularLeaveBase;
-        // Probation / intern: entitlement carried into this month = total probation
-        // pool minus leave already taken in earlier probation months.
-        // Richard (pool spent) -> 0, Ashmita (none used) -> 3, Chandani (1 used) -> 2.
+        // Monthly entitlement: probation / intern accrue 1 day per probation month,
+        // full-time staff accrue their yearly allowance spread over 12 months.
+        // Nothing from earlier months carries into the figure any more.
         const probationEntitlement = isMonthlyAccrual
-          ? Math.round(Math.max(0, pool.pool - (priorPoolUsed[uid] || 0)) * 10) / 10
+          ? Math.round((pool.pool / Math.max(1, pool.pool)) * 10) / 10
           : 0;
-        // Balance available at the start of this reporting month. Derived from the
-        // yearly entitlement minus the paid leave consumed in EARLIER months of the
-        // same fiscal year, so leave approved for later months never reduces it.
         const availableBefore = isMonthlyAccrual
           ? probationEntitlement
           : bal
-          ? Math.max(0, bal.total - (priorFyPaidUsed[uid] || 0))
+          ? Math.round((bal.total / 12) * 10) / 10
           : 0;
+
         // Remaining balance after this month's leave usage.
         // All employment types: entitlement - total PAID leave taken = remaining.
         // Unpaid leave is reported separately and must not reduce paid entitlement.
