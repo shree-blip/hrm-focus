@@ -1139,6 +1139,7 @@ const Reports = () => {
           ? Array.from(paymentTypesMap[emp.user_id]).sort().join(" | ")
           : "-";
         const remainingLeave = remainingLeaveMap[emp.user_id] ?? 0;
+        const upcomingLeave = upcomingLeaveMap[emp.user_id] ?? 0;
 
         // Adjusted Days Worked: paid leave is treated as worked time, while
         // payroll-deduction leave is not added back. Actual clock-in days
