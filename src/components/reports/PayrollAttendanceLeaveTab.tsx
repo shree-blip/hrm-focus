@@ -231,44 +231,8 @@ export function PayrollAttendanceLeaveTab() {
         });
       }
 
-      // ---- Paid annual leave already consumed EARLIER in this fiscal year -------
-      // `leave_balances.used_days` is a live figure that also includes leave that is
-      // approved for FUTURE months, so using it would shrink the entitlement shown
-      // for the reporting month (e.g. a September leave reducing the August report).
-      // Recompute the consumed days from the approved requests dated BEFORE this
-      // reporting month instead, so every month reflects the balance as it actually
-      // stood at that time.
-      const fyStartKey = `${fyEndYear - 1}-07-01`;
-      const priorFyPaidUsed: Record<string, number> = {};
-      if (userIds.length > 0) {
-        const { data: priorFyLeaves } = await supabase
-          .from("leave_requests")
-          .select("user_id, start_date, end_date, leave_type, is_half_day, reason")
-          .in("user_id", userIds)
-          .eq("status", "approved")
-          .lt("start_date", startKey)
-          .gte("end_date", fyStartKey);
-        (priorFyLeaves || []).forEach((r: any) => {
-          // Only regular paid leave consumes the annual pool: special-capped leave,
-          // leave in lieu and unpaid-tagged leave are all reported separately.
-          if (SPECIAL_LEAVES.some((s) => s.match.test(r.leave_type || ""))) return;
-          if (/lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "")) return;
-          if (isUnpaidReason(r.reason)) return;
-          const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
-          const [ey, em, ed] = String(r.end_date).split("-").map(Number);
-          const cur = new Date(sy, sm - 1, sd);
-          const end = new Date(ey, em - 1, ed);
-          while (cur <= end) {
-            const k = keyOf(cur.getFullYear(), cur.getMonth(), cur.getDate());
-            const dow = cur.getDay();
-            if (k >= fyStartKey && k < startKey && dow !== 0 && dow !== 6) {
-              priorFyPaidUsed[r.user_id] =
-                (priorFyPaidUsed[r.user_id] || 0) + (r.is_half_day ? 0.5 : 1);
-            }
-            cur.setDate(cur.getDate() + 1);
-          }
-        });
-      }
+      // Entitlement is reported per month, so no fiscal-year back-scan is needed.
+
 
       // Worked dates per user
       const workedMap: Record<string, Set<string>> = {};
