@@ -1183,7 +1183,7 @@ const Reports = () => {
         });
         const offDayStr = offDayWork.length > 0 ? offDayWork.sort().join(" | ") : "None";
 
-        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${adjustedDaysWorked},${emp.total_hours},${leaveDays},${remainingLeave},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
+        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${adjustedDaysWorked},${emp.total_hours},${leaveDays},${remainingLeave},${upcomingLeave},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
