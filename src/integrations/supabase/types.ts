@@ -5046,6 +5046,10 @@ export type Database = {
         Returns: boolean
       }
       mark_signup_used: { Args: { check_email: string }; Returns: boolean }
+      recalc_used_days: {
+        Args: { _target: string; _user_id: string; _year: number }
+        Returns: undefined
+      }
       reset_annual_leave_for_new_period: { Args: never; Returns: undefined }
       set_annual_leave_total: {
         Args: { _employee_id: string; _total: number }
