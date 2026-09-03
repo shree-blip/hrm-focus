@@ -418,17 +418,19 @@ export function PayrollAttendanceLeaveTab() {
         // allowance. Cumulative usage recorded on the balance is deducted so the
         // figure reflects what is genuinely left, not a monthly slice.
         const probationEntitlement = isMonthlyAccrual ? Math.round(pool.pool * 10) / 10 : 0;
-        const cumulativeUsed = bal ? Math.round(Number(bal.used || 0) * 10) / 10 : 0;
         const fullEntitlement = isMonthlyAccrual
           ? probationEntitlement
           : bal
           ? Math.round(Number(bal.total || 0) * 10) / 10
           : 0;
-        // Usage from earlier months (cumulative usage minus this month's leave).
+        // Usage from earlier months of the same fiscal year, computed from the
+        // actual approved leave dates (never from cumulative balances, which also
+        // include future-dated approvals).
         const priorUsed = Math.round(
-          Math.max(0, cumulativeUsed - (isMonthlyAccrual ? totalLeaveTaken : paidRegularLeaveBase)) * 10
+          (isMonthlyAccrual ? priorAllMap[uid] || 0 : priorPaidMap[uid] || 0) * 10
         ) / 10;
         const availableBefore = Math.round(Math.max(0, fullEntitlement - priorUsed) * 10) / 10;
+
 
         // Remaining balance after this month's leave usage.
         // All employment types: entitlement - total PAID leave taken = remaining.
