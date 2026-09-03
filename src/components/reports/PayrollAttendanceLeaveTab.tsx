@@ -460,11 +460,13 @@ export function PayrollAttendanceLeaveTab() {
         const probationEntitlement = isMonthlyAccrual
           ? Math.round(Math.max(0, pool.pool - (priorPoolUsed[uid] || 0)) * 10) / 10
           : 0;
-        // Balance available at the start of this reporting month.
+        // Balance available at the start of this reporting month. Derived from the
+        // yearly entitlement minus the paid leave consumed in EARLIER months of the
+        // same fiscal year, so leave approved for later months never reduces it.
         const availableBefore = isMonthlyAccrual
           ? probationEntitlement
           : bal
-          ? Math.max(0, bal.total - bal.used + paidRegularLeave)
+          ? Math.max(0, bal.total - (priorFyPaidUsed[uid] || 0))
           : 0;
         // Remaining balance after this month's leave usage.
         // All employment types: entitlement - total PAID leave taken = remaining.
