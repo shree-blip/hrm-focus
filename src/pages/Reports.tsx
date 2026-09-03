@@ -1072,29 +1072,66 @@ const Reports = () => {
       // fiscal year (Jul 1 – Jun 30) that the REPORT PERIOD END DATE falls into,
       // NOT the current live fiscal year. This ensures a report for a past period
       // (e.g. June 2026) shows the actual balance from that leave year even if it's
-      // downloaded after the July reset. Remaining = total_days - used_days.
+      // downloaded after the July reset.
+      //
+      // IMPORTANT: leave_balances.used_days is a live figure that already includes
+      // approved leave scheduled for FUTURE months. For a filtered report we must
+      // show the balance as it stands AT THE END OF THE SELECTED PERIOD, so we
+      // recompute used days from the approved deducting leaves whose start_date
+      // falls on/before the period end. Leave that starts after the period end is
+      // reported separately in the "Upcoming Leave (Days)" column.
       const remainingLeaveMap: Record<string, number> = {};
+      const upcomingLeaveMap: Record<string, number> = {};
       {
         const refDate = rangeEnd;
         const fyStartYear = refDate.getUTCMonth() >= 6 ? refDate.getUTCFullYear() : refDate.getUTCFullYear() - 1;
         const balanceYear = fyStartYear + 1;
+        const fyStartKey = `${fyStartYear}-07-01`;
+        const fyEndKey = `${fyStartYear + 1}-06-30`;
+        const periodEndKey = fmtKeyUTC(rangeEnd);
         const userIds = derivedSummary.map((emp) => emp.user_id).filter(Boolean);
         if (userIds.length > 0) {
-          const { data: balanceRows } = await supabase
-            .from("leave_balances")
-            .select("user_id, leave_type, total_days, used_days")
-            .in("user_id", userIds)
-            .eq("year", balanceYear)
-            .eq("leave_type", "Annual Leave");
+          const [{ data: balanceRows }, { data: fyLeaveRows }] = await Promise.all([
+            supabase
+              .from("leave_balances")
+              .select("user_id, leave_type, total_days, used_days")
+              .in("user_id", userIds)
+              .eq("year", balanceYear)
+              .eq("leave_type", "Annual Leave"),
+            supabase
+              .from("leave_requests")
+              .select("user_id, leave_type, start_date, days, reason")
+              .in("user_id", userIds)
+              .eq("status", "approved")
+              .gte("start_date", fyStartKey)
+              .lte("start_date", fyEndKey),
+          ]);
+
+          // Only leaves that actually deduct the Annual Leave pool: "Annual Leave"
+          // and "Other Leave…" types that are not tagged as unpaid/payroll.
+          const usedUpToPeriod: Record<string, number> = {};
+          (fyLeaveRows || []).forEach((r: any) => {
+            const type = String(r.leave_type || "");
+            const deducts = type === "Annual Leave" || /^Other Leave/i.test(type);
+            const isUnpaid = /\[(Payroll|Unpaid Leave)\]/i.test(String(r.reason || ""));
+            if (!deducts || isUnpaid) return;
+            const days = Number(r.days) || 0;
+            if (String(r.start_date) <= periodEndKey) {
+              usedUpToPeriod[r.user_id] = (usedUpToPeriod[r.user_id] || 0) + days;
+            } else {
+              upcomingLeaveMap[r.user_id] = (upcomingLeaveMap[r.user_id] || 0) + days;
+            }
+          });
+
           (balanceRows || []).forEach((b: any) => {
-            const remaining = Math.max(0, Number(b.total_days) - Number(b.used_days));
-            remainingLeaveMap[b.user_id] = remaining;
+            const remaining = Number(b.total_days) - (usedUpToPeriod[b.user_id] || 0);
+            remainingLeaveMap[b.user_id] = Math.max(0, Math.round(remaining * 10) / 10);
           });
         }
       }
 
       csvContent =
-        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Remaining Leave (Days),Deduction Type,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
+        "Employee,Email,Total Working Days,Days Worked,Total Hours,Leave Days,Remaining Leave (Days),Upcoming Leave (Days),Deduction Type,Leave Dates,Lieu Worked Dates,Non Recorded Dates,Off-Day Work Dates\n";
       derivedSummary.forEach((emp) => {
         const leaveDays = leaveDaysMap[emp.user_id] || 0;
         const leaveDates = leaveDatesMap[emp.user_id] ? leaveDatesMap[emp.user_id].sort().join(" | ") : "-";
@@ -1102,6 +1139,7 @@ const Reports = () => {
           ? Array.from(paymentTypesMap[emp.user_id]).sort().join(" | ")
           : "-";
         const remainingLeave = remainingLeaveMap[emp.user_id] ?? 0;
+        const upcomingLeave = upcomingLeaveMap[emp.user_id] ?? 0;
 
         // Adjusted Days Worked: paid leave is treated as worked time, while
         // payroll-deduction leave is not added back. Actual clock-in days
@@ -1145,7 +1183,7 @@ const Reports = () => {
         });
         const offDayStr = offDayWork.length > 0 ? offDayWork.sort().join(" | ") : "None";
 
-        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${adjustedDaysWorked},${emp.total_hours},${leaveDays},${remainingLeave},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
+        csvContent += `"${emp.employee_name}","${emp.email}",${totalWorkingDays},${adjustedDaysWorked},${emp.total_hours},${leaveDays},${remainingLeave},${upcomingLeave},"${paymentType}","${leaveDates}","${lieuPairs}","${absentStr}","${offDayStr}"\n`;
       });
       filename = `attendance-summary-${dateRange}-${dateStr}.csv`;
     } else if (type === "daily") {
