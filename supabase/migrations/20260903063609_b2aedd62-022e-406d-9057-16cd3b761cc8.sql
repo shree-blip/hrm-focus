@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.recalc_used_days(uuid, text, integer) FROM PUBLIC, anon, authenticated;
