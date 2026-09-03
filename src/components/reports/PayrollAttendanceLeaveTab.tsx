@@ -211,44 +211,9 @@ export function PayrollAttendanceLeaveTab() {
         probationInfo[uid] = { pool: months, startKey: ps };
       });
 
-      // Paid regular leave already consumed from the pool BEFORE this report month.
-      const priorPoolUsed: Record<string, number> = {};
-      const probationUserIds = Object.keys(probationInfo);
-      if (probationUserIds.length > 0) {
-        const earliest = probationUserIds.reduce(
-          (min, uid) => (probationInfo[uid].startKey < min ? probationInfo[uid].startKey : min),
-          "9999-12-31"
-        );
-        const { data: priorLeaves } = await supabase
-          .from("leave_requests")
-          .select("user_id, start_date, end_date, leave_type, is_half_day, reason")
-          .in("user_id", probationUserIds)
-          .eq("status", "approved")
-          .lt("start_date", startKey)
-          .gte("end_date", earliest);
-        (priorLeaves || []).forEach((r: any) => {
-          const info = probationInfo[r.user_id];
-          if (!info) return;
-          // Probation / intern pool covers every regular leave day (including
-          // half days) taken inside the probation window, even when the request
-          // was tagged unpaid — the fixed pool is the entitlement being spent.
-          if (SPECIAL_LEAVES.some((s) => s.match.test(r.leave_type || ""))) return;
-          if (/lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "")) return;
-          const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
-          const [ey, em, ed] = String(r.end_date).split("-").map(Number);
-          const cur = new Date(sy, sm - 1, sd);
-          const end = new Date(ey, em - 1, ed);
-          while (cur <= end) {
-            const k = keyOf(cur.getFullYear(), cur.getMonth(), cur.getDate());
-            const dow = cur.getDay();
-            if (k >= info.startKey && k < startKey && dow !== 0 && dow !== 6) {
-              priorPoolUsed[r.user_id] =
-                (priorPoolUsed[r.user_id] || 0) + (r.is_half_day ? 0.5 : 1);
-            }
-            cur.setDate(cur.getDate() + 1);
-          }
-        });
-      }
+      // Monthly reporting: entitlement is the allowance accrued for the selected
+      // month only, so no prior-month leave records need to be read per employee.
+
 
       const balanceMap: Record<string, { total: number; used: number }> = {};
       if (userIds.length > 0) {
