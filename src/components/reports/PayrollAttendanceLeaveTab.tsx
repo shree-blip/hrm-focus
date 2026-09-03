@@ -383,30 +383,31 @@ export function PayrollAttendanceLeaveTab() {
         // Probation / intern: leave inside the probation window is paid while the
         // fixed pool lasts, regardless of any unpaid tag on the request.
         const paidRegularLeave = isMonthlyAccrual ? regularLeave : paidRegularLeaveBase;
-        // Monthly entitlement: probation / intern accrue 1 day per probation month,
-        // full-time staff accrue their yearly allowance spread over 12 months.
-        // Nothing from earlier months carries into the figure any more.
-        const probationEntitlement = isMonthlyAccrual
-          ? Math.round((pool.pool / Math.max(1, pool.pool)) * 10) / 10
-          : 0;
-        const availableBefore = isMonthlyAccrual
+        // Combined (not per-month) entitlement: probation / intern get their whole
+        // fixed pool for the probation period, full-time staff get the full annual
+        // allowance. Cumulative usage recorded on the balance is deducted so the
+        // figure reflects what is genuinely left, not a monthly slice.
+        const probationEntitlement = isMonthlyAccrual ? Math.round(pool.pool * 10) / 10 : 0;
+        const cumulativeUsed = bal ? Math.round(Number(bal.used || 0) * 10) / 10 : 0;
+        const fullEntitlement = isMonthlyAccrual
           ? probationEntitlement
           : bal
-          ? Math.round((bal.total / 12) * 10) / 10
+          ? Math.round(Number(bal.total || 0) * 10) / 10
           : 0;
+        // Usage from earlier months (cumulative usage minus this month's leave).
+        const priorUsed = Math.round(
+          Math.max(0, cumulativeUsed - (isMonthlyAccrual ? totalLeaveTaken : paidRegularLeaveBase)) * 10
+        ) / 10;
+        const availableBefore = Math.round(Math.max(0, fullEntitlement - priorUsed) * 10) / 10;
 
         // Remaining balance after this month's leave usage.
         // All employment types: entitlement - total PAID leave taken = remaining.
         // Unpaid leave is reported separately and must not reduce paid entitlement.
         const remainingNow = isMonthlyAccrual
-          ? // Probation / intern: deduct this month's total leave taken from the
-            // carried entitlement to get the paid leave remaining.
-            Math.round(Math.max(0, availableBefore - totalLeaveTaken) * 10) / 10
+          ? Math.round(Math.max(0, availableBefore - totalLeaveTaken) * 10) / 10
           : Math.round(Math.max(0, availableBefore - paidRegularLeave) * 10) / 10;
-        // This month's paid leave days are subtracted from the displayed entitlement
-        // to give "Paid leave remaining". Once the carried pool was already spent in
-        // prior months, entitlement remains 0 and further leave is unpaid.
         const annualEntitlement = Math.round(availableBefore * 10) / 10;
+
 
         const covered = Math.min(paidRegularLeave, availableBefore);
         const uncovered = regularLeave - covered;
