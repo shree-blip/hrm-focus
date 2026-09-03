@@ -137,7 +137,10 @@ export function PayrollAttendanceLeaveTab() {
       // Fiscal year (Jul–Jun) that this reporting month belongs to.
       const fyEndYear = monthIdx >= 6 ? year + 1 : year;
 
-      const [profilesRes, employeesRes, leavesRes] = await Promise.all([
+      // Fiscal-year start (1 July of the previous calendar year for Jul–Dec months).
+      const fyStartKey = `${fyEndYear - 1}-07-01`;
+
+      const [profilesRes, employeesRes, leavesRes, priorLeavesRes] = await Promise.all([
         supabase.from("profiles").select("id, user_id, first_name, last_name, email"),
         supabase
           .from("employees")
@@ -146,12 +149,47 @@ export function PayrollAttendanceLeaveTab() {
           ),
         supabase
           .from("leave_requests")
-          .select("user_id, start_date, end_date, leave_type, is_half_day, status")
           .select("user_id, start_date, end_date, leave_type, is_half_day, status, reason")
           .eq("status", "approved")
           .lte("start_date", endKey)
           .gte("end_date", startKey),
+        // Approved leave taken EARLIER in the same fiscal year (before this month).
+        // Used to derive the balance actually consumed up to the reported month,
+        // so future-dated approvals never reduce this month's remaining balance.
+        supabase
+          .from("leave_requests")
+          .select("user_id, start_date, end_date, leave_type, is_half_day, reason")
+          .eq("status", "approved")
+          .gte("end_date", fyStartKey)
+          .lt("start_date", startKey),
       ]);
+
+      // Prior-usage maps (weekday leave units before the reported month).
+      const priorPaidMap: Record<string, number> = {};
+      const priorAllMap: Record<string, number> = {};
+      (priorLeavesRes.data || []).forEach((r: any) => {
+        const isSpecial = SPECIAL_LEAVES.some((s) => s.match.test(r.leave_type || ""));
+        const isLieu = /lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "");
+        if (isSpecial || isLieu) return;
+        const unpaid = isUnpaidReason(r.reason);
+        const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
+        const [ey, em, ed] = String(r.end_date).split("-").map(Number);
+        const cur = new Date(sy, sm - 1, sd);
+        const end = new Date(ey, em - 1, ed);
+        let units = 0;
+        while (cur <= end) {
+          const k = keyOf(cur.getFullYear(), cur.getMonth(), cur.getDate());
+          const dow = cur.getDay();
+          if (k >= fyStartKey && k < startKey && dow !== 0 && dow !== 6) {
+            units += r.is_half_day ? 0.5 : 1;
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+        if (units <= 0) return;
+        priorAllMap[r.user_id] = (priorAllMap[r.user_id] || 0) + units;
+        if (!unpaid) priorPaidMap[r.user_id] = (priorPaidMap[r.user_id] || 0) + units;
+      });
+
 
       // Attendance logs (paged so large months are never truncated).
       const logs: any[] = [];
