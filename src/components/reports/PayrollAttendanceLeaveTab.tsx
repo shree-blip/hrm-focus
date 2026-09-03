@@ -211,10 +211,6 @@ export function PayrollAttendanceLeaveTab() {
         probationInfo[uid] = { pool: months, startKey: ps };
       });
 
-      // Monthly reporting: entitlement is the allowance accrued for the selected
-      // month only, so no prior-month leave records need to be read per employee.
-
-
       const balanceMap: Record<string, { total: number; used: number }> = {};
       if (userIds.length > 0) {
         const { data: balances } = await supabase
@@ -230,9 +226,6 @@ export function PayrollAttendanceLeaveTab() {
           };
         });
       }
-
-      // Entitlement is reported per month, so no fiscal-year back-scan is needed.
-
 
       // Worked dates per user
       const workedMap: Record<string, Set<string>> = {};
@@ -375,9 +368,8 @@ export function PayrollAttendanceLeaveTab() {
         const paidRegularLeaveBase = Math.max(0, regularLeave - unpaidLeaveDays);
         const totalPresentCount = presentCount + halfPresentCredit;
         const bal = balanceMap[uid];
-        // Intern / probation staff accrue 1 paid leave day per month, so their
-        // monthly report must be judged against that monthly allowance instead of
-        // the aggregate fiscal-year balance (which may already be exhausted).
+        // Intern / probation staff use one combined probation-period pool rather
+        // than a separate allowance for each reporting month.
         const pool = probationInfo[uid];
         const isMonthlyAccrual = !!pool;
         // Probation / intern: leave inside the probation window is paid while the
@@ -406,7 +398,9 @@ export function PayrollAttendanceLeaveTab() {
         const remainingNow = isMonthlyAccrual
           ? Math.round(Math.max(0, availableBefore - totalLeaveTaken) * 10) / 10
           : Math.round(Math.max(0, availableBefore - paidRegularLeave) * 10) / 10;
-        const annualEntitlement = Math.round(availableBefore * 10) / 10;
+        // The entitlement column always displays the combined allowance. Prior and
+        // current usage belongs only in the remaining-balance calculation below.
+        const annualEntitlement = Math.round(fullEntitlement * 10) / 10;
 
 
         const covered = Math.min(paidRegularLeave, availableBefore);
