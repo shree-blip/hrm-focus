@@ -211,44 +211,9 @@ export function PayrollAttendanceLeaveTab() {
         probationInfo[uid] = { pool: months, startKey: ps };
       });
 
-      // Paid regular leave already consumed from the pool BEFORE this report month.
-      const priorPoolUsed: Record<string, number> = {};
-      const probationUserIds = Object.keys(probationInfo);
-      if (probationUserIds.length > 0) {
-        const earliest = probationUserIds.reduce(
-          (min, uid) => (probationInfo[uid].startKey < min ? probationInfo[uid].startKey : min),
-          "9999-12-31"
-        );
-        const { data: priorLeaves } = await supabase
-          .from("leave_requests")
-          .select("user_id, start_date, end_date, leave_type, is_half_day, reason")
-          .in("user_id", probationUserIds)
-          .eq("status", "approved")
-          .lt("start_date", startKey)
-          .gte("end_date", earliest);
-        (priorLeaves || []).forEach((r: any) => {
-          const info = probationInfo[r.user_id];
-          if (!info) return;
-          // Probation / intern pool covers every regular leave day (including
-          // half days) taken inside the probation window, even when the request
-          // was tagged unpaid — the fixed pool is the entitlement being spent.
-          if (SPECIAL_LEAVES.some((s) => s.match.test(r.leave_type || ""))) return;
-          if (/lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "")) return;
-          const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
-          const [ey, em, ed] = String(r.end_date).split("-").map(Number);
-          const cur = new Date(sy, sm - 1, sd);
-          const end = new Date(ey, em - 1, ed);
-          while (cur <= end) {
-            const k = keyOf(cur.getFullYear(), cur.getMonth(), cur.getDate());
-            const dow = cur.getDay();
-            if (k >= info.startKey && k < startKey && dow !== 0 && dow !== 6) {
-              priorPoolUsed[r.user_id] =
-                (priorPoolUsed[r.user_id] || 0) + (r.is_half_day ? 0.5 : 1);
-            }
-            cur.setDate(cur.getDate() + 1);
-          }
-        });
-      }
+      // Monthly reporting: entitlement is the allowance accrued for the selected
+      // month only, so no prior-month leave records need to be read per employee.
+
 
       const balanceMap: Record<string, { total: number; used: number }> = {};
       if (userIds.length > 0) {
@@ -266,44 +231,8 @@ export function PayrollAttendanceLeaveTab() {
         });
       }
 
-      // ---- Paid annual leave already consumed EARLIER in this fiscal year -------
-      // `leave_balances.used_days` is a live figure that also includes leave that is
-      // approved for FUTURE months, so using it would shrink the entitlement shown
-      // for the reporting month (e.g. a September leave reducing the August report).
-      // Recompute the consumed days from the approved requests dated BEFORE this
-      // reporting month instead, so every month reflects the balance as it actually
-      // stood at that time.
-      const fyStartKey = `${fyEndYear - 1}-07-01`;
-      const priorFyPaidUsed: Record<string, number> = {};
-      if (userIds.length > 0) {
-        const { data: priorFyLeaves } = await supabase
-          .from("leave_requests")
-          .select("user_id, start_date, end_date, leave_type, is_half_day, reason")
-          .in("user_id", userIds)
-          .eq("status", "approved")
-          .lt("start_date", startKey)
-          .gte("end_date", fyStartKey);
-        (priorFyLeaves || []).forEach((r: any) => {
-          // Only regular paid leave consumes the annual pool: special-capped leave,
-          // leave in lieu and unpaid-tagged leave are all reported separately.
-          if (SPECIAL_LEAVES.some((s) => s.match.test(r.leave_type || ""))) return;
-          if (/lieu|comp(ensatory)?\s*off/i.test(r.leave_type || "")) return;
-          if (isUnpaidReason(r.reason)) return;
-          const [sy, sm, sd] = String(r.start_date).split("-").map(Number);
-          const [ey, em, ed] = String(r.end_date).split("-").map(Number);
-          const cur = new Date(sy, sm - 1, sd);
-          const end = new Date(ey, em - 1, ed);
-          while (cur <= end) {
-            const k = keyOf(cur.getFullYear(), cur.getMonth(), cur.getDate());
-            const dow = cur.getDay();
-            if (k >= fyStartKey && k < startKey && dow !== 0 && dow !== 6) {
-              priorFyPaidUsed[r.user_id] =
-                (priorFyPaidUsed[r.user_id] || 0) + (r.is_half_day ? 0.5 : 1);
-            }
-            cur.setDate(cur.getDate() + 1);
-          }
-        });
-      }
+      // Entitlement is reported per month, so no fiscal-year back-scan is needed.
+
 
       // Worked dates per user
       const workedMap: Record<string, Set<string>> = {};
@@ -454,20 +383,18 @@ export function PayrollAttendanceLeaveTab() {
         // Probation / intern: leave inside the probation window is paid while the
         // fixed pool lasts, regardless of any unpaid tag on the request.
         const paidRegularLeave = isMonthlyAccrual ? regularLeave : paidRegularLeaveBase;
-        // Probation / intern: entitlement carried into this month = total probation
-        // pool minus leave already taken in earlier probation months.
-        // Richard (pool spent) -> 0, Ashmita (none used) -> 3, Chandani (1 used) -> 2.
+        // Monthly entitlement: probation / intern accrue 1 day per probation month,
+        // full-time staff accrue their yearly allowance spread over 12 months.
+        // Nothing from earlier months carries into the figure any more.
         const probationEntitlement = isMonthlyAccrual
-          ? Math.round(Math.max(0, pool.pool - (priorPoolUsed[uid] || 0)) * 10) / 10
+          ? Math.round((pool.pool / Math.max(1, pool.pool)) * 10) / 10
           : 0;
-        // Balance available at the start of this reporting month. Derived from the
-        // yearly entitlement minus the paid leave consumed in EARLIER months of the
-        // same fiscal year, so leave approved for later months never reduces it.
         const availableBefore = isMonthlyAccrual
           ? probationEntitlement
           : bal
-          ? Math.max(0, bal.total - (priorFyPaidUsed[uid] || 0))
+          ? Math.round((bal.total / 12) * 10) / 10
           : 0;
+
         // Remaining balance after this month's leave usage.
         // All employment types: entitlement - total PAID leave taken = remaining.
         // Unpaid leave is reported separately and must not reduce paid entitlement.
