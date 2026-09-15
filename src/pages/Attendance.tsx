@@ -280,6 +280,7 @@ const Attendance = () => {
     // 3. Add static holidays from calendarEntries
     calendarEntries.forEach((entry) => {
       if (entry.type === "holiday") {
+        if (skipFemaleOnly && isFemaleOnlyHoliday((entry as any).name)) return;
         const dateObj = entry.date;
         const dayOfWeek = dateObj.getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) return;
