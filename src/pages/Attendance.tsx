@@ -1101,7 +1101,10 @@ const Attendance = () => {
 
                 // Determine if this day is a static holiday
                 const isStaticHoliday = calendarEntries.some(
-                  (entry) => entry.type === "holiday" && format(entry.date, "yyyy-MM-dd") === format(day, "yyyy-MM-dd"),
+                  (entry) =>
+                    entry.type === "holiday" &&
+                    !(skipFemaleOnly && isFemaleOnlyHoliday((entry as any).name)) &&
+                    format(entry.date, "yyyy-MM-dd") === format(day, "yyyy-MM-dd"),
                 );
 
                 return (
