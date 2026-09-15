@@ -205,10 +205,16 @@ const Attendance = () => {
     if (!user) return;
     let cancelled = false;
     (async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!profile?.id) return;
       const { data } = await supabase
         .from("employees")
         .select("gender")
-        .eq("profile_id", user.id)
+        .eq("profile_id", profile.id)
         .maybeSingle();
       if (!cancelled) setMyGender(((data?.gender as string | null) || "").toLowerCase() || null);
     })();
