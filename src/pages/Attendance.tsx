@@ -258,6 +258,7 @@ const Attendance = () => {
     calendarEvents.forEach((event) => {
       if (!event.is_active) return;
       if (event.event_type === "holiday") {
+        if (skipFemaleOnly && isFemaleOnlyHoliday(event.title)) return;
         const key = event.event_date;
         const dateObj = parseDateOnly(key);
         const dayOfWeek = dateObj.getDay();
