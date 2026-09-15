@@ -199,6 +199,32 @@ const Attendance = () => {
   const { ownRequests: leaveRequests } = useLeaveRequests();
   const { events: calendarEvents } = useCalendarEvents();
 
+  // Female-only holidays (e.g. Haritalika Teej) must not appear for male employees
+  const [myGender, setMyGender] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!profile?.id) return;
+      const { data } = await supabase
+        .from("employees")
+        .select("gender")
+        .eq("profile_id", profile.id)
+        .maybeSingle();
+      if (!cancelled) setMyGender(((data?.gender as string | null) || "").toLowerCase() || null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+  const isFemaleOnlyHoliday = (label?: string | null) => /female\s*only/i.test(label || "");
+  const skipFemaleOnly = myGender !== "female";
+
   // Use shared status from context
   const clockStatus = sharedStatus;
 
@@ -232,6 +258,7 @@ const Attendance = () => {
     calendarEvents.forEach((event) => {
       if (!event.is_active) return;
       if (event.event_type === "holiday") {
+        if (skipFemaleOnly && isFemaleOnlyHoliday(event.title)) return;
         const key = event.event_date;
         const dateObj = parseDateOnly(key);
         const dayOfWeek = dateObj.getDay();
@@ -253,6 +280,7 @@ const Attendance = () => {
     // 3. Add static holidays from calendarEntries
     calendarEntries.forEach((entry) => {
       if (entry.type === "holiday") {
+        if (skipFemaleOnly && isFemaleOnlyHoliday((entry as any).name)) return;
         const dateObj = entry.date;
         const dayOfWeek = dateObj.getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) return;
@@ -265,7 +293,7 @@ const Attendance = () => {
     });
 
     return leaveHoursMap;
-  }, [leaveRequests, calendarEvents, user]);
+  }, [leaveRequests, calendarEvents, user, skipFemaleOnly]);
 
   // Elapsed time timer (like ClockWidget)
   useEffect(() => {
@@ -1073,7 +1101,10 @@ const Attendance = () => {
 
                 // Determine if this day is a static holiday
                 const isStaticHoliday = calendarEntries.some(
-                  (entry) => entry.type === "holiday" && format(entry.date, "yyyy-MM-dd") === format(day, "yyyy-MM-dd"),
+                  (entry) =>
+                    entry.type === "holiday" &&
+                    !(skipFemaleOnly && isFemaleOnlyHoliday((entry as any).name)) &&
+                    format(entry.date, "yyyy-MM-dd") === format(day, "yyyy-MM-dd"),
                 );
 
                 return (
