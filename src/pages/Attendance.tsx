@@ -293,7 +293,7 @@ const Attendance = () => {
     });
 
     return leaveHoursMap;
-  }, [leaveRequests, calendarEvents, user]);
+  }, [leaveRequests, calendarEvents, user, skipFemaleOnly]);
 
   // Elapsed time timer (like ClockWidget)
   useEffect(() => {
