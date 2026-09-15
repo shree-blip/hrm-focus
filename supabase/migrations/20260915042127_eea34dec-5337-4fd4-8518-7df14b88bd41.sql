@@ -1,0 +1,70 @@
+WITH items(mon, dy, title, dept) AS (VALUES
+ (1,1,'Books Closing of previous year','Books'),
+ (1,15,'Payroll (semi-monthly)','Payroll'),
+ (1,20,'Texas Sales Tax','Sales Tax'),
+ (1,31,'Payroll (semi-monthly)','Payroll'),
+ (1,31,'1099 NEC Filing','Books/Compliance'),
+ (1,31,'Q4 Sales Tax previous year','Sales Tax'),
+ (2,1,'Books Closing of previous month','Books'),
+ (2,15,'Payroll (semi-monthly)','Payroll'),
+ (2,20,'Texas Sales Tax','Sales Tax'),
+ (2,28,'Payroll (semi-monthly)','Payroll'),
+ (3,1,'Books Closing of previous month','Books'),
+ (3,1,'Delaware Annual Report','Compliance'),
+ (3,15,'Payroll (semi-monthly)','Payroll'),
+ (3,15,'Form 1120-s, Form 1065','Income Tax Return'),
+ (3,20,'Texas Sales Tax','Sales Tax'),
+ (3,31,'Payroll (semi-monthly)','Payroll'),
+ (4,1,'Books Closing of previous month','Books'),
+ (4,15,'Payroll (semi-monthly)','Payroll'),
+ (4,15,'Form 1120-C, Form 1040','Income Tax Return'),
+ (4,20,'Texas Sales Tax','Sales Tax'),
+ (4,30,'Payroll (semi-monthly)','Payroll'),
+ (4,30,'Q1 Sales Tax Filing','Sales Tax'),
+ (5,1,'Books Closing of previous month','Books'),
+ (5,15,'Payroll (semi-monthly)','Payroll'),
+ (5,15,'Texas State PIR Filing','Compliance'),
+ (5,20,'Texas Sales Tax','Sales Tax'),
+ (5,31,'Payroll (semi-monthly)','Payroll'),
+ (6,1,'Books Closing of previous month','Books'),
+ (6,15,'Payroll (semi-monthly)','Payroll'),
+ (6,20,'Texas Sales Tax','Sales Tax'),
+ (6,30,'Payroll (semi-monthly)','Payroll'),
+ (7,1,'Books Closing of previous month','Books'),
+ (7,15,'Payroll (semi-monthly)','Payroll'),
+ (7,20,'Texas Sales Tax','Sales Tax'),
+ (7,31,'Payroll (semi-monthly)','Payroll'),
+ (7,31,'Q2 Sales Tax Filing','Sales Tax'),
+ (8,1,'Books Closing of previous month','Books'),
+ (8,15,'Payroll (semi-monthly)','Payroll'),
+ (8,20,'Texas Sales Tax','Sales Tax'),
+ (8,31,'Payroll (semi-monthly)','Payroll'),
+ (9,1,'Books Closing of previous month','Books'),
+ (9,15,'Payroll (semi-monthly)','Payroll'),
+ (9,15,'Texas Sales Tax','Sales Tax'),
+ (9,15,'Extended Form 1120-s, Form 1065','Income Tax Return'),
+ (9,30,'Payroll (semi-monthly)','Payroll'),
+ (10,1,'Books Closing of previous month','Books'),
+ (10,15,'Payroll (semi-monthly)','Payroll'),
+ (10,15,'Extended Form 1120-C, Form 1040','Income Tax Return'),
+ (10,20,'Texas Sales Tax','Sales Tax'),
+ (10,31,'Payroll (semi-monthly)','Payroll'),
+ (10,31,'Q3 Sales Tax Filing','Sales Tax'),
+ (11,1,'Books Closing of previous month','Books'),
+ (11,15,'Payroll (semi-monthly)','Payroll'),
+ (11,30,'Payroll (semi-monthly)','Payroll'),
+ (12,1,'Books Closing of previous month','Books'),
+ (12,15,'Payroll (semi-monthly)','Payroll'),
+ (12,30,'Payroll (semi-monthly)','Payroll')
+), yrs(y) AS (VALUES (2026),(2027)),
+rows AS (
+  SELECT make_date(y, mon, dy) AS d, title, dept FROM items CROSS JOIN yrs
+)
+INSERT INTO public.calendar_events (title, description, event_date, event_type, created_by, org_id, is_active)
+SELECT r.title, r.dept || ' - Operational Calendar', r.d, 'deadline', '6bf66314-dc0f-4dda-945d-2b12972dbd84', NULL, true
+FROM rows r
+WHERE r.d >= DATE '2026-09-15' AND r.d <= DATE '2027-12-31'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.calendar_events ce
+    WHERE ce.event_date = r.d AND ce.title = r.title
+  );
