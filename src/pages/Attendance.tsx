@@ -199,6 +199,26 @@ const Attendance = () => {
   const { ownRequests: leaveRequests } = useLeaveRequests();
   const { events: calendarEvents } = useCalendarEvents();
 
+  // Female-only holidays (e.g. Haritalika Teej) must not appear for male employees
+  const [myGender, setMyGender] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("employees")
+        .select("gender")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+      if (!cancelled) setMyGender(((data?.gender as string | null) || "").toLowerCase() || null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+  const isFemaleOnlyHoliday = (label?: string | null) => /female\s*only/i.test(label || "");
+  const skipFemaleOnly = myGender !== "female";
+
   // Use shared status from context
   const clockStatus = sharedStatus;
 
