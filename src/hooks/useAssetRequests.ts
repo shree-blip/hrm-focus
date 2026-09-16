@@ -133,6 +133,29 @@ export function useAssetRequests() {
     fetchAssetRequests();
   }, [fetchAssetRequests]);
 
+  // Live updates: keep every viewer (employee, line manager, admin/CEO) in sync
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("asset-requests-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "asset_requests" },
+        () => {
+          fetchAssetRequests();
+        }
+      )
+      .subscribe();
+
+    const onFocus = () => fetchAssetRequests();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [user, fetchAssetRequests]);
+
   const submitAssetRequest = async (
     title: string,
     description: string,
