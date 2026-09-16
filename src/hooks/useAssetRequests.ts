@@ -224,7 +224,7 @@ export function useAssetRequests() {
       // Get employee ID for current user (line manager)
       const { data: empData } = await supabase.rpc("get_employee_id_for_user", { _user_id: user.id });
       
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from("asset_requests")
         .update({
           approval_stage: "pending_admin",
@@ -232,9 +232,13 @@ export function useAssetRequests() {
           line_manager_approved_by: empData || null,
           line_manager_approved_at: new Date().toISOString(),
         } as any)
-        .eq("id", requestId);
+        .eq("id", requestId)
+        .select("id");
 
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        throw new Error("You don't have permission to approve this request.");
+      }
 
       // Get request details for email
       const request = assetRequests.find((r) => r.id === requestId);
@@ -311,7 +315,7 @@ export function useAssetRequests() {
     if (!user) return { success: false, error: "Not authenticated" };
 
     try {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from("asset_requests")
         .update({
           approval_stage: "approved",
@@ -321,9 +325,13 @@ export function useAssetRequests() {
           approved_by: user.id,
           approved_at: new Date().toISOString(),
         } as any)
-        .eq("id", requestId);
+        .eq("id", requestId)
+        .select("id");
 
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        throw new Error("You don't have permission to approve this request.");
+      }
 
       toast({ title: "Request Approved", description: "The asset request has been fully approved." });
       // In-app: notify the employee
